@@ -1,0 +1,50 @@
+# Project manifest — state and sources of truth for the autonomous flow.
+#
+# Lives under .agent-kit/project/ (the user-owned, bootstrap-generated corner of the automation
+# namespace; kit updates NEVER touch this folder). Product content (idea / roadmap /
+# architecture) stays in the user's space — the kit never moves or duplicates it, only
+# references it by path in `sources`.
+#
+# Rule for skills/commands: take doc paths ONLY from here (manifest.sources.*), never hardcode
+# `docs/roadmap.md` etc. — so the kit stays project-agnostic and works in any repository.
+
+# Version of the agent kit installed in this project. The installer/updater reads this (and
+# .agent-kit/kit.lock) to know what to migrate. Managed by the installer — do not edit by hand.
+kit_version: 0.0.0
+
+# User's communication language (ISO code). The kit core stays English; the agent talks to the
+# user in this language. Set by the idea-interview skill on first run; leave empty to be asked.
+language:
+
+# One-time bootstrap gate: do the foundational docs exist so the flow can run. Set once by the
+# idea-interview skill. Does NOT "freeze" the idea — living-docs evolution is handled by Ship's
+# docs step and brainstorming. Reset to false (or invoke ship --rebootstrap) to re-run the
+# interview if the project's concept has fundamentally changed.
+bootstrapped: false
+bootstrapped_at: null
+
+# Paths to the sources of truth. Keys are stable; values point at where each doc actually lives
+# in this project. Optional sources may be omitted. Filled in at bootstrap.
+sources:
+  idea: null
+  roadmap: null
+  architecture: null
+  coding_standards: null
+  # Living ops runbook produced/maintained by the infra workflow. Optional — exists once infra
+  # has run at least once.
+  deployment: null
+
+# Infrastructure state, owned by the infra workflow (skills infra-local / infra-cloud).
+# Idempotency source: on re-run the skills read this to update rather than start over.
+# Not a product doc — pure ops state.
+infrastructure:
+  local:
+    status: none                # none | configured
+    stack: []                   # detected, e.g. [laravel, expo]
+    artifacts: []               # generated files, e.g. [Dockerfile, docker-compose.yml]
+    configured_at: null
+  cloud:
+    status: none                # none | planned | deployed
+    provider: null              # hetzner-vps | fly | railway | render | ...
+    backend_url: null           # public URL; a release mobile build bakes this in
+    configured_at: null

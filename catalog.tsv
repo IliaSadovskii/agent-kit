@@ -1,0 +1,34 @@
+#	Authoring source for every provider adapter wrapper in kit/.
+#	`scripts/generate-adapters.sh` regenerates kit/.claude, kit/.agents, kit/.codex and
+#	kit/.agent-kit/catalog.txt from this file. CI fails if the payload has drifted from it.
+#	Tab-separated. Empty columns are written as a single "-".
+#
+#	kind      one of: workflow | skill | role
+#	name      file/slug name; workflows also need kit/.agent-kit/workflows/<name>.md
+#	title     used as "Execute the canonical <title> with ..."
+#	also      extra canonical file the wrapper must read (workflows), or "refs" for skills
+#	tools     Claude subagent tool list (roles only)
+#	sandbox   Codex agent sandbox_mode (roles only)
+#	claude_note / codex_note   extra sentence appended to the wrapper body
+kind	name	title	claude_desc	codex_desc	also	tools	sandbox	claude_note	codex_note
+workflow	go	Go router	Single entry point — route to the right kit workflow (ship, infra, riff, plan-next) or bootstrap.	Single entry point — route to the right kit workflow (ship, infra, riff, plan-next) or bootstrap.	-	-	-	-	-
+workflow	ship	Ship workflow	Ship one feature end-to-end; interaction ends at design approval, then work autonomously to PR.	Ship one product feature end-to-end; interaction ends at design approval, then Codex works autonomously through PR and docs reflection.	-	-	-	-	Continue in the same task after design approval; do not return control for routine questions.
+workflow	infra	Infrastructure workflow	Configure local or cloud infrastructure through the canonical interactive workflow.	Configure local or cloud infrastructure through the canonical interactive workflow.	-	-	-	-	-
+workflow	plan-next	read-only plan-next workflow	Preview 2-3 next roadmap options without changing the repository.	Preview 2-3 next roadmap options without changing the repository or starting Ship.	-	-	-	-	-
+workflow	riff	Riff workflow	Run a standalone strategic product brainstorm; builds no code.	Run a standalone strategic product brainstorm; builds no code.	.agent-kit/skills/riff.md	-	-	-	-
+workflow	fix	Fix workflow	Lightweight path for a small, local, low-risk change — understand, change, test, review, PR.	Lightweight path for a small, local, low-risk change — understand, change, test, review, PR.	-	-	-	-	-
+workflow	debug	Debug workflow	Systematic debugging — reproduce, isolate, find root cause, then fix with a regression test or diagnose.	Systematic debugging — reproduce, isolate, find root cause, then fix with a regression test or diagnose.	-	-	-	-	-
+workflow	review	Review workflow	Run an independent, read-only adversarial review of the current changes or branch diff.	Run an independent, read-only adversarial review of the current changes or branch diff.	-	-	-	-	-
+workflow	test	Test workflow	Add or improve tests for a named target, then run the project's test and lint suite.	Add or improve tests for a named target, then run the project's test and lint suite.	-	-	-	-	-
+workflow	docs	Docs workflow	Reconcile the living documentation standalone — update only where docs genuinely diverged.	Reconcile the living documentation standalone — update only where docs genuinely diverged.	-	-	-	-	-
+skill	brainstorming	-	Technical design step for Ship; mandatory before feature implementation and ends at the single design approval gate.	Technical design step for Ship; mandatory before feature implementation and ends at the single design approval gate.	-	-	-	-	-
+skill	feature-ideation	-	Product/business ideation for one chosen feature before technical design; optional in Ship.	Product/business ideation for one chosen feature before technical design; optional in Ship.	-	-	-	-	-
+skill	idea-interview	-	One-time project bootstrap when the neutral manifest is missing or unbootstrapped.	One-time project bootstrap when .agent-kit/project/manifest.yml is missing or unbootstrapped.	-	-	-	-	-
+skill	writing-plans	-	Write a detailed executable implementation plan after an approved feature design.	Write a detailed executable implementation plan after an approved feature design.	-	-	-	-	-
+skill	docs-reflection	-	Final Ship step that reconciles living docs after the feature PR; no-op by default.	Final Ship step that reconciles living docs after the feature PR; no-op by default.	-	-	-	-	-
+skill	infra-local	-	Interactive local infrastructure setup step used by the Infrastructure workflow.	Interactive local infrastructure setup step used by the Infrastructure workflow.	refs	-	-	-	-
+skill	infra-cloud	-	Interactive cloud deployment step used by the Infrastructure workflow.	Interactive cloud deployment step used by the Infrastructure workflow.	refs	-	-	-	-
+skill	riff	-	Standalone strategic product brainstorm that builds no code and may add approved roadmap ideas.	Standalone strategic product brainstorm that builds no code and may add approved roadmap ideas.	-	-	-	-	-
+role	plan-reviewer	-	Independent adversarial reviewer of the spec and plan before code. Read-only.	Independent adversarial reviewer of the spec and implementation plan before code.	-	Read, Grep, Glob, Bash	read-only	Do not edit files.	Do not edit files.
+role	reviewer	-	Independent adversarial implementation diff reviewer. Read-only.	Independent adversarial implementation diff reviewer.	-	Read, Grep, Glob, Bash	read-only	Do not edit files.	Do not edit files.
+role	tester	-	Independent tester that adds missing tests and hunts edge cases.	Independent tester that adds missing tests and hunts edge cases.	-	Read, Grep, Glob, Bash, Write, Edit	-	Change only tests and minimal fixtures; report product defects to the main agent.	Change only tests and minimal fixtures; report product defects to the main agent.
