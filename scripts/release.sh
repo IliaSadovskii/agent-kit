@@ -30,7 +30,11 @@ printf '%s\n' "$VERSION" > VERSION
 bash scripts/validate.sh
 
 git add VERSION CHANGELOG.md
-git commit -m "release: v$VERSION"
+# VERSION may already hold this value (the first release of a version prepared in advance);
+# tagging is still the point of this script, so an empty commit is not an error.
+if ! git diff --cached --quiet; then
+  git commit -m "release: v$VERSION"
+fi
 git tag -a "v$VERSION" -m "agent-kit v$VERSION"
 
 printf '\nTagged v%s. Publish with:\n  git push && git push --tags\n' "$VERSION"
