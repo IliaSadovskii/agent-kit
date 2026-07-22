@@ -1,0 +1,31 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      # Payload structure, generated-wrapper drift, a real install into a scratch repository,
+      # and the update semantics (idempotent re-run, preserved local edits, untouched user files).
+      - name: Validate the kit
+        run: bash scripts/validate.sh
+
+      - name: Check that the tag matches VERSION
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tag="${GITHUB_REF#refs/tags/v}"
+          version="$(cat VERSION)"
+          if [ "$tag" != "$version" ]; then
+            echo "tag v$tag does not match VERSION $version" >&2
+            exit 1
+          fi

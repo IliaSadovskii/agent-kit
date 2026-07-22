@@ -1,19 +1,26 @@
 # Autonomous Agent Development Kit
 
-A provider-neutral repository kit for building product features through long-running Claude Code
-or Codex cloud sessions. Copy the kit into a project, bootstrap its product context once, then use
-one command/skill per feature. The owner participates in task selection, optional product ideation,
-and technical design; after design approval the agent works autonomously until a pull request is
-ready.
+A provider-neutral kit for building product features through long-running Claude Code or Codex
+sessions. The owner participates in task selection, optional product ideation, and technical design;
+after design approval the agent works autonomously until a pull request is ready.
+
+This copy is installed in this project. The kit is developed and released separately — see
+`.agent-kit/kit.lock` for the source repository and the installed version.
 
 ## Invocation
 
 | Workflow | Claude Code | Codex | Behavior |
 |---|---|---|---|
+| Entry point | `/go` | `$go` | Reads project state and routes to the right workflow |
 | Ship a feature | `/ship [task]` | `$ship [task]` | Front-loaded interaction, then autonomous to PR |
+| Small change | `/fix [task]` | `$fix [task]` | Lightweight path for a local, low-risk change |
+| Debug | `/debug [symptom]` | `$debug [symptom]` | Reproduce, isolate, root-cause, fix with a regression test |
+| Review | `/review` | `$review` | Independent read-only adversarial review |
+| Tests | `/test [target]` | `$test [target]` | Add or improve tests, then run the suite |
+| Docs | `/docs` | `$docs` | Reconcile living documentation |
+| Infrastructure | `/infra [local\|cloud]` | `$infra [local\|cloud]` | Interactive provisioning workflow |
 | Preview next work | `/plan-next` | `$plan-next` | Read-only, builds nothing |
 | Product riff | `/riff [theme]` | `$riff [theme]` | Interactive strategy, builds nothing |
-| Infrastructure | `/infra [local\|cloud]` | `$infra [local\|cloud]` | Interactive provisioning workflow |
 
 Codex uses skills because repository custom prompts are not the portable workflow surface. A user
 may also ask in natural language to "run ship", but explicit `$ship` is the deterministic form.
@@ -26,47 +33,41 @@ may also ask in natural language to "run ship", but explicit `$ship` is the dete
   workflows/              ordered pipelines (single source of truth)
   skills/                 detailed step behavior
   roles/                  provider-neutral tester/reviewer roles
-  rules/                  autonomous and PR rules
+  rules/                  autonomous, interactive, and PR rules
   platforms/              capability mappings for each provider
   scripts/validate.sh     structural drift/broken-reference check
-  project/                user-owned, generated at bootstrap (preserved on update)
+  scripts/kit-update.sh   update this kit from its source repository
+  kit.lock                installed version, source ref, per-file checksums
+  project/                user-owned, generated at bootstrap (never touched by an update)
     manifest.yml          automation state + doc paths
     instructions.md       shared project commands and conventions
 
 .claude/                  Claude Code discovery adapter only
-  commands/               /ship, /infra, /plan-next, /riff wrappers
-  skills/                 canonical-skill wrappers
-  agents/                 role wrappers
-  settings.json           Claude lifecycle hook
+  commands/  skills/  agents/   thin wrappers pointing at .agent-kit/
+  settings.json           shared project file; the kit only adds its SessionStart hook
 
 .agents/skills/           Codex skill discovery wrappers
 .codex/agents/            Codex custom-agent TOML wrappers
-.codex/hooks.json         Codex lifecycle hook
-CLAUDE.md                 Claude bootstrap + user provider overrides
-AGENTS.md                 Codex bootstrap + user provider overrides
+.codex/hooks.json         shared project file; the kit only adds its SessionStart hook
+CLAUDE.md                 Claude bootstrap (managed block) + user provider overrides
+AGENTS.md                 Codex bootstrap (managed block) + user provider overrides
 ```
 
-Kit-owned files may be replaced during a package update: an update replaces everything under
-`.agent-kit/` **except** `.agent-kit/project/`. That subfolder (`manifest.yml` + `instructions.md`)
-is user-owned and generated at bootstrap — preserve it, along with product docs, source code, and
-user override sections in root instruction files.
+An update replaces kit-owned files and rewrites only what sits between the
+`<!-- kit:managed:start -->` / `<!-- kit:managed:end -->` markers in the root instruction files.
+It never touches `.agent-kit/project/`, product docs, source code, or your override sections. A
+kit-owned file you edited locally is preserved and reported as a conflict rather than overwritten.
 
-## First run in a project
+## Updating
 
-1. Copy `.agent-kit/`, `.claude/`, `.agents/`, `.codex/`, `CLAUDE.md`, and `AGENTS.md` into the
-   repository root. Merge root instruction files when the project already has them; do not blindly
-   overwrite existing instructions. Copy from a versioned release/archive, not an arbitrary working
-   directory; never distribute personal files such as `.claude/settings.local.json`.
-2. Ensure `scripts/cloud-setup.sh` exists and is safe/idempotent. The kit bootstrap can generate or
-   adapt it for the detected stack.
-3. Start Claude Code or Codex in the repository and invoke Ship.
-4. If the manifest is absent/unbootstrapped, the agent interviews the owner, records existing docs
-   by path, generates only missing foundations, fills shared project instructions, and opens a
-   bootstrap PR. Merge it.
-5. Invoke Ship again for the first feature.
+```bash
+.agent-kit/scripts/kit-update.sh             # latest release
+.agent-kit/scripts/kit-update.sh --dry-run   # preview
+```
 
-Open a new task/session after installing or changing discovery adapters. Both providers discover
-skills and subagents at session startup, although some clients can live-reload individual skills.
+Project-specific rules belong in `.agent-kit/project/instructions.md`. Editing a kit-owned file
+makes every future update to that file a manual merge — prefer upstreaming the change to the kit
+repository recorded in `kit.lock`.
 
 ## The autonomous contract
 
@@ -86,37 +87,16 @@ runtime has no agent-callable PR mechanism, Ship still finishes implementation a
 leaves the final diff/branch ready; opening the PR is then the only terminal manual action, never a
 reason to interrupt implementation midway.
 
-## Updating and extracting the kit
-
-Until this directory has its own repository, treat `.agent-kit` plus the three discovery adapters
-as one package. To extract it later:
-
-1. Copy kit-owned files to the package repository.
-2. Replace `.agent-kit/project/manifest.yml` and `.agent-kit/project/instructions.md` with clean templates.
-
-Two markers make a future installer/updater (and safe manual merges) trivial today:
-
-- **Managed sections** in `CLAUDE.md` / `AGENTS.md` are delimited by
-  `<!-- kit:managed:start -->` … `<!-- kit:managed:end -->`. An update replaces only what is between
-  the markers; the user override sections below them are preserved.
-- **`kit_version`** in the manifest records the installed kit release, so an updater knows what to
-  migrate.
-3. Keep the adapter wrappers generated from one catalog of workflow/skill/role names.
-4. Run `.agent-kit/scripts/validate.sh` in CI.
-5. Version releases and provide an installer/updater that preserves user-owned files.
-
-Do not use Codex's Claude import as the long-term update mechanism: it is useful for one-time
-migration, but copied provider files are not a shared source of truth.
-
 ## Extending the kit
+
+Changes belong in the kit repository, not in this installed copy:
 
 - Add/reorder feature steps only in `.agent-kit/workflows/ship.md`.
 - Put detailed reusable behavior in one canonical skill or role.
-- Add only a thin discovery wrapper per provider.
+- Add only a thin discovery wrapper per provider — they are generated from the kit's catalog.
 - Keep provider tool names and invocation syntax in `.agent-kit/platforms/` or wrappers.
 - Add manifest keys instead of hardcoding user documentation paths.
-- Validate that common files contain no `.claude/project.yml`, `.Codex`, provider branch prefix, or
-  provider-only built-in command.
+- Run `.agent-kit/scripts/validate.sh` to check this project's copy for structural drift.
 
 The adapted `brainstorming` and `writing-plans` material is attributed in `.agent-kit/NOTICE.md`.
 
