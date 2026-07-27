@@ -67,16 +67,12 @@ Create a task per item and complete in order:
 8. **Commit** — commit the generated infra files + runbook + manifest on the current provider
    branch. Do not merge. (Whether a PR is opened is decided by `infra`, not here.)
 
-## Security defaults (the Review step will check these)
+## What the Review step checks
 
-- Non-root container user; no secrets in the image or in `docker-compose.yml` (env via `.env`,
-  which is git-ignored).
-- `.dockerignore` proven to exclude `.env` and `.git`.
-- Only the ports that must be public are published; databases bind to the internal network.
-- `EXPO_PUBLIC_*` holds only non-secret config (it ships in the app bundle).
+Non-root container user; no secrets in the image or in `docker-compose.yml`, with env coming from a
+git-ignored `.env`; a `.dockerignore` proven to exclude `.env` and `.git`; only the ports that must
+be public published, databases on the internal network; and `EXPO_PUBLIC_*` holding non-secret
+config only, since it ships inside the app bundle.
 
-## What NOT to do (YAGNI)
-
-- No Kubernetes, no multi-node orchestration — Docker Compose is the local target.
-- No production concerns here (TLS, scaling, managed DBs) — that's `infra-cloud`.
-- Don't gold-plate the Makefile with targets nobody asked for.
+Docker Compose is the local target — production concerns (TLS, scaling, managed databases) belong
+to `infra-cloud`.

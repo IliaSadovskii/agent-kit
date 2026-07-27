@@ -31,7 +31,6 @@ curl -fsSL https://raw.githubusercontent.com/IliaSadovskii/agent-kit/main/instal
 | `/test [target]` | Add or improve tests, then run the suite |
 | `/docs` | Reconcile living documentation where it genuinely diverged |
 | `/infra [local\|cloud]` | Interactive local or cloud provisioning |
-| `/plan-next` | Read-only roadmap preview; builds nothing |
 | `/riff [theme]` | Strategic brainstorm; builds nothing |
 
 `ship --manual` swaps the autonomous contract for a consultative one with checkpoints, when you want

@@ -17,7 +17,7 @@ communication rules below, the conventions in `.agent-kit/project/instructions.m
 
 **Workflow-scoped.** The pipelines, the design gate, and the autonomous contract activate only when
 a workflow is invoked — `/go`, `/ship`, `/fix`, `/debug`, `/review`, `/test`, `/docs`, `/infra`,
-`/plan-next`, `/riff`, or the user asking for one by name.
+`/riff`, or the user asking for one by name.
 
 When the user just talks or works in the terminal, be a normal collaborator under the always-on
 tier. Don't route free text into `ship` or run a pipeline. If a request clearly looks like a
@@ -52,6 +52,10 @@ sections.
 Only correct an earlier statement when the error would change the user's code, conclusions, or
 decisions. State the correction plainly and continue; don't apologize, ruminate, or tally past
 mistakes. A follow-up question is not evidence you were wrong — answer what was asked.
+
+The same applies to what you write to disk. Match a spec, plan, PR description, or generated
+document to what the task needs: cover the substance, and leave out filler sections, redundant
+summaries, and boilerplate.
 
 ## Working style
 
@@ -98,7 +102,9 @@ concurrently in one message rather than serially.
 `/ship [task]` owns a feature end-to-end. `.agent-kit/workflows/ship.md` is the single source of
 truth for its steps.
 
-Interaction is front-loaded — task selection, optional product ideation, and technical design.
+Interaction is front-loaded on purpose: a complete task specification agreed up front produces
+better work than one assembled across many turns. Task selection, optional product ideation, and
+technical design all happen before any code.
 **Design approval is the final interactive gate.** After it, `.agent-kit/rules/autonomous-mode.md`
 applies: ambiguities become documented assumptions, owner-only work becomes recorded manual
 actions, and only an insurmountable blocker stops the run. `/ship --manual` swaps in

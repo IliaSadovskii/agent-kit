@@ -11,23 +11,21 @@
 #	tools     subagent tool list (roles only)
 #	note      extra sentence appended to the wrapper body
 kind	name	title	desc	also	tools	note
-workflow	go	Go router	Single entry point — route to the right kit workflow (ship, fix, debug, infra, riff, plan-next) or bootstrap.	-	-	-
+workflow	go	Go router	Single entry point — route to the right kit workflow (ship, fix, debug, infra, riff) or bootstrap.	-	-	-
 workflow	ship	Ship workflow	Ship one feature end-to-end; interaction ends at design approval, then work autonomously to PR.	-	-	-
 workflow	infra	Infrastructure workflow	Configure local or cloud infrastructure through the canonical interactive workflow.	-	-	-
-workflow	plan-next	read-only plan-next workflow	Preview 2-3 next roadmap options without changing the repository.	-	-	-
-workflow	riff	Riff workflow	Run a standalone strategic product brainstorm; builds no code.	.agent-kit/skills/riff.md	-	-
+workflow	riff	Riff workflow	Standalone product brainstorm — generate and stress-test ideas, roadmap the survivors. Builds nothing.	.agent-kit/skills/ideate.md	-	-
 workflow	fix	Fix workflow	Lightweight path for a small, local, low-risk change — understand, change, test, review, PR.	-	-	-
 workflow	debug	Debug workflow	Systematic debugging — reproduce, isolate, find root cause, then fix with a regression test or diagnose.	-	-	-
 workflow	review	Review workflow	Run an independent, read-only adversarial review of the current changes or branch diff.	-	-	-
 workflow	test	Test workflow	Add or improve tests for a named target, then run the project's test and lint suite.	-	-	-
 workflow	docs	Docs workflow	Reconcile the living documentation standalone — update only where docs genuinely diverged.	-	-	-
-skill	brainstorming	-	Technical design step for Ship; mandatory before feature implementation and ends at the single design approval gate.	-	-	-
-skill	feature-ideation	-	Product/business ideation for one chosen feature before technical design; optional in Ship.	-	-	-
-skill	idea-interview	-	One-time project bootstrap when the neutral manifest is missing or unbootstrapped.	-	-	-
-skill	writing-plans	-	Write a detailed executable implementation plan after an approved feature design.	-	-	-
-skill	docs-reflection	-	Final Ship step that reconciles living docs after the feature PR; no-op by default.	-	-	-
-skill	infra-local	-	Interactive local infrastructure setup step used by the Infrastructure workflow.	refs	-	-
-skill	infra-cloud	-	Interactive cloud deployment step used by the Infrastructure workflow.	refs	-	-
-skill	riff	-	Standalone strategic product brainstorm that builds no code and may add approved roadmap ideas.	-	-	-
+skill	brainstorming	-	Use before implementing any feature: clarify behavior, compare approaches, get design approval, write the spec.	-	-	-
+skill	idea-interview	-	Use when the project has no manifest or is not bootstrapped: interview the owner and set the project up.	-	-	-
+skill	writing-plans	-	Use after a design is approved, to turn the spec into an implementation plan with file boundaries and verification.	-	-	-
+skill	ideate	-	Use to think about what to build — a broad product riff, or scoping one already-chosen feature before design.	-	-	-
+skill	docs-reflection	-	Use after a feature PR is open, to check whether the living docs still match what the code does.	-	-	-
+skill	infra-local	-	Use to get the project running locally: containerize the backend and wire any dev mobile build.	refs	-	-
+skill	infra-cloud	-	Use to deploy the project: pick a host, generate deploy config and CI, guide owner-only provisioning.	refs	-	-
 role	reviewer	-	Independent adversarial implementation diff reviewer. Read-only.	-	Read, Grep, Glob, Bash	Do not edit files.
 role	tester	-	Independent tester that adds missing tests and hunts edge cases.	-	Read, Grep, Glob, Bash, Write, Edit	Change only tests and minimal fixtures; report product defects to the main agent.

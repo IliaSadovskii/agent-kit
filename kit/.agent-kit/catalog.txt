@@ -3,7 +3,6 @@
 workflow go
 workflow ship
 workflow infra
-workflow plan-next
 workflow riff
 workflow fix
 workflow debug
@@ -12,13 +11,12 @@ workflow test
 workflow docs
 
 skill brainstorming
-skill feature-ideation
 skill idea-interview
 skill writing-plans
+skill ideate
 skill docs-reflection
 skill infra-local
 skill infra-cloud
-skill riff
 
 role reviewer
 role tester

@@ -16,11 +16,10 @@
 | Build a feature with me involved | `ship --manual` |
 | Make a small change or fix | `fix` |
 | Debug a failure | `debug` |
-| Think about a feature or product | `riff` |
+| Think about the product, roadmap the ideas | `riff` |
 | Review my changes | `review` |
 | Add or improve tests | `test` |
 | Reconcile the docs | `docs` |
-| Preview the roadmap | `plan-next` |
 | Set up infrastructure | `infra` |
 | Just help me in the terminal | nothing — continue as a normal collaborator |
 

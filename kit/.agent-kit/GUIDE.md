@@ -19,7 +19,6 @@ This copy is installed in this project. The kit is developed and released separa
 | `/test [target]` | Add or improve tests, then run the suite |
 | `/docs` | Reconcile living documentation |
 | `/infra [local\|cloud]` | Interactive provisioning workflow |
-| `/plan-next` | Read-only, builds nothing |
 | `/riff [theme]` | Interactive strategy, builds nothing |
 
 A user may also ask in natural language to "run ship", but the explicit `/ship` is the

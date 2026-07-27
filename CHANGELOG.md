@@ -34,8 +34,8 @@ project needs.
 Anthropic's guidance for Claude 5 models is that prompting is mostly subtraction: rules written to
 protect against older models' failure modes now cost quality, and repeating an instruction across
 several files creates conflicting signals rather than reinforcement. The prompt payload shrinks
-from 1671 to 1227 lines — 27% — with no capability removed. Most of what is left is domain
-content (the bootstrap interview, the infrastructure checklists), not instruction scaffolding.
+from 1671 to 929 lines — 44% — with no capability removed. What survives is mostly a sequence of
+steps per command plus the domain facts each step needs, rather than instruction scaffolding.
 
 - Every fact now lives in exactly one file. The design gate was previously restated six times
   across the engine, `ship`, `brainstorming`, `writing-plans`, and `autonomous-mode`; "never merge"
@@ -55,8 +55,23 @@ content (the bootstrap interview, the infrastructure checklists), not instructio
   test-run-implement-run-commit ritual per task. A plan is now the task specification handed over
   up front — goal, constraints, file map, task boundaries with interfaces, and how each is verified.
 - The engine gained what the guidance says to add rather than assume: how to write for a user who
-  cannot see your thinking, scope discipline, when a correction is worth making, and an explicit
-  cap on subagent delegation (Claude 5 reaches for subagents more readily than its predecessors).
+  cannot see your thinking, the length of generated files, scope discipline, when a correction is
+  worth making, and an explicit cap on subagent delegation (Claude 5 reaches for subagents more
+  readily than its predecessors).
+- Dropped the per-skill "Key principles" sections, which restated their own body in bullet form,
+  and the "create a task per item" preambles, which describe what the harness already does.
+- Skill descriptions are now trigger-oriented ("Use when…") rather than descriptive. That is the
+  text Claude reads to decide whether a skill is relevant, and a stated trigger measurably beats a
+  statement of what the skill is.
+
+### Removed — two commands that duplicated existing steps
+
+- **`/plan-next`** is gone. "Read the roadmap, propose 2–3 next options, stop" was already the
+  `Task` step of `ship` and a row in the `/go` menu.
+- **`riff` and `feature-ideation` are merged into one `ideate` skill** with a broad scope and a
+  feature scope. They were two halves of the same job — 206 lines that each carried a section
+  explaining how not to overlap with the other, a section that only existed because they were
+  split. `/riff` still exists and now runs `ideate` in its broad scope.
 
 ### Fixed
 

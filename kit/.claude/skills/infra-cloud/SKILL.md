@@ -1,6 +1,6 @@
 ---
 name: infra-cloud
-description: Interactive cloud deployment step used by the Infrastructure workflow.
+description: Use to deploy the project: pick a host, generate deploy config and CI, guide owner-only provisioning.
 ---
 Read `.agent-kit/skills/infra-cloud.md` and its canonical references completely and follow it with
 `.agent-kit/engine.md`, `.agent-kit/project/instructions.md`, and

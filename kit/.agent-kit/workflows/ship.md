@@ -24,9 +24,9 @@ records autonomous decisions in the PR's Assumptions and owner-only work in Manu
     than duplicating the document it points at.
 - **Task** — use the free-text task when supplied. Otherwise read the idea and roadmap sources,
   inspect current code and recent history, propose 2–3 next coherent chunks, and let the user choose.
-- **Ideate** — unless `--no-ideate`, run `feature-ideation`: challenge the chosen feature at the
-  product level, agree what is in and out, and optionally append deferred ideas to the roadmap. The
-  user may decline and build the roadmap version unchanged.
+- **Ideate** — unless `--no-ideate`, run `ideate` scoped to the chosen feature: ask whether it is
+  the best version of itself, agree what is in and out, and optionally roadmap what is deferred.
+  The user may decline and build the roadmap version unchanged.
 - **Design** — run `brainstorming`: clarify behavior, compare approaches, present a design, and get
   explicit approval. No implementation code before approval. After approval, write the feature spec
   and enter autonomous mode.

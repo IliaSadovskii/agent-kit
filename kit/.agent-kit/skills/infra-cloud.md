@@ -64,15 +64,12 @@ Create a task per item and complete in order:
 10. **Commit** — generated CI/config + runbook + manifest on the current branch. Do not
     merge. Never commit a real secret.
 
-## Security defaults (the Review step will check these)
+## What the Review step checks
 
-- No real secrets in the repo or CI files — only references to CI/host secret stores.
-- TLS on the public endpoint (PaaS-automatic, or Caddy/Traefik on a VPS).
-- Least exposure: only the web port public; Postgres/Redis on the private network.
-- `EXPO_PUBLIC_*` in the release build holds only non-secret config (it ships in the binary).
+No real secrets in the repo or CI files, only references to the CI or host secret store; TLS on the
+public endpoint; least exposure, with only the web port public and databases on the private
+network; and `EXPO_PUBLIC_*` in the release build holding non-secret config only, since it ships in
+the binary.
 
-## What NOT to do (YAGNI)
-
-- No autonomous provisioning via provider CLIs with the owner's credentials — guide, don't do.
-- No Kubernetes / multi-region / autoscaling for an MVP — one clear host path.
-- Don't invent infra the owner didn't agree to; prefer the simplest deploy that works.
+Prefer the simplest deploy that works — one clear host path, not Kubernetes or multi-region for an
+MVP — and never provision anything the owner did not agree to.

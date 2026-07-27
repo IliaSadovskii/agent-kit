@@ -1,6 +1,6 @@
 ---
 name: docs-reflection
-description: Final Ship step that reconciles living docs after the feature PR; no-op by default.
+description: Use after a feature PR is open, to check whether the living docs still match what the code does.
 ---
 Read `.agent-kit/skills/docs-reflection.md` completely and follow it with `.agent-kit/engine.md`,
 `.agent-kit/project/instructions.md`, and `.agent-kit/project/manifest.yml`. This adapter contains
