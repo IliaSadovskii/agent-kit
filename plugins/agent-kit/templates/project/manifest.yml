@@ -30,21 +30,6 @@ sources:
   roadmap: null
   architecture: null
   coding_standards: null
-  # Living ops runbook produced/maintained by the infra workflow. Optional — exists once infra
-  # has run at least once.
-  deployment: null
-
-# Infrastructure state, owned by the infra workflow (skills infra-local / infra-cloud).
-# Idempotency source: on re-run the skills read this to update rather than start over.
-# Not a product doc — pure ops state.
-infrastructure:
-  local:
-    status: none                # none | configured
-    stack: []                   # detected, e.g. [laravel, expo]
-    artifacts: []               # generated files, e.g. [Dockerfile, docker-compose.yml]
-    configured_at: null
-  cloud:
-    status: none                # none | planned | deployed
-    provider: null              # hetzner-vps | fly | railway | render | ...
-    backend_url: null           # public URL; a release mobile build bakes this in
-    configured_at: null
+  # Add your own keys here for anything else the agent should read by path rather than guess —
+  # a deployment runbook, a domain glossary, an API contract. Every skill takes paths from this
+  # block, so a key you add here is a key the agent will honour.

@@ -1,8 +1,8 @@
 # agent-kit
 
-A Claude Code plugin for building software with long-running sessions. Enable it and the agent gains
-one command per job — ship a feature, fix a bug, debug, review, set up infrastructure — each backed
-by an ordered pipeline instead of improvised behavior.
+A Claude Code plugin for autonomous feature development. Enable it and the agent gains a handful of
+commands — ship a feature, fix a bug, debug a failure — each backed by an ordered pipeline instead
+of improvised behavior.
 
 The owner stays in the loop where judgement matters (what to build, and the technical design) and
 steps out where it does not: after design approval the agent works through spec, plan,
@@ -16,9 +16,9 @@ asking routine questions.
 /plugin install agent-kit@agent-kit
 ```
 
-Then start a fresh session and run `/agent-kit:go`. On a project that has never used the kit it
+Then start a fresh session and run `/agent-kit:ship`. On a project that has never used the kit it
 interviews you about the product, records where your docs live, generates only what is missing, and
-opens a bootstrap PR.
+opens a bootstrap PR before it builds anything.
 
 To pin the plugin for everyone working in a repository, commit it to the project's
 `.claude/settings.json`:
@@ -39,18 +39,17 @@ the marketplace.
 
 | Command | What it does |
 |---|---|
-| `/agent-kit:go` | Reads project state and routes you to the right workflow |
 | `/agent-kit:ship [task]` | Front-loaded interaction, then autonomous through to a PR |
 | `/agent-kit:fix [task]` | Lightweight path for a local, low-risk change |
 | `/agent-kit:debug [symptom]` | Reproduce, isolate, root-cause, then fix with a regression test |
-| `/agent-kit:review` | Independent adversarial review of the current diff |
-| `/agent-kit:test [target]` | Add or improve tests, then run the suite |
 | `/agent-kit:docs` | Reconcile living documentation where it genuinely diverged |
-| `/agent-kit:infra [local\|cloud]` | Interactive local or cloud provisioning |
 | `/agent-kit:riff [theme]` | Strategic brainstorm; builds nothing |
 
 `ship --manual` swaps the autonomous contract for a consultative one with checkpoints, when you want
 to co-develop rather than delegate.
+
+Five commands, and the list is meant to stay short. A command earns its place by being a pipeline
+you could not get by asking in plain words — not by wrapping something Claude Code already does.
 
 ## What it does not reinvent
 

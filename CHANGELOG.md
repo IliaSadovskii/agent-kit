@@ -5,9 +5,28 @@ installed it — see [docs/developing.md](docs/developing.md#versioning).
 
 ## 0.4.0
 
-The kit is a Claude Code plugin. It is no longer vendored into a repository by an installer, and it
-delegates the steps Claude Code now does better than a hand-written prompt. See
+The kit is a Claude Code plugin, it delegates the steps Claude Code now does better than a
+hand-written prompt, and it is cut back to what it was actually for. See
 [migrations/0.4.0.md](migrations/0.4.0.md) for what an installed project has to do.
+
+### Scope
+
+Nine commands became five. The kit exists for autonomous feature development, and everything that
+was not that has gone.
+
+- **Removed `/infra`, and the `infra-local` and `infra-cloud` skills** with their hosting catalog
+  and mobile-env references — 333 lines, a quarter of the payload. Provisioning is interactive by
+  nature, was the most stack-opinionated material in the kit (validated only on Laravel plus Expo),
+  and had nothing to do with shipping a feature autonomously. It was a second product living inside
+  the first.
+- **Removed `/review` and `/test`.** Both had become one-line wrappers: `/code-review` is a built-in
+  command you can simply type, and "cover this with tests" works as a plain request. Nothing is lost
+  inside `ship`, which still runs the `reviewer` and `tester` agents at their own steps.
+- **Removed `/go`.** A router over nine commands stops paying for itself at five, and it put a menu
+  between the user and the work. Bootstrap is reached through `ship`, which already detects a
+  missing manifest and runs the interview first.
+- `manifest.yml` drops the `infrastructure` block and `sources.deployment`, and instead invites
+  project-specific `sources` keys of your own.
 
 ### Distribution
 

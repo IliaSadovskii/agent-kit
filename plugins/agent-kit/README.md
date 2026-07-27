@@ -10,18 +10,21 @@ Plugin skills are namespaced, so every command below is `/agent-kit:<name>`.
 
 | Command | Behavior |
 |---|---|
-| `/agent-kit:go` | Reads project state and routes to the right workflow |
 | `/agent-kit:ship [task]` | Front-loaded interaction, then autonomous to PR |
 | `/agent-kit:fix [task]` | Lightweight path for a local, low-risk change |
 | `/agent-kit:debug [symptom]` | Reproduce, isolate, root-cause, fix with a regression test |
-| `/agent-kit:review` | Independent adversarial review of the current diff |
-| `/agent-kit:test [target]` | Add or improve tests, then run the suite |
 | `/agent-kit:docs` | Reconcile living documentation |
-| `/agent-kit:infra [local\|cloud]` | Interactive provisioning workflow |
 | `/agent-kit:riff [theme]` | Interactive strategy, builds nothing |
 
 The kit also ships two subagents, `agent-kit:reviewer` and `agent-kit:tester`, which the pipelines
 invoke on finished work.
+
+On a project that has never used the kit, run `/agent-kit:ship`: it detects the missing manifest and
+runs the bootstrap interview before anything else.
+
+Deliberately absent: there is no command for reviewing a diff, running tests, or provisioning
+infrastructure. `/code-review` and `/security-review` already do the first, plain conversation does
+the second better than a command would, and the third was a separate product living inside this one.
 
 ## What is the plugin's, and what is the project's
 
