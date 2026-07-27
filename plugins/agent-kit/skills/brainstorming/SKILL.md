@@ -36,9 +36,23 @@ where unexamined assumptions cost the most. The design itself can be three sente
 4. **Resolve every ambiguity now, one question per message.** This is the step that decides the
    quality of the run: the user is here, and after approval every open decision becomes an
    autonomous default logged in the PR's Assumptions. Cover edge cases, error handling, integration
-   points, scope boundaries, backward compatibility, and performance expectations. If the user says
-   "whatever you think is best", give your recommendation and get explicit confirmation rather than
-   silently deciding.
+   points, scope boundaries, backward compatibility, and performance expectations.
+
+   Three rules make this step worth the user's time rather than a tax on it:
+
+   - **Ask about decisions, not facts.** Anything the environment can answer — the test framework,
+     how an existing endpoint behaves, whether a column is nullable — you look up. What you put to
+     the user is what only they can decide, because it depends on intent rather than on state.
+     Spending a question on something you could have read is how an interview loses its authority.
+   - **Follow the dependency order, not the checklist order.** Decisions unlock and moot each other:
+     settle the one that changes the shape of the others first, and half the list stops needing to
+     be asked. Walk each branch to its end before opening the next one.
+   - **Carry your own recommendation into every question,** with the reasoning in a sentence. A
+     question with no proposed answer offloads the work onto the user. If they say "whatever you
+     think is best", state your choice and get explicit confirmation rather than silently deciding.
+
+   Depth follows step 3: press hard where the answers are genuinely open, and move fast where the
+   documents already settled them. Thoroughness is not the same thing as an interrogation.
 5. **Compare real alternatives, not variations on one idea.** Produce 2–3 approaches with genuinely
    different trade-offs — the smallest change that reuses what exists, the clean structure you would
    choose with no legacy, and the pragmatic middle. On a substantial feature, generate them
@@ -63,7 +77,9 @@ blocks the work — a file grown unwieldy, tangled responsibilities — include 
 the way a good developer improves code they are working in. Don't propose unrelated refactoring.
 
 <!-- The dialogue and spec handoff are adapted from Superpowers by Jesse Vincent (MIT); see
-     NOTICE.md. The codebase-exploration and competing-architecture steps follow Anthropic's
+     NOTICE.md. The facts-versus-decisions rule and the dependency ordering of questions in step 4
+     come from the `grilling` skill by Matt Pocock (MIT). The codebase-exploration and
+     competing-architecture steps follow Anthropic's
      feature-dev plugin, using Claude Code's built-in Explore and Plan agents rather than shipping
      duplicates of them. The visual browser companion was dropped (needs a local node server,
      useless in cloud) and the separate spec-review gate removed, so the flow keeps a single

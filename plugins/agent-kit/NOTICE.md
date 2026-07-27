@@ -7,6 +7,14 @@ Adaptations: file paths localized to this kit (`docs/specs/`, `docs/plans/`),
 browser visual companion removed (not usable in cloud sessions), and the separate
 spec-review gate removed so the flow keeps a single interactive checkpoint.
 
+Two rules in step 4 of `brainstorming` — look facts up rather than asking, and ask
+questions in the dependency order of the decisions rather than in checklist order —
+are taken from the `grilling` skill in **Matt Pocock's skills collection**
+(https://github.com/mattpocock/skills), used under the MIT License. The wording is
+this kit's own, and the "relentless" framing of the original was deliberately not
+adopted: it conflicts with this kit's rule against manufacturing questions the
+project's documents already answer.
+
 The codebase-exploration and competing-architecture steps of `brainstorming` follow
 the approach of Anthropic's `feature-dev` plugin
 (https://github.com/anthropics/claude-plugins-official). No text was copied: the kit
