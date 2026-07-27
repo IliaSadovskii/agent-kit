@@ -20,6 +20,5 @@ skill infra-local
 skill infra-cloud
 skill riff
 
-role plan-reviewer
 role reviewer
 role tester

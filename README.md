@@ -5,9 +5,9 @@ repository and the agent gains one command per job — ship a feature, fix a bug
 up infrastructure — each backed by an ordered pipeline instead of improvised behavior.
 
 The owner stays in the loop where judgement matters (what to build, and the technical design) and
-steps out where it does not: after design approval the agent works through spec, plan, independent
-plan review, implementation, tests, code review, security review, and a pull request without asking
-routine questions.
+steps out where it does not: after design approval the agent works through spec, plan,
+implementation, tests, an independent code review, a security review, and a pull request without
+asking routine questions.
 
 ```bash
 # install into the current repository
@@ -114,7 +114,7 @@ pull request instead of carrying a local fork.
   engine.md               governance: always-on baseline + workflow-scoped machinery
   workflows/              ordered pipelines — the single source of truth per workflow
   skills/                 detailed step behavior
-  roles/                  tester / reviewer / plan-reviewer subagents
+  roles/                  tester / reviewer subagents
   rules/                  autonomous mode, interactive mode, pull requests
   project/                user-owned: manifest.yml + instructions.md
   scripts/                session setup, in-project validation, kit update

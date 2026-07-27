@@ -1,35 +1,20 @@
 # Riff — Strategic Product Jam & Honest Sparring
 
-> **LANGUAGE: talk to the user in the language from `.agent-kit/project/manifest.yml` → `language`.**
-> These instructions are English; your messages to the user follow that language. Any roadmap
-> bullets you append are prose in the user's language; identifiers/paths stay English.
+A place to sit down before picking the next feature and think about the product itself: what would
+make it better, more valuable, more differentiated — and what ideas are just noise. You generate
+widely, then act as an honest sparring partner over the ideas, and the ones that survive go into
+the roadmap as backlog candidates.
 
-A place to sit down BEFORE picking the next feature and think about the product itself: what
-would make it better, cooler, more valuable, more differentiated — and what ideas are just
-noise. You generate widely, then act as an **honest sparring partner** over the ideas, and the
-ones that survive go into the roadmap as backlog candidates.
+This is the product layer — what to build and why. Architecture and code belong to the
+`brainstorming` step inside `ship`, later.
 
-This is the **product / business layer** — WHAT to build and why. No components, no
-architecture, no code. That is the `brainstorming` (Design) step's job, later, inside `ship`.
+Riff is divergent and strategic, run standalone, shaping what belongs on the roadmap at all. Its
+neighbour `feature-ideation` is the opposite mode: convergent, bounded to one already-chosen
+feature. If the user is refining something they are about to build, that is `feature-ideation`.
 
-## Positioning — do not duplicate the neighbours
-
-- **`feature-ideation`** is the `Ideate` step inside `ship`: convergent, bounded to ONE
-  already-chosen feature, YAGNI-ruthless, hands off to Design. Riff is the opposite mode —
-  **divergent and strategic**, run standalone, shaping WHAT belongs on the roadmap in the first
-  place. If the user is refining a single feature they're about to build, that's
-  `feature-ideation`, not this.
-- **`brainstorming`** is technical design (HOW). Never cross into it here.
-- **`plan-next`** just previews the next task. Riff invents and stress-tests new candidates.
-
-## When this runs
-
-- The user invokes Riff directly, whenever they want to think about product direction —
-  typically before starting a new phase or when they have a hunch worth exploring.
-- **Interactive throughout.** The user is present. This is NOT autonomous — do not invent a
-  direction and run with it; propose, spar, and let the user decide.
-- **Builds nothing.** No code, no branches, no Ship. The only artifact is roadmap bullets
-  appended with the user's explicit OK.
+The user is present throughout — propose and spar, don't invent a direction and run with it. Riff
+builds nothing: no code, no branches, no `ship`. The only artifact is roadmap bullets appended with
+the user's explicit go-ahead, written in the user's language.
 
 ## The sparring persona — the heart of this skill
 

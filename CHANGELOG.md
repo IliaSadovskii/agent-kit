@@ -29,6 +29,41 @@ project needs.
 - Both validators check a single adapter surface. The repository validator additionally asserts
   that no Codex artefact reappears in the payload or in a fresh install.
 
+### Changed — prompts rewritten for the Claude 5 generation
+
+Anthropic's guidance for Claude 5 models is that prompting is mostly subtraction: rules written to
+protect against older models' failure modes now cost quality, and repeating an instruction across
+several files creates conflicting signals rather than reinforcement. The prompt payload shrinks
+from 1671 to 1227 lines — 27% — with no capability removed. Most of what is left is domain
+content (the bootstrap interview, the infrastructure checklists), not instruction scaffolding.
+
+- Every fact now lives in exactly one file. The design gate was previously restated six times
+  across the engine, `ship`, `brainstorming`, `writing-plans`, and `autonomous-mode`; "never merge"
+  appeared in seven. The engine owns the shared rules and the workflows stop paraphrasing them.
+- Dropped the pseudo-XML guardrails (`<HARD-GATE>`, `<SINGLE-GATE>`, `<SCOPE>`,
+  `<NEVER-MOVE-USER-DOCS>`, …), the caps-lock imperatives, and the "this is too simple to need a
+  design" anti-pattern essay. The gate itself is unchanged — it is now stated once, plainly.
+- Removed the duplicated `LANGUAGE:` preamble from six skills; the engine's communication section
+  is the only place it is defined.
+- **Removed the `plan-reviewer` role and the `Plan review` step**, along with the spec self-review
+  and plan self-review. Claude 5 verifies its own work; instructing it to verify — and especially
+  delegating verification to a subagent — produces over-verification without a capability gain.
+  Verification of the finished diff still happens: `tester` and `reviewer` are unchanged in spirit,
+  and `reviewer` now explicitly reports everything with a confidence level rather than
+  self-filtering by severity, which was suppressing real findings.
+- `writing-plans` no longer asks for the full implementation code and a five-step
+  test-run-implement-run-commit ritual per task. A plan is now the task specification handed over
+  up front — goal, constraints, file map, task boundaries with interfaces, and how each is verified.
+- The engine gained what the guidance says to add rather than assume: how to write for a user who
+  cannot see your thinking, scope discipline, when a correction is worth making, and an explicit
+  cap on subagent delegation (Claude 5 reaches for subagents more readily than its predecessors).
+
+### Fixed
+
+- The PR section names `## Ручные действия` were hardcoded in Russian inside English canonical
+  files. The canonical name is now "Manual actions", with translation driven by the project
+  language like the rest of the PR.
+
 ## 0.2.0
 
 First release as a standalone repository. The kit previously lived inside the project it was

@@ -1,18 +1,12 @@
 # Docs Reflection
 
-> **LANGUAGE:** talk to the user in the language from `.agent-kit/project/manifest.yml` → `language`. These
-> instructions are in English; doc edits are in each doc's own language (the user's product docs
-> are usually the user's language). Commit messages in English.
+Keep the project's living documentation from going stale. This is the final step of a feature,
+after the PR is open. It runs on the main agent's own context on purpose rather than in a
+fresh-eyes subagent: the value here is knowing what actually diverged during implementation.
 
-Keep the project's living documentation from going stale. After a feature ships, the main agent —
-which just did the work and knows what actually changed — reviews the docs and reconciles them
-with reality. This runs on the **main agent's own context on purpose** (not a fresh-eyes subagent):
-the value is knowing what diverged during implementation.
-
-<WHEN>
-The final step of a feature, after the PR is open (the `Docs` step of Ship). It is a mandatory *review*,
-but the usual *outcome is no-op* — most features don't warrant a doc change.
-</WHEN>
+The review is mandatory; the outcome is usually a no-op, because most features do not warrant a doc
+change. Edit each document in its own language — product docs are usually the user's language —
+and keep commit messages in English.
 
 ## Don't assume a fixed list — scan
 

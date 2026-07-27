@@ -1,30 +1,19 @@
 # Debug workflow
 
-A distinct discipline for tracking down a failure to its root cause — not a lighter `ship`. It is
-systematic: confirm the failure, narrow it to the smallest reproduction, form and test hypotheses,
-and only then fix at the root cause rather than the symptom. Follow `.agent-kit/engine.md` and the
-active provider adapter. Never merge PRs.
+Tracking a failure to its root cause. This is a distinct discipline, not a lighter `ship`:
+reproduce, isolate, find the cause, and only then decide what to do about it.
 
-## Shape
-
-```
-reproduce → isolate → find root cause → (fix + regression test) | diagnosis
-```
-
-## Pipeline
-
-1. **Reproduce** — confirm the failure firsthand. Establish exactly what is broken, the conditions
-   that trigger it, and what "fixed" will look like. Do not theorize before you can reproduce.
-2. **Isolate** — narrow to the smallest reliable reproduction. Remove variables until the failing
-   surface is as small as possible.
-3. **Root cause** — form hypotheses about the cause and test them one at a time against the
-   reproduction. Follow the evidence down to the actual root cause; reject explanations the evidence
-   does not support. Do not stop at the first plausible symptom.
-4. **Resolve** — choose one of two outcomes:
-   - **Fix** — when the fix is clear and within scope, correct the root cause (not the symptom), add
-     a regression test that fails without the fix and passes with it, then continue through the tail
-     of the `fix` workflow: test the affected paths, get an independent diff review from `reviewer`,
-     and open a PR. Never merge.
-   - **Diagnosis** — when the cause requires the owner's decision (a product trade-off, a risky
-     architectural change, or work beyond this scope), stop and report a clear diagnosis: the root
-     cause, the reproduction, and the options — without changing code.
+1. **Reproduce** — confirm the failure firsthand. Establish what is broken, what triggers it, and
+   what "fixed" will look like. Don't theorize before you can reproduce.
+2. **Isolate** — narrow to the smallest reliable reproduction, removing variables until the failing
+   surface is as small as it gets.
+3. **Root cause** — form hypotheses and test them one at a time against the reproduction. Follow
+   the evidence; reject explanations it does not support. Don't stop at the first plausible
+   symptom.
+4. **Resolve** — one of two outcomes:
+   - **Fix** — when the fix is clear and in scope, correct the root cause rather than the symptom,
+     add a regression test that fails without the fix, then continue through the tail of `fix`:
+     test, independent review, PR.
+   - **Diagnosis** — when the cause needs the owner's decision (a product trade-off, a risky
+     architectural change, work beyond this scope), stop and report the root cause, the
+     reproduction, and the options, without changing code.

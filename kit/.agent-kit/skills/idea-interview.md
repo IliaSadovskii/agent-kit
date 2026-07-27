@@ -1,29 +1,22 @@
 # Idea Interview — Project Bootstrap
 
-> **LANGUAGE:** the manifest may not exist yet, so the user's language is unknown. Ask it
-> as the FIRST question (see below), then communicate in it for the rest of the interview.
-> Until then, greet neutrally. These skill instructions are in English; generated core docs
-> are prose in the user's language; code/paths/identifiers are in English.
+Bootstrap a project from a bare idea to "ready for the autonomous flow". This is the one-time
+project-level gate: it runs when `.agent-kit/project/manifest.yml` is missing or has
+`bootstrapped: false`. It surveys the author, ensures the core docs exist — recording the author's
+own docs where they already wrote them, generating the rest — provisions the project scaffolding,
+and writes the manifest. After it, `ship` can pick features and build them autonomously.
 
-Bootstrap a project from a bare idea to "ready for the autonomous flow". This is the
-**one-time project-level gate**: it runs when `.agent-kit/project/manifest.yml` is missing or has
-`bootstrapped: false`. It surveys the author, ensures the core docs exist (recording the
-author's own docs if they already wrote them, generating the rest), provisions the project
-scaffolding, and writes the manifest. After it, `ship` can pick features and build them
-autonomously.
+The manifest does not exist yet, so the user's language is unknown: greet neutrally, ask the
+language as the first question, and use it for the rest of the interview. Generated core docs are
+prose in that language; code, paths, and identifiers stay English.
 
-<SCOPE>
-This skill is about the WHOLE product (once). It is NOT about a single feature — that is
-`brainstorming` (runs every feature). And it is NOT about revising the roadmap after a
-feature — that is the `Docs` step of `ship`. Three different things, do not conflate them.
-</SCOPE>
+This skill covers the whole product, once. A single feature is `brainstorming`, which runs every
+time; revising the roadmap after a feature is the `Docs` step of `ship`.
 
-<NEVER-MOVE-USER-DOCS>
-If the author already has product docs (anywhere, any names), DO NOT move or duplicate them.
-Record their paths in the manifest's `sources`. Generate only what is genuinely missing, into
-`docs/` (visible, user-facing — never hidden in `.agent-kit/`). Two parallel copies of the same
-doc is the failure mode we are avoiding.
-</NEVER-MOVE-USER-DOCS>
+If the author already has product docs — anywhere, under any names — record their paths in the
+manifest's `sources` rather than moving or duplicating them. Generate only what is genuinely
+missing, into a visible `docs/`, never hidden inside `.agent-kit/`. Two parallel copies of the same
+document is the failure mode to avoid.
 
 ## Checklist
 

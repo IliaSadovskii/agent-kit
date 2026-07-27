@@ -29,6 +29,5 @@ skill	docs-reflection	-	Final Ship step that reconciles living docs after the fe
 skill	infra-local	-	Interactive local infrastructure setup step used by the Infrastructure workflow.	refs	-	-
 skill	infra-cloud	-	Interactive cloud deployment step used by the Infrastructure workflow.	refs	-	-
 skill	riff	-	Standalone strategic product brainstorm that builds no code and may add approved roadmap ideas.	-	-	-
-role	plan-reviewer	-	Independent adversarial reviewer of the spec and plan before code. Read-only.	-	Read, Grep, Glob, Bash	Do not edit files.
 role	reviewer	-	Independent adversarial implementation diff reviewer. Read-only.	-	Read, Grep, Glob, Bash	Do not edit files.
 role	tester	-	Independent tester that adds missing tests and hunts edge cases.	-	Read, Grep, Glob, Bash, Write, Edit	Change only tests and minimal fixtures; report product defects to the main agent.

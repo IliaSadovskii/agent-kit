@@ -1,28 +1,23 @@
 # Infra — Cloud
 
-> **LANGUAGE: talk to the user in the language from `.agent-kit/project/manifest.yml` → `language`.**
-> These instructions are English; your messages to the user follow that value. Generated files,
-> code, comments, and commit messages are English.
-
 Take the project from "runs locally" to "reachable on the internet". This is the **Cloud** step
 of the Infrastructure workflow. It runs **interactively** — hosting choice, credentials, and provisioning need the
 owner's hands and judgment. The owner may **decline** it ("local only for now") — if so, record
 that and stop cleanly; the fixed Infrastructure sequence allows skipping this phase.
 
-<SCOPE>
-Cloud deployment of the backend + the **release** mobile build (public backend URL). Local
-containers/dev flow are `infra-local`. Shared Expo mechanics:
-`.agent-kit/skills/references/mobile-env.md`. Hosting decision tree + provider trade-offs:
+Cloud deployment of the backend plus the release mobile build against a public backend URL. Local
+containers and the dev flow are `infra-local`. Shared Expo mechanics:
+`.agent-kit/skills/references/mobile-env.md`. Hosting decision tree and provider trade-offs:
 `.agent-kit/skills/infra-cloud/references/hosting-catalog.md`.
-</SCOPE>
 
 ## What the agent does vs what the owner does
 
 The agent CANNOT (and must not try to) provision real infrastructure autonomously — no buying a
 VPS, no logging into a provider with the owner's credentials. The agent **generates config +
 CI**, **guides step-by-step**, and **records every owner-hands action** in the runbook. The owner
-executes the provider-console steps and supplies secrets. Never put a real secret in the repo
-(engine rules 6–7) — config references env vars; real values live in the host's secret store.
+executes the provider-console steps and supplies secrets. Never put a real secret in the repo — the
+engine's Core rules cover this: config references env vars, real values live in the host's secret
+store.
 
 ## Idempotent
 
@@ -66,7 +61,7 @@ Create a task per item and complete in order:
 9. **Update the manifest** — `infrastructure.cloud`: `status` (`planned` if the owner still has
    provisioning to do, `deployed` if it's live), `provider`, `backend_url`, and `configured_at`
    from the current session date.
-10. **Commit** — generated CI/config + runbook + manifest on the current provider branch. Do not
+10. **Commit** — generated CI/config + runbook + manifest on the current branch. Do not
     merge. Never commit a real secret.
 
 ## Security defaults (the Review step will check these)

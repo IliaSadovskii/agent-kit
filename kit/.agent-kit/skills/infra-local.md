@@ -1,20 +1,14 @@
 # Infra — Local
 
-> **LANGUAGE: talk to the user in the language from `.agent-kit/project/manifest.yml` → `language`.**
-> These instructions are English; your messages to the user follow that value. Generated files,
-> code, comments, and commit messages are English.
-
 Get a developer from a clean checkout to "the app runs on my machine" — backend in containers,
 and, if the repo has a mobile app, a dev build that actually reaches the local backend. This is
 the **Local** step of the Infrastructure workflow. It runs **interactively** (the owner is present):
 propose, confirm, generate; do not silently invent a setup.
 
-<SCOPE>
-Local development only. Cloud hosting / provisioning / release builds are `infra-cloud`. The
-mobile app is NOT a separate skill — here we own only its **dev** variant (pointed at the local
-backend); the release variant is `infra-cloud`. Shared Expo mechanics:
+Local development only — cloud hosting, provisioning, and release builds are `infra-cloud`. The
+mobile app is not a separate skill: this owns its dev variant, pointed at the local backend, while
+the release variant belongs to `infra-cloud`. Shared Expo mechanics:
 `.agent-kit/skills/references/mobile-env.md`.
-</SCOPE>
 
 ## Stack-agnostic by detection
 

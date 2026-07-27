@@ -32,7 +32,7 @@ deterministic form.
   engine.md               always-on governance
   workflows/              ordered pipelines (single source of truth)
   skills/                 detailed step behavior
-  roles/                  tester / reviewer / plan-reviewer subagents
+  roles/                  tester / reviewer subagents
   rules/                  autonomous, interactive, and PR rules
   scripts/validate.sh     structural drift/broken-reference check
   scripts/kit-update.sh   update this kit from its source repository

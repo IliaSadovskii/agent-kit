@@ -1,13 +1,10 @@
 # Feature Ideation — Product Brainstorm Before Design
 
-> **LANGUAGE: talk to the user in the language from `.agent-kit/project/manifest.yml` → `language`.**
-> These instructions are English; your messages to the user follow that language.
-
-The roadmap is a **starting point, not gospel**. Because we build the product incrementally,
-every feature is a chance to stop and ask: *is this the best version of this feature, or are we
-just building it because it was written down?* This step thinks at the **product / business
-layer** — WHAT to build and why — one level ABOVE the design step, which handles the technical
-HOW. Keep the two separate: here there is **no code, no architecture, no technical approaches**.
+The roadmap is a starting point, not gospel. Because the product is built incrementally, every
+feature is a chance to ask: is this the best version of this feature, or are we building it because
+it was written down? This step works at the product layer — what to build and why — one level above
+the design step, which handles the technical how. Keep them separate: no code, no architecture, no
+technical approaches here.
 
 ## When this runs
 
