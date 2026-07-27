@@ -10,8 +10,24 @@ The one-time project gate: it runs when `.agent-kit/project/manifest.yml` is mis
 scaffolding the flow needs, and writes the manifest. After it, `ship` can pick features and build
 them autonomously.
 
-This covers the whole product, once. A single feature is `brainstorming`; revising the roadmap
-after a feature is the `Docs` step of `ship`.
+This covers the whole product, once. A single feature is `brainstorming`; revising the roadmap after
+a feature is the `Docs` step of `ship`.
+
+## Two halves, separately runnable
+
+The skill has a technical half and a product half, and `ship` may ask for the technical one alone.
+
+**Setup** — steps 1, 2, 6 and 7 below: detect the stack, agree the language, generate the coding
+standards and `scripts/cloud-setup.sh`, write `.agent-kit/project/manifest.yml` and
+`instructions.md`, and record the paths of any documents that already exist. This is what makes the
+project runnable at all: without it nobody knows the test command. It is cheap, mostly detection,
+and produces no separate pull request — leave `bootstrapped: false` and let the caller commit it.
+
+**Product bootstrap** — everything else: the interview, the core documents, and the bootstrap PR.
+This is what makes the kit able to *choose* work rather than only execute it.
+
+Run both when invoked directly or by `ship` with no task in hand. Run Setup alone when `ship` asks
+for it, and say in one line what was set up and what is still missing.
 
 ## Steps
 

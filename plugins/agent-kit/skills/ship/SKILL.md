@@ -43,17 +43,14 @@ say so once at the start and continue.
 
 ## Pipeline
 
-- **Gate** — check the manifest.
-  - Missing manifest, `bootstrapped: false`, or `--rebootstrap`: run `idea-interview`. It surveys
-    the owner, records or generates core docs, provisions shared scaffolding, updates the manifest,
-    and opens a separate bootstrap PR. Stop there and ask the owner to merge it before a feature.
-  - `bootstrapped: true`: load source paths from the manifest. Repair a stale path in place rather
-    than duplicating the document it points at.
+- **Gate** — two different things have to be true before a feature, and they are not the same gate.
+  See "The two gates" below.
 - **Task** — use the free-text task when supplied. Otherwise read the idea and roadmap sources,
   inspect current code and recent history, propose 2–3 next coherent chunks, and let the user choose.
 - **Ideate** — unless `--no-ideate`, run `ideate` scoped to the chosen feature: ask whether it is
   the best version of itself, agree what is in and out, and optionally roadmap what is deferred. The
-  user may decline and build the roadmap version unchanged.
+  user may decline and build the roadmap version unchanged. Skipped when the project has no product
+  docs to judge the feature against.
 - **Design** — run `brainstorming`: explore the codebase, clarify behavior, compare approaches,
   present a design, and get explicit approval. No implementation code before approval. After
   approval, write the feature spec and enter autonomous mode.
@@ -71,6 +68,42 @@ say so once at the start and continue.
 
 The pipeline is complete when the feature PR exists and docs reflection is resolved — or when an
 insurmountable blocker has been reported with the branch left in a recoverable state.
+
+## The two gates
+
+`bootstrapped` used to be one flag doing two jobs, which made "I know exactly what I want built"
+wait behind "first write a roadmap". They are separate concerns.
+
+**Technical setup — required for every run.** Without it you cannot run this project's tests, and
+nothing downstream works. It is cheap and mostly detection, so just do it; it is part of the run,
+not a gate the owner has to clear.
+
+If `.agent-kit/project/manifest.yml` is missing, run the setup half of `idea-interview`: detect the
+stack, ask the communication language, record the paths of whatever documents already exist,
+generate the coding standards and `scripts/cloud-setup.sh`, and write the manifest and
+`.agent-kit/project/instructions.md`. No product interview, no separate PR — commit it with the
+feature. Then load the source paths, repairing a stale one in place rather than duplicating the
+document it points at.
+
+**Product bootstrap — required only when the kit has to choose the work.** Proposing 2–3 sensible
+next chunks is impossible without a roadmap, and judging whether a feature is the best version of
+itself is impossible without a north star. So this gate binds exactly when you did not say what to
+build.
+
+- `bootstrapped: false` or `--rebootstrap`, **and no free-text task**: run the full
+  `idea-interview`. It surveys the owner, records or generates the core docs, provisions the shared
+  scaffolding, updates the manifest, and opens a separate bootstrap PR. Stop there and ask the owner
+  to merge it before a feature — a feature built on an unreviewed roadmap inherits its mistakes.
+- `bootstrapped: false` **with a free-text task**: build it. The owner already made the choice this
+  gate exists to protect. Skip Task and Ideate, and **say what is missing out loud**, once, before
+  starting: this project has no roadmap or product idea recorded, so task selection and product
+  scoping are unavailable, and design decisions will be judged against the code alone. Repeat it as
+  a line in the PR description, next to Assumptions.
+
+That last case is deliberately not blocked and deliberately not silent. Nothing stops a project from
+running this way forever, and it will work — just less well, because every autonomous default is
+made against the code instead of against a stated intent. The owner sees the notice on every pull
+request and runs `--rebootstrap` when they have had enough of it.
 
 ## Test
 

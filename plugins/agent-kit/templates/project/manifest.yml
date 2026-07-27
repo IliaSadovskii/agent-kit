@@ -16,10 +16,17 @@ kit_version: 0.0.0
 # user in this language. Set by the idea-interview skill on first run; leave empty to be asked.
 language:
 
-# One-time bootstrap gate: do the foundational docs exist so the flow can run. Set once by the
-# idea-interview skill. Does NOT "freeze" the idea — living-docs evolution is handled by Ship's
-# docs step and brainstorming. Reset to false (or invoke ship --rebootstrap) to re-run the
-# interview if the project's concept has fundamentally changed.
+# Do the product documents exist — an idea and a roadmap — so the kit can CHOOSE what to build?
+#
+# This gate is narrower than it looks. It does not decide whether the kit works at all: this file
+# existing is what makes the project runnable, and ship will happily build a feature you named
+# yourself while this is still false, telling you each time what it is working without. What the
+# gate protects is task selection and product scoping, which genuinely cannot happen without a
+# roadmap and a north star.
+#
+# Set once by the idea-interview skill. It does NOT freeze the idea — living docs evolve through
+# ship's Docs step. Reset it to false, or run ship --rebootstrap, to redo the interview if the
+# project's concept has fundamentally changed.
 bootstrapped: false
 bootstrapped_at: null
 

@@ -9,6 +9,28 @@ The kit is a Claude Code plugin, it delegates the steps Claude Code now does bet
 hand-written prompt, and it is cut back to what it was actually for. See
 [migrations/0.4.0.md](migrations/0.4.0.md) for what an installed project has to do.
 
+### Bootstrap
+
+- **`bootstrapped` was one flag doing two jobs**, so "I know exactly what I want built" waited behind
+  "first write a roadmap" — even though a free-text task already skips the only step that needs one.
+  The two concerns are now separate. Technical setup (manifest, project instructions, coding
+  standards, cloud-setup script) is part of any run and needs no gate; it is cheap and mostly
+  detection. Product bootstrap (idea and roadmap) gates only what it actually protects: task
+  selection and product scoping.
+- **`ship <task>` on a project with no product docs now builds the task**, skipping Task and Ideate,
+  saying out loud what it is working without, and repeating that in the pull request. It is
+  deliberately not blocked and deliberately not silent — the owner sees the notice on every review
+  and runs `--rebootstrap` when they have had enough. `ship` with no task is unchanged: it still
+  runs the full interview and stops at a bootstrap PR.
+- **`idea-interview` splits into a setup half and a product half**, so `ship` can ask for the first
+  alone.
+- **`idea-interview` branches on whether code already exists.** A fresh repository is interviewed
+  for everything. A repository with a real codebase gets the flow inverted — read the code, README,
+  and history first, bring a draft, ask the owner to correct it — and spends their attention only on
+  what code cannot tell you: intent, what is deliberately out of scope, what comes next, and which
+  conventions are real rather than legacy. The roadmap stays required, but covers only what is
+  ahead instead of reconstructing a phasing of what already shipped.
+
 ### Scope
 
 Nine commands became five. The kit exists for autonomous feature development, and everything that
