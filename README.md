@@ -82,7 +82,8 @@ plugins/agent-kit/
   agents/                         reviewer and tester subagents
   rules/                          autonomous mode, interactive mode, pull requests
   templates/project/              what bootstrap copies into a project
-  hooks/, scripts/                session start and cloud dependency setup
+  hooks/, scripts/                session start, cloud dependency setup, and the guard that
+                                  turns the never-rules into explicit confirmations
 ```
 
 Behavior lives in exactly one file. A skill that only points at another file is a bug — the

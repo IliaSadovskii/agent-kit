@@ -36,7 +36,7 @@ the plugin (replaced by every update)
   agents/                 reviewer and tester subagents
   rules/                  autonomous mode, interactive mode, pull requests
   templates/project/      what bootstrap copies into a project
-  hooks/, scripts/        session start and cloud dependency setup
+  hooks/, scripts/        session start, cloud dependency setup, and the guard hook
 
 the project (never touched by an update)
   .agent-kit/project/manifest.yml     automation state and the paths to your documents

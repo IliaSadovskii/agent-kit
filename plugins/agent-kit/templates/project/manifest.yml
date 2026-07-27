@@ -37,6 +37,9 @@ sources:
   roadmap: null
   architecture: null
   coding_standards: null
+  # The CI workflow file, when the project has one — registered at bootstrap so the kit compares
+  # it against the declared verification layers instead of generating a second one.
+  ci: null
   # Add your own keys here for anything else the agent should read by path rather than guess —
   # a deployment runbook, a domain glossary, an API contract. Every skill takes paths from this
   # block, so a key you add here is a key the agent will honour.

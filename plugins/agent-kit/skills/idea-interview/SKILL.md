@@ -118,9 +118,15 @@ in — never write into the plugin's own directory, which a plugin update replac
   no-op in seconds when everything is already present.
 - **`.github/pull_request_template.md`** — propose the sections from
   `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md` and confirm before writing.
+- **CI — detect first.** CI is the only verifier that outlives a session, so it gets the same
+  treatment as the author's docs. If a workflow already exists, register its path as
+  `manifest.sources.ci` and only compare: where the Verification section of the project
+  instructions declares a layer the workflow does not run, say so — that is a finding for the
+  owner, never an edit. If the repository has no CI, propose a workflow that runs the Verification
+  commands verbatim, and write it only on an explicit yes.
 - **`README.md`** — only if the repo has none: a one-paragraph pitch, a quickstart, a short tree,
   and an index of `docs/`. A pointer hub, not a restatement of the docs.
-- Anything else (`.env.example`, linters, a CI stub) only when the stack clearly calls for it.
+- Anything else (`.env.example`, linters) only when the stack clearly calls for it.
 
 Nothing needs to be added to `CLAUDE.md` or `.claude/settings.json`: the plugin brings its own
 always-on governance and its own SessionStart hook. Leave both files to the project.

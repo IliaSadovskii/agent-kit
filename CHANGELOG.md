@@ -3,6 +3,38 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.6.0
+
+Two carriers for guarantees the kit could previously only phrase as prose: the project's CI, and a
+permission gate in front of the commands the governance forbids. Nothing for an installed project
+to migrate; the CI bullet applies at the next bootstrap or `--rebootstrap`.
+
+### CI, detect-first
+
+CI is the only verifier that outlives a session — everything the run proves locally dies with it,
+and 0.5.0 taught `ship` to watch `gh pr checks` without ensuring there was anything to watch. CI
+now gets the same treatment as the author's docs:
+
+- Bootstrap detects an existing workflow and registers it in the manifest (`sources.ci`) instead
+  of generating a second one. Where the declared Verification layers and the workflow disagree,
+  that is a finding for the owner, never an edit.
+- On a repository with no CI, it proposes a workflow running the Verification commands from the
+  project instructions verbatim, written only on an explicit yes.
+- When `ship`'s Test step installs new tooling, it extends a workflow the kit generated or the
+  owner approved; a CI the project brought with it is not the kit's to edit — that gap goes to the
+  Run log as a manual action.
+
+### The guard hook
+
+The rules the governance states as "never" — merge a pull request, push the default branch,
+force-push — were promises. A new PreToolUse hook turns them into a confirmation: a matching
+command comes back as an explicit permission question instead of running. The decision is "ask",
+never "deny" — interactively the owner confirms in one click; in an unattended autonomous run
+nobody answers, so the command does not run, which is exactly what the rules promised. Parsing
+lives in `guard.py` and judges each pipeline segment on its own words, so `echo "git push"` or a
+push of `claude/main-fix` does not cry wolf — a guard that does teaches everyone to click through
+it. Everything that is judgment rather than invariant stays prose.
+
 ## 0.5.0
 
 The run survives its own length, and the pipeline no longer ends the moment the PR opens. Nothing

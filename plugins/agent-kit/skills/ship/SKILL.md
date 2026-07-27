@@ -121,8 +121,11 @@ The bar is not "the tests pass" — it is that someone can merge this without re
    the tooling gap. Install what it said the session could install, add it to the project's
    `scripts/cloud-setup.sh` and to `.agent-kit/project/instructions.md` so later sessions and CI
    inherit it, and record anything the session cannot install in the Run log as a manual action
-   stating what stays unproven without it. A failed install is recoverable: try a safe alternative, and if none works,
-   say which layer you lost.
+   stating what stays unproven without it. A failed install is recoverable: try a safe alternative,
+   and if none works, say which layer you lost. If the CI workflow registered as
+   `manifest.sources.ci` is one the kit generated or the owner approved, add the new layer there
+   too; a CI the project brought with it is not yours to edit — record the gap in the Run log as a
+   manual action.
 2. **Delegate to the `agent-kit:tester` agent**, which writes across the chosen layers and proves
    each new behavior can fail. Carry its report of deliberately skipped layers into the Run log.
 3. **Run the project's full declared suite** — tests, type checker, and lint. Static analysis is a
