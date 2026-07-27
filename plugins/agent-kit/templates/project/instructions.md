@@ -32,10 +32,27 @@ not carry running services across that boundary. Respect the split:
 ## Commands
 
 - Install dependencies: `<fill in>`
-- Test suite: `<fill in>`
-- Lint/static analysis: `<fill in>`
 - Migrations: `<fill in>`
 - Database: `<fill in>` (never substitute a different engine for production behavior)
+
+## Verification
+
+One line per layer this project can actually run. The agent takes these verbatim rather than
+guessing, and adds a line here whenever it installs new test tooling — so the next session and CI
+inherit it instead of rediscovering it.
+
+- Full suite (what CI runs): `<fill in>`
+- Type check: `<fill in>`
+- Lint: `<fill in>`
+- Unit tests: `<fill in>`
+- Integration tests, and how to start what they need: `<fill in>`
+- Contract tests between backend and frontend: `<none yet>`
+- End-to-end: `<none yet>`
+- Coverage report: `<none yet>`
+- Mutation testing: `<none yet>`
+
+Leave `<none yet>` where a layer is genuinely absent — that is the signal for the design step to
+propose adding it, and it is more useful than a blank.
 
 ## Coding standards
 

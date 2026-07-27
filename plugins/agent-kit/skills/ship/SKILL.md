@@ -107,13 +107,39 @@ request and runs `--rebootstrap` when they have had enough of it.
 
 ## Test
 
-1. Delegate to the `agent-kit:tester` agent for uncovered paths and edge cases.
-2. Run the project's full declared test and lint suite. Fix product defects; never weaken a valid
-   test for green output.
-3. If the feature changed behavior a person can see — an endpoint, a screen, a command — confirm it
-   against the running app with `/verify`, which builds and runs the project rather than trusting
-   tests alone. A green suite on an app that does not start is the failure this catches. Skip it for
-   changes with no runnable surface, and say that you skipped it and why.
+The bar is not "the tests pass". It is that someone can merge this without reading the diff. Every
+step below exists to move toward that.
+
+1. **Provision what the verification plan asked for.** The design named the layers, the seams, and
+   the tooling gap. Install what it said the session could install, add it to the project's
+   `scripts/cloud-setup.sh` so the next session and CI inherit it, and record it in
+   `.agent-kit/project/instructions.md` with the command that runs it. Anything the session cannot
+   install becomes a manual action in the PR, together with what stays unproven without it. A tool
+   that fails to install is a recoverable failure — try a safe alternative, and if none works, say
+   which layer you lost.
+2. **Delegate to the `agent-kit:tester` agent.** It writes across the layers the design chose and
+   proves each new behavior can fail. Its report names the layers it skipped; carry that into the PR
+   rather than dropping it.
+3. **Run the project's full declared suite** — tests, type checker, and lint. Static analysis is a
+   test layer, not a formality: a type error is a failing test. Fix product defects; never weaken a
+   valid assertion for green output.
+4. **Confirm it against the running app with `/verify`** when the feature changed something a person
+   can see — an endpoint, a screen, a command. A green suite on an app that does not start is
+   exactly the failure this catches. Skip it only when there is no runnable surface, and say so.
+5. **Clean the code with `/simplify`.** Four agents review the change in parallel for reuse of
+   existing helpers, simplification, efficiency, and whether it sits at the right level of
+   abstraction, and apply the fixes. It does not look for bugs — that is `/code-review` at the next
+   step — so this is the pass that keeps the diff worth reading. Rerun the suite afterwards.
+6. **Check the suite is trustworthy, not just green.** Two things disqualify it, and both are
+   defects you fix rather than notes you write down:
+   - A test that passed without the behavior being present. The tester agent proves each new test
+     can fail; if any could not be made to fail, that behavior is uncovered.
+   - A flaky test. If anything passes on a rerun with no change, treat it as a real defect —
+     ordering, shared state, time, or a genuine race — and fix it or quarantine it loudly. One known
+     flake teaches everyone to ignore red, and then the whole suite stops meaning anything.
+
+If a layer the design called for could not be written, say which one and why, in the PR, next to
+Assumptions. An unproven feature that says so is fine. An unproven feature that looks proven is not.
 
 ## Review
 

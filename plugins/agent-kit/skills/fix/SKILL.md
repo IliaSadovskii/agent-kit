@@ -16,7 +16,9 @@ Task: `$ARGUMENTS`
    the scope really is small and local.
 2. **Change** — make it on a branch, following the project's conventions. Keep the blast radius
    small.
-3. **Test** — cover the changed behavior and run the relevant tests and lint.
+3. **Test** — cover the changed behavior, and make each new test fail once against the unfixed code
+   before you trust it. Run the relevant tests, the type checker, and lint. This is the whole
+   verification budget on this path, so spend it on proving the change rather than on breadth.
 4. **Review** — run `/code-review` over the diff. At this size `low` or `medium` effort is the right
    trade: it reports only the findings it is most confident in, which is what you want on a change
    this small. Fix what it returns. Then run `/security-review` if the change touches input handling,

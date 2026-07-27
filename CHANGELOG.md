@@ -9,6 +9,38 @@ The kit is a Claude Code plugin, it delegates the steps Claude Code now does bet
 hand-written prompt, and it is cut back to what it was actually for. See
 [migrations/0.4.0.md](migrations/0.4.0.md) for what an installed project has to do.
 
+### Verification
+
+The target moved from "the tests pass" to "someone can merge this without reading the diff".
+
+- **How a feature will be proven is now decided at design time**, as part of the design the owner
+  approves, rather than improvised after the build. The new verification plan in `brainstorming`
+  fixes three things while the owner is still present: the **seams** the feature is tested at
+  (prefer existing ones, take the highest that still sees the behavior, keep the count near one),
+  the **layers** it needs, and the **tooling gap** — what has to be installed to run those layers.
+- **Missing test tooling gets installed** during the build when the session can do it, added to
+  `scripts/cloud-setup.sh` so later sessions and CI inherit it, and recorded in the project
+  instructions. Nothing is installed that the owner did not see in the approved plan. What the
+  session cannot install becomes a manual action stating what stays unproven without it.
+- **The `tester` agent gained a layer catalogue** — static, unit, integration, contract, end-to-end,
+  regression, property-based, snapshot, accessibility, concurrency and idempotency, performance —
+  and must report which layers it deliberately skipped. Contract tests are called out specifically:
+  they are where "works on the backend, broken on the frontend" lives, and they were the layer most
+  often missing entirely.
+- **Every new test must be proven able to fail.** Invert the condition, watch the test go red, put
+  the code back. A test that passes against broken code buys confidence it has not earned, and this
+  is what separates a suite you can rely on from one that merely runs. Where the project has a
+  mutation-testing tool, a surviving mutant counts as an uncovered behavior.
+- **A flaky test is a defect, not an annoyance.** One known flake teaches everyone to ignore red,
+  and then nothing in the suite means anything. `ship` now fails its own bar on a flake instead of
+  noting it.
+- **`/simplify` runs in the Test step** — four parallel agents covering reuse, simplification,
+  efficiency, and level of abstraction. `/code-review` finds bugs at the next step; this is the pass
+  that keeps the diff worth reading.
+- Static analysis is stated as a test layer rather than a formality: a type error is a failing test.
+- The project instructions template gained a Verification section with one line per layer, and
+  `<none yet>` as a deliberate signal for the design step to propose adding a missing one.
+
 ### Bootstrap
 
 - **`bootstrapped` was one flag doing two jobs**, so "I know exactly what I want built" waited behind

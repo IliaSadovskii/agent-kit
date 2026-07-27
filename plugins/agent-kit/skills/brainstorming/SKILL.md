@@ -59,12 +59,48 @@ where unexamined assumptions cost the most. The design itself can be three sente
    concurrently with one `Plan` agent per approach, each given only its own mandate, so they do not
    converge on the same answer; on a small one, write them yourself. Then form your own opinion and
    present the trade-offs, leading with your recommendation and why.
-6. **Present the design and get explicit approval.** Scale each section to its complexity and ask
+6. **Decide how this feature will be proven.** See below. This is part of the design, not an
+   afterthought at the end of the build.
+7. **Present the design and get explicit approval.** Scale each section to its complexity and ask
    after each whether it looks right. Cover architecture, components, data flow, error handling, and
-   testing.
-7. **Write the spec** to `docs/specs/YYYY-MM-DD-<topic>-design.md` and commit it. Prose in the
-   user's language; code, paths, and identifiers in English.
-8. **Invoke `writing-plans`.** That is the terminal step — no other skill, and no further gate.
+   the verification plan from step 6.
+8. **Write the spec** to `docs/specs/YYYY-MM-DD-<topic>-design.md` and commit it, including the
+   verification plan. Prose in the user's language; code, paths, and identifiers in English.
+9. **Invoke `writing-plans`.** That is the terminal step — no other skill, and no further gate.
+
+## The verification plan
+
+After approval nobody is watching, so what the tests can prove is the only thing standing between
+the design and a merged mistake. Decide three things while the owner is still here.
+
+**The seams.** Name the points this feature will be tested at, before deciding what to test. Prefer
+seams the project already has to new ones, take the highest seam that can still see the behavior,
+and keep the count as low as the feature allows — one is the ideal. Tests written at low seams
+multiply, ossify the implementation, and are the reason suites get abandoned. Check the seams with
+the owner: this is where their expectations and yours diverge most cheaply.
+
+**The layers.** Which kinds of test this feature actually needs — the `agent-kit:tester` agent holds
+the catalogue, from static analysis through contract and end-to-end. Choose deliberately and say
+what you are leaving out. A backend change with a frontend consumer almost always needs a contract
+test; a pure refactor may need nothing new at all.
+
+**The tooling gap.** Compare what those layers require against what
+`.agent-kit/project/instructions.md` says the project has. Anything missing — an end-to-end runner,
+a browser driver, a container for a real database, a mutation-testing tool, a coverage reporter —
+gets named here, with what it buys and what it costs to run.
+
+Then say plainly which side of the line it falls on:
+
+- **The session can install it** — say so, and it happens during the build, with the install added to
+  the project's `scripts/cloud-setup.sh` so the next session and CI have it too. Never install
+  something the owner has not seen in this plan; that is exactly what this step is for.
+- **The session cannot** — a paid service, a credential, a device, something needing their machine —
+  it becomes a recorded manual action, and you state here what will go unproven until they do it,
+  so the gap is a decision rather than a surprise.
+
+If the honest answer is that this feature cannot be verified well without something the owner has to
+provide, say that now, in the design, and let them choose. Discovering it after approval turns it
+into an assumption buried in a pull request.
 
 ## Two things worth catching early
 

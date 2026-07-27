@@ -40,7 +40,9 @@ Which files are created or modified, and what each is responsible for.
 **Interfaces:** what this task consumes from earlier ones, and the exact names and types later
 tasks rely on. The implementer sees only their own task; this is how they learn the vocabulary.
 **Behavior:** what this task must make true, specifically enough to be checked.
-**Verification:** the project's real test command, and what passing looks like.
+**Verification:** the seam this task is tested at and the layers it needs, taken from the spec's
+verification plan; the project's real command to run them; and what passing looks like. If the task
+needs tooling the project does not have yet, name it here — the Test step installs it.
 ```
 
 The file map is where decomposition gets locked in: one responsibility per file, files that change
