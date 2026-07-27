@@ -65,6 +65,20 @@ The kit does not reimplement what Claude Code already does well. The pipelines c
 The kit's own `reviewer` agent covers the one thing none of those can: whether the diff matches the
 design that was approved for it.
 
+Two kinds of plugin are worth having alongside the kit, though it requires neither:
+
+- **A language server for your stack** — `typescript-lsp`, `pyright-lsp`, `gopls-lsp`, `ruby-lsp`,
+  `php-lsp`, and the rest of the family in the official directory. The Build step is told to look
+  for an existing helper before writing one, and find-references is how that search actually
+  succeeds; without it the agent is guessing at names.
+- **`pr-review-toolkit`** — Anthropic's specialist review agents, notably `silent-failure-hunter`
+  and `pr-test-analyzer`. The kit covers both concerns itself, but a second opinion from a different
+  author is worth more than a second opinion from the same one.
+
+Writing tests is deliberately not delegated. Everything the kit hands off inspects finished work,
+which is why a generic version of it can exist at all; authoring tests means writing code inside
+this project's conventions, framework, and seams, and there is no generic version of that.
+
 ## The autonomous contract
 
 The canonical sequence lives in the `ship` skill. Before the design gate the agent may ask one

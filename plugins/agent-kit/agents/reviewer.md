@@ -24,6 +24,14 @@ and the coding-standards document registered in the manifest. Then check:
 - **Scope** — did anything change that the task did not call for?
 - **Coverage** — do the plan's stated edge cases have tests, and do those tests assert the behavior
   rather than the implementation?
+- **Silent failure** — is any error swallowed, logged and then continued past, caught with a
+  handler too broad to know what it caught, or replaced by a fallback the user never learns about?
+  These survive both the test suite and a bug-hunting review, because nothing is red and nothing
+  looks wrong; they surface months later as behavior nobody can explain. Judge each one by whether a
+  person could act on what they are told when it fires.
+- **Reinvention** — does the change hand-roll something the project, the framework, or an installed
+  dependency already provides? Name the existing thing when you find one; "there is already
+  `X` for this" is worth more than a style note.
 - **Conventions** — does the change follow the project's registered standards and the patterns
   already established in the code it sits in?
 - **Maintainability** — can the next person work in this code, and is anything here load-bearing

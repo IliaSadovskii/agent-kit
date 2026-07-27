@@ -55,6 +55,29 @@ self-checks on top of that: re-reading your own work, or asking a subagent to co
 tokens without improving the result. Independent review of finished work is a different thing, and
 the pipelines schedule it explicitly.
 
+## Reaching for what already exists
+
+Before writing a helper, a utility, or anything that feels like plumbing, spend the tool calls to
+check whether it exists already — in this project, in the framework, or in a dependency the project
+has installed. Most hand-rolled code is written by someone who did not look. Search for the
+behavior, not for the name you would have given it, and use the project's code intelligence when it
+has any; find-references answers in one call what grep answers in five.
+
+Prefer, in order: the language and its standard library, the framework's own primitives, a
+dependency the project already depends on, a well-maintained library, and only then code of your
+own. Each step down that list is more code you are committing someone to maintain.
+
+Take a new dependency when the problem is well defined and long solved — dates and time zones,
+money, parsing, retries, validation, cryptography. Write it yourself when you would use a fraction
+of what it brings, when it would own something central to this product's domain, or when the honest
+version is twenty readable lines. Say which of these you concluded and why, rather than adding a
+dependency silently.
+
+Write the language you are in rather than importing habits from another one. The idiomatic version
+is usually shorter, and the next reader already knows how it works.
+
+The best version of a change often removes code. When you see that, say so.
+
 ## Delegating to subagents
 
 A subagent multiplies cost and time: it re-establishes context, re-explores, reports back, and you
@@ -69,7 +92,7 @@ counts low, and run genuinely independent tracks concurrently in one message rat
 ## Core rules
 
 1. Work incrementally; don't land a large feature as one undifferentiated change.
-2. Prefer framework primitives and existing dependencies; add a dependency for a concrete need.
+2. Look for what exists before writing your own — see "Reaching for what already exists".
 3. Never hardcode credentials. Secrets live in environment variables or a secret store and must not
    enter commits, logs, plans, or PR descriptions.
 4. Preserve unrelated working-tree changes. No destructive Git commands unless explicitly

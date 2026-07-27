@@ -9,6 +9,29 @@ The kit is a Claude Code plugin, it delegates the steps Claude Code now does bet
 hand-written prompt, and it is cut back to what it was actually for. See
 [migrations/0.4.0.md](migrations/0.4.0.md) for what an installed project has to do.
 
+### Reuse over reinvention
+
+The kit said "prefer framework primitives and existing dependencies" and left it there. That is a
+statement of preference; it never asked anyone to go and look, which is why hand-rolled helpers get
+written — by someone who did not check.
+
+- **New always-on section, "Reaching for what already exists"**: search for the behavior before
+  writing it, search by behavior rather than by the name you would have chosen, and prefer in order
+  the language, the framework, an installed dependency, a maintained library, and only then your own
+  code. It states when a new dependency is the right call (well-defined, long-solved problems — dates,
+  money, parsing, retries, crypto) and when it is not, and asks for the reasoning out loud rather
+  than a silent `package.json` edit. Being always-on, it applies to `fix`, `debug`, and plain
+  terminal work too, not only to `ship`.
+- `ship`'s Build step points at it and at language-server tooling, since find-references is what
+  makes the search actually succeed.
+- **The `reviewer` agent gained two lenses**: *silent failure* — swallowed errors, over-broad catch
+  blocks, and fallbacks the user never learns about, which survive both the suite and a bug hunt
+  because nothing is red — and *reinvention*, which names the existing helper when it finds one.
+- The plugin README now points at language servers and at `pr-review-toolkit` as worthwhile
+  companions, and says plainly why writing tests is not delegated the way review and security are:
+  everything the kit hands off inspects finished work, and authoring tests means writing code inside
+  one project's conventions and seams.
+
 ### Verification
 
 The target moved from "the tests pass" to "someone can merge this without reading the diff".

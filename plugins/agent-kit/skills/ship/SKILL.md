@@ -56,7 +56,11 @@ say so once at the start and continue.
   approval, write the feature spec and enter autonomous mode.
 - **Plan** — run `writing-plans` for an executable implementation plan. No approval gate.
 - **Build** — implement the approved design task by task using the project's conventions. Keep
-  commits coherent and verification close to the changed behavior.
+  commits coherent and verification close to the changed behavior. The always-on rule about reaching
+  for what already exists applies hardest here: before each new helper, look in the project, the
+  framework, and the installed dependencies. If the project has a language server enabled,
+  find-references and go-to-definition find an existing helper far more reliably than searching for
+  the name you would have picked.
 - **Test** — see below.
 - **Review** — see below.
 - **Security** — see below.
