@@ -68,8 +68,8 @@ design that was approved for it.
 
 Two kinds of plugin are worth having alongside the kit, though it requires neither:
 
-- **A language server for your stack** — `typescript-lsp`, `pyright-lsp`, `gopls-lsp`, `ruby-lsp`,
-  `php-lsp`, and the rest of the family in the official directory. The Build step is told to look
+- **A language server for your stack** — `typescript-lsp`, `pyright-lsp`, `php-lsp`, `go-lsp`,
+  `rust-lsp`, and the rest of the family in the official directory. The Build step is told to look
   for an existing helper before writing one, and find-references is how that search actually
   succeeds; without it the agent is guessing at names.
 - **`pr-review-toolkit`** — Anthropic's specialist review agents, notably `silent-failure-hunter`
