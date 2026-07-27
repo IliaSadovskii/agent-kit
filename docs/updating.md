@@ -46,12 +46,11 @@ bash install.sh status
 ```
 
 ```text
-agent-kit 0.2.0
+agent-kit 0.3.0
   source:    https://github.com/IliaSadovskii/agent-kit
-  ref:       v0.2.0  (commit 4f2c…)
+  ref:       v0.3.0  (commit 4f2c…)
   installed: 2026-07-22T19:51:44Z
-  providers: claude,codex
-  files:     76
+  files:     55
 
 Locally modified kit files (an update will keep these and park the release copy):
   modified .agent-kit/workflows/ship.md

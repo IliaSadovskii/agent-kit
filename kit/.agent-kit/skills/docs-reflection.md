@@ -26,9 +26,8 @@ hardcode doc names. **Scan the docs directory** (the folder holding `manifest.so
 open-questions, dev guide — whatever this project actually has.
 
 **Excluded, never touched here:**
-- The engine/meta: `.agent-kit/`, `.claude/`, `.agents/`, `.codex/`, root `CLAUDE.md`, and root
-  `AGENTS.md`. Those
-  change only in meta mode, with the user.
+- The engine/meta: `.agent-kit/`, `.claude/`, and root `CLAUDE.md`. Those change only in meta mode,
+  with the user.
 - The immutable record: `docs/specs/` and `docs/plans/` — the letter of what was decided/built
   then; never rewritten after the fact.
 

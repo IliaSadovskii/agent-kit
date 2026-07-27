@@ -13,13 +13,12 @@
 #   --ref <ref>         kit ref to install: a tag, branch, or commit (default: latest tag)
 #   --from <path>       install from a local kit checkout instead of fetching
 #   --repo <url>        kit repository (default: the public GitHub repo below)
-#   --providers <list>  comma-separated: claude,codex (default: both, or the installed set)
 #   --dry-run           print what would change, write nothing
 #   --force             overwrite locally modified kit files instead of reporting a conflict
 #   -h, --help          this help
 #
 # What is user-owned and never touched: .agent-kit/project/, product docs, source code, the
-# sections of CLAUDE.md / AGENTS.md outside the kit:managed markers, and .claude/settings.local.json.
+# sections of CLAUDE.md outside the kit:managed markers, and .claude/settings.local.json.
 
 set -euo pipefail
 
@@ -30,7 +29,6 @@ PROJECT_DIR=""
 REF=""
 FROM=""
 REPO="$DEFAULT_REPO"
-PROVIDERS=""
 DRY_RUN=0
 FORCE=0
 TMP_DIR=""
@@ -50,7 +48,7 @@ info() { printf '%s\n' "$*"; }
 warn() { printf '%swarning:%s %s\n' "$C_YELLOW" "$C_OFF" "$*" >&2; }
 die()  { printf '%serror:%s %s\n' "$C_RED" "$C_OFF" "$*" >&2; exit 1; }
 
-usage() { sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; }
 
 cleanup() {
   if [ -n "$TMP_DIR" ] && [ -d "$TMP_DIR" ]; then rm -rf "$TMP_DIR"; fi
@@ -74,7 +72,6 @@ parse_args() {
       --ref)       REF="${2:?--ref needs a value}"; shift 2 ;;
       --from)      FROM="${2:?--from needs a path}"; shift 2 ;;
       --repo)      REPO="${2:?--repo needs a URL}"; shift 2 ;;
-      --providers) PROVIDERS="${2:?--providers needs a list}"; shift 2 ;;
       --dry-run)   DRY_RUN=1; shift ;;
       --force)     FORCE=1; shift ;;
       -h|--help)   usage; exit 0 ;;
@@ -152,34 +149,10 @@ fetch_source() {
 # payload selection
 # --------------------------------------------------------------------------------------------
 
-wants_claude() { case ",$PROVIDERS," in *,claude,*) return 0 ;; *) return 1 ;; esac; }
-wants_codex()  { case ",$PROVIDERS," in *,codex,*)  return 0 ;; *) return 1 ;; esac; }
-
-resolve_providers() {
-  if [ -z "$PROVIDERS" ]; then
-    PROVIDERS="$(lock_field providers || true)"
-    [ -n "$PROVIDERS" ] || PROVIDERS="claude,codex"
-  fi
-  PROVIDERS="$(printf '%s' "$PROVIDERS" | tr -d ' ')"
-  local part
-  for part in ${PROVIDERS//,/ }; do
-    case "$part" in
-      claude|codex) ;;
-      *) die "unknown provider: $part (expected claude or codex)" ;;
-    esac
-  done
-}
-
-# Files the kit owns in this project, relative to the project root. `kit/root/` is excluded: those
-# are managed blocks spliced into CLAUDE.md / AGENTS.md, not standalone files.
+# Files the kit owns in this project, relative to the project root. `kit/root/` is excluded: that
+# is the managed block spliced into CLAUDE.md, not a standalone file.
 payload_files() {
-  (cd "$SRC/kit" && find . -type f ! -path './root/*' | sed 's#^\./##' | sort) | while read -r rel; do
-    case "$rel" in
-      .claude/*)          if wants_claude; then printf '%s\n' "$rel"; fi ;;
-      .agents/*|.codex/*) if wants_codex;  then printf '%s\n' "$rel"; fi ;;
-      *)                  printf '%s\n' "$rel" ;;
-    esac
-  done
+  (cd "$SRC/kit" && find . -type f ! -path './root/*' | sed 's#^\./##' | sort)
 }
 
 # --------------------------------------------------------------------------------------------
@@ -231,7 +204,6 @@ write_lock() {
     printf 'ref: %s\n' "$SRC_REF"
     printf 'commit: %s\n' "$SRC_COMMIT"
     printf 'installed_at: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    printf 'providers: %s\n' "$PROVIDERS"
     printf 'files:\n'
     # Kit paths never contain spaces, so a space-separated triple is unambiguous.
     local entry path release_sha disk_sha
@@ -243,7 +215,7 @@ write_lock() {
 }
 
 # --------------------------------------------------------------------------------------------
-# managed blocks in CLAUDE.md / AGENTS.md
+# managed block in CLAUDE.md
 # --------------------------------------------------------------------------------------------
 
 MARK_START='<!-- kit:managed:start — a kit update replaces everything between these markers. Do not hand-edit. -->'
@@ -281,13 +253,13 @@ splice_block() {
 }
 
 # --------------------------------------------------------------------------------------------
-# shared JSON config (.claude/settings.json, .codex/hooks.json)
+# shared JSON config (.claude/settings.json)
 # --------------------------------------------------------------------------------------------
 
 HOOK_CMD='"$(git rev-parse --show-toplevel)/.agent-kit/scripts/session-setup.sh"'
 
-# These files are shared with the project: the kit only guarantees its SessionStart hook is
-# present, and never rewrites hooks or permissions the project added itself.
+# .claude/settings.json is shared with the project: the kit only guarantees its SessionStart hook
+# is present, and never rewrites hooks or permissions the project added itself.
 ensure_hook() {
   local target="$1" template="$2"
 
@@ -416,12 +388,8 @@ install_templates() {
   local rel dest
   while read -r rel; do
     [ -n "$rel" ] || continue
-    case "$rel" in
-      CLAUDE.md|.claude/*) if ! wants_claude; then continue; fi ;;
-      AGENTS.md|.codex/*)  if ! wants_codex;  then continue; fi ;;
-    esac
-    # Hook configs are merged, not copied wholesale.
-    case "$rel" in .claude/settings.json|.codex/hooks.json) continue ;; esac
+    # The hook config is merged, not copied wholesale.
+    case "$rel" in .claude/settings.json) continue ;; esac
 
     dest="$PROJECT_DIR/$rel"
     if [ -e "$dest" ]; then
@@ -436,14 +404,9 @@ install_templates() {
 }
 
 apply_managed_blocks() {
-  if wants_claude && [ -f "$PROJECT_DIR/CLAUDE.md" ]; then
+  if [ -f "$PROJECT_DIR/CLAUDE.md" ]; then
     if splice_block "$PROJECT_DIR/CLAUDE.md" "$SRC/kit/root/CLAUDE.block.md"; then
       say "  managed  CLAUDE.md"
-    fi
-  fi
-  if wants_codex && [ -f "$PROJECT_DIR/AGENTS.md" ]; then
-    if splice_block "$PROJECT_DIR/AGENTS.md" "$SRC/kit/root/AGENTS.block.md"; then
-      say "  managed  AGENTS.md"
     fi
   fi
 }
@@ -459,7 +422,6 @@ sync_manifest_version() {
 
 ensure_gitignore() {
   local gitignore="$PROJECT_DIR/.gitignore"
-  if ! wants_claude; then return 0; fi
   if grep -qF '.claude/settings.local.json' "$gitignore" 2>/dev/null; then return 0; fi
   if [ "$DRY_RUN" -eq 0 ]; then
     printf '\n# Personal Claude Code settings — never shared\n.claude/settings.local.json\n' \
@@ -471,7 +433,6 @@ ensure_gitignore() {
 do_install() {
   local mode="$1" version
   fetch_source
-  resolve_providers
   version="$(cat "$SRC/VERSION" 2>/dev/null || echo unknown)"
 
   if [ "$mode" = "install" ] && [ -f "$(LOCK)" ]; then
@@ -483,19 +444,14 @@ do_install() {
   fi
 
   info ""
-  info "${C_BOLD}agent-kit $version → $PROJECT_DIR${C_OFF}  (providers: $PROVIDERS)"
+  info "${C_BOLD}agent-kit $version → $PROJECT_DIR${C_OFF}"
   if [ "$DRY_RUN" -eq 1 ]; then info "${C_YELLOW}dry run — nothing will be written${C_OFF}"; fi
   info ""
 
   apply_payload
   install_templates
   apply_managed_blocks
-  if wants_claude; then
-    ensure_hook "$PROJECT_DIR/.claude/settings.json" "$SRC/templates/.claude/settings.json"
-  fi
-  if wants_codex; then
-    ensure_hook "$PROJECT_DIR/.codex/hooks.json" "$SRC/templates/.codex/hooks.json"
-  fi
+  ensure_hook "$PROJECT_DIR/.claude/settings.json" "$SRC/templates/.claude/settings.json"
   ensure_gitignore
   sync_manifest_version "$version"
 
@@ -522,10 +478,10 @@ do_install() {
 
   say "${C_GREEN}Done.${C_OFF} Next:"
   say "  1. Review the diff and commit — the kit belongs in version control."
-  say "  2. Start a fresh Claude Code / Codex session so the new skills are discovered."
+  say "  2. Start a fresh Claude Code session so the new commands and skills are discovered."
   if [ ! -f "$PROJECT_DIR/.agent-kit/project/manifest.yml" ] \
      || grep -q '^bootstrapped: false' "$PROJECT_DIR/.agent-kit/project/manifest.yml" 2>/dev/null; then
-    say "  3. Run /go (Claude Code) or \$go (Codex) — it will bootstrap the project."
+    say "  3. Run /go — it will bootstrap the project."
   fi
 }
 
@@ -551,7 +507,6 @@ do_status() {
   say "  source:    $(lock_field source)"
   say "  ref:       $(lock_field ref)  (commit $(lock_field commit))"
   say "  installed: $(lock_field installed_at)"
-  say "  providers: $(lock_field providers)"
   say "  files:     $(lock_files | wc -l | tr -d ' ')"
 
   local changes; changes="$(modified_files)"
@@ -599,8 +554,8 @@ do_uninstall() {
   [ "$DRY_RUN" -eq 1 ] || rm -f "$(LOCK)"
   say ""
   say "Removed kit-owned files. Left untouched, for you to clean up or keep:"
-  say "  .agent-kit/project/, CLAUDE.md, AGENTS.md, .claude/settings.json, .codex/hooks.json"
-  say "  (the managed blocks in CLAUDE.md / AGENTS.md now import files that are gone — drop them)"
+  say "  .agent-kit/project/, CLAUDE.md, .claude/settings.json"
+  say "  (the managed block in CLAUDE.md now imports files that are gone — drop it)"
 }
 
 # --------------------------------------------------------------------------------------------

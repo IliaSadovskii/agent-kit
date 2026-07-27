@@ -4,7 +4,7 @@
 
 - `bash` 4+, `git`, and `sha256sum` or `shasum`
 - `python3` — optional; only used to merge the kit's SessionStart hook into a `.claude/settings.json`
-  or `.codex/hooks.json` your project already has
+  your project already has
 
 ## The one-liner
 
@@ -34,7 +34,6 @@ release — not the tip of `main`.
 | `--ref <tag>` | Install a specific release, branch, or commit |
 | `--from <path>` | Install from a local kit checkout — no network |
 | `--repo <url>` | Install from a fork |
-| `--providers claude,codex` | Which adapters to install (default: both) |
 | `--dry-run` | Print every action, write nothing |
 | `--force` | Overwrite locally modified kit files instead of reporting conflicts |
 
@@ -46,8 +45,7 @@ release — not the tip of `main`.
   kit.lock                  version, source ref, and per-file checksums
   scripts/kit-update.sh     update shim
 .claude/                    commands, skills, agents (Claude Code)
-.agents/  .codex/           skills and custom agents (Codex)
-CLAUDE.md  AGENTS.md        managed block + your own overrides
+CLAUDE.md                   managed block + your own overrides
 .gitignore                  one line: .claude/settings.local.json
 ```
 
@@ -59,7 +57,7 @@ at session start.
 
 This is the normal case and it is safe:
 
-- **`CLAUDE.md` / `AGENTS.md` already exist** — the kit's bootstrap goes into a
+- **`CLAUDE.md` already exists** — the kit's bootstrap goes into a
   `<!-- kit:managed:start -->…<!-- kit:managed:end -->` block at the top; everything you wrote stays
   below it, and future updates only ever rewrite what is between the markers. The installer warns
   when it has to create the block for the first time.
@@ -69,24 +67,14 @@ This is the normal case and it is safe:
   records where each document lives in `.agent-kit/project/manifest.yml` and reads it from there.
 
 Files the installer will never overwrite, on any run, with or without `--force`:
-`.agent-kit/project/*`, your product docs, your source, and anything outside the managed blocks.
-
-## Choosing providers
-
-`--providers claude` installs `.claude/` and `CLAUDE.md` only; `--providers codex` installs
-`.agents/`, `.codex/`, and `AGENTS.md`. `.agent-kit/` is shared and always installed. The choice is
-recorded in `kit.lock` and reused on update, so you set it once. To add a provider later:
-
-```bash
-bash install.sh update --providers claude,codex
-```
+`.agent-kit/project/*`, your product docs, your source, and anything outside the managed block.
 
 ## After installing
 
 1. **Review the diff and commit.**
-2. **Start a new session** — Claude Code and Codex read skills and subagents at startup, so an
+2. **Start a new session** — Claude Code reads commands, skills, and subagents at startup, so an
    already-running session will not see them.
-3. **Run `/go`** (Claude Code) or `$go` (Codex).
+3. **Run `/go`.**
 
 On a project with no manifest, or with `bootstrapped: false`, `/go` runs the one-time interview: it
 asks about the product, records existing documentation by path, generates only the foundations that
@@ -96,7 +84,7 @@ bootstrap PR. Merge it, then invoke `/ship` for the first feature.
 ## Verifying an install
 
 ```bash
-.agent-kit/scripts/validate.sh   # structure, catalog coverage, no provider leakage
+.agent-kit/scripts/validate.sh   # structure, catalog coverage, adapters stay thin
 bash install.sh status           # version, source ref, local modifications
 ```
 
@@ -107,5 +95,5 @@ bash install.sh uninstall
 ```
 
 Removes every file recorded in `kit.lock` and the lock itself. Your project's own files stay,
-including `.agent-kit/project/` and the managed blocks in `CLAUDE.md` / `AGENTS.md` — delete those
-blocks by hand, since after uninstalling they import files that no longer exist.
+including `.agent-kit/project/` and the managed block in `CLAUDE.md` — delete that block by hand,
+since after uninstalling it imports files that no longer exist.

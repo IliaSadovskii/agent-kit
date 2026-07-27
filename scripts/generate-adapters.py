@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Regenerate every provider adapter wrapper in kit/ from catalog.tsv.
+"""Regenerate every Claude Code adapter wrapper in kit/ from catalog.tsv.
 
-The wrappers are deliberately thin: they exist only so Claude Code and Codex can discover the
-workflow, skill, or role, and they point at the canonical file under .agent-kit/. Keeping them
-generated means adding a workflow is a one-line catalog change instead of five hand-edited files.
+The wrappers are deliberately thin: they exist only so Claude Code can discover the workflow,
+skill, or role, and they point at the canonical file under .agent-kit/. Keeping them generated
+means adding a workflow is a one-line catalog change instead of several hand-edited files.
 
 Usage:
     scripts/generate-adapters.py           # write the wrappers
@@ -21,10 +21,7 @@ KIT = REPO / "kit"
 CATALOG = REPO / "catalog.tsv"
 WIDTH = 99
 
-COLUMNS = [
-    "kind", "name", "title", "claude_desc", "codex_desc",
-    "also", "tools", "sandbox", "claude_note", "codex_note",
-]
+COLUMNS = ["kind", "name", "title", "desc", "also", "tools", "note"]
 
 
 def read_catalog() -> list[dict[str, str]]:
@@ -61,82 +58,59 @@ def frontmatter(**fields: str) -> str:
     return f"---\n{body}---\n"
 
 
-def workflow_body(row: dict[str, str], provider: str) -> str:
+def workflow_body(row: dict[str, str]) -> str:
     also = f"`{row['also']}`, " if row["also"] else ""
-    args = "`$ARGUMENTS`" if provider == "claude" else "the invocation arguments"
-    tail = (
-        "The canonical workflow is authoritative; this file is only an adapter."
-        if provider == "claude"
-        else "This file is only a Codex discovery adapter."
-    )
-    note = row[f"{provider}_note"]
+    note = row["note"]
     return paragraph(
         f"Read `.agent-kit/engine.md`, `.agent-kit/project/instructions.md`, "
-        f"`.agent-kit/platforms/{provider}.md`, `.agent-kit/workflows/{row['name']}.md`, {also}"
-        f"and `.agent-kit/project/manifest.yml` completely. Execute the canonical {row['title']} "
-        f"with {args}. {note + ' ' if note else ''}{tail}"
+        f"`.agent-kit/workflows/{row['name']}.md`, {also}and "
+        f"`.agent-kit/project/manifest.yml` completely. Execute the canonical {row['title']} "
+        f"with `$ARGUMENTS`. {note + ' ' if note else ''}"
+        f"The canonical workflow is authoritative; this file is only an adapter."
     )
 
 
-def skill_body(row: dict[str, str], provider: str) -> str:
+def skill_body(row: dict[str, str]) -> str:
     refs = " and its canonical references" if row["also"] == "refs" else ""
-    note = row[f"{provider}_note"]
+    note = row["note"]
     return paragraph(
         f"Read `.agent-kit/skills/{row['name']}.md`{refs} completely and follow it with "
-        f"`.agent-kit/engine.md`, `.agent-kit/project/instructions.md`, "
-        f"`.agent-kit/project/manifest.yml`, and `.agent-kit/platforms/{provider}.md`. "
+        f"`.agent-kit/engine.md`, `.agent-kit/project/instructions.md`, and "
+        f"`.agent-kit/project/manifest.yml`. "
         f"{note + ' ' if note else ''}This adapter contains no canonical behavior."
     )
 
 
-def role_body(row: dict[str, str], provider: str) -> str:
-    note = row[f"{provider}_note"]
+def role_body(row: dict[str, str]) -> str:
     return paragraph(
         f"Read `.agent-kit/roles/{row['name']}.md`, `.agent-kit/engine.md`, "
-        f"`.agent-kit/project/instructions.md`, `.agent-kit/project/manifest.yml`, and "
-        f"`.agent-kit/platforms/{provider}.md` completely, then perform the canonical "
-        f"{row['name']} role. {note}"
+        f"`.agent-kit/project/instructions.md`, and `.agent-kit/project/manifest.yml` "
+        f"completely, then perform the canonical {row['name']} role. {row['note']}"
     )
 
 
 def build(rows: list[dict[str, str]]) -> dict[str, str]:
     """Return {path relative to kit/: file content} for every generated wrapper."""
     files: dict[str, str] = {}
-    workflow_names = {row["name"] for row in rows if row["kind"] == "workflow"}
 
     for row in rows:
         name, kind = row["name"], row["kind"]
 
         if kind == "workflow":
             files[f".claude/commands/{name}.md"] = (
-                frontmatter(description=row["claude_desc"]) + workflow_body(row, "claude")
-            )
-            files[f".agents/skills/{name}/SKILL.md"] = (
-                frontmatter(name=name, description=row["codex_desc"]) + workflow_body(row, "codex")
+                frontmatter(description=row["desc"]) + workflow_body(row)
             )
 
         elif kind == "skill":
             files[f".claude/skills/{name}/SKILL.md"] = (
-                frontmatter(name=name, description=row["claude_desc"]) + skill_body(row, "claude")
+                frontmatter(name=name, description=row["desc"]) + skill_body(row)
             )
-            # A workflow of the same name already owns the Codex discovery path; Codex exposes one
-            # skill per name, and the workflow entry point is the one a user invokes.
-            if name not in workflow_names:
-                files[f".agents/skills/{name}/SKILL.md"] = (
-                    frontmatter(name=name, description=row["codex_desc"])
-                    + skill_body(row, "codex")
-                )
 
         elif kind == "role":
             files[f".claude/agents/{name}.md"] = (
-                frontmatter(name=name, description=row["claude_desc"], tools=row["tools"])
-                + role_body(row, "claude")
+                frontmatter(name=name, description=row["desc"], tools=row["tools"])
+                + role_body(row)
             )
-            toml = [f'name = "{name}"', f'description = "{row["codex_desc"]}"']
-            if row["sandbox"]:
-                toml.append(f'sandbox_mode = "{row["sandbox"]}"')
-            toml.append(f'developer_instructions = """\n{role_body(row, "codex")}"""\n')
-            files[f".codex/agents/{name}.toml"] = "\n".join(toml)
 
     # The payload keeps a minimal kind/name catalog: the in-project validator reads it, and it must
     # not depend on this repository's authoring columns.
@@ -171,8 +145,7 @@ def main() -> int:
         return 1
 
     files = build(rows)
-    generated_dirs = [".claude/commands", ".claude/skills", ".claude/agents",
-                      ".agents/skills", ".codex/agents"]
+    generated_dirs = [".claude/commands", ".claude/skills", ".claude/agents"]
 
     # Anything under a generated directory that the catalog no longer produces is stale.
     stale = []

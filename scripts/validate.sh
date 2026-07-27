@@ -16,10 +16,9 @@ step() { printf '\n== %s ==\n' "$1"; }
 step "repository layout"
 
 for path in install.sh VERSION CHANGELOG.md README.md catalog.tsv \
-            kit/.agent-kit/engine.md kit/root/CLAUDE.block.md kit/root/AGENTS.block.md \
-            templates/CLAUDE.md templates/AGENTS.md \
+            kit/.agent-kit/engine.md kit/root/CLAUDE.block.md templates/CLAUDE.md \
             templates/.agent-kit/project/manifest.yml templates/.agent-kit/project/instructions.md \
-            templates/.claude/settings.json templates/.codex/hooks.json; do
+            templates/.claude/settings.json; do
   [ -e "$path" ] || fail "missing: $path"
 done
 
@@ -30,12 +29,14 @@ grep -q "## $VERSION" CHANGELOG.md 2>/dev/null || fail "CHANGELOG.md has no entr
 # The project-owned corner must never ship inside the payload — an update would overwrite it.
 [ ! -e kit/.agent-kit/project ] || fail "kit/.agent-kit/project must not exist (user-owned)"
 [ ! -e kit/.claude/settings.json ] || fail "kit/.claude/settings.json must live in templates/ (shared file)"
-[ ! -e kit/.codex/hooks.json ] || fail "kit/.codex/hooks.json must live in templates/ (shared file)"
 
-for template in templates/CLAUDE.md templates/AGENTS.md; do
-  grep -q 'kit:managed:start' "$template" || fail "$template has no managed-block start marker"
-  grep -q 'kit:managed:end' "$template" || fail "$template has no managed-block end marker"
+# Codex support was removed in 0.3.0 — the payload must not grow it back.
+for path in kit/.agents kit/.codex templates/.codex templates/AGENTS.md kit/root/AGENTS.block.md; do
+  [ ! -e "$path" ] || fail "Codex artefact is back in the payload: $path"
 done
+
+grep -q 'kit:managed:start' templates/CLAUDE.md || fail "templates/CLAUDE.md has no managed-block start marker"
+grep -q 'kit:managed:end' templates/CLAUDE.md || fail "templates/CLAUDE.md has no managed-block end marker"
 
 grep -q '^bootstrapped: false' templates/.agent-kit/project/manifest.yml \
   || fail "the manifest template must ship unbootstrapped"
@@ -114,20 +115,11 @@ grep -q 'Project-local edit' "$SANDBOX/.agent-kit/workflows/ship.md" \
 [ -f "$SANDBOX/.agent-kit/workflows/ship.md.kit-new" ] \
   || fail "no .kit-new copy was written for the conflicting file"
 
-step "single-provider install"
+step "the install carries no Codex surface"
 
-SANDBOX_CLAUDE="$(mktemp -d)"
-git -C "$SANDBOX_CLAUDE" init -q
-if ! bash install.sh install --from "$REPO" --dir "$SANDBOX_CLAUDE" --providers claude \
-     > "$SANDBOX_CLAUDE/install.log" 2>&1; then
-  cat "$SANDBOX_CLAUDE/install.log" >&2
-  fail "claude-only install failed"
-fi
-[ ! -e "$SANDBOX_CLAUDE/.codex" ] || fail "claude-only install created .codex/"
-[ ! -e "$SANDBOX_CLAUDE/AGENTS.md" ] || fail "claude-only install created AGENTS.md"
-(cd "$SANDBOX_CLAUDE" && bash .agent-kit/scripts/validate.sh) \
-  || fail "in-project validation failed for a claude-only install"
-rm -rf "$SANDBOX_CLAUDE"
+for path in .codex .agents AGENTS.md; do
+  [ ! -e "$SANDBOX/$path" ] || fail "install created a Codex artefact: $path"
+done
 
 step "user-owned files are never overwritten"
 

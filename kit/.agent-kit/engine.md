@@ -1,17 +1,14 @@
 # Agent Kit Engine — governance layer
 
-This is the provider-neutral governance layer for the autonomous development kit. It is kit-owned:
-package updates may replace it. Project-specific rules belong in `.agent-kit/project/instructions.md`; product
+This is the governance layer for the autonomous development kit. It is kit-owned: package updates
+may replace it. Project-specific rules belong in `.agent-kit/project/instructions.md`; product
 knowledge stays in the paths registered by `.agent-kit/project/manifest.yml`.
 
-Every supported adapter must load this file before work begins:
-
-- Claude Code imports it from root `CLAUDE.md`.
-- Codex root `AGENTS.md` explicitly requires reading it before any task action.
+Root `CLAUDE.md` imports this file, so it loads before any work begins.
 
 The mechanics live in `.agent-kit/workflows/`, `.agent-kit/skills/`, `.agent-kit/roles/`, and
-`.agent-kit/rules/`. Provider discovery files under `.claude/`, `.agents/`, and `.codex/` are thin
-adapters only and must not own workflow behavior.
+`.agent-kit/rules/`. The discovery files under `.claude/` are thin adapters only and must not own
+workflow behavior.
 
 ## When these rules apply
 
@@ -39,15 +36,14 @@ never enter a workflow without the user's go-ahead.
 
 When entering a workflow (see scope above), before acting:
 
-1. Read `.agent-kit/project/manifest.yml` for language, bootstrap state, infrastructure state, and source
-   paths.
+1. Read `.agent-kit/project/manifest.yml` for language, bootstrap state, infrastructure state, and
+   source paths.
 2. Read `.agent-kit/project/instructions.md` for shared project commands and conventions.
-3. Read the active provider adapter in `.agent-kit/platforms/`.
-4. Read `README.md` and the product sources referenced by `manifest.sources.*` when they are
+3. Read `README.md` and the product sources referenced by `manifest.sources.*` when they are
    relevant to the task. Never assume fixed documentation paths.
-5. In a hosted session, ensure declared dependencies are available. Use the provider setup phase
-   or the project's idempotent `scripts/cloud-setup.sh`; a missing dependency is normally a
-   recoverable setup action, not a user question.
+4. In a hosted session, ensure declared dependencies are available via the project's idempotent
+   `scripts/cloud-setup.sh`; a missing dependency is normally a recoverable setup action, not a
+   user question.
 
 ## Communication language
 
@@ -82,10 +78,7 @@ Within a workflow, if unsure which mode applies, ask one concise question before
 
 ## Autonomous feature contract
 
-Feature development starts through `ship`:
-
-- Claude Code: `/ship [task]`
-- Codex: `$ship [task]`
+Feature development starts through `/ship [task]`.
 
 The canonical ordered pipeline is `.agent-kit/workflows/ship.md`. Interaction is front-loaded:
 bootstrap/task selection, optional feature ideation, and technical design approval. **Design
@@ -109,6 +102,14 @@ checkpoints and a consultative posture for a user who wants to co-develop.
 - `riff` is a standalone strategic product brainstorm; canonical behavior is
   `.agent-kit/workflows/riff.md`.
 
+## Claude Code specifics
+
+- Work on a branch prefixed `claude/` unless the user or repository requires another prefix.
+- For the independent security pass, prefer Claude Code's dedicated security review capability when
+  it is available; otherwise run an adversarial security pass in a fresh subagent context.
+- Open pull requests with the available GitHub integration; fall back to `gh` only when it is
+  installed and authenticated.
+
 ## Manifest and ownership
 
 `.agent-kit/project/manifest.yml` is the single source of automation state and documentation paths. The kit
@@ -118,7 +119,7 @@ project foundation exists, not that every future feature is fully specified.
 Ownership boundaries:
 
 - Kit-owned, replaceable: engine, workflows, rules, canonical skills/roles, adapters, validator.
-- User-owned, preserved: `.agent-kit/project/instructions.md`, `.agent-kit/project/manifest.yml`, product docs, README,
-  root `CLAUDE.md`/`AGENTS.md` override sections, project code, and secrets.
+- User-owned, preserved: `.agent-kit/project/instructions.md`, `.agent-kit/project/manifest.yml`,
+  product docs, README, the root `CLAUDE.md` override section, project code, and secrets.
 
 See `.agent-kit/GUIDE.md` for installation, updates, and provider invocation details.

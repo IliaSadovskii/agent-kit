@@ -5,8 +5,8 @@
 ```text
 kit/                    the payload — copied verbatim into a project
   .agent-kit/           canonical behavior (no project/ — that is generated per project)
-  .claude/ .agents/ .codex/   generated discovery wrappers
-  root/*.block.md       the managed blocks spliced into CLAUDE.md / AGENTS.md
+  .claude/              generated discovery wrappers
+  root/CLAUDE.block.md  the managed block spliced into CLAUDE.md
 templates/              installed only when the target file does not exist yet
 catalog.tsv             authoring source for every wrapper
 install.sh              install / update / status / diff / uninstall
@@ -15,14 +15,14 @@ migrations/<version>.md notes for a release that needs a manual step
 ```
 
 The invariant behind all of it: **canonical behavior lives in exactly one file under
-`kit/.agent-kit/`, and every provider wrapper is a generated pointer to it.** `scripts/validate.sh`
-fails a wrapper that grows past 20 lines or stops referencing `.agent-kit/`.
+`kit/.agent-kit/`, and every wrapper is a generated pointer to it.** `scripts/validate.sh` fails a
+wrapper that grows past 20 lines or stops referencing `.agent-kit/`.
 
 ## Adding a workflow
 
 1. Write the canonical pipeline in `kit/.agent-kit/workflows/<name>.md`.
 2. Add one row to `catalog.tsv`.
-3. `scripts/generate-adapters.py` — writes the Claude command, the Codex skill, and refreshes
+3. `scripts/generate-adapters.py` — writes the slash-command wrapper and refreshes
    `kit/.agent-kit/catalog.txt`.
 4. `scripts/validate.sh`.
 
@@ -38,11 +38,10 @@ the orphaned wrappers), and the next `install.sh update` removes them from proje
 | `kind` | `workflow`, `skill`, or `role` |
 | `name` | slug; must match the canonical file name |
 | `title` | reads as "Execute the canonical **&lt;title&gt;** with …" |
-| `claude_desc` / `codex_desc` | the description each provider shows in its picker |
+| `desc` | the wrapper's frontmatter description — how Claude Code decides to surface it |
 | `also` | an extra canonical file the wrapper must read; `refs` on a skill means "and its references" |
-| `tools` | Claude subagent tool list (roles) |
-| `sandbox` | Codex `sandbox_mode` (roles) |
-| `claude_note` / `codex_note` | one extra sentence in the wrapper body |
+| `tools` | subagent tool list (roles) |
+| `note` | one extra sentence in the wrapper body |
 
 Empty columns are written as `-`. `scripts/generate-adapters.py --check` fails CI when the payload
 has drifted from this file.
@@ -84,8 +83,6 @@ Semver, from the perspective of a project that installed the kit:
 
 - Anything project-specific: names, stacks, doc paths. Product knowledge is referenced through
   `manifest.sources.*`, never hardcoded. The validator greps for known project names.
-- Behavior inside a provider wrapper.
-- Provider-specific tool names or invocation syntax inside `.agent-kit/` — those belong in
-  `.agent-kit/platforms/`.
+- Behavior inside a generated wrapper.
 - A user-owned file inside `kit/`. `templates/` is for files the project takes ownership of;
   `kit/` is for files the installer may overwrite.

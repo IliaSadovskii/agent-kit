@@ -84,8 +84,8 @@ the author already has.
 - **Shared project instructions** — fill `.agent-kit/project/instructions.md` from the interview: stack,
   cloud/run notes, concrete test/lint/migration commands, architectural constraints, and the
   coding-standards path. It is user-owned and survives kit updates.
-- **Provider roots** — preserve the adapter bootstrap in `CLAUDE.md` and `AGENTS.md`. Put only
-  provider-specific user overrides there; do not duplicate shared project rules from
+- **Root `CLAUDE.md`** — preserve the managed bootstrap block. Put only Claude-specific user
+  overrides below it; do not duplicate shared project rules from
   `.agent-kit/project/instructions.md`.
 - **Coding standards doc** — generate a visible coding-standards document for this stack (default
   `docs/coding-standards.md`), register it as `sources.coding_standards`, and point
