@@ -1,6 +1,6 @@
 ---
 name: idea-interview
-description: One-time project bootstrap. Use when the project has no .agent-kit/project/manifest.yml or it says bootstrapped false — interview the owner, record or generate the core docs, provision scaffolding, and write the manifest.
+description: One-time project bootstrap, invoked by ship when .agent-kit/project/manifest.yml is missing or says bootstrapped false — interview the owner, record or generate the core docs, provision scaffolding, and write the manifest.
 ---
 
 # Idea Interview — project bootstrap
@@ -38,8 +38,10 @@ for it, and say in one line what was set up and what is still missing.
 2. **Ask the communication language first.** The manifest does not exist yet, so greet neutrally,
    ask, and use that language for the rest of the interview. It becomes `manifest.language`.
    Generated docs are prose in it; code, paths, and identifiers stay English.
-3. **Interview, one question at a time**, only about gaps — see coverage below. Multiple choice
-   where it fits.
+3. **Interview about the gaps only** — see coverage below. Batch independent facts — MVP bounds,
+   platform constraints, external services — into one message of up to four questions, multiple
+   choice where it fits. Decisions that depend on each other go one at a time, in dependency order,
+   so a settled answer can moot the rest of its branch.
 4. **Play back the shape** — the product understanding and the docs and scaffolding you intend to
    create. Adjust on feedback. This is the interactive gate of this skill.
 5. **Produce the core docs** — record existing docs by path; generate the missing ones into a
@@ -112,7 +114,8 @@ in — never write into the plugin's own directory, which a plugin update replac
 - **Coding standards** — generate one for this stack (default `docs/coding-standards.md`), register
   it as `sources.coding_standards`, and point the project instructions at it.
 - **`scripts/cloud-setup.sh`** — the dependency install commands for the detected stack, so hosted
-  sessions self-provision.
+  sessions self-provision. It runs at every session start, so it must check before installing and
+  no-op in seconds when everything is already present.
 - **`.github/pull_request_template.md`** — propose the sections from
   `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md` and confirm before writing.
 - **`README.md`** — only if the repo has none: a one-paragraph pitch, a quickstart, a short tree,

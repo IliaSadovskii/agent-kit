@@ -9,6 +9,10 @@ disable-model-invocation: true
 A standalone reconciliation of the living documentation against what the code actually does.
 Nothing here was just built, so establish the ground truth before judging anything.
 
+If `.agent-kit/project/manifest.yml` is missing, there are no registered sources to reconcile: scan
+`docs/` and `README.md` for what actually exists, say what you found, and offer `/agent-kit:ship`
+to bootstrap the project properly.
+
 1. **Find the window.** Ask what should be covered, or infer it: the commits since the last
    `docs: sync` commit, or since the last release tag. Say which range you settled on before you
    start reading — the user can correct it in one word, and getting it wrong wastes the whole pass.

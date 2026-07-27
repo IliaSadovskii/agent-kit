@@ -1,6 +1,6 @@
 ---
 name: ideate
-description: Think about what to build and why — generate ideas, argue them out, and land the decisions. Two scopes, a broad product riff or scoping one already-chosen feature before design.
+description: Think about what to build and why — generate ideas, argue them out, and land the decisions. Invoked by riff in its broad scope and by ship's Ideate step for one chosen feature; builds nothing either way.
 ---
 
 # Ideate — product thinking before design

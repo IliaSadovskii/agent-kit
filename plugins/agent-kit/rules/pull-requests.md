@@ -7,7 +7,7 @@ canonical, so translate them along with the body. Never merge; the owner merges.
 Required sections:
 
 - **What & why** — which roadmap task this closes.
-- **Manual actions** — everything the owner must do by hand, consolidated from the whole feature
+- **Manual actions** — everything the owner must do by hand, consolidated from the plan's Run log
   across the whole feature. For each: what, where, why, and when — before merge, before deploy,
   for device testing, or after merge. Typical entries: new secrets and where they go, access
   grants, third-party account setup, real-device build credentials, CI changes, production
@@ -17,5 +17,6 @@ Required sections:
 - **Changes** — the key files and their role.
 - **Testing** — which tests, what they cover, and the run result.
 - **Review** — the reviewer and security findings, and how each was closed.
-- **Assumptions** — autonomous decisions taken, and any deviations from the approved design.
+- **Assumptions** — autonomous decisions taken and any deviations from the approved design,
+  assembled from the plan's Run log.
 - A link to the cloud session when the session exposes one.

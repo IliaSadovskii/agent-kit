@@ -15,7 +15,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/cloud-setup.sh"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/cloud-setup.sh",
+            "timeout": 600
           }
         ]
       }

@@ -86,6 +86,13 @@ if manifest is not None:
 if market is not None and market.get("metadata", {}).get("version") not in (None, version):
     errors.append("marketplace.json metadata.version disagrees with VERSION")
 
+# The storefront text went stale once (0.4.0 removed commands it kept advertising); keep it
+# identical to plugin.json so it cannot drift again.
+if market is not None and manifest is not None:
+    for entry in market.get("plugins") or []:
+        if entry.get("source") == f"./{plugin}" and entry.get("description") != manifest.get("description"):
+            errors.append("marketplace.json plugin description != plugin.json description")
+
 
 def frontmatter(path):
     with open(path, encoding="utf-8") as fh:

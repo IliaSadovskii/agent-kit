@@ -27,8 +27,8 @@ owner-only work becomes recorded manual actions, and only an insurmountable bloc
   nothing before design approval.
 - Remaining free text is the chosen task and skips roadmap task selection.
 
-Either mode records autonomous decisions in the PR's Assumptions and owner-only work in Manual
-actions.
+Either mode appends autonomous decisions and owner-only work to the plan's Run log as they happen;
+the PR step assembles its Assumptions and Manual actions from that section, not from memory.
 
 ## Before you start
 
@@ -65,13 +65,26 @@ say so once at the start and continue.
 - **Review** — see below.
 - **Security** — see below.
 - **PR** — push the branch and open a pull request following `.github/pull_request_template.md` and
-  `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md`. Never merge. If no PR mechanism exists after every
-  safe fallback, report that as the terminal blocker once the branch is pushed.
+  `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md`. Never merge. Then check CI — `gh pr checks`, or
+  the closest the session has: a red pipeline is part of this step, not the owner's problem. Fix
+  in-scope failures, rerun the verification the fix put at risk, and push again; if CI cannot be
+  observed from the session, say so in the PR. If no PR mechanism exists after every safe fallback,
+  report that as the terminal blocker once the branch is pushed.
 - **Docs** — run `docs-reflection`. No-op by default. If living docs genuinely diverged, open a
   separate docs-only PR from the default branch; otherwise mark docs as current in the feature PR.
 
-The pipeline is complete when the feature PR exists and docs reflection is resolved — or when an
-insurmountable blocker has been reported with the branch left in a recoverable state.
+The pipeline is complete when the feature PR exists with CI green or its state reported, and docs
+reflection is resolved — or when an insurmountable blocker has been reported with the branch left
+in a recoverable state. When the owner's review comes back later, `/agent-kit:address` closes that
+round; it is not part of this run.
+
+## The run log
+
+The plan ends with a `## Run log` section, and it is the run's working memory. The moment you adopt
+an assumption, deviate from the approved design, skip a verification layer, or meet something only
+the owner can do, append one line there and commit it with the task — never hold it for the PR
+step. A run this long outlives its own context: what is not in the run log or the code does not
+survive, and it is also how a resumed session finds out where the last one stood.
 
 ## The two gates
 
@@ -107,21 +120,24 @@ The bar is not "the tests pass" — it is that someone can merge this without re
 1. **Provision what the verification plan asked for.** The design named the layers, the seams, and
    the tooling gap. Install what it said the session could install, add it to the project's
    `scripts/cloud-setup.sh` and to `.agent-kit/project/instructions.md` so later sessions and CI
-   inherit it, and record anything the session cannot install as a manual action stating what stays
-   unproven without it. A failed install is recoverable: try a safe alternative, and if none works,
+   inherit it, and record anything the session cannot install in the Run log as a manual action
+   stating what stays unproven without it. A failed install is recoverable: try a safe alternative, and if none works,
    say which layer you lost.
 2. **Delegate to the `agent-kit:tester` agent**, which writes across the chosen layers and proves
-   each new behavior can fail. Carry its report of deliberately skipped layers into the PR.
+   each new behavior can fail. Carry its report of deliberately skipped layers into the Run log.
 3. **Run the project's full declared suite** — tests, type checker, and lint. Static analysis is a
    test layer, not a formality: a type error is a failing test. Fix product defects; never weaken a
    valid assertion for green output. A test that passes on a rerun with no change is a defect too —
    one known flake teaches everyone to ignore red, and then nothing in the suite means anything.
 4. **Confirm it against the running app with `/verify`** when the feature changed something a person
    can see — an endpoint, a screen, a command. A green suite on an app that does not start is
-   exactly the failure this catches. Skip it only when there is no runnable surface, and say so.
+   exactly the failure this catches. Skip it only when there is no runnable surface, and say so. If
+   `/verify` is not available in the session, start the app with the project's own commands and
+   check the changed surface directly — the point is the running app, not the command.
 
-If a layer the design called for could not be written, say which one and why in the PR, next to
-Assumptions. An unproven feature that says so is fine; one that looks proven is not.
+If a layer the design called for could not be written, record which one and why in the Run log so
+it reaches the PR next to Assumptions. An unproven feature that says so is fine; one that looks
+proven is not.
 
 ## Review
 

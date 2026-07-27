@@ -10,6 +10,9 @@ disable-model-invocation: true
 The light path for a genuinely small, local, low-risk change. Choosing `fix` over `ship` is the
 user's call; there is no automatic heuristic.
 
+There is no design gate and no mode switch here: the user who typed the task is presumed nearby.
+Ask when a real ambiguity would change what you build; don't pause for routine choices.
+
 Task: `$ARGUMENTS`
 
 1. **Understand** — read the request and the surrounding code until the change is clear, and confirm

@@ -3,6 +3,59 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.5.0
+
+The run survives its own length, and the pipeline no longer ends the moment the PR opens. Nothing
+for an installed project to migrate.
+
+### The run log
+
+Assumptions and manual actions used to exist only "in the PR" — which is written at the end of a
+run long enough to outlive its own context, so a decision taken in hour three could be gone before
+the PR step came to record it.
+
+- The plan now ends with a `## Run log` section, appended to and committed as decisions happen:
+  assumptions, deviations from the approved design, skipped verification layers, owner-only work,
+  the tester's skipped-layer report.
+- The PR's Assumptions and Manual actions are assembled from it rather than from memory, and a
+  resumed or compacted session picks the run's state up from disk instead of losing it.
+
+### After the PR
+
+- **`ship`'s PR step now includes CI.** A red pipeline is part of the step, not the owner's
+  problem: check `gh pr checks` after opening, fix in-scope failures, rerun the verification the
+  fix put at risk, push again.
+- **New command `/agent-kit:address`** closes a review round on an open PR: collect the owner's
+  comments and the CI status, sort them out loud — in scope, design change, out of scope — fix,
+  rerun what the fixes put at risk, push, and answer every thread. An owner comment that asks for
+  a design change counts as the new approval; only contradicting comments are a question.
+
+### Fixed
+
+- The marketplace description still advertised `review`, `test`, and infrastructure provisioning,
+  all removed in 0.4.0. It now mirrors `plugin.json`, and the validator keeps the two identical.
+- `riff` and `docs` did not say what to do on a project with no manifest; both now handle it
+  instead of reading null sources.
+- `ship`'s `/verify` step gained the fallback the other delegated tools already had: no `/verify`
+  in the session means starting the app with the project's own commands, not skipping the check.
+- The `reviewer` agent no longer assumes the default branch is named `main`.
+- `fix` states its interaction contract: no design gate, user presumed nearby, ask only when a
+  real ambiguity changes what gets built.
+
+### Smaller
+
+- `idea-interview` batches independent facts into one message of up to four questions and keeps
+  one-at-a-time only for decisions that depend on each other.
+- `scripts/cloud-setup.sh` is now required to check before installing and no-op in seconds when
+  everything is present — it runs at every session start, local ones included — and the hook
+  carries an explicit 600-second timeout for the first, slow run.
+- `docs-reflection` closes the learning loop: a review finding that traced back to an unwritten
+  rule is a missing line in the coding standards, and a gap in the project instructions is
+  proposed in the PR description rather than silently repeated next feature.
+- The internal skills describe themselves as invoked by the pipelines rather than as "use when…"
+  triggers, so plain conversation no longer competes with the engine's rule that free text is
+  never routed into a pipeline.
+
 ## 0.4.1
 
 Housekeeping on the payload. No new behavior, nothing for an installed project to do.

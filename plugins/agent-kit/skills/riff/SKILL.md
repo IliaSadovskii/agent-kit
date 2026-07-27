@@ -13,6 +13,11 @@ scope of `ideate`; inside `ship` the same skill runs narrowed to one already-cho
 Theme: `$ARGUMENTS`. If none was given, ask in one message what to riff on rather than guessing —
 "the whole product" produces shallow ideas.
 
+If `.agent-kit/project/manifest.yml` is missing or registers no idea and roadmap, there is no north
+star to judge ideas against. Say so and offer `/agent-kit:ship`, which runs the bootstrap interview
+first; if the user wants to riff anyway, work from the code and `README.md` and say plainly that
+the judgments have no stated product intent behind them.
+
 Run `ideate` in its broad scope: load the product's north star and roadmap from the manifest
 sources, generate widely across the lenses it lists, then judge honestly. Sort the results into
 keep, park, and cut, and append only the keepers to the roadmap, with the user's explicit

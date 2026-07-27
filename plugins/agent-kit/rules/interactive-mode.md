@@ -11,7 +11,8 @@ through the build instead of running silently to the PR. `--manual` changes noth
   question over silently defaulting. On a fork with genuine trade-offs, present the alternatives
   with your recommendation. Say what you intend to do before anything nontrivial or hard to
   reverse.
-- **Keep the written record.** Fill the PR's Assumptions and Manual actions as in autonomous mode;
-  checkpoints add dialogue, they do not replace the record.
+- **Keep the written record.** Append to the plan's Run log as in autonomous mode, and assemble the
+  PR's Assumptions and Manual actions from it; checkpoints add dialogue, they do not replace the
+  record.
 - **The user may hand back.** At any checkpoint they can say "just finish it" — from there, follow
   `${CLAUDE_PLUGIN_ROOT}/rules/autonomous-mode.md` to the PR.

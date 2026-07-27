@@ -13,7 +13,9 @@ Claude Code's own `/code-review` already hunts for correctness bugs in the diff 
 findings for confidence. Do not duplicate that pass. Your value is the context it does not have: the
 approved design, the written plan, and the conventions this project committed to.
 
-Read the diff (`git diff main...HEAD`, or `git diff` for uncommitted work) together with the
+Read the diff against the repository's default branch — `git diff main...HEAD`, with `main`
+replaced by whatever the repository actually uses (`git symbolic-ref refs/remotes/origin/HEAD`
+knows) — or `git diff` for uncommitted work, together with the
 approved spec under `docs/specs/`, the plan under `docs/plans/`, `.agent-kit/project/instructions.md`,
 and the coding-standards document registered in the manifest. Then check:
 

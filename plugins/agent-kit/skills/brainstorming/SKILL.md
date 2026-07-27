@@ -1,6 +1,6 @@
 ---
 name: brainstorming
-description: Turn a chosen feature into an approved technical design and a written spec. Use before implementing any feature — explore the codebase, resolve ambiguity, compare real alternatives, get explicit approval, then hand off to writing-plans.
+description: Turn a chosen feature into an approved technical design and a written spec. Invoked by ship's Design step, or when the user explicitly asks to design something — explore the codebase, resolve ambiguity, compare real alternatives, get explicit approval, then hand off to writing-plans.
 ---
 
 # Brainstorming — designs and specs

@@ -1,6 +1,6 @@
 ---
 name: docs-reflection
-description: Check whether the living documentation still matches what the code does, after a feature PR is open. Updates only where you can name the divergence in one sentence.
+description: Check whether the living documentation still matches what the code does. Invoked by ship's Docs step after the feature PR is open, and by the docs command. Updates only where you can name the divergence in one sentence.
 ---
 
 # Docs Reflection
@@ -25,13 +25,16 @@ doc change. Churn is the failure mode — a settled doc stays settled.
      Reconcile the summary; don't copy spec detail into them.
    - **Open questions** — did this feature answer one, or raise a new one?
    - **Coding standards** — only when the feature established a durable new convention, not per
-     routine feature.
+     routine feature. One more trigger: a review or security finding that traced back to a rule
+     nobody had written down. A finding that will repeat is a missing rule.
 4. **Update only where you can name the divergence in one sentence.** No speculative rewrites of
    stable sections.
 
 Out of scope: `.agent-kit/`, `.claude/`, and root `CLAUDE.md`, which change only in meta mode with
 the user; and `docs/specs/` and `docs/plans/`, which are the immutable record of what was decided
-at the time.
+at the time. If the gap you found lives in `.agent-kit/project/instructions.md` — a command the run
+had to rediscover, a convention it had to infer — propose the exact line in the PR description
+instead of editing the file; that file changes with the user.
 
 ## Outcome
 

@@ -12,7 +12,7 @@
     {
       "name": "agent-kit",
       "source": "./plugins/agent-kit",
-      "description": "One command per job — ship a feature end-to-end, fix, debug, review, test, document, provision infrastructure — each an ordered pipeline instead of improvised behavior."
+      "description": "Build product features through long-running Claude Code sessions: front-loaded interaction on what to build and how, then autonomous work through to a pull request."
     }
   ]
 }

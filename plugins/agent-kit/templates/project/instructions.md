@@ -18,7 +18,8 @@ not carry running services across that boundary. Respect the split:
 
 - **Setup phase (network ON):** `scripts/cloud-setup.sh` installs everything reachable over the
   network — system packages and language dependencies. Claude Code runs it from the SessionStart
-  hook. It must stay safe and idempotent when sourced locally.
+  hook at every session start, local ones included — so it must stay safe and idempotent, check
+  before installing, and no-op in seconds when everything is already present.
 - **Agent phase (network OFF):** never install dependencies here — it will fail with a proxy `403`.
   New dependencies must be added during the setup phase, or the environment must grant the agent
   internet access to the package registries. If a needed dependency cannot be installed, record it

@@ -1,6 +1,6 @@
 ---
 name: writing-plans
-description: Turn an approved spec into an executable implementation plan with a file map, task boundaries, and per-task verification. Use after design approval, before any implementation.
+description: Turn an approved spec into an executable implementation plan with a file map, task boundaries, and per-task verification. Invoked after design approval and before any implementation — normally by brainstorming's final step.
 ---
 
 # Writing Plans
@@ -43,6 +43,11 @@ tasks rely on. The implementer sees only their own task; this is how they learn 
 **Verification:** the seam this task is tested at and the layers it needs, taken from the spec's
 verification plan; the project's real command to run them; and what passing looks like. If the task
 needs tooling the project does not have yet, name it here — the Test step installs it.
+
+## Run log
+
+Empty at planning time. The build appends assumptions, deviations, skipped layers, and manual
+actions here as they happen — the `ship` pipeline owns the rules and assembles the PR from it.
 ```
 
 The file map is where decomposition gets locked in: one responsibility per file, files that change

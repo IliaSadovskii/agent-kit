@@ -13,6 +13,7 @@ Plugin skills are namespaced, so every command below is `/agent-kit:<name>`.
 | `/agent-kit:ship [task]` | Front-loaded interaction, then autonomous to PR |
 | `/agent-kit:fix [task]` | Lightweight path for a local, low-risk change |
 | `/agent-kit:debug [symptom]` | Reproduce, isolate, root-cause, fix with a regression test |
+| `/agent-kit:address [pr]` | Close a review round on an open PR — comments and CI in, fixes and replies out |
 | `/agent-kit:docs` | Reconcile living documentation |
 | `/agent-kit:riff [theme]` | Interactive strategy, builds nothing |
 
