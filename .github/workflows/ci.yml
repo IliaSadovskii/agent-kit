@@ -15,9 +15,9 @@ jobs:
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
 
-      # Payload structure, generated-wrapper drift, a real install into a scratch repository,
-      # and the update semantics (idempotent re-run, preserved local edits, untouched user files).
-      - name: Validate the kit
+      # Manifest and version agreement, skill and agent frontmatter, dangling plugin-root
+      # references, the engine size cap, and shell syntax across the payload.
+      - name: Validate the plugin
         run: bash scripts/validate.sh
 
       - name: Check that the tag matches VERSION

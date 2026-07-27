@@ -1,0 +1,83 @@
+# Agent Kit
+
+A kit for building product features through long-running Claude Code sessions. The owner
+participates in task selection, optional product scoping, and technical design; after design
+approval the agent works autonomously until a pull request is ready.
+
+## Commands
+
+Plugin skills are namespaced, so every command below is `/agent-kit:<name>`.
+
+| Command | Behavior |
+|---|---|
+| `/agent-kit:go` | Reads project state and routes to the right workflow |
+| `/agent-kit:ship [task]` | Front-loaded interaction, then autonomous to PR |
+| `/agent-kit:fix [task]` | Lightweight path for a local, low-risk change |
+| `/agent-kit:debug [symptom]` | Reproduce, isolate, root-cause, fix with a regression test |
+| `/agent-kit:review` | Independent adversarial review of the current diff |
+| `/agent-kit:test [target]` | Add or improve tests, then run the suite |
+| `/agent-kit:docs` | Reconcile living documentation |
+| `/agent-kit:infra [local\|cloud]` | Interactive provisioning workflow |
+| `/agent-kit:riff [theme]` | Interactive strategy, builds nothing |
+
+The kit also ships two subagents, `agent-kit:reviewer` and `agent-kit:tester`, which the pipelines
+invoke on finished work.
+
+## What is the plugin's, and what is the project's
+
+```text
+the plugin (replaced by every update)
+  engine.md               always-on governance, injected by the SessionStart hook
+  skills/                 one directory per command, plus the skills they call
+  agents/                 reviewer and tester subagents
+  rules/                  autonomous mode, interactive mode, pull requests
+  templates/project/      what bootstrap copies into a project
+  hooks/, scripts/        session start and cloud dependency setup
+
+the project (never touched by an update)
+  .agent-kit/project/manifest.yml     automation state and the paths to your documents
+  .agent-kit/project/instructions.md  your stack, commands, and conventions
+  CLAUDE.md, docs/, source, tests, secrets
+```
+
+The kit records where your documents live; it never moves or duplicates them. `bootstrapped: true`
+in the manifest means the foundation exists, not that every future feature is specified.
+
+To customize behavior, write to `.agent-kit/project/instructions.md`. Editing a file inside the
+plugin means the next update overwrites it — send the change upstream instead.
+
+## Working with the rest of Claude Code
+
+The kit does not reimplement what Claude Code already does well. The pipelines call:
+
+- **`/code-review`** for correctness on a finished diff — a multi-agent pass that scores its own
+  findings for confidence and reports only what survives.
+- **`/security-review`** for the security pass, with the `claude-security` plugin as the deeper
+  option when a project has it enabled.
+- **`/verify`** and **`/run`** to confirm a change against the running app rather than trusting a
+  green test suite.
+- The built-in **`Explore`** and **`Plan`** agents for codebase reconnaissance and competing
+  architecture proposals during design.
+
+The kit's own `reviewer` agent covers the one thing none of those can: whether the diff matches the
+design that was approved for it.
+
+## The autonomous contract
+
+The canonical sequence lives in the `ship` skill. Before the design gate the agent may ask one
+question at a time. After explicit design approval it must not pause for normal ambiguity,
+recoverable tool failures, routine permission choices, or owner-only deployment work. It chooses
+safe defaults, records assumptions and manual actions, runs the independent reviews, and continues
+to the PR. Only a genuinely insurmountable blocker may end the run early.
+
+Start long runs in [auto mode](https://code.claude.com/docs/en/permission-modes)
+(`claude --permission-mode auto`, or Shift+Tab until the status bar shows it) so routine permission
+prompts do not stall an unattended session. Cloud sessions need enough repository permission to
+create a branch, run tests, push, and open a PR. Missing production secrets normally do not block
+feature development; they become documented manual actions.
+
+When the session has no agent-callable PR mechanism, `ship` still finishes implementation and
+verification and leaves the branch ready; opening the PR is then the only terminal manual action,
+never a reason to interrupt implementation midway.
+
+Attribution for adapted material is in [NOTICE.md](NOTICE.md).

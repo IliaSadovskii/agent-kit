@@ -3,6 +3,64 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.4.0
+
+The kit is a Claude Code plugin. It is no longer vendored into a repository by an installer, and it
+delegates the steps Claude Code now does better than a hand-written prompt. See
+[migrations/0.4.0.md](migrations/0.4.0.md) for what an installed project has to do.
+
+### Distribution
+
+- **The kit installs as a plugin**: `/plugin marketplace add IliaSadovskii/agent-kit` and
+  `/plugin install agent-kit@agent-kit`. The repository is its own marketplace.
+- **Removed `install.sh`, `kit-update.sh`, `kit.lock`, and the whole conflict/checksum machinery.**
+  Versioning, updating, and per-file replacement are what the plugin system already does; the kit
+  had rebuilt all of it by hand.
+- **Removed the adapter layer.** `catalog.tsv`, `generate-adapters.py`, and the 19 generated
+  wrappers under `.claude/` existed because the payload had to serve two providers. With one
+  provider a wrapper that points at a canonical file is pure indirection, so each skill now *is*
+  the canonical file. 88 payload files became 30.
+- **Commands are namespaced**: `/ship` is now `/agent-kit:ship`, and so on for every command.
+- **`engine.md` arrives through the plugin's SessionStart hook** instead of a managed block in the
+  project's `CLAUDE.md`. The kit no longer writes to `CLAUDE.md` or `.claude/settings.json` at all.
+- `.agent-kit/project/manifest.yml` and `instructions.md` are unchanged and stay in the project.
+
+### Delegating to Claude Code
+
+- **`ship`'s Review step splits in two.** `/code-review` covers correctness — a multi-agent pass
+  that scores its own findings for confidence and reports only what survives, which is the
+  filtering pass the kit was missing. The `reviewer` agent is rewritten around the one question
+  `/code-review` cannot answer: does the diff match the design that was approved for it.
+- **`ship`'s Security step names its tools** — `/security-review` first, the `claude-security`
+  plugin when a project has it enabled, and an adversarial subagent only as the fallback.
+- **`ship` and `test` confirm the change against the running app** with `/verify`, instead of
+  treating a green suite as proof.
+- **`fix` and `debug` use `/code-review` and `/security-review`** rather than their own review pass.
+- **`brainstorming` explores before it proposes**, and generates competing architectures in
+  parallel — the approach of Anthropic's `feature-dev` plugin, built on the `Explore` and `Plan`
+  agents Claude Code already ships rather than on copies of them.
+- Effort levels are now part of the instructions: reviews name the level that matches what is at
+  stake instead of inheriting whatever the session had.
+
+### Governance
+
+- **`engine.md` is trimmed to what is genuinely always-on** — communication, working style,
+  delegation, and the core rules — and stays under the 10,000-character hook output cap, which the
+  validator enforces. The workflow-scoped material moved into the skills that use it.
+- The always-on guidance for narration, verbosity, scope, delegation, and self-correction follows
+  Anthropic's [Prompting Claude Opus 5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5)
+  guidance, including its warning against stacking extra self-verification on a model that already
+  verifies its own work.
+- Long autonomous runs point at auto mode instead of describing a hand-rolled equivalent.
+
+### Tooling
+
+- `scripts/validate.sh` is rewritten for the plugin: manifest and version agreement, skill and agent
+  frontmatter, dangling `${CLAUDE_PLUGIN_ROOT}` references, the engine size cap, and
+  `claude plugin validate --strict` when the CLI is present. It also fails a skill whose body is
+  only a pointer at another file.
+- `scripts/release.sh` bumps `plugin.json` and `marketplace.json` alongside `VERSION`.
+
 ## 0.3.0
 
 The kit targets Claude Code only. Codex support is removed rather than left to rot: it doubled

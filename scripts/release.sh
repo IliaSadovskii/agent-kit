@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# Cut a kit release: validate, bump VERSION, commit, tag.
+# Cut a kit release: bump every version marker, validate, commit, tag.
 #
-#   scripts/release.sh 0.3.0
+#   scripts/release.sh 0.4.0
 #
-# Push with `git push && git push --tags`. Projects install the highest semver tag by default, so
-# the tag is what makes a release live.
+# Push with `git push && git push --tags`. The plugin's own `version` field is what pins installs:
+# Claude Code treats a plugin without one as changing on every commit, so it must be bumped here.
 
 set -euo pipefail
 
@@ -27,9 +27,28 @@ grep -q "^## $VERSION" CHANGELOG.md \
   || { printf 'error: CHANGELOG.md has no "## %s" section\n' "$VERSION" >&2; exit 1; }
 
 printf '%s\n' "$VERSION" > VERSION
+
+# The validator checks that these three agree, so bump them together rather than by hand.
+python3 - "$VERSION" <<'PY'
+import json, sys
+
+version = sys.argv[1]
+
+for path, apply in (
+    ("plugins/agent-kit/.claude-plugin/plugin.json", lambda d: d.update(version=version)),
+    (".claude-plugin/marketplace.json", lambda d: d.setdefault("metadata", {}).update(version=version)),
+):
+    with open(path, encoding="utf-8") as fh:
+        data = json.load(fh)
+    apply(data)
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, indent=2, ensure_ascii=False)
+        fh.write("\n")
+PY
+
 bash scripts/validate.sh
 
-git add VERSION CHANGELOG.md
+git add VERSION CHANGELOG.md plugins/agent-kit/.claude-plugin/plugin.json .claude-plugin/marketplace.json
 # VERSION may already hold this value (the first release of a version prepared in advance);
 # tagging is still the point of this script, so an empty commit is not an error.
 if ! git diff --cached --quiet; then

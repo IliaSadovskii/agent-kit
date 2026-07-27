@@ -1,0 +1,18 @@
+{
+  "name": "agent-kit",
+  "owner": {
+    "name": "Ilia Sadovskii",
+    "url": "https://github.com/IliaSadovskii"
+  },
+  "metadata": {
+    "description": "A development kit for building software with long-running Claude Code sessions.",
+    "version": "0.4.0"
+  },
+  "plugins": [
+    {
+      "name": "agent-kit",
+      "source": "./plugins/agent-kit",
+      "description": "One command per job — ship a feature end-to-end, fix, debug, review, test, document, provision infrastructure — each an ordered pipeline instead of improvised behavior."
+    }
+  ]
+}
