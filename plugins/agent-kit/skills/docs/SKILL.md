@@ -6,9 +6,8 @@ disable-model-invocation: true
 
 # Docs
 
-A standalone reconciliation of the living documentation against what the code actually does. Inside
-`ship`, `docs-reflection` runs with the feature fresh in context and the PR's Assumptions to read
-from. Here there is no such record, so establish the ground truth first.
+A standalone reconciliation of the living documentation against what the code actually does.
+Nothing here was just built, so establish the ground truth before judging anything.
 
 1. **Find the window.** Ask what should be covered, or infer it: the commits since the last
    `docs: sync` commit, or since the last release tag. Say which range you settled on before you
@@ -16,8 +15,8 @@ from. Here there is no such record, so establish the ground truth first.
 2. **Read what changed.** The diff over that window, and the specs under `docs/specs/` that were
    written for it. This is what `docs-reflection` normally gets for free from having just built the
    feature.
-3. **Run `docs-reflection`** with that context. Its per-document judgment and its out-of-scope list
-   live there and are unchanged.
+3. **Run `docs-reflection`** with that context. Its per-document judgment and out-of-scope list
+   live there.
 
 If nothing genuinely diverged, say so and stop — no branch, no PR, no churn. A settled document
 stays settled, and "the docs are current" is the expected outcome most of the time.

@@ -28,7 +28,7 @@ working software on its own.
 
 The spec's project-wide requirements — version floors, dependency limits, naming and copy rules,
 platform requirements — one line each, values copied verbatim from the spec. Every task inherits
-this section, plus the engine, the project instructions, and the registered coding standards.
+this section, plus the always-on governance, the project instructions, and the coding standards.
 
 ## File map
 
@@ -68,6 +68,3 @@ task.
 
 There is no plan-approval gate — design approval was the last one. Save the plan and hand back to
 `ship`, which continues autonomously per `${CLAUDE_PLUGIN_ROOT}/rules/autonomous-mode.md`.
-
-<!-- Adapted from Superpowers by Jesse Vincent (MIT). Sub-skill references localized to the ship
-     pipeline; the literal-code-per-step format dropped in favour of a specification handoff. -->

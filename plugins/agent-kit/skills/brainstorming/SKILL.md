@@ -111,12 +111,3 @@ plan, and implementation cycle.
 In an existing codebase follow the patterns the exploration found. Where existing code genuinely
 blocks the work — a file grown unwieldy, tangled responsibilities — include a targeted improvement,
 the way a good developer improves code they are working in. Don't propose unrelated refactoring.
-
-<!-- The dialogue and spec handoff are adapted from Superpowers by Jesse Vincent (MIT); see
-     NOTICE.md. The facts-versus-decisions rule and the dependency ordering of questions in step 4
-     come from the `grilling` skill by Matt Pocock (MIT). The codebase-exploration and
-     competing-architecture steps follow Anthropic's
-     feature-dev plugin, using Claude Code's built-in Explore and Plan agents rather than shipping
-     duplicates of them. The visual browser companion was dropped (needs a local node server,
-     useless in cloud) and the separate spec-review gate removed, so the flow keeps a single
-     interactive checkpoint: design approval. -->

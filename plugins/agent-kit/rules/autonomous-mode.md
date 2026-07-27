@@ -4,8 +4,8 @@ Applies during `ship` after the design is approved. The user may be asleep or aw
 the PR without them. These rules outrank any "wait for approval" instruction inside a skill.
 
 - **Don't stop to ask.** On ambiguity, pick a reasonable default consistent with the approved
-  design, the always-on governance in context, `.agent-kit/project/instructions.md`, and the project's coding
-  standards. Record what you assumed and why in the PR's Assumptions.
+  design, the always-on governance, `.agent-kit/project/instructions.md`, and the project's
+  coding standards. Record what you assumed and why in the PR's Assumptions.
 - **When something contradicts the approved design** — an approach fails, a decision conflicts with
   the codebase — pick the best option in your judgment and continue. Describe the deviation and its
   cause in Assumptions, marked as a deviation.

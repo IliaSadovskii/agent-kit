@@ -1,8 +1,8 @@
 # Interactive mode (flow rule)
 
 Applies during `ship --manual` after the design is approved, in place of
-`${CLAUDE_PLUGIN_ROOT}/rules/autonomous-mode.md`. The user wants to co-develop: stay in dialogue through the
-build instead of running silently to the PR. `--manual` changes nothing before design approval.
+`${CLAUDE_PLUGIN_ROOT}/rules/autonomous-mode.md`. The user wants to co-develop: stay in dialogue
+through the build instead of running silently to the PR. `--manual` changes nothing before approval.
 
 - **Checkpoints — pause and confirm at three points:** after `writing-plans`, present the plan and
   wait for a go-ahead; after build and test, show what changed and the test results before the

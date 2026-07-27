@@ -17,7 +17,7 @@ a feature is the `Docs` step of `ship`.
 
 The skill has a technical half and a product half, and `ship` may ask for the technical one alone.
 
-**Setup** — steps 1, 2, 6 and 7 below: detect the stack, agree the language, generate the coding
+**Setup** — detect the stack, agree the language, generate the coding
 standards and `scripts/cloud-setup.sh`, write `.agent-kit/project/manifest.yml` and
 `instructions.md`, and record the paths of any documents that already exist. This is what makes the
 project runnable at all: without it nobody knows the test command. It is cheap, mostly detection,

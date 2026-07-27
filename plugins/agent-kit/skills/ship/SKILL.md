@@ -130,8 +130,7 @@ other.
 
 1. **Is the code correct?** Run `/code-review`, the bundled multi-agent review. It reads the branch
    diff in its own context, scores each finding for confidence, and drops the ones that do not
-   survive — which is exactly the separate filtering pass this kit would otherwise have to build.
-   Pass an effort level to match the change: `medium` for a routine feature, `high` or `xhigh` for
+   survive. Pass an effort level to match the change: `medium` for a routine feature, `high` or `xhigh` for
    anything security-sensitive, concurrent, or wide. Fix what it returns.
 2. **Is it the feature that was approved?** `/code-review` does not know about the design. Delegate
    to the `agent-kit:reviewer` agent, which reads the diff against the approved spec, the plan, the

@@ -1,7 +1,7 @@
 # Agent Kit — always-on governance
 
 This is the baseline for every interaction in a project that has the kit enabled, including plain
-terminal conversation with no command. It is deliberately short.
+terminal conversation with no command.
 
 The pipelines are not part of this baseline. They activate only when one of the kit's skills is
 invoked — `/agent-kit:ship`, `/agent-kit:fix`, `/agent-kit:debug`, and the rest. Plain free text is

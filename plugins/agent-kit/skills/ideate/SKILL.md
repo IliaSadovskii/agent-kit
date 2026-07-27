@@ -53,4 +53,4 @@ product's own stance; adjacent bets worth noting but not cramming in; and refram
 problem itself is stated wrong.
 
 Two things are cheap to get wrong. "Cooler" has to mean more valuable, not more ornament. And an
-idea outside the current scope belongs on the roadmap, not in this PR — defer over cram.
+idea outside the current scope belongs on the roadmap, not in this feature — defer over cram.

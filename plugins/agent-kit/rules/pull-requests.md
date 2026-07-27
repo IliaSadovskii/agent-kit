@@ -8,7 +8,7 @@ Required sections:
 
 - **What & why** — which roadmap task this closes.
 - **Manual actions** — everything the owner must do by hand, consolidated from the whole feature
-  (see `autonomous-mode.md`). For each: what, where, why, and when — before merge, before deploy,
+  across the whole feature. For each: what, where, why, and when — before merge, before deploy,
   for device testing, or after merge. Typical entries: new secrets and where they go, access
   grants, third-party account setup, real-device build credentials, CI changes, production
   migrations. Say so explicitly when nothing is needed. Keep this near the top; the owner reads it

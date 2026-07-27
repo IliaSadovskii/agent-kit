@@ -6,8 +6,8 @@ description: Check whether the living documentation still matches what the code 
 # Docs Reflection
 
 Keep the project's living documentation from going stale, as the final step of a feature after the
-PR is open. It runs in the main agent's own context on purpose rather than in a fresh-eyes
-subagent: the value here is knowing what actually diverged during implementation.
+PR is open. Do not delegate this to a subagent: the whole value is knowing what actually diverged
+while you were implementing, which a fresh context cannot see.
 
 The review always happens; the outcome is usually nothing, because most features do not warrant a
 doc change. Churn is the failure mode — a settled doc stays settled.
