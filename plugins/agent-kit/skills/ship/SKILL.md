@@ -75,93 +75,78 @@ insurmountable blocker has been reported with the branch left in a recoverable s
 
 ## The two gates
 
-`bootstrapped` used to be one flag doing two jobs, which made "I know exactly what I want built"
-wait behind "first write a roadmap". They are separate concerns.
+Technical setup and product bootstrap are separate concerns, and only one of them is a gate.
 
-**Technical setup — required for every run.** Without it you cannot run this project's tests, and
-nothing downstream works. It is cheap and mostly detection, so just do it; it is part of the run,
-not a gate the owner has to clear.
-
-If `.agent-kit/project/manifest.yml` is missing, run the setup half of `idea-interview`: detect the
-stack, ask the communication language, record the paths of whatever documents already exist,
-generate the coding standards and `scripts/cloud-setup.sh`, and write the manifest and
+**Technical setup — part of every run, never a gate.** Without it nobody knows this project's test
+command. If `.agent-kit/project/manifest.yml` is missing, run the setup half of `idea-interview`:
+detect the stack, ask the communication language, record the paths of the documents that already
+exist, generate the coding standards and `scripts/cloud-setup.sh`, and write the manifest and
 `.agent-kit/project/instructions.md`. No product interview, no separate PR — commit it with the
 feature. Then load the source paths, repairing a stale one in place rather than duplicating the
 document it points at.
 
-**Product bootstrap — required only when the kit has to choose the work.** Proposing 2–3 sensible
-next chunks is impossible without a roadmap, and judging whether a feature is the best version of
-itself is impossible without a north star. So this gate binds exactly when you did not say what to
-build.
+**Product bootstrap — a gate, and only on choosing the work.** Proposing sensible next chunks is
+impossible without a roadmap, and judging whether a feature is the best version of itself is
+impossible without a north star.
 
 - `bootstrapped: false` or `--rebootstrap`, **and no free-text task**: run the full
-  `idea-interview`. It surveys the owner, records or generates the core docs, provisions the shared
-  scaffolding, updates the manifest, and opens a separate bootstrap PR. Stop there and ask the owner
-  to merge it before a feature — a feature built on an unreviewed roadmap inherits its mistakes.
+  `idea-interview` — it surveys the owner, records or generates the core docs, provisions the shared
+  scaffolding, updates the manifest, and opens a bootstrap PR. Stop there and ask the owner to merge
+  it first: a feature built on an unreviewed roadmap inherits its mistakes.
 - `bootstrapped: false` **with a free-text task**: build it. The owner already made the choice this
-  gate exists to protect. Skip Task and Ideate, and **say what is missing out loud**, once, before
-  starting: this project has no roadmap or product idea recorded, so task selection and product
-  scoping are unavailable, and design decisions will be judged against the code alone. Repeat it as
-  a line in the PR description, next to Assumptions.
-
-That last case is deliberately not blocked and deliberately not silent. Nothing stops a project from
-running this way forever, and it will work — just less well, because every autonomous default is
-made against the code instead of against a stated intent. The owner sees the notice on every pull
-request and runs `--rebootstrap` when they have had enough of it.
+  gate protects. Skip Task and Ideate, and say once before starting, and again in the PR, that this
+  project has no roadmap or product idea recorded — so task selection and product scoping are
+  unavailable, and every autonomous default will be judged against the code rather than a stated
+  intent. Not blocked, and not silent: the owner sees it on every review and runs `--rebootstrap`
+  when they have had enough.
 
 ## Test
 
-The bar is not "the tests pass". It is that someone can merge this without reading the diff. Every
-step below exists to move toward that.
+The bar is not "the tests pass" — it is that someone can merge this without reading the diff.
 
 1. **Provision what the verification plan asked for.** The design named the layers, the seams, and
    the tooling gap. Install what it said the session could install, add it to the project's
-   `scripts/cloud-setup.sh` so the next session and CI inherit it, and record it in
-   `.agent-kit/project/instructions.md` with the command that runs it. Anything the session cannot
-   install becomes a manual action in the PR, together with what stays unproven without it. A tool
-   that fails to install is a recoverable failure — try a safe alternative, and if none works, say
-   which layer you lost.
-2. **Delegate to the `agent-kit:tester` agent.** It writes across the layers the design chose and
-   proves each new behavior can fail. Its report names the layers it skipped; carry that into the PR
-   rather than dropping it.
+   `scripts/cloud-setup.sh` and to `.agent-kit/project/instructions.md` so later sessions and CI
+   inherit it, and record anything the session cannot install as a manual action stating what stays
+   unproven without it. A failed install is recoverable: try a safe alternative, and if none works,
+   say which layer you lost.
+2. **Delegate to the `agent-kit:tester` agent**, which writes across the chosen layers and proves
+   each new behavior can fail. Carry its report of deliberately skipped layers into the PR.
 3. **Run the project's full declared suite** — tests, type checker, and lint. Static analysis is a
    test layer, not a formality: a type error is a failing test. Fix product defects; never weaken a
-   valid assertion for green output.
+   valid assertion for green output. A test that passes on a rerun with no change is a defect too —
+   one known flake teaches everyone to ignore red, and then nothing in the suite means anything.
 4. **Confirm it against the running app with `/verify`** when the feature changed something a person
    can see — an endpoint, a screen, a command. A green suite on an app that does not start is
    exactly the failure this catches. Skip it only when there is no runnable surface, and say so.
-5. **Clean the code with `/simplify`.** Four agents review the change in parallel for reuse of
-   existing helpers, simplification, efficiency, and whether it sits at the right level of
-   abstraction, and apply the fixes. It does not look for bugs — that is `/code-review` at the next
-   step — so this is the pass that keeps the diff worth reading. Rerun the suite afterwards.
-6. **Check the suite is trustworthy, not just green.** Two things disqualify it, and both are
-   defects you fix rather than notes you write down:
-   - A test that passed without the behavior being present. The tester agent proves each new test
-     can fail; if any could not be made to fail, that behavior is uncovered.
-   - A flaky test. If anything passes on a rerun with no change, treat it as a real defect —
-     ordering, shared state, time, or a genuine race — and fix it or quarantine it loudly. One known
-     flake teaches everyone to ignore red, and then the whole suite stops meaning anything.
 
-If a layer the design called for could not be written, say which one and why, in the PR, next to
-Assumptions. An unproven feature that says so is fine. An unproven feature that looks proven is not.
+If a layer the design called for could not be written, say which one and why in the PR, next to
+Assumptions. An unproven feature that says so is fine; one that looks proven is not.
 
 ## Review
 
-Two different questions, and one tool does not answer both.
+Two questions, and one tool does not answer both. Run them concurrently; they do not depend on each
+other.
 
-1. **Is the code correct?** Run `/code-review`, the bundled multi-agent review. It reads the
-   branch diff in its own context, scores each finding for confidence, and drops the ones that do
-   not survive — which is exactly the separate filtering pass this kit would otherwise have to
-   build. Pass an effort level to match the change: `medium` for a routine feature, `high` or
-   `xhigh` for anything security-sensitive, concurrent, or wide. Fix what it returns.
+1. **Is the code correct?** Run `/code-review`, the bundled multi-agent review. It reads the branch
+   diff in its own context, scores each finding for confidence, and drops the ones that do not
+   survive — which is exactly the separate filtering pass this kit would otherwise have to build.
+   Pass an effort level to match the change: `medium` for a routine feature, `high` or `xhigh` for
+   anything security-sensitive, concurrent, or wide. Fix what it returns.
 2. **Is it the feature that was approved?** `/code-review` does not know about the design. Delegate
    to the `agent-kit:reviewer` agent, which reads the diff against the approved spec, the plan, the
    project instructions, and the registered coding standards, and reports where the implementation
    drifted. Fix critical and major findings.
 
-Then rerun the verification the fixes put at risk. Both passes run on finished work in a fresh
-context — that is the point, and it is the one place in this pipeline where delegation is worth its
-cost. Do not add a third opinion on top.
+Then rerun the verification the fixes put at risk. Two independent passes over finished work in a
+fresh context is the right number; a third opinion on the same question buys agreement, not
+information.
+
+Optionally, on a diff large enough that a human would find it a slog to read, follow with
+`/simplify`: four agents cover reuse of existing helpers, simplification, efficiency, and level of
+abstraction, and apply the fixes. It does not hunt for bugs, so it adds nothing the two passes above
+already did — it makes the result readable. Skip it on a small change, and rerun the suite after it,
+since it edits the code.
 
 A reviewer asked to find gaps will find some even when the work is sound. Fix what affects
 correctness or the approved requirements; record the rest as deliberately deferred rather than
