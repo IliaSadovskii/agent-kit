@@ -11,5 +11,11 @@
   "homepage": "https://github.com/IliaSadovskii/agent-kit",
   "repository": "https://github.com/IliaSadovskii/agent-kit",
   "license": "MIT",
-  "keywords": ["workflow", "feature-development", "code-review", "autonomous", "pull-request"]
+  "keywords": [
+    "workflow",
+    "feature-development",
+    "code-review",
+    "autonomous",
+    "pull-request"
+  ]
 }
