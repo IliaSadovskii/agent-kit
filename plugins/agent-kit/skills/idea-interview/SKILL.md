@@ -15,8 +15,10 @@ after a feature is the `Docs` step of `ship`.
 
 ## Steps
 
-1. **Detect what exists** — read the manifest if present, and scan `docs/`, `README.md`, and the
-   repo root for product docs the author already wrote.
+1. **Detect what exists** — read the manifest if present, scan `docs/`, `README.md`, and the repo
+   root for product docs the author already wrote, and establish whether this is a fresh repository
+   or one with a real codebase in it. That single fact changes the whole shape of the interview;
+   see "Greenfield or existing code" below.
 2. **Ask the communication language first.** The manifest does not exist yet, so greet neutrally,
    ask, and use that language for the rest of the interview. It becomes `manifest.language`.
    Generated docs are prose in it; code, paths, and identifiers stay English.
@@ -39,13 +41,44 @@ names — record the paths in `sources`. Two parallel copies of the same documen
 ## What to cover
 
 Always: the product idea (what it is, for whom, the core value, what it deliberately does not do)
-and a roadmap with phases and a "done when" for each. Add architecture, product-spec detail, or
-domain notes only when the project's complexity calls for them — a tiny utility needs the idea and
-a short roadmap, a real app needs more. Ask rather than generating heavy docs speculatively.
+and a roadmap of what comes next, with a "done when" for each item. Add architecture, product-spec
+detail, or domain notes only when the project's complexity calls for them — a tiny utility needs the
+idea and a short roadmap, a real app needs more. Ask rather than generating heavy docs
+speculatively.
 
 Also worth asking where it affects the plan: MVP bounds, stack and platform constraints, external
 services. If the author already has rich docs, this may be one clarifying question and then just
 recording paths.
+
+## Greenfield or existing code
+
+Both are normal, and they need opposite interviews. Decide which one you are in before asking
+anything, and say which you concluded so the author can correct you in one word.
+
+**A fresh repository.** The author is the only source, so interview for everything: what the product
+is, who it is for, what it deliberately will not do, and the phases to get there. Write what they
+tell you.
+
+**A repository with a real codebase.** The answers to "what is this" and "how is it built" already
+exist in the code, the README, and the commit history. Interviewing for them wastes the author's
+time and produces a document that restates what anyone could read — the failure mode here is
+ceremony, not missing information.
+
+So invert the flow: read first, then bring a draft. Derive the idea and the architecture summary
+from what you found, present them as *"here is what I read this project to be — correct me"*, and
+spend the author's attention only on what the code genuinely cannot tell you:
+
+- **Intent** — why it is built this way, and which constraints are deliberate rather than accidental.
+- **What is deliberately out of scope** — invisible in code, and the thing an autonomous run most
+  needs, because it is what stops the agent from helpfully building the wrong feature.
+- **What comes next** — the roadmap. This is the one document that is genuinely missing and genuinely
+  required: the `Task` step of `ship` cannot propose work without it. Do not reconstruct a
+  retrospective phasing of what already shipped; nobody reads that. Cover only what is ahead.
+- **Which conventions are real** — where the existing code is the standard to follow, and where it
+  is legacy the author would rather not spread.
+
+An architecture document here describes what *is*, not what is planned, and is worth writing only
+when the codebase is large enough that a newcomer would need the map.
 
 ## Scaffolding
 
