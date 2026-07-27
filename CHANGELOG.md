@@ -3,6 +3,26 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.4.1
+
+Housekeeping on the payload. No new behavior, nothing for an installed project to do.
+
+- **`/simplify` moved from the Test step to Review.** It is a quality pass, not a test; it sat
+  between running the suite and checking the suite, and it edits the diff after the suite has run.
+  It is now gated on a diff large enough to be worth reading through, and framed as what it does —
+  readability, not a third opinion on correctness. Running it made the Review step's own "do not add
+  a third opinion" line false, which is fixed.
+- **Dropped `ship`'s restatement of "prove each test can fail".** The `tester` agent performs it and
+  documents it; restating a subagent's job in the caller is the scaffolding that causes
+  over-verification. The flake rule, which was genuinely new, folded into the suite step.
+- **The two review passes are stated as independent** and may run concurrently.
+- **Removed history and design commentary from the payload.** Provenance comments recording which
+  sub-skill references were localized, that a browser companion was dropped, that a spec-review gate
+  was removed, and that a code-per-step format was replaced — eleven lines telling the model what
+  the kit used to be. `NOTICE.md` carries the MIT attribution and remains intact. Also gone: the
+  kit explaining its own economics mid-instruction, `engine.md` describing itself, and
+  `idea-interview` referencing its own steps by number, which breaks the moment they are renumbered.
+
 ## 0.4.0
 
 The kit is a Claude Code plugin, it delegates the steps Claude Code now does better than a
