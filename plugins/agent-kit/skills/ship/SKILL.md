@@ -156,20 +156,26 @@ weak ones. It is also the one tool here an agent cannot start — only a person 
 write it into this step as though you could, and do not stop the run to ask the owner to type it:
 after design approval they may be asleep, and a pipeline that waits for a human never finishes.
 
-So use the strongest reviewer the session can actually reach, in this order.
+So check first whether the project has the official `code-review` plugin enabled, because it decides
+how wide this step needs to be. That plugin is a fan of five independent reviewers plus a
+confidence-scoring pass — around a dozen agents on its own — and the PR step runs it once the pull
+request exists. Correctness reviewed once, well, beats correctness reviewed three times.
 
-1. **The `agent-kit:reviewer` agent — always. This is the floor, not the ceiling.** It reads the
-   finished diff in a fresh context and covers both questions that matter: is the code correct, and
-   is it the feature that was approved — against the spec, the plan, the project instructions, and
-   the registered coding standards.
-2. **The `pr-review-toolkit` plugin's agents, when the project has it enabled.** Unlike the bundled
-   command, plugin agents *can* be delegated to. They are Anthropic's specialists, and each covers a
-   lens one general reviewer will underweight: `pr-review-toolkit:silent-failure-hunter` for
-   swallowed errors and fallbacks nobody learns about, `pr-review-toolkit:pr-test-analyzer` for
-   whether the new tests would actually catch a regression, and
-   `pr-review-toolkit:type-design-analyzer` for shapes that permit invalid states. Plugin agents
-   carry the plugin's name, so those scoped names are what you delegate to. Spawn the ones the change
-   warrants, concurrently, alongside step 1.
+**With the `code-review` plugin available** — delegate to `agent-kit:reviewer` for the question
+nothing else can answer: is this the feature that was approved, against the spec, the plan, the
+project instructions, and the registered coding standards. Leave the bug hunt to the PR step. Do not
+add the `pr-review-toolkit` specialists by default here; reach for them only when the change earns a
+lens the generic fan will underweight — error handling and fallbacks
+(`pr-review-toolkit:silent-failure-hunter`), whether the new tests would catch a regression
+(`pr-review-toolkit:pr-test-analyzer`), or types that permit invalid states
+(`pr-review-toolkit:type-design-analyzer`).
+
+**Without it** — `agent-kit:reviewer` carries both questions, correctness included, and the
+`pr-review-toolkit` specialists are worth spawning concurrently if that plugin is there, because
+nothing downstream will look again.
+
+Either way this is one wave, not two. Plugin agents carry their plugin's name, which is why the
+scoped names above are what you delegate to.
 
 Fix critical and major findings, then rerun the verification the fixes put at risk. A reviewer asked
 to find gaps will find some even when the work is sound: fix what affects correctness or the approved
@@ -182,11 +188,14 @@ level of abstraction, and apply the fixes. It does not hunt for bugs, so it adds
 correctness — it makes the result readable. Skip it on a small change, and rerun the suite after it,
 since it edits the code.
 
-The bundled review is not lost, it is deferred to the two moments a human is present: the PR
-description offers `/code-review` on this branch as a one-keystroke second opinion, and if the
-project has the official **`code-review` plugin** enabled, the PR step runs its command — that one is
-model-invocable, works on the open pull request, and brings the same multi-agent-plus-confidence
-architecture as the bundled version.
+The bundled review is not lost, it is deferred: the PR description offers `/code-review` on this
+branch as a one-keystroke second opinion for the owner, and the PR step runs the `code-review`
+plugin's model-invocable equivalent on the open pull request.
+
+Count the agents this step spawns before you spawn them. With the plugin present the whole feature
+should come to roughly one reviewer here, a dozen in the PR step, and `/simplify` only if the diff
+earned it. If you find yourself planning more than that, you are buying agreement rather than
+information.
 
 ## Security
 

@@ -39,6 +39,26 @@ Fixed by making every path something an agent can actually reach:
   wait for them: after design approval the owner may be asleep, and a pipeline that waits for a human
   never finishes.
 
+## 0.7.1
+
+Found while running the kit on a real project: with the `code-review` plugin installed, a feature was
+reviewing its own diff in three waves — `agent-kit:reviewer`, up to three `pr-review-toolkit`
+specialists, and then the plugin's own dozen agents in the PR step. 0.7.0 added the third wave without
+reconciling it against the first two.
+
+The Review step now branches on whether the plugin is reachable, splitting by responsibility rather
+than piling on depth:
+
+- **Plugin available** — `agent-kit:reviewer` covers only what nothing else can, whether the diff is
+  the feature that was approved. The bug hunt belongs to the PR step, where the plugin's five
+  independent reviewers and its confidence-scoring pass do it better. The `pr-review-toolkit`
+  specialists stop being a default and become an escalation for a change that earns a specific lens.
+- **Plugin absent** — unchanged from 0.7.0: the reviewer carries correctness too, and the specialists
+  are worth spawning, because nothing downstream will look again.
+
+One wave either way. The step also states the agent budget out loud — roughly one reviewer here, a
+dozen in the PR step — so the next person to add a tier has to notice the total first.
+
 ## 0.7.0
 
 One install gets everything. 0.6.1 and 0.6.2 taught the kit to *use* Anthropic's `code-review` and
