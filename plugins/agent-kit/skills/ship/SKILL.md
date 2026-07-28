@@ -77,7 +77,9 @@ say so once at the start and continue.
 - **Build** — implement the approved design task by task using the project's conventions. Keep
   commits coherent and verification close to the changed behavior. The always-on rule about reaching
   for what already exists applies hardest here: before each new helper, look in the project, the
-  framework, and the installed dependencies. If the project has a language server enabled,
+  framework, and the installed dependencies — and the library map in the registered coding
+  standards names where this ecosystem keeps its ready-made answers. Stay inside the architecture
+  stance those standards record. If the project has a language server enabled,
   find-references and go-to-definition find an existing helper far more reliably than searching for
   the name you would have picked.
 - **Test** — see below.

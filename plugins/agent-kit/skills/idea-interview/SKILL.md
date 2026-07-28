@@ -111,8 +111,11 @@ in — never write into the plugin's own directory, which a plugin update replac
   migration commands, architectural constraints, and the coding-standards path. Owned by the
   project, so it survives every plugin update. Stack specifics belong here rather than in a forked
   copy of an agent — `tester` and `reviewer` derive their commands from this file and the manifest.
-- **Coding standards** — generate one for this stack (default `docs/coding-standards.md`), register
-  it as `sources.coding_standards`, and point the project instructions at it.
+- **Coding standards** — run `stack-playbook` to generate the document (default
+  `docs/coding-standards.md`): stack profile from the dependency manifests, the owner's
+  architecture stance, the framework's rewarded patterns, the ecosystem library map, and testing
+  idioms — researched, not recalled. Register it as `sources.coding_standards` and point the
+  project instructions at it.
 - **`scripts/cloud-setup.sh`** — the dependency install commands for the detected stack, so hosted
   sessions self-provision. It runs at every session start, so it must check before installing and
   no-op in seconds when everything is already present.

@@ -46,23 +46,33 @@ where unexamined assumptions cost the most. The design itself can be three sente
 
    Depth follows step 3: press hard where the answers are genuinely open, and move fast where the
    documents already settled them. Thoroughness is not the same thing as an interrogation.
-5. **Compare real alternatives, not variations on one idea.** Produce 2–3 approaches with genuinely
+5. **Ask the ecosystem before designing from scratch.** On a feature of substance, check whether
+   this is a problem the stack already solved whole: first the dependencies the project has
+   installed, then the ecosystem the coding standards' library map points into. A found solution
+   is not an automatic yes — it becomes one of the alternatives in the next step, compared on the
+   same trade-off table, with the always-on proportionality rule deciding whether taking it is
+   right. Skip the scan when the feature is plainly this product's own domain logic; that is
+   exactly what should be written by hand.
+6. **Compare real alternatives, not variations on one idea.** Produce 2–3 approaches with genuinely
    different trade-offs — the smallest change that reuses what exists, the clean structure you would
-   choose with no legacy, and the pragmatic middle. On a substantial feature, generate them
-   concurrently with one `Plan` agent per approach, each given only its own mandate, so they do not
-   converge on the same answer; on a small one, write them yourself. Then form your own opinion and
-   present the trade-offs as the alternatives table from the presenting rule, recommendation marked.
-6. **Decide how this feature will be proven.** See below. This is part of the design, not an
+   choose with no legacy, and the pragmatic middle; when the ecosystem scan found a ready-made
+   solution, adopting it is one of them. On a substantial feature, generate them concurrently with
+   one `Plan` agent per approach, each given only its own mandate, so they do not converge on the
+   same answer; on a small one, write them yourself. Then form your own opinion and present the
+   trade-offs as the alternatives table from the presenting rule, recommendation marked. Whatever
+   wins, the design names the architecture stance it follows from the coding standards and stays
+   inside it.
+7. **Decide how this feature will be proven.** See below. This is part of the design, not an
    afterthought at the end of the build.
-7. **Present the design and get explicit approval.** One screen, in the order the presenting rule
+8. **Present the design and get explicit approval.** One screen, in the order the presenting rule
    gives: goal, diagram, alternatives table, *your call*, *taken as given*, verification. Approval
    is one round, not a section-by-section walkthrough — the owner answers the open forks and says
    go, or pushes back on any part. Architecture, components, data flow, and error handling live in
    the diagram and the decision lines, not in paragraphs.
-8. **Write the spec** to `docs/specs/YYYY-MM-DD-<topic>-design.md` and commit it, including the
+9. **Write the spec** to `docs/specs/YYYY-MM-DD-<topic>-design.md` and commit it, including the
    verification plan and the resolved decisions from both sections. Diagrams go in as Mermaid —
    GitHub renders them. Prose in the user's language; code, paths, and identifiers in English.
-9. **Invoke `writing-plans`.** That is the terminal step — no other skill, and no further gate.
+10. **Invoke `writing-plans`.** That is the terminal step — no other skill, and no further gate.
 
 ## The verification plan
 
