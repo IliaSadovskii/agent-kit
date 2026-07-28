@@ -1,7 +1,7 @@
 ---
 name: screens-riff
 description: Product thinking about the screens themselves — study the existing screen map, the product documents, and the code, then propose the screens the app is missing. Taken proposals land on the map as idea cards next to what already exists; turned-down ones stay as rejected memory, so the same idea is not proposed twice. Use when the owner asks what the app should grow next, what a flow is missing, or what to do with the screen map now that it exists.
-argument-hint: "[flow or focus]"
+argument-hint: "[focus]"
 disable-model-invocation: true
 ---
 
@@ -15,7 +15,7 @@ Three commands touch the map, and keeping them apart is what makes it trustworth
 
 | Command | Asks | Writes |
 |---|---|---|
-| `/agent-kit:screens` | what is true today | `implemented` and `planned` cards, invents nothing |
+| `/agent-kit:screens` | what is true today | every card kept true, including an idea that got built; invents nothing |
 | `/agent-kit:screens-riff` | what is missing | `idea` and `rejected` cards, builds nothing |
 | `/agent-kit:riff` | what the product should be | roadmap lines, draws nothing |
 
@@ -27,10 +27,12 @@ than drawing a card for it.
 
 Read `${CLAUDE_PLUGIN_ROOT}/skills/screens/references/format.md`. You write the same file
 `/agent-kit:screens` writes, under the same rules — ids, statuses, the element vocabulary, and the
-way the viewer reports what it cannot honour. Nothing about the format is restated here.
+way the viewer reports what it cannot honour. Only what this pass adds on top of the format is
+stated here.
 
-Find the map: `.agent-kit/project/manifest.yml` → `sources.screens` when a manifest exists,
-otherwise `docs/screens/screens.data.js`.
+Find the map at `.agent-kit/project/manifest.yml` → `sources.screens` when that is registered, and
+at `docs/screens/screens.data.js` when it is not — a manifest that ships the key empty is the
+common case, so look on disk before concluding there is no map.
 
 **No map, no riff.** If there is none, say that in one sentence, offer `/agent-kit:screens`, and
 stop. Never generate one here: a map whose first commit mixes what exists with what was imagined in
@@ -92,11 +94,19 @@ AskUserQuestion when the session has it:
 - Where it lands: the flow, and what it connects to.
 - Your recommendation, marked. Get behind the ones that earn it.
 - The non-screen improvements in the same round, so the owner judges the whole picture at once.
+- The strongest few, not everything generated. A round the owner has to grind through gets skimmed,
+  and the presenting rule also forbids batching a dependency chain — if two ideas are alternatives
+  to each other, settle that fork first and let the answer moot the rest.
 
-Nothing is written before the owner marks each idea take or reject. Both verdicts land on the map:
-the rejections are worth as much as the proposals, because an idea turned down with no trace comes
-back next quarter with a different title. Record the reason in the owner's words; if they gave
-none, write the one they implied, in a clause.
+Nothing is written before the owner marks each idea. Take and reject both land on the map: the
+rejections are worth as much as the proposals, because an idea turned down with no trace comes back
+next quarter with a different title. **Parked is a third answer** — an idea the owner finds
+interesting but not now goes in the written review and onto no card at all, because a `rejected`
+entry is permanent and would suppress it forever.
+
+Record the reason for a rejection in the owner's words. If they gave none, write the one they
+implied and mark it as yours — "Dropped (inferred): …" — so the next run can tell the owner's
+judgment from your reading of it.
 
 This command is interactive by design. There is no autonomous variant of it — the round is the
 feature.
@@ -106,27 +116,30 @@ feature.
 `screens.data.js` and nothing else. Never `screens.html`: the viewer is plugin-owned wherever it
 sits and a later `/agent-kit:screens` run refreshes it.
 
-- **Taken** → `status: 'idea'`, an id drawn from `meta.nextScreenId` with the counter raised, no
-  `code` field — nothing implements an idea — the flow it belongs to, a sketched layout of the
-  three to six rows that make it recognizable, and the transitions that connect it, with ids from
-  `meta.nextTransitionId`. Put it in an existing flow unless it genuinely opens a new part of the
-  app; a new flow is a new column, appended after the others.
+- **Taken** → `status: 'idea'`, an id drawn from `meta.nextScreenId` with the counter raised, one
+  line of `purpose` saying what a person does there, no `code` field — nothing implements an idea —
+  the flow it belongs to, a sketched layout of the three to six rows that make it recognizable, and
+  the transitions that connect it, with ids from `meta.nextTransitionId`. Put it in an existing
+  flow unless it genuinely opens a new part of the app; a new flow is a new column, appended after
+  the others.
 - **Rejected** → `status: 'rejected'`, the reason in `purpose` after what it was ("A weekly PDF of
   saved items. Dropped: no audience for it."), two or three layout rows so the card stays
   recognizable, and no transitions — a rejected card is memory, and an arrow into a card hidden
   behind its filter draws nothing.
 - **Both ends of every transition must exist**, or the viewer names it in the legend as dangling in
   front of whoever opens the map.
-- **An `implemented` or `planned` card is never touched here.** Keeping those true is
+- **An `implemented` or `planned` card is never edited here.** Keeping those true is
   `/agent-kit:screens`'s job. An ideas pass that quietly re-statuses a shipped screen is exactly the
-  confusion these two commands are split to prevent — report the drift instead.
+  confusion these two commands are split to prevent — report the drift instead. An arrow *out of* a
+  shipped screen into a new idea is expected and does not touch it: a transition is its own entry.
 - Append within a flow rather than reordering the file, so the diff shows the change rather than
   hiding it in a reshuffle.
 
 ## The PR
 
-Docs-only, in the shape `/agent-kit:screens` uses: its own branch, one commit
-`docs: screens ideas — <focus>`, touching nothing but the map. Never merge.
+Docs-only, in the shape `/agent-kit:screens` uses: its own branch off the default branch, one
+commit `docs: screens ideas` (or `docs: screens ideas — <focus>` when a focus was given), touching
+nothing but the map. Never merge.
 
 Before opening it, run `node --check` on the data file if Node is available — the map is loaded as
 a script, so a syntax error reaches the owner as a blank page and no message at all.
@@ -138,10 +151,15 @@ anywhere else:
 - What was rejected and why, so the reason is in the history as well as on the map.
 - The improvements that were not screen-shaped. This is where they live: not as cards, and not as a
   separate report file nobody opens twice.
+- The drift you found and did not fix — a card the code has outgrown, a screen the roadmap promises
+  and the map lacks — as input to a `/agent-kit:screens` run.
 - Anything the ideas needed and the format could not express, so a real gap is visible rather than
   worked around silently.
 - That the map opens by double-clicking the viewer beside it.
 
-Nothing generated a single idea worth putting up is a legitimate outcome: say so in a sentence, no
-branch, no PR. Otherwise end by naming what starts the work — `/agent-kit:ship` with the screen the
-owner wants built — and leave it to them. This command builds nothing.
+**When nothing lands on the map there is no PR** — every idea parked, or none worth putting up —
+and then the command's own output carries the whole review: the improvements that were not
+screen-shaped, the drift, the parked ideas. Say it once, in the session, and write nothing.
+
+Otherwise end by naming what starts the work — `/agent-kit:ship` with the screen the owner wants
+built — and leave it to them. This command builds nothing.

@@ -53,12 +53,13 @@ the marketplace.
 | `/agent-kit:address [pr]` | Close a review round on an open PR: comments and CI in, fixes and replies out |
 | `/agent-kit:docs` | Reconcile living documentation where it genuinely diverged |
 | `/agent-kit:screens` | Map every screen and transition, and keep the map true as the app grows |
+| `/agent-kit:screens-riff [focus]` | Propose the screens the app is missing, straight onto the map |
 | `/agent-kit:riff [theme]` | Strategic brainstorm; builds nothing |
 
 `ship --manual` swaps the autonomous contract for a consultative one with checkpoints, when you want
 to co-develop rather than delegate.
 
-Eight commands, and the list is meant to stay short. A command earns its place by being a pipeline
+Nine commands, and the list is meant to stay short. A command earns its place by being a pipeline
 you could not get by asking in plain words — not by wrapping something Claude Code already does.
 
 ## What it does not reinvent
