@@ -47,6 +47,7 @@ the marketplace.
 | Command | What it does |
 |---|---|
 | `/agent-kit:ship [task]` | Front-loaded interaction, then autonomous through to a PR |
+| `/agent-kit:sprint [theme]` | An evening hour of briefing buys a night of ship runs — stacked PRs by morning |
 | `/agent-kit:fix [task]` | Lightweight path for a local, low-risk change |
 | `/agent-kit:debug [symptom]` | Reproduce, isolate, root-cause, then fix with a regression test |
 | `/agent-kit:address [pr]` | Close a review round on an open PR: comments and CI in, fixes and replies out |
@@ -56,7 +57,7 @@ the marketplace.
 `ship --manual` swaps the autonomous contract for a consultative one with checkpoints, when you want
 to co-develop rather than delegate.
 
-Six commands, and the list is meant to stay short. A command earns its place by being a pipeline
+Seven commands, and the list is meant to stay short. A command earns its place by being a pipeline
 you could not get by asking in plain words — not by wrapping something Claude Code already does.
 
 ## What it does not reinvent
