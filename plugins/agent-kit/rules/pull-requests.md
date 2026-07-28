@@ -4,6 +4,12 @@ The `PR` step opens the pull request following `.github/pull_request_template.md
 project language (`.agent-kit/project/manifest.yml` → `language`) — the section names below are
 canonical, so translate them along with the body. Never merge; the owner merges.
 
+A pull request based on another feature's branch rather than the default branch — a stacked feature
+inside a sprint — cannot land code at all: merging it moves the code into that branch. Open it as a
+draft, and give the body a first line saying which sprint it belongs to, what it is based on, and
+that it reaches the default branch through that sprint's integration pull request. Everything below
+is unchanged — this is still where the feature is read and reviewed.
+
 The description is written to be scanned. The owner decides in the first five lines whether this
 is mergeable without reading the diff; everything below either helps that decision or collapses out
 of the way. Structure beats prose: a Mermaid diagram when the change alters a flow (GitHub renders

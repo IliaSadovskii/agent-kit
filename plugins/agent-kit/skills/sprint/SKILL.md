@@ -1,7 +1,7 @@
 ---
 name: sprint
-description: Turn one hour of the owner's attention into a stretch of autonomous building — brief a coherent batch of features interactively, then run each through ship --brief in its own fresh session, stacked PRs out, one report at the end.
-argument-hint: "[theme]"
+description: Turn one hour of the owner's attention into a stretch of autonomous building — brief a coherent batch of features interactively, then run each through ship --brief in its own fresh session, and deliver the batch as one mergeable integration PR with a report.
+argument-hint: "[theme] | --integrate [feature ids]"
 disable-model-invocation: true
 ---
 
@@ -74,7 +74,11 @@ before opening a new brief.
 
    ```yaml
    sprint: 2026-07-28-auth
-   status: briefed          # briefed | running | done
+   status: briefed          # briefed | running | integrating | done
+   integration:
+     branch: sprint/2026-07-28-auth-integration
+     carries: []            # the feature ids the open integration PR delivers
+     pr: null
    features:
      - id: 01-password-reset
        spec: 01-password-reset/spec.md
@@ -95,9 +99,9 @@ before opening a new brief.
 ## The run
 
 Preflight once: the working tree must be clean — a dirty tree is a blocker to report, not to work
-around. The session must be in an auto permission mode; each child is launched with the same
-permission mode the orchestrator session runs under, or it will hang on its first prompt with
-nobody there to answer it.
+around. Run the branch sweep over earlier sprints' branches while the tree is still untouched. The
+session must be in an auto permission mode; each child is launched with the same permission mode the
+orchestrator session runs under, or it will hang on its first prompt with nobody there to answer it.
 
 Then loop until no feature is runnable:
 
@@ -126,31 +130,90 @@ Then loop until no feature is runnable:
    `blocked` with a one-line `note` naming the reason; a `blocked` feature blocks its dependents —
    mark them too, with `note: blocked by <id>` — and the loop moves on to the next runnable
    feature instead of stopping.
-6. **Never merge anything.** The stacked PRs wait for the owner; a dependent feature builds on its
-   parent's *branch*, not on a merge.
+
+   A feature PR based on another feature's branch cannot deliver anything on its own: its merge
+   button moves code into that branch, not into `main`. As you record it, make it a draft
+   (`gh pr ready --undo`) and check that its body opens with the line
+   `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md` requires — the child should have written it, and
+   the orchestrator is the backstop. It stays the place the feature is read, reviewed, and checked
+   by CI; it stops being a way to land code.
+6. **Never merge anything.** A dependent feature builds on its parent's *branch*, not on a merge,
+   and nothing reaches `main` until the owner merges an integration PR.
 
 The queue file is updated at every transition, not at the end — it is how a resumed session finds
 out where the run stood.
 
-## The integration check
+## The integration branch
 
-Features green one by one are not yet a green module — and a module the owner can merge into the
-app with no rework is the whole point of the run. When the loop empties, check out the tip of
-each stack and each independent branch, run the project's full declared suite there, and start the
-app if it has a runnable surface, exercising what the batch changed. A failure traceable to one
-feature gets one fix round on that feature's branch — fix, rerun what the fix put at risk, push,
-note it in the queue; anything wider than one feature is reported, not patched at the end. The
-verdict, per branch, leads the final report.
+Features green one by one are not yet a green module — and a module the owner can merge with no
+rework is the whole point of the run. The stack itself cannot deliver one: every dependent PR
+targets its parent's branch, so its merge button moves code sideways rather than into `main`, and
+the order and the merge method silently decide whether anything lands at all. The run ends by
+taking that decision away from the owner.
+
+When the loop empties, branch `sprint/<slug>-integration` from a freshly pulled `main` and merge
+into it the tip of every stack and every independent branch that is `done`. Conflicts between
+features surface here and are resolved here — by you, with the whole batch in front of you, rather
+than by the owner under a merge button. Then run the project's full declared suite on that tree and
+start the app if it has a runnable surface, exercising what the batch changed: this is the only
+tree that matches what `main` will actually contain, and no feature PR has been checked in that
+shape. The verdict leads the final report.
+
+A failure traceable to one feature gets one fix round on that feature's branch — fix, rerun what
+the fix put at risk, push, rebuild the integration branch, note it in the queue; anything wider than
+one feature is reported, not patched at the end.
+
+Then push and open the integration pull request against `main` per
+`${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md`, and record `integration.pr` and `integration.carries`
+in the queue. It is the sprint's only mergeable pull request, and it describes the batch as a whole:
+the feature table with each feature's own PR named as the place to read that diff, the Manual
+actions of every feature consolidated, and every feature's Assumptions gathered into one table — the
+batch is read here, the code is read there. State in it that it must be merged with a merge commit
+rather than a squash: a squash detaches the feature commits from `main`, which breaks both the next
+batch and the branch sweep below. Check once that the repository allows merge commits, and report it
+as a blocker if it does not.
+
+**Batches.** The default batch is the whole sprint, and `--integrate <feature ids>` builds one from
+part of it — for an owner who wants two features in production before taking the rest. The single
+constraint is dependency closure: a feature ships only with all of its ancestors, whose branches
+carry its commits. Name the missing ancestor and stop rather than quietly widening the selection.
+
+A later batch needs nothing done to the feature branches. Build it exactly like the first —
+a new branch from the freshly pulled `main`, the tips of the chosen features merged in — and the
+commits the earlier batch already landed are common to both sides, so they merge clean.
+
+**Rebuilding.** The integration branch is derived: nothing is committed to it directly, every change
+belongs on a feature branch, and the branch is rebuilt the same way whenever a feature branch moves
+after it was built — a review round through `/agent-kit:address`, a fix the owner asked for — or
+`main` moves underneath it. Rebuild, rerun the suite, force-push. An integration PR built from stale
+tips is worse than none: it looks mergeable and delivers the previous version of the fix.
+
+## The branch sweep
+
+Once an integration PR is merged, the branches it carried are dead weight: the feature PRs were
+closed rather than merged, so nothing points at those branches any more. Do not track that in the
+queue, measure it: a branch whose `git diff origin/main...<branch>` is empty adds nothing to `main`
+and can go. The test only ever errs one way — a branch still holding unlanded code never reads as
+empty. It does read as non-empty after a squashed merge, whose commits are detached from the ones on
+the branch, which is the second reason the integration PR asks for a merge commit; a swept-up sprint
+that keeps reporting live branches is that squash showing up later.
+
+Sweep at two moments — the end of a run, and the preflight of the next sprint — over the branches
+named in this and earlier `queue.yml` files. Delete the empty ones locally and on the remote, close
+their pull requests with a line naming the integration PR that carried them, and report the rest in
+one line as branches still holding code.
 
 ## The final report
 
-When the integration check is done, set the sprint `status` accordingly, write
+When the integration PR is open, set the sprint `status` accordingly, write
 `.agent-kit/sprint/<sprint>/REPORT.md`, and present it. In order: the integration verdict; a table
 of feature / status / PR / CI; then **the decisions taken without the owner** — each feature's
 assumptions and deviations gathered from the run's Run logs, as short lines, not counts, because
-they are the exact places the owner's eye is needed; then the merge order for the stacked PRs and
-the commands for what comes next — `/agent-kit:address <pr>` for review rounds, resuming the
-sprint for blocked features. Keep it to one screen; the details live in the PRs.
+they are the exact places the owner's eye is needed; then **what to merge** — the integration PR,
+as the command that merges it the right way (`gh pr merge <n> --merge`), with the feature PRs listed
+as where to read each diff and explicitly not as things to merge; then the commands for what comes
+next — `/agent-kit:address <pr>` for review rounds, `--integrate` for taking the batch in parts,
+resuming the sprint for blocked features. Keep it to one screen; the details live in the PRs.
 
 ## Resume
 
@@ -158,3 +221,7 @@ Invoked with an unfinished queue, continue the run rather than re-briefing: `pen
 as normal. A feature marked `running` with no live child process means the last session died
 mid-feature — inspect its branch and run log, then either mark it `blocked` or relaunch it from its
 spec. The specs were approved once; a resume never re-opens them.
+
+`--integrate` is not a resume: on a queue whose features are already `done` it builds the next
+batch's integration PR from the ids given, sweeps branches, and stops. It is also how a sprint is
+picked up days later, when `main` has moved and the open integration PR needs rebuilding.
