@@ -3,6 +3,45 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.9.0
+
+The kit learns to draw the app. A project's screens stop being a thing you hold in your head and
+become a picture the agent keeps true.
+
+- **New skill: `screens`** — every screen of the app as a wireframe card, every transition as a
+  labelled arrow, in one self-contained HTML file that opens with no server and no network. Built
+  from the project's own documents and code: what the code has is `implemented` and points at the
+  file that implements it, what only the documents promise is `planned`. Later runs **reconcile
+  rather than regenerate** — ids are never reused, so a screen number stays a stable address for
+  as long as the project lives. The viewer ranks screens by their transitions, left to right:
+  a screen's column is the longest path to it, so entry screens stand at the left, every step
+  forward points right, and a back edge is routed under the ranks it spans. `flow` groups screens
+  where that costs no crossings; it does not place them. A project with no screens — a library, a
+  CLI — gets one sentence and no map.
+- **New skill: `screens-riff`** — the map shows what the app is; this asks what it should become,
+  and answers in the same picture. Ideas arrive as one structured round; taken ones land as `idea`
+  cards next to what already exists, turned-down ones stay as `rejected` memory so the same
+  proposal never costs the owner attention twice, and "not now" is a third verdict that writes
+  nothing. Improvements that are not screen-shaped go in the written review, never on the map.
+- **A screen id is a unit of work.** `/agent-kit:ship S7` resolves against the map — the card's
+  title, purpose, layout, and transitions seed the task. And `docs-reflection` treats the map as a
+  living document: a feature that changed what the app shows flips statuses and adds what it
+  introduced, in the feature's own PR, because an `implemented` card points at code that exists
+  only there.
+- **One file crosses the ownership line on purpose.** The viewer is plugin code that lives in the
+  project's `docs/`, and later runs replace it — otherwise viewer improvements would never reach a
+  project that already generated a map. The rule and its single exception are written down in
+  `docs/developing.md`, the file says so in its own header, and the validator fails if that marker
+  disappears. The map beside it, `screens.data.js`, belongs to the project.
+- **`sprint` no longer talks about the night.** The command was written as an evening brief, a
+  night of building, and a morning report; nothing in the design needs the hour, only that the run
+  is unattended. Same steps, time-neutral wording — start a sprint over a working afternoon if
+  that is when you have the hour.
+- **The validator grew teeth for the payload's JavaScript**: it is parsed, the demo map is loaded
+  the way the viewer loads it, a page's `<script src>` must ship beside it, any `sources.<key>` the
+  payload reads must exist in the manifest template, and the demo map must obey the counter and
+  code-path rules it teaches.
+
 ## 0.8.0
 
 The kit learns to run a night shift: one evening hour of the owner's attention becomes a batch of
