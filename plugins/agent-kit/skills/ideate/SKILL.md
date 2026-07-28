@@ -14,7 +14,10 @@ Two scopes, same skill:
 - **Feature** (the `Ideate` step of `ship`) — one feature already chosen. Ask whether it is the best
   version of itself, agree what is in and out, and hand the locked scope to design.
 
-The user is present throughout. Propose and argue; don't pick a direction and run with it.
+The user is present throughout. Propose and argue; don't pick a direction and run with it. Put
+everything to them in the shape `${CLAUDE_PLUGIN_ROOT}/rules/presenting.md` prescribes: verdicts
+and options as compact tables or structured choices, decisions split into *your call* and *taken as
+given*, no walls of text.
 
 ## Steps
 

@@ -33,23 +33,16 @@ where unexamined assumptions cost the most. The design itself can be three sente
    apply? If it is thin, say so and go deeper into behavior and success criteria before proposing
    anything. If it is rich, confirm quickly; don't manufacture questions the docs already answer.
    This sets the depth of everything below.
-4. **Resolve every ambiguity now, one question per message.** This is the step that decides the
-   quality of the run: the user is here, and after approval every open decision becomes an
-   autonomous default logged in the PR's Assumptions. Cover edge cases, error handling, integration
-   points, scope boundaries, backward compatibility, and performance expectations.
+4. **Resolve every ambiguity now.** This is the step that decides the quality of the run: the user
+   is here, and after approval every open decision becomes an autonomous default logged in the PR's
+   Assumptions. Cover edge cases, error handling, integration points, scope boundaries, backward
+   compatibility, and performance expectations.
 
-   Three rules make this step worth the user's time rather than a tax on it:
-
-   - **Ask about decisions, not facts.** Anything the environment can answer — the test framework,
-     how an existing endpoint behaves, whether a column is nullable — you look up. What you put to
-     the user is what only they can decide, because it depends on intent rather than on state.
-     Spending a question on something you could have read is how an interview loses its authority.
-   - **Follow the dependency order, not the checklist order.** Decisions unlock and moot each other:
-     settle the one that changes the shape of the others first, and half the list stops needing to
-     be asked. Walk each branch to its end before opening the next one.
-   - **Carry your own recommendation into every question,** with the reasoning in a sentence. A
-     question with no proposed answer offloads the work onto the user. If they say "whatever you
-     think is best", state your choice and get explicit confirmation rather than silently deciding.
+   How to ask is governed by `${CLAUDE_PLUGIN_ROOT}/rules/presenting.md`: only questions whose
+   answer changes the work, facts looked up rather than asked, independent decisions batched into
+   one structured round, dependency chains sequenced shape-changer first, and a recommendation on
+   every question. Decisions with an obviously better answer are not questions at all — they go into
+   the design's *taken as given* section.
 
    Depth follows step 3: press hard where the answers are genuinely open, and move fast where the
    documents already settled them. Thoroughness is not the same thing as an interrogation.
@@ -58,14 +51,17 @@ where unexamined assumptions cost the most. The design itself can be three sente
    choose with no legacy, and the pragmatic middle. On a substantial feature, generate them
    concurrently with one `Plan` agent per approach, each given only its own mandate, so they do not
    converge on the same answer; on a small one, write them yourself. Then form your own opinion and
-   present the trade-offs, leading with your recommendation and why.
+   present the trade-offs as the alternatives table from the presenting rule, recommendation marked.
 6. **Decide how this feature will be proven.** See below. This is part of the design, not an
    afterthought at the end of the build.
-7. **Present the design and get explicit approval.** Scale each section to its complexity and ask
-   after each whether it looks right. Cover architecture, components, data flow, error handling, and
-   the verification plan from step 6.
+7. **Present the design and get explicit approval.** One screen, in the order the presenting rule
+   gives: goal, diagram, alternatives table, *your call*, *taken as given*, verification. Approval
+   is one round, not a section-by-section walkthrough — the owner answers the open forks and says
+   go, or pushes back on any part. Architecture, components, data flow, and error handling live in
+   the diagram and the decision lines, not in paragraphs.
 8. **Write the spec** to `docs/specs/YYYY-MM-DD-<topic>-design.md` and commit it, including the
-   verification plan. Prose in the user's language; code, paths, and identifiers in English.
+   verification plan and the resolved decisions from both sections. Diagrams go in as Mermaid —
+   GitHub renders them. Prose in the user's language; code, paths, and identifiers in English.
 9. **Invoke `writing-plans`.** That is the terminal step — no other skill, and no further gate.
 
 ## The verification plan
