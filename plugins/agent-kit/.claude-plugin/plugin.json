@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "agent-kit",
   "displayName": "Agent Kit",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Build product features through long-running Claude Code sessions: front-loaded interaction on what to build and how, then autonomous work through to a pull request.",
   "author": {
     "name": "Ilia Sadovskii",
