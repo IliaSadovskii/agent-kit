@@ -3,6 +3,33 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.10.0
+
+A sprint stops being a stack of pull requests the owner has to merge in the right order, and becomes
+one pull request that either lands the batch or does not.
+
+- **The batch is delivered by an integration PR.** Stacked feature PRs target their parent's branch,
+  so their merge button moves code sideways rather than into the default branch — merge them in the
+  wrong order, or with a squash, and the sprint quietly fails to land. The run now ends by branching
+  `sprint/<slug>-integration` off a freshly pulled `main`, merging the feature tips into it,
+  resolving conflicts between features there, and running the project's full suite on that tree —
+  the only tree that matches what `main` will contain, and one no feature PR had ever been checked
+  in. That branch's pull request is the sprint's single mergeable one. It asks to be merged with a
+  merge commit rather than a squash, and the run checks once that the repository allows it.
+- **Feature PRs become drafts.** They keep doing what they were good at — a narrow diff to read,
+  a place for review comments, its own CI — and stop pretending to be a way to land code. The rule
+  is conditional on the base branch, so it applies to any pull request opened against another
+  feature's branch, and `sprint` verifies it as a backstop when a headless child does not.
+- **`--integrate <feature ids>` takes the batch in parts**, for an owner who wants two features in
+  production before committing to the rest. A batch must be closed under dependencies — a feature
+  ships with its ancestors, whose branches carry its commits — and a later batch needs nothing done
+  to the feature branches: it is built from the new `main` the same way. The same rebuild covers a
+  review round through `/agent-kit:address` and a `main` that moved underneath an open batch.
+- **Branches are swept, not remembered.** A branch whose `git diff origin/main...<branch>` is empty
+  adds nothing to `main` and is deleted locally and on the remote, its pull request closed with a
+  line naming the integration PR that carried it. The test errs one way only: a branch still holding
+  unlanded code never reads as empty. It runs at the end of a run and in the next sprint's preflight.
+
 ## 0.9.0
 
 The kit learns to draw the app. A project's screens stop being a thing you hold in your head and
