@@ -9,7 +9,7 @@
 //
 // This copy is the demo map that ships with the kit: it exercises every feature of the format at
 // once, which makes it both the example and a way to see the viewer working before a real project
-// has a map of its own.
+// has a map of its own. Change `platform` below to 'web' and reload to see the other card frame.
 
 window.SCREENS = {
   meta: {
@@ -112,7 +112,7 @@ window.SCREENS = {
       layout: [
         [{ type: 'header', label: 'Account' }],
         [{ type: 'card', label: 'Profile' }],
-        [{ type: 'list', n: 3 }],
+        [{ type: 'list' }],
         [{ type: 'text', label: 'Sign out' }],
         [{ type: 'tabbar', n: 3 }],
       ],

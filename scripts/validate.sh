@@ -201,6 +201,16 @@ fi
 # --------------------------------------------------------------------------------------------
 step "template payload syntax"
 
+# A template page and the scripts it loads are copied into a project together. A src the page names
+# but the payload does not ship is a blank page in someone else's repository, so check the pair
+# holds here — this one needs no node.
+while IFS= read -r html; do
+  dir="$(dirname "$html")"
+  while IFS= read -r src; do
+    [ -e "$dir/$src" ] || fail "$html loads a script that does not ship beside it: $src"
+  done < <(grep -oE '<script[^>]*[[:space:]]src="[^"]*"' "$html" | sed 's/.*[[:space:]]src="//; s/"$//')
+done < <(find "$PLUGIN/templates" -name '*.html')
+
 # The screen map viewer is loaded as a plain script from a file:// page, where a syntax error is a
 # blank page and no message at all. Parse the payload's JavaScript here instead of in a browser.
 if command -v node >/dev/null 2>&1; then
@@ -212,15 +222,34 @@ if command -v node >/dev/null 2>&1; then
     # node --check refuses a file it cannot classify, so the extraction needs a .js name.
     tmpdir="$(mktemp -d)"
     inline="$tmpdir/inline.js"
-    python3 - "$html" > "$inline" <<'PY'
+    if python3 - "$html" > "$inline" <<'PY'
 import re, sys
 src = open(sys.argv[1], encoding="utf-8").read()
-blocks = re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", src, re.S)
+blocks = re.findall(r"<script(?![^>]*\ssrc=)[^>]*>(.*?)</script>", src, re.S)
 sys.stdout.write("\n".join(blocks))
 PY
-    node --check "$inline" || fail "syntax error in the inline script of: $html"
+    then
+      node --check "$inline" || fail "syntax error in the inline script of: $html"
+    else
+      # An extractor that died leaves an empty file, and an empty file parses: without this the
+      # step would go green over an unparsed page.
+      fail "could not extract the inline script of: $html"
+    fi
     rm -rf "$tmpdir"
   done < <(find "$PLUGIN/templates" -name '*.html')
+
+  # `node --check` parses but never runs. A data file that assigns the wrong global, or throws on
+  # load, passes the parse and still reaches the owner as the same blank page — so load the screen
+  # map's data the way the viewer does and check the viewer's own precondition.
+  screens_data="$PLUGIN/templates/screens/screens.data.js"
+  if [ -e "$screens_data" ]; then
+    node -e 'global.window = {};
+             require(require("path").resolve(process.argv[1]));
+             var d = global.window.SCREENS;
+             if (!d || !Array.isArray(d.screens) || d.screens.length === 0) process.exit(1);' \
+         "$screens_data" >/dev/null 2>&1 \
+      || fail "$screens_data does not load into a non-empty window.SCREENS"
+  fi
 else
   printf 'node not available — template JavaScript not parsed\n'
 fi

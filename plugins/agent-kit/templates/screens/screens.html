@@ -53,7 +53,7 @@
     transform-origin: 0 0;
   }
 
-  #arrows {
+  #arrows, #arrow-labels {
     position: absolute;
     top: 0;
     left: 0;
@@ -254,7 +254,7 @@
     border-radius: 7px;
     cursor: pointer;
   }
-  #legend .warn { margin-top: 8px; font-size: 11px; color: #b45309; }
+  #legend .warn { margin-top: 8px; font-size: 11px; color: #b45309; white-space: pre-line; }
   #legend .hint { margin-top: 8px; font-size: 10px; color: var(--muted); }
 
   #details { top: 16px; right: 16px; width: 288px; max-height: calc(100% - 32px); overflow: auto; padding: 14px 16px; }
@@ -282,6 +282,9 @@
   <div id="world">
     <svg id="arrows" xmlns="http://www.w3.org/2000/svg"></svg>
     <div id="cards"></div>
+    <!-- Labels live above the cards while their arrows live below them: a curve disappearing
+         behind a card reads as depth, a trigger disappearing behind one reads as a missing fact. -->
+    <svg id="arrow-labels" xmlns="http://www.w3.org/2000/svg"></svg>
   </div>
 </div>
 
@@ -332,12 +335,15 @@
   var OVERLAY_SCALE = 0.78;  // overlays are drawn smaller, attached under their parent
   var OVERLAY_GAP = 26;
   var OVERLAY_INDENT = 34;
+  var BORDER = 1.5;          // the card's own border — part of its box, so part of its geometry
+  var GUTTER = 90;           // room reserved left of the columns, where same-column arrows bow
   var MIN_K = 0.15;
   var MAX_K = 2.5;
 
   var stage = document.getElementById('stage');
   var world = document.getElementById('world');
   var svg = document.getElementById('arrows');
+  var labelSvg = document.getElementById('arrow-labels');
   var cardsEl = document.getElementById('cards');
   var legend = document.getElementById('legend');
   var details = document.getElementById('details');
@@ -361,12 +367,46 @@
 
   var meta = data.meta || {};
   var geo = GEO[meta.platform] || GEO.mobile;
-  var CARD_W = geo.w + PAD * 2;
-  var CARD_H = geo.h + HEAD_H + FOOT_H + PAD * 2;
+  var CARD_W = geo.w + PAD * 2 + BORDER * 2;
+  var CARD_H = geo.h + HEAD_H + FOOT_H + PAD * 2 + BORDER * 2;
   var transitions = Array.isArray(data.transitions) ? data.transitions : [];
 
+  // Everything the file says that the viewer cannot honour is collected here and shown in the
+  // legend, with the ids involved. A map that quietly repairs its own data is a map that lies.
+  var issues = [];
+  var layoutIssues = [];
+
+  if (meta.platform && !GEO[meta.platform]) {
+    issues.push('meta.platform is "' + meta.platform + '", not mobile/web/desktop — phone frame used.');
+  }
+
   var byId = {};
-  data.screens.forEach(function (s) { byId[s.id] = s; });
+  var nameless = 0;
+  var duplicates = [];
+  data.screens.forEach(function (s) {
+    if (!s || typeof s.id !== 'string' || !s.id) { nameless++; return; }
+    if (byId[s.id]) duplicates.push(s.id);
+    byId[s.id] = s;
+  });
+  // The later entry wins, so the earlier one is dropped rather than drawn under it.
+  var screens = data.screens.filter(function (s) { return s && byId[s.id] === s; });
+
+  if (nameless) issues.push(nameless + ' entr' + (nameless === 1 ? 'y has' : 'ies have') + ' no id and cannot be drawn.');
+  if (duplicates.length) issues.push('Duplicate ids, later entry wins: ' + duplicates.join(', ') + '.');
+
+  var odd = screens.filter(function (s) { return STATUS_RANK[s.status] === undefined; });
+  if (odd.length) {
+    issues.push('Unrecognized status, drawn as planned: ' + odd.map(function (s) {
+      return s.id + ' (' + s.status + ')';
+    }).join(', ') + '.');
+  }
+
+  if (screens.length === 0) {
+    document.getElementById('empty-why').textContent =
+      'Every entry in `screens` was unusable — ' + issues.join(' ');
+    document.getElementById('empty').hidden = false;
+    return;
+  }
 
   var filters = { implemented: true, planned: true, idea: true, rejected: false };
   var selected = null;
@@ -377,6 +417,11 @@
     return STATUS_RANK[screen.status] === undefined ? 'planned' : screen.status;
   }
 
+  function statusLabel(screen) {
+    return STATUS_RANK[screen.status] === undefined && screen.status
+      ? screen.status + ' ?' : statusOf(screen);
+  }
+
   function visible(screen) {
     return filters[statusOf(screen)];
   }
@@ -384,7 +429,8 @@
   // ---- layout: columns by flow, overlays attached to their parent ----------
   function computeLayout() {
     pos = {};
-    var shown = data.screens.filter(visible);
+    layoutIssues = [];
+    var shown = screens.filter(visible);
     var flows = [];
     shown.forEach(function (s) {
       var f = s.flow || 'Other';
@@ -398,18 +444,27 @@
         if (s.type === 'overlay' && s.parent) {
           var at = ordered.map(function (o) { return o.id; }).indexOf(s.parent);
           if (at !== -1) { ordered.splice(at + 1, 0, s); return; }
+          if (!byId[s.parent]) {
+            layoutIssues.push(s.id + ' is an overlay of ' + s.parent + ', which is not in the map.');
+          } else if (visible(byId[s.parent])) {
+            layoutIssues.push(s.id + ' is an overlay of ' + s.parent +
+              ', which is not earlier in the same flow — drawn on its own.');
+          }
         }
         ordered.push(s);
       });
 
       var x = ci * (CARD_W + COL_GAP);
       var y = 0;
-      ordered.forEach(function (s) {
+      ordered.forEach(function (s, i) {
         var overlay = s.type === 'overlay';
+        // Attached only when its parent is the card immediately above: otherwise the pull-up would
+        // lift the first card in a column to a negative y, outside what fit() ever looks at.
+        var attached = overlay && i > 0 && ordered[i - 1].id === s.parent;
         var k = overlay ? OVERLAY_SCALE : 1;
-        if (overlay) y = y - ROW_GAP + OVERLAY_GAP;
+        if (attached) y = y - ROW_GAP + OVERLAY_GAP;
         pos[s.id] = {
-          x: x + (overlay ? OVERLAY_INDENT : 0),
+          x: x + (attached ? OVERLAY_INDENT : 0),
           y: y,
           w: CARD_W * k,
           h: CARD_H * k,
@@ -527,7 +582,7 @@
 
     var foot = document.createElement('div');
     foot.className = 'card-foot';
-    foot.appendChild(badge(statusOf(screen)));
+    foot.appendChild(badge(statusLabel(screen)));
     if (screen.global) foot.appendChild(badge('everywhere', 'global'));
     if (screen.type === 'overlay') foot.appendChild(badge('over ' + (screen.parent || '?')));
 
@@ -546,6 +601,10 @@
 
   // ---- arrows -------------------------------------------------------------
   function anchors(a, b) {
+    // A screen that leads back to itself — a refresh, a re-entry — loops off its own right edge.
+    if (a === b) {
+      return { x1: a.x + a.w, y1: a.y + a.h * 0.35, x2: a.x + a.w, y2: a.y + a.h * 0.65, bow: 'self' };
+    }
     // Different columns: leave the near side, arrive on the facing side.
     if (b.x >= a.x + a.w) {
       return { x1: a.x + a.w, y1: a.y + a.h / 2, x2: b.x, y2: b.y + b.h / 2, bow: 'h' };
@@ -553,9 +612,11 @@
     if (b.x + b.w <= a.x) {
       return { x1: a.x, y1: a.y + a.h / 2, x2: b.x + b.w, y2: b.y + b.h / 2, bow: 'h' };
     }
-    // Same column, target below: straight down the flow.
+    // Same column, target below: down the left gutter rather than down the middle. The column's
+    // centre line is where an attached overlay sits, and an arrow that passes under a card takes
+    // its label with it — the label is the half of the arrow that carries the meaning.
     if (b.y > a.y) {
-      return { x1: a.x + a.w / 2, y1: a.y + a.h, x2: b.x + b.w / 2, y2: b.y, bow: 'v' };
+      return { x1: a.x, y1: a.y + a.h * 0.72, x2: b.x, y2: b.y + b.h * 0.28, bow: 'left' };
     }
     // Same column, target above: a back edge, routed around the right side.
     return { x1: a.x + a.w, y1: a.y + a.h / 2, x2: b.x + b.w, y2: b.y + b.h / 2, bow: 'back' };
@@ -564,12 +625,17 @@
   function curve(t) {
     var dx = Math.abs(t.x2 - t.x1);
     var dy = Math.abs(t.y2 - t.y1);
-    if (t.bow === 'v') {
-      var cy = Math.max(24, dy / 2);
-      return { c1x: t.x1, c1y: t.y1 + cy, c2x: t.x2, c2y: t.y2 - cy };
+    if (t.bow === 'self') {
+      return { c1x: t.x1 + 64, c1y: t.y1 - 16, c2x: t.x2 + 64, c2y: t.y2 + 16 };
+    }
+    if (t.bow === 'left') {
+      var back = Math.min(GUTTER - 20, Math.max(50, dy / 3));
+      return { c1x: t.x1 - back, c1y: t.y1, c2x: t.x2 - back, c2y: t.y2 };
     }
     if (t.bow === 'back') {
-      var out = Math.max(70, dy / 2);
+      // Bounded by the gap to the next column: an unbounded bow on a long back edge swings the
+      // curve straight through the neighbouring flow.
+      var out = Math.min(COL_GAP - 30, Math.max(70, dy / 2));
       return { c1x: t.x1 + out, c1y: t.y1, c2x: t.x2 + out, c2y: t.y2 };
     }
     var cx = Math.max(40, dx / 2);
@@ -577,11 +643,11 @@
     return { c1x: t.x1 + cx * dir, c1y: t.y1, c2x: t.x2 - cx * dir, c2y: t.y2 };
   }
 
-  function midpoint(t, c) {
-    // Cubic bezier at t = 0.5 — the average of the four control points' eighths.
+  function pointAt(t, c, u) {
+    var v = 1 - u;
     return {
-      x: (t.x1 + 3 * c.c1x + 3 * c.c2x + t.x2) / 8,
-      y: (t.y1 + 3 * c.c1y + 3 * c.c2y + t.y2) / 8
+      x: v * v * v * t.x1 + 3 * v * v * u * c.c1x + 3 * v * u * u * c.c2x + u * u * u * t.x2,
+      y: v * v * v * t.y1 + 3 * v * v * u * c.c1y + 3 * v * u * u * c.c2y + u * u * u * t.y2
     };
   }
 
@@ -597,6 +663,7 @@
 
   function drawArrows() {
     svg.textContent = '';
+    labelSvg.textContent = '';
     var defs = svgEl('defs', {});
     STATUSES.forEach(function (status) {
       var marker = svgEl('marker', {
@@ -608,13 +675,13 @@
     });
     svg.appendChild(defs);
 
-    var dangling = 0;
-    transitions.forEach(function (tr) {
+    var dangling = [];
+    var pending = [];
+    transitions.forEach(function (tr, index) {
       var from = byId[tr.from];
       var to = byId[tr.to];
-      if (!from || !to) { dangling++; return; }
+      if (!from || !to) { dangling.push(tr.id || tr.from + '→' + tr.to); return; }
       if (!pos[tr.from] || !pos[tr.to]) return;
-      if (tr.from === tr.to) return;
 
       var a = anchors(pos[tr.from], pos[tr.to]);
       var c = curve(a);
@@ -631,33 +698,60 @@
       svg.appendChild(path);
 
       if (tr.trigger) {
-        var m = midpoint(a, c);
-        var label = svgEl('text', {
-          x: m.x, y: m.y - 5,
-          class: 'arrow-label' + (lit ? ' lit' : '') + (dim ? ' dim' : '')
+        // Slide each label along its own curve by an amount fixed by its position in the file, so
+        // that two arrows sharing a midpoint do not stack their triggers in one place.
+        var m = pointAt(a, c, 0.5 + (index % 3 - 1) * 0.08);
+        pending.push({
+          x: m.x, y: m.y - 5, text: tr.trigger,
+          cls: 'arrow-label' + (lit ? ' lit' : '') + (dim ? ' dim' : '')
         });
-        label.textContent = tr.trigger;
-        svg.appendChild(label);
       }
     });
+
+    // Whatever the curves do, two labels must not land on top of each other: nudge each one down
+    // until it clears the labels already placed. Bounded, so a dense map degrades into a stack
+    // rather than into a loop.
+    var placed = [];
+    pending.forEach(function (label) {
+      for (var tries = 0; tries < 6; tries++) {
+        var clash = placed.some(function (p) {
+          return Math.abs(p.x - label.x) < 70 && Math.abs(p.y - label.y) < 12;
+        });
+        if (!clash) break;
+        label.y += 13;
+      }
+      placed.push(label);
+      var node = svgEl('text', { x: label.x, y: label.y, class: label.cls });
+      node.textContent = label.text;
+      labelSvg.appendChild(node);
+    });
+
     return dangling;
   }
 
   // ---- render -------------------------------------------------------------
   function bounds() {
-    var maxX = 0;
-    var maxY = 0;
-    Object.keys(pos).forEach(function (id) {
+    var ids = Object.keys(pos);
+    if (ids.length === 0) return { x: 0, y: 0, w: 0, h: 0 };
+    var minX = Infinity;
+    var minY = Infinity;
+    var maxX = -Infinity;
+    var maxY = -Infinity;
+    ids.forEach(function (id) {
+      minX = Math.min(minX, pos[id].x);
+      minY = Math.min(minY, pos[id].y);
       maxX = Math.max(maxX, pos[id].x + pos[id].w);
       maxY = Math.max(maxY, pos[id].y + pos[id].h);
     });
-    return { w: maxX, h: maxY };
+    // The gutter left of the first column and the loop room right of the last one hold arrows, so
+    // they are part of the drawing whether or not a card sits there.
+    return { x: minX - GUTTER, y: minY - 30, w: (maxX - minX) + GUTTER + 80, h: (maxY - minY) + 60 };
   }
 
   function render() {
     computeLayout();
     cardsEl.textContent = '';
-    data.screens.filter(visible).forEach(function (s) {
+    screens.filter(visible).forEach(function (s) {
       var node = cardNode(s);
       if (selected) node.classList.add(s.id === selected ? 'selected' : 'dim');
       cardsEl.appendChild(node);
@@ -665,12 +759,19 @@
 
     var dangling = drawArrows();
     var box = bounds();
-    svg.setAttribute('width', box.w + 80);
-    svg.setAttribute('height', box.h + 80);
+    [svg, labelSvg].forEach(function (layer) {
+      layer.setAttribute('width', box.x + box.w + 80);
+      layer.setAttribute('height', box.y + box.h + 80);
+    });
 
+    var reported = issues.concat(layoutIssues);
+    if (dangling.length) {
+      reported.push('Transition' + (dangling.length === 1 ? '' : 's') + ' pointing at a screen that ' +
+        'is not in the map: ' + dangling.join(', ') + '.');
+    }
     var warn = document.getElementById('warn');
-    warn.hidden = dangling === 0;
-    warn.textContent = dangling + ' transition(s) point at a screen that is not in the map.';
+    warn.hidden = reported.length === 0;
+    warn.textContent = reported.join('\n');
 
     updateFilterCounts();
   }
@@ -699,7 +800,7 @@
     h.textContent = screen.title || screen.id;
     var metaLine = document.createElement('div');
     metaLine.className = 'meta';
-    metaLine.textContent = screen.id + ' · ' + statusOf(screen) + ' · ' + (screen.flow || 'Other') +
+    metaLine.textContent = screen.id + ' · ' + statusLabel(screen) + ' · ' + (screen.flow || 'Other') +
       (screen.type === 'overlay' ? ' · overlay of ' + (screen.parent || '?') : '') +
       (screen.global ? ' · available everywhere' : '');
     var purpose = document.createElement('p');
@@ -775,12 +876,12 @@
   function fit() {
     var box = bounds();
     if (!box.w || !box.h) return;
-    var margin = 60;
+    var margin = 40;
     var k = Math.min((stage.clientWidth - margin * 2) / box.w,
                      (stage.clientHeight - margin * 2) / box.h, 1.2);
     view.k = Math.max(MIN_K, Math.min(MAX_K, k));
-    view.x = (stage.clientWidth - box.w * view.k) / 2;
-    view.y = (stage.clientHeight - box.h * view.k) / 2;
+    view.x = (stage.clientWidth - box.w * view.k) / 2 - box.x * view.k;
+    view.y = (stage.clientHeight - box.h * view.k) / 2 - box.y * view.k;
     applyView();
   }
 
@@ -797,12 +898,12 @@
   // ---- legend -------------------------------------------------------------
   function buildLegend() {
     var flows = [];
-    data.screens.forEach(function (s) {
+    screens.forEach(function (s) {
       var f = s.flow || 'Other';
       if (flows.indexOf(f) === -1) flows.push(f);
     });
     document.getElementById('legend-sub').textContent =
-      data.screens.length + ' screens · ' + flows.length + ' flows · ' + transitions.length +
+      screens.length + ' screens · ' + flows.length + ' flows · ' + transitions.length +
       ' transitions · ' + (meta.platform || 'mobile');
 
     var box = document.getElementById('filters');
@@ -840,7 +941,7 @@
     STATUSES.forEach(function (status) {
       var node = document.querySelector('[data-count="' + status + '"]');
       if (!node) return;
-      node.textContent = data.screens.filter(function (s) { return statusOf(s) === status; }).length;
+      node.textContent = screens.filter(function (s) { return statusOf(s) === status; }).length;
     });
   }
 

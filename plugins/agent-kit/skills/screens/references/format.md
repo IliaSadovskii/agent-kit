@@ -20,7 +20,7 @@ the fastest way to see a valid file.
 
 | Field | Values | Meaning |
 |---|---|---|
-| `platform` | `mobile` \| `web` \| `desktop` | Picks the card frame: a phone for `mobile`, a browser window otherwise. Detected once at first generation; the owner may override it and it is never re-detected over their choice. |
+| `platform` | `mobile` \| `web` \| `desktop` | Picks the card frame: a phone for `mobile`, a browser window otherwise. Detected once at first generation; the owner may override it and it is never re-detected over their choice. Anything else falls back to the phone frame and is reported in the legend. |
 | `nextScreenId` | integer | The next free `S<n>`. |
 | `nextTransitionId` | integer | The next free `T<n>`. |
 
@@ -55,7 +55,7 @@ at the map.
 | `flow` | yes | Grouping key; each distinct value becomes a column, in first-appearance order. |
 | `code` | implemented only | Repo-relative path to the file that implements it. This is what lets a later run tell "planned" from "shipped" without guessing. |
 | `type` | no | `screen` (default) or `overlay` — a sheet, modal, or dialog drawn over another screen. |
-| `parent` | overlays | The screen id an overlay is drawn over. The viewer attaches it, smaller, under its parent. |
+| `parent` | overlays | The screen id an overlay is drawn over. The viewer attaches it, smaller, under its parent, which requires the parent to share the overlay's `flow` and to appear earlier in the file. An overlay whose parent is elsewhere still renders — in its own place in the column — and the mismatch is reported. |
 | `global` | no | `true` for a screen reachable from everywhere — a tab bar destination, an offline notice, a global error. It gets an "everywhere" badge instead of an arrow from every other card. |
 | `layout` | yes | The wireframe, as rows. |
 
@@ -68,6 +68,10 @@ at the map.
 - **`rejected`** — considered and dropped. Hidden until its filter is switched on, and kept
   forever: the map's job includes remembering *why not*, so the same idea does not get re-proposed
   every quarter. Put the reason in `purpose`.
+
+Anything else is drawn as `planned` — of the four, "agreed but not built" is the reading least
+likely to overstate what exists — and it is reported in the legend rather than absorbed. A screen
+silently downgraded from shipped to planned is precisely the lie this document exists to prevent.
 
 ## `layout` — the wireframe
 
@@ -82,7 +86,9 @@ layout: [
 ]
 ```
 
-An element is `{ type, label?, n?, html? }`. This is a card-sized wireframe, not a mockup: the
+An element is `{ type, label?, n?, html? }`, where `n` counts the repeated parts of a `list`,
+`chips`, `tabs`, or `tabbar` — it defaults to 3 and is drawn as at most 8, because past that a
+card-sized wireframe is a grey smear either way. This is a card-sized wireframe, not a mockup: the
 reader must recognize the screen at a glance, so three to six rows of the load-bearing elements
 beats a faithful transcription of every control.
 
@@ -119,11 +125,25 @@ worse than one showing a grey box.
 | Field | Required | Meaning |
 |---|---|---|
 | `id` | yes | `T<n>`, never reused. |
-| `from`, `to` | yes | Screen ids. A transition pointing at a missing screen is reported by the viewer, not drawn. |
+| `from`, `to` | yes | Screen ids. A transition pointing at a missing screen is reported by the viewer, not drawn. `from` equal to `to` is a real transition — a refresh, a re-entry — and draws as a loop on the card's edge. |
 | `trigger` | yes | The arrow's label — what the person did. Two or three words: "taps Save", "session expires". |
 | `condition` | no | When the trigger only sometimes leads here. Shown in the details panel. |
 
 Transitions into a `global` screen are usually not worth recording: that is what the badge is for.
+
+## What the viewer reports rather than hides
+
+The map is read by people who did not write it, so the viewer never silently repairs a file. These
+appear in the legend, and each names the ids involved:
+
+| Situation | What is drawn | What is said |
+|---|---|---|
+| A transition points at a screen that is not in the map | Nothing for that transition | The transition ids |
+| Two entries share an id | The later one wins | The duplicated ids |
+| `status` is not one of the four | The card, as `planned` | The screen ids and the value found |
+| `meta.platform` is not one of the three | Phone frame | The value found |
+| An overlay's `parent` is missing, or not earlier in the same flow | The card, in its own place in the column | The screen ids |
+| `type` is not a known element | A neutral block labelled with the type | Nothing — this one is legitimate; see above |
 
 ## Writing the file
 

@@ -92,7 +92,11 @@ Semver, from the perspective of a project using the kit:
 - Anything project-specific: names, stacks, doc paths. Product knowledge is referenced through
   `manifest.sources.*`, never hardcoded. The validator greps for known project names.
 - A file the project owns. `templates/project/` holds what bootstrap *copies* into a repository;
-  once copied it belongs to that repository, and the plugin never writes there again.
+  once copied it belongs to that repository, and the plugin never writes there again. The one
+  deliberate exception is `templates/screens/screens.html`: nobody edits a viewer, and a copy that
+  is never refreshed means every improvement to it stops at the projects that already ran the
+  command. It carries the exception in its own header, and the data file beside it stays
+  project-owned. Anything else copied into a project keeps the rule.
 - A reimplementation of something Claude Code ships. If a step could call `/code-review`,
   `/security-review`, `/verify`, or a built-in agent, it should — the kit's job is the ordering and
   the project context, not another review harness.

@@ -11,7 +11,8 @@ command turns the project's own documents and code into a map: every screen as a
 every transition as a labelled arrow, and a status on each card separating what exists from what
 was agreed, floated, or dropped.
 
-It writes exactly two files:
+It writes exactly two files, at `manifest.sources.screens` when that is already registered and in
+`docs/screens/` by default when it is not:
 
 ```text
 docs/screens/screens.data.js   the map — the only file this command ever edits
@@ -33,6 +34,10 @@ Then find the ground truth:
   `sources.screens` if a map already exists.
 - No manifest — this still works. Read `docs/` and `README.md`, and say once that the map is built
   from those because the project has no registered sources.
+
+**A project with no screens gets no map.** A library, a CLI, a backend service with only endpoints —
+if neither the documents nor the code describe anything a person looks at, say that in one sentence
+and stop. No files, no branch, no PR. An empty map is worse than none: it looks like an answer.
 
 ## First run
 

@@ -51,6 +51,11 @@ the project (never touched by an update)
 The kit records where your documents live; it never moves or duplicates them. `bootstrapped: true`
 in the manifest means the foundation exists, not that every future feature is specified.
 
+The single exception to that boundary is the screen map viewer. `/agent-kit:screens` copies
+`screens.html` into `docs/screens/` and replaces it when the plugin ships a newer one: it is plugin
+code parked in your repository so the map opens offline with a double click, and it says so in its
+own header. The map beside it, `screens.data.js`, is yours — reconciled, never regenerated.
+
 To customize behavior, write to `.agent-kit/project/instructions.md`. Editing a file inside the
 plugin means the next update overwrites it — send the change upstream instead.
 
