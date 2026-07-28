@@ -3,41 +3,36 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
-## 0.6.1
+## 0.8.0
 
-The kit's main review path never ran. Found in real use, not by the validator.
+The kit learns to run a night shift: one evening hour of the owner's attention becomes a batch of
+features built while they sleep.
 
-Claude Code's bundled `/code-review` and `/verify` are marked `disable-model-invocation` — a property
-of those skills, not a session setting, so no agent in any session can start them. The kit wrote both
-into pipelines as the primary path, which meant:
-
-- `ship`'s Review step fell through to its fallback line every time; the real reviewer was the
-  fallback and the documented path was decoration.
-- `ship`'s Test step nominally confirmed the running app through `/verify`.
-- **`fix`'s Review step did nothing at all** — `/code-review` was its only reviewer, with no
-  fallback beneath it. `debug` inherited that through "continue through the tail of `fix`".
-- Worst of it: the `reviewer` agent was instructed *not* to hunt for bugs because "`/code-review`
-  already does that". Nothing did.
-
-Fixed by making every path something an agent can actually reach:
-
-- **`agent-kit:reviewer` is the primary reviewer** in `ship` and `fix`, and covers correctness as
-  well as design conformance. It gained a Correctness lens, and two lenses borrowed from what the
-  bundled review does and the kit had no answer for: **History** (`git blame`/`git log -L` over the
-  replaced lines, so a "cleanup" does not delete a guard added on purpose) and **Settled elsewhere**
-  (review comments on the PRs that last touched these files — conventions the project agreed to
-  without writing down).
-- **Plugin commands and agents *are* model-invocable**, unlike their bundled equivalents. So the
-  Review step now escalates through `pr-review-toolkit`'s specialists when a project has that plugin
-  enabled, and the PR step runs the official `code-review` plugin's command on the open pull request
-  — same multi-agent, confidence-scored architecture as the bundled version, reachable by an agent.
-  Both optional; the kit works without them.
-- **The Test step drives the app with the project's own commands.**
-- **The bundled pair is offered, not invoked.** The PR description's Review section ends with
-  `/code-review` and `/verify` as commands the owner can copy — the only way they get offered at all,
-  and the owner is reading it at the moment a keystroke is cheap. `ship` explicitly must not stop and
-  wait for them: after design approval the owner may be asleep, and a pipeline that waits for a human
-  never finishes.
+- **New skill: `sprint`** — an evening brief, a night of ship runs, a morning report. The brief
+  composes a coherent batch of 3–6 features with an explicit dependency order, scopes them in one
+  pass, and sketches each design in about ten minutes of owner attention; approved specs land in
+  `.agent-kit/sprint/`. The run executes each feature as `ship --brief` in its own fresh headless
+  session, one at a time so dependent features can stack — each builds on its parent's *branch*,
+  and nothing is ever merged without the owner. The night closes with an integration check over
+  every stack tip and a one-screen report led by the decisions taken without the owner.
+- **`ship --brief <spec>`** — a ship run with no interactive gates, for a design sketch the owner
+  already approved. Deviations follow a ladder: implementation mechanics are the run's to choose, a
+  settled approach that cannot work as written is replaced and recorded, and product scope is never
+  changed silently. A sibling `upstream.md` tells the run what actually happened to the features it
+  builds on, as opposed to what the sketch imagined.
+- **New skill: `stack-playbook`** — the agent knows where it is and asks the ecosystem first. It
+  detects the stack from dependency manifests and lockfiles, mines the codebase for the house
+  conventions, records the owner's architecture stance, and researches the installed framework's
+  idioms and library map from the ecosystem's own sources — training-data knowledge of an ecosystem
+  is stale by definition. The result is short justified rules written into the registered
+  coding-standards document, ending with a fingerprint of the manifests it was generated from.
+  `ship` checks that fingerprint at the head of every run: current is silent, missing triggers a
+  full generation, stale refreshes only what drifted — never the stance, which changes only on the
+  owner's word.
+- **The presenting rule** (`rules/presenting.md`) now governs everything put in front of the owner:
+  one screen per subject, structure before prose, decisions split into *your call* and *taken as
+  given*, questions batched with a marked recommendation each.
+- **PR descriptions are scannable** — verdict first, evidence collapsed.
 
 ## 0.7.1
 
@@ -95,6 +90,42 @@ model-invocable, unlike `/code-review` and `/verify`; the `gh` and CI steps alre
 session cannot reach them; and the guard hook asks on `git push origin main`, `git push --force`, and
 `gh pr merge` while staying silent on `git status`, `echo "git push --force"`, and a push of
 `claude/main-fix`.
+
+## 0.6.1
+
+The kit's main review path never ran. Found in real use, not by the validator.
+
+Claude Code's bundled `/code-review` and `/verify` are marked `disable-model-invocation` — a property
+of those skills, not a session setting, so no agent in any session can start them. The kit wrote both
+into pipelines as the primary path, which meant:
+
+- `ship`'s Review step fell through to its fallback line every time; the real reviewer was the
+  fallback and the documented path was decoration.
+- `ship`'s Test step nominally confirmed the running app through `/verify`.
+- **`fix`'s Review step did nothing at all** — `/code-review` was its only reviewer, with no
+  fallback beneath it. `debug` inherited that through "continue through the tail of `fix`".
+- Worst of it: the `reviewer` agent was instructed *not* to hunt for bugs because "`/code-review`
+  already does that". Nothing did.
+
+Fixed by making every path something an agent can actually reach:
+
+- **`agent-kit:reviewer` is the primary reviewer** in `ship` and `fix`, and covers correctness as
+  well as design conformance. It gained a Correctness lens, and two lenses borrowed from what the
+  bundled review does and the kit had no answer for: **History** (`git blame`/`git log -L` over the
+  replaced lines, so a "cleanup" does not delete a guard added on purpose) and **Settled elsewhere**
+  (review comments on the PRs that last touched these files — conventions the project agreed to
+  without writing down).
+- **Plugin commands and agents *are* model-invocable**, unlike their bundled equivalents. So the
+  Review step now escalates through `pr-review-toolkit`'s specialists when a project has that plugin
+  enabled, and the PR step runs the official `code-review` plugin's command on the open pull request
+  — same multi-agent, confidence-scored architecture as the bundled version, reachable by an agent.
+  Both optional; the kit works without them.
+- **The Test step drives the app with the project's own commands.**
+- **The bundled pair is offered, not invoked.** The PR description's Review section ends with
+  `/code-review` and `/verify` as commands the owner can copy — the only way they get offered at all,
+  and the owner is reading it at the moment a keystroke is cheap. `ship` explicitly must not stop and
+  wait for them: after design approval the owner may be asleep, and a pipeline that waits for a human
+  never finishes.
 
 ## 0.6.0
 
