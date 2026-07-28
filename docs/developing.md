@@ -11,6 +11,7 @@ plugins/agent-kit/                the plugin
   agents/<name>.md                reviewer and tester subagents
   rules/                          autonomous mode, interactive mode, pull requests
   templates/project/              what bootstrap copies into a project
+  templates/screens/              the screen map viewer, copied by /agent-kit:screens
   hooks/hooks.json, scripts/      session start and cloud dependency setup
 scripts/                          validate.sh, release.sh
 migrations/<version>.md           notes for a release that needs a manual step

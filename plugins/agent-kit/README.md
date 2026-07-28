@@ -16,6 +16,7 @@ Plugin skills are namespaced, so every command below is `/agent-kit:<name>`.
 | `/agent-kit:debug [symptom]` | Reproduce, isolate, root-cause, fix with a regression test |
 | `/agent-kit:address [pr]` | Close a review round on an open PR — comments and CI in, fixes and replies out |
 | `/agent-kit:docs` | Reconcile living documentation |
+| `/agent-kit:screens` | Map every screen and transition, and keep the map true |
 | `/agent-kit:riff [theme]` | Interactive strategy, builds nothing |
 
 The kit also ships two subagents, `agent-kit:reviewer` and `agent-kit:tester`, which the pipelines
@@ -38,6 +39,7 @@ the plugin (replaced by every update)
   agents/                 reviewer and tester subagents
   rules/                  autonomous mode, interactive mode, pull requests
   templates/project/      what bootstrap copies into a project
+  templates/screens/      the screen map viewer, copied by /agent-kit:screens
   hooks/, scripts/        session start, cloud dependency setup, and the guard hook
 
 the project (never touched by an update)

@@ -1,0 +1,917 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Screen map</title>
+<!--
+  The screen map viewer. Open this file directly in a browser — no server, no build, no network.
+  It reads `screens.data.js` from the same directory and draws every screen as a wireframe card,
+  every transition as a labelled arrow.
+
+  This file belongs to the agent-kit plugin and is replaced whole by plugin updates: edit
+  `screens.data.js`, never this. Viewer improvements ship upstream.
+-->
+<style>
+  :root {
+    --bg: #f8fafc;
+    --ink: #0f172a;
+    --muted: #64748b;
+    --line: #cbd5e1;
+    --panel: #ffffff;
+    --implemented: #0f766e;
+    --planned: #2563eb;
+    --idea: #9333ea;
+    --rejected: #94a3b8;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+  }
+
+  #stage {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    cursor: grab;
+    background-image: radial-gradient(var(--line) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+  #stage.dragging { cursor: grabbing; }
+
+  #world {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+  }
+
+  #arrows {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .arrow { fill: none; stroke-width: 1.6; }
+  .arrow.s-implemented { stroke: var(--implemented); }
+  .arrow.s-planned { stroke: var(--planned); stroke-dasharray: 6 4; }
+  .arrow.s-idea { stroke: var(--idea); stroke-dasharray: 2 4; }
+  .arrow.s-rejected { stroke: var(--rejected); stroke-dasharray: 2 4; }
+  .arrow.dim { opacity: 0.18; }
+  .arrow.lit { stroke-width: 2.6; }
+
+  /* Marker fills live here rather than on the element: a presentation attribute holding a CSS
+     variable is not reliably resolved, a stylesheet rule always is. */
+  #head-implemented path { fill: var(--implemented); }
+  #head-planned path { fill: var(--planned); }
+  #head-idea path { fill: var(--idea); }
+  #head-rejected path { fill: var(--rejected); }
+
+  .arrow-label {
+    font: 10px/1 system-ui, sans-serif;
+    fill: var(--muted);
+    stroke: var(--bg);
+    stroke-width: 3px;
+    paint-order: stroke;
+    text-anchor: middle;
+  }
+  .arrow-label.dim { opacity: 0.18; }
+  .arrow-label.lit { fill: var(--ink); font-weight: 600; }
+
+  /* ---- cards ------------------------------------------------------------- */
+
+  .card {
+    position: absolute;
+    transform-origin: 0 0;
+    padding: 10px;
+    background: var(--panel);
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .card.s-implemented { border-color: var(--implemented); }
+  .card.s-planned { border-style: dashed; border-color: var(--planned); }
+  .card.s-idea { border-style: dotted; border-color: var(--idea); }
+  .card.s-rejected { border-color: var(--rejected); opacity: 0.65; }
+  .card.dim { opacity: 0.25; }
+  .card.selected { box-shadow: 0 0 0 4px rgba(15, 23, 42, 0.12); }
+
+  .card-head {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    height: 26px;
+    overflow: hidden;
+  }
+  .card-head .sid {
+    font: 600 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--muted);
+  }
+  .card-head .stitle {
+    font-weight: 600;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-foot {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    height: 20px;
+    padding-top: 4px;
+    font-size: 10px;
+    color: var(--muted);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .badge {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0 6px;
+    line-height: 14px;
+  }
+  .badge.global { border-color: var(--implemented); color: var(--implemented); }
+
+  /* ---- the wireframe itself ---------------------------------------------- */
+
+  .frame {
+    position: relative;
+    background: #fff;
+    border: 1.5px solid var(--ink);
+    overflow: hidden;
+  }
+  .frame.phone { border-radius: 22px; border-width: 4px; }
+  .frame.browser { border-radius: 6px; }
+
+  .chrome-notch {
+    position: absolute;
+    top: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 42px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--ink);
+  }
+  .chrome-bar {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 14px;
+    padding: 0 5px;
+    background: #e2e8f0;
+    border-bottom: 1px solid var(--line);
+  }
+  .chrome-bar i {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--line);
+  }
+
+  .body {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    height: 100%;
+    padding: 12px 8px 8px;
+  }
+  .frame.browser .body { height: calc(100% - 14px); padding: 8px; }
+
+  .row { display: flex; align-items: center; gap: 4px; }
+  .row.bottom { margin-top: auto; }
+
+  .el {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    line-height: 1;
+    color: var(--muted);
+    background: #f1f5f9;
+    border-radius: 3px;
+    overflow: hidden;
+    white-space: nowrap;
+    padding: 0 3px;
+  }
+  .el-header { height: 18px; background: #e2e8f0; color: var(--ink); font-weight: 600; font-size: 9px; }
+  .el-text { height: 12px; }
+  .el-input { height: 18px; background: #fff; border: 1px solid var(--line); justify-content: flex-start; }
+  .el-search { height: 18px; background: #fff; border: 1px solid var(--line); border-radius: 9px; justify-content: flex-start; }
+  .el-button { height: 18px; background: var(--ink); color: #fff; border-radius: 4px; font-weight: 600; }
+  .el-card { height: 34px; background: #fff; border: 1px solid var(--line); }
+  .el-image { height: 46px; background: repeating-linear-gradient(45deg, #e2e8f0 0 6px, #eef2f7 6px 12px); }
+  .el-icon { flex: 0 0 16px; height: 16px; border-radius: 4px; background: #e2e8f0; }
+  .el-unknown { height: 12px; background: transparent; border: 1px dashed var(--line); font-style: italic; }
+  .el-custom { display: block; background: transparent; text-align: center; color: var(--ink); }
+
+  .el-stack { flex-direction: column; gap: 3px; background: transparent; align-items: stretch; }
+  .el-stack > i { display: block; height: 12px; background: #f1f5f9; border-radius: 3px; }
+  .el-strip { gap: 3px; background: transparent; }
+  .el-strip > i { flex: 1 1 0; height: 11px; background: #e2e8f0; border-radius: 999px; }
+  .el-tabs > i { border-radius: 3px; height: 14px; }
+  .el-tabs > i:first-child { background: var(--ink); }
+  .el-tabbar { height: 20px; background: #e2e8f0; border-radius: 4px; padding: 0 4px; }
+  .el-tabbar > i { flex: 0 1 14px; height: 10px; border-radius: 2px; background: #fff; }
+
+  /* ---- legend and details ------------------------------------------------ */
+
+  .panel {
+    position: absolute;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.08);
+  }
+
+  #legend { top: 16px; left: 16px; padding: 12px 14px; max-width: 240px; }
+  #legend h1 { margin: 0 0 2px; font-size: 14px; }
+  #legend .sub { margin: 0 0 10px; font-size: 11px; color: var(--muted); }
+  #legend label { display: flex; align-items: center; gap: 7px; font-size: 12px; cursor: pointer; padding: 1px 0; }
+  #legend .swatch { width: 18px; height: 0; border-top-width: 2px; border-top-style: solid; }
+  #legend .count { margin-left: auto; font-size: 10px; color: var(--muted); }
+  #legend .tools { display: flex; gap: 6px; margin-top: 10px; }
+  #legend button {
+    font: inherit;
+    font-size: 11px;
+    padding: 3px 9px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    cursor: pointer;
+  }
+  #legend .warn { margin-top: 8px; font-size: 11px; color: #b45309; }
+  #legend .hint { margin-top: 8px; font-size: 10px; color: var(--muted); }
+
+  #details { top: 16px; right: 16px; width: 288px; max-height: calc(100% - 32px); overflow: auto; padding: 14px 16px; }
+  #details h2 { margin: 0 0 2px; font-size: 15px; }
+  #details .meta { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+  #details .purpose { font-size: 13px; margin: 0 0 12px; }
+  #details h3 { margin: 12px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+  #details ul { margin: 0; padding-left: 16px; font-size: 12px; }
+  #details li { margin-bottom: 3px; }
+  #details code { font-size: 11px; background: var(--bg); padding: 1px 4px; border-radius: 4px; }
+  #details .close { position: absolute; top: 10px; right: 12px; border: 0; background: none; font-size: 16px; color: var(--muted); cursor: pointer; }
+  #details .cond { color: var(--muted); }
+
+  #empty { top: 50%; left: 50%; transform: translate(-50%, -50%); width: 460px; padding: 24px 26px; }
+  #empty h1 { margin: 0 0 8px; font-size: 16px; }
+  #empty p { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+  #empty code { font-size: 12px; background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div id="world">
+    <svg id="arrows" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="cards"></div>
+  </div>
+</div>
+
+<aside id="legend" class="panel" hidden>
+  <h1>Screen map</h1>
+  <p class="sub" id="legend-sub"></p>
+  <div id="filters"></div>
+  <div class="tools">
+    <button type="button" id="fit">Fit</button>
+    <button type="button" id="zoom-in">+</button>
+    <button type="button" id="zoom-out">−</button>
+  </div>
+  <p class="warn" id="warn" hidden></p>
+  <p class="hint">Drag to pan, wheel to zoom, click a screen for details.</p>
+</aside>
+
+<aside id="details" class="panel" hidden>
+  <button type="button" class="close" id="details-close" aria-label="Close">×</button>
+  <div id="details-body"></div>
+</aside>
+
+<section id="empty" class="panel" hidden>
+  <h1>No screen map here yet</h1>
+  <p id="empty-why"></p>
+  <p>The viewer reads <code>screens.data.js</code> from this directory. Run
+     <code>/agent-kit:screens</code> in the project to generate or repair it.</p>
+</section>
+
+<script src="screens.data.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var STATUSES = ['implemented', 'planned', 'idea', 'rejected'];
+  var STATUS_RANK = { implemented: 0, planned: 1, idea: 2, rejected: 3 };
+
+  var GEO = {
+    mobile: { w: 176, h: 320, chrome: 'phone' },
+    web: { w: 300, h: 190, chrome: 'browser' },
+    desktop: { w: 300, h: 190, chrome: 'browser' }
+  };
+
+  var PAD = 10;              // card padding around the frame
+  var HEAD_H = 26;           // card title row
+  var FOOT_H = 20;           // card badge row
+  var COL_GAP = 150;         // horizontal space between flow columns — arrows live here
+  var ROW_GAP = 64;          // vertical space between screens in a column
+  var OVERLAY_SCALE = 0.78;  // overlays are drawn smaller, attached under their parent
+  var OVERLAY_GAP = 26;
+  var OVERLAY_INDENT = 34;
+  var MIN_K = 0.15;
+  var MAX_K = 2.5;
+
+  var stage = document.getElementById('stage');
+  var world = document.getElementById('world');
+  var svg = document.getElementById('arrows');
+  var cardsEl = document.getElementById('cards');
+  var legend = document.getElementById('legend');
+  var details = document.getElementById('details');
+
+  var data = window.SCREENS;
+
+  // ---- guard: a missing or malformed data file explains itself -------------
+  var problem = null;
+  if (!data) {
+    problem = 'screens.data.js did not load, or it does not assign window.SCREENS.';
+  } else if (!Array.isArray(data.screens)) {
+    problem = 'screens.data.js loaded, but it has no `screens` array.';
+  } else if (data.screens.length === 0) {
+    problem = 'The map is empty — `screens` has no entries.';
+  }
+  if (problem) {
+    document.getElementById('empty-why').textContent = problem;
+    document.getElementById('empty').hidden = false;
+    return;
+  }
+
+  var meta = data.meta || {};
+  var geo = GEO[meta.platform] || GEO.mobile;
+  var CARD_W = geo.w + PAD * 2;
+  var CARD_H = geo.h + HEAD_H + FOOT_H + PAD * 2;
+  var transitions = Array.isArray(data.transitions) ? data.transitions : [];
+
+  var byId = {};
+  data.screens.forEach(function (s) { byId[s.id] = s; });
+
+  var filters = { implemented: true, planned: true, idea: true, rejected: false };
+  var selected = null;
+  var view = { x: 40, y: 40, k: 1 };
+  var pos = {};
+
+  function statusOf(screen) {
+    return STATUS_RANK[screen.status] === undefined ? 'planned' : screen.status;
+  }
+
+  function visible(screen) {
+    return filters[statusOf(screen)];
+  }
+
+  // ---- layout: columns by flow, overlays attached to their parent ----------
+  function computeLayout() {
+    pos = {};
+    var shown = data.screens.filter(visible);
+    var flows = [];
+    shown.forEach(function (s) {
+      var f = s.flow || 'Other';
+      if (flows.indexOf(f) === -1) flows.push(f);
+    });
+
+    flows.forEach(function (flow, ci) {
+      var column = shown.filter(function (s) { return (s.flow || 'Other') === flow; });
+      var ordered = [];
+      column.forEach(function (s) {
+        if (s.type === 'overlay' && s.parent) {
+          var at = ordered.map(function (o) { return o.id; }).indexOf(s.parent);
+          if (at !== -1) { ordered.splice(at + 1, 0, s); return; }
+        }
+        ordered.push(s);
+      });
+
+      var x = ci * (CARD_W + COL_GAP);
+      var y = 0;
+      ordered.forEach(function (s) {
+        var overlay = s.type === 'overlay';
+        var k = overlay ? OVERLAY_SCALE : 1;
+        if (overlay) y = y - ROW_GAP + OVERLAY_GAP;
+        pos[s.id] = {
+          x: x + (overlay ? OVERLAY_INDENT : 0),
+          y: y,
+          w: CARD_W * k,
+          h: CARD_H * k,
+          k: k
+        };
+        y += CARD_H * k + ROW_GAP;
+      });
+    });
+  }
+
+  // ---- the wireframe body -------------------------------------------------
+  function repeat(parent, n, fallback) {
+    var count = Math.max(1, Math.min(8, n || fallback));
+    for (var i = 0; i < count; i++) parent.appendChild(document.createElement('i'));
+  }
+
+  function elementNode(el) {
+    var type = el && el.type ? el.type : 'text';
+    var node = document.createElement('div');
+    node.className = 'el el-' + type;
+
+    switch (type) {
+      case 'list':
+        node.classList.add('el-stack');
+        repeat(node, el.n, 3);
+        break;
+      case 'chips':
+        node.classList.add('el-strip');
+        repeat(node, el.n, 3);
+        break;
+      case 'tabs':
+        node.classList.add('el-strip');
+        repeat(node, el.n, 3);
+        break;
+      case 'tabbar':
+        node.classList.add('el-strip');
+        repeat(node, el.n, 3);
+        break;
+      case 'icon':
+        break;
+      case 'custom':
+        // The data file is executed JavaScript from this repository, so its html is as trusted as
+        // the file itself; this adds no reach the file did not already have.
+        node.innerHTML = el.html || '';
+        break;
+      case 'header':
+      case 'text':
+      case 'input':
+      case 'search':
+      case 'button':
+      case 'card':
+      case 'image':
+        node.textContent = el.label || '';
+        break;
+      default:
+        node.className = 'el el-unknown';
+        node.textContent = type;
+    }
+    return node;
+  }
+
+  function frameNode(screen) {
+    var frame = document.createElement('div');
+    frame.className = 'frame ' + geo.chrome;
+    frame.style.width = geo.w + 'px';
+    frame.style.height = geo.h + 'px';
+
+    if (geo.chrome === 'phone') {
+      var notch = document.createElement('div');
+      notch.className = 'chrome-notch';
+      frame.appendChild(notch);
+    } else {
+      var bar = document.createElement('div');
+      bar.className = 'chrome-bar';
+      repeat(bar, 3, 3);
+      frame.appendChild(bar);
+    }
+
+    var body = document.createElement('div');
+    body.className = 'body';
+    (screen.layout || []).forEach(function (row) {
+      var cells = Array.isArray(row) ? row : [row];
+      var rowEl = document.createElement('div');
+      rowEl.className = 'row';
+      if (cells.some(function (c) { return c && c.type === 'tabbar'; })) rowEl.classList.add('bottom');
+      cells.forEach(function (cell) { rowEl.appendChild(elementNode(cell)); });
+      body.appendChild(rowEl);
+    });
+    frame.appendChild(body);
+    return frame;
+  }
+
+  function cardNode(screen) {
+    var p = pos[screen.id];
+    var card = document.createElement('div');
+    card.className = 'card s-' + statusOf(screen);
+    card.id = 'card-' + screen.id.toLowerCase();
+    card.style.left = p.x + 'px';
+    card.style.top = p.y + 'px';
+    card.style.width = CARD_W + 'px';
+    card.style.height = CARD_H + 'px';
+    if (p.k !== 1) card.style.transform = 'scale(' + p.k + ')';
+    card.dataset.id = screen.id;
+
+    var head = document.createElement('div');
+    head.className = 'card-head';
+    var sid = document.createElement('span');
+    sid.className = 'sid';
+    sid.textContent = screen.id;
+    var title = document.createElement('span');
+    title.className = 'stitle';
+    title.textContent = screen.title || screen.id;
+    head.appendChild(sid);
+    head.appendChild(title);
+
+    var foot = document.createElement('div');
+    foot.className = 'card-foot';
+    foot.appendChild(badge(statusOf(screen)));
+    if (screen.global) foot.appendChild(badge('everywhere', 'global'));
+    if (screen.type === 'overlay') foot.appendChild(badge('over ' + (screen.parent || '?')));
+
+    card.appendChild(head);
+    card.appendChild(frameNode(screen));
+    card.appendChild(foot);
+    return card;
+  }
+
+  function badge(text, extra) {
+    var b = document.createElement('span');
+    b.className = 'badge' + (extra ? ' ' + extra : '');
+    b.textContent = text;
+    return b;
+  }
+
+  // ---- arrows -------------------------------------------------------------
+  function anchors(a, b) {
+    // Different columns: leave the near side, arrive on the facing side.
+    if (b.x >= a.x + a.w) {
+      return { x1: a.x + a.w, y1: a.y + a.h / 2, x2: b.x, y2: b.y + b.h / 2, bow: 'h' };
+    }
+    if (b.x + b.w <= a.x) {
+      return { x1: a.x, y1: a.y + a.h / 2, x2: b.x + b.w, y2: b.y + b.h / 2, bow: 'h' };
+    }
+    // Same column, target below: straight down the flow.
+    if (b.y > a.y) {
+      return { x1: a.x + a.w / 2, y1: a.y + a.h, x2: b.x + b.w / 2, y2: b.y, bow: 'v' };
+    }
+    // Same column, target above: a back edge, routed around the right side.
+    return { x1: a.x + a.w, y1: a.y + a.h / 2, x2: b.x + b.w, y2: b.y + b.h / 2, bow: 'back' };
+  }
+
+  function curve(t) {
+    var dx = Math.abs(t.x2 - t.x1);
+    var dy = Math.abs(t.y2 - t.y1);
+    if (t.bow === 'v') {
+      var cy = Math.max(24, dy / 2);
+      return { c1x: t.x1, c1y: t.y1 + cy, c2x: t.x2, c2y: t.y2 - cy };
+    }
+    if (t.bow === 'back') {
+      var out = Math.max(70, dy / 2);
+      return { c1x: t.x1 + out, c1y: t.y1, c2x: t.x2 + out, c2y: t.y2 };
+    }
+    var cx = Math.max(40, dx / 2);
+    var dir = t.x2 >= t.x1 ? 1 : -1;
+    return { c1x: t.x1 + cx * dir, c1y: t.y1, c2x: t.x2 - cx * dir, c2y: t.y2 };
+  }
+
+  function midpoint(t, c) {
+    // Cubic bezier at t = 0.5 — the average of the four control points' eighths.
+    return {
+      x: (t.x1 + 3 * c.c1x + 3 * c.c2x + t.x2) / 8,
+      y: (t.y1 + 3 * c.c1y + 3 * c.c2y + t.y2) / 8
+    };
+  }
+
+  function arrowStatus(from, to) {
+    return STATUS_RANK[statusOf(from)] >= STATUS_RANK[statusOf(to)] ? statusOf(from) : statusOf(to);
+  }
+
+  function svgEl(name, attrs) {
+    var node = document.createElementNS('http://www.w3.org/2000/svg', name);
+    Object.keys(attrs).forEach(function (k) { node.setAttribute(k, attrs[k]); });
+    return node;
+  }
+
+  function drawArrows() {
+    svg.textContent = '';
+    var defs = svgEl('defs', {});
+    STATUSES.forEach(function (status) {
+      var marker = svgEl('marker', {
+        id: 'head-' + status, markerWidth: '9', markerHeight: '7',
+        refX: '8', refY: '3.5', orient: 'auto', markerUnits: 'userSpaceOnUse'
+      });
+      marker.appendChild(svgEl('path', { d: 'M0,0 L9,3.5 L0,7 z' }));
+      defs.appendChild(marker);
+    });
+    svg.appendChild(defs);
+
+    var dangling = 0;
+    transitions.forEach(function (tr) {
+      var from = byId[tr.from];
+      var to = byId[tr.to];
+      if (!from || !to) { dangling++; return; }
+      if (!pos[tr.from] || !pos[tr.to]) return;
+      if (tr.from === tr.to) return;
+
+      var a = anchors(pos[tr.from], pos[tr.to]);
+      var c = curve(a);
+      var status = arrowStatus(from, to);
+      var lit = selected && (tr.from === selected || tr.to === selected);
+      var dim = selected && !lit;
+
+      var path = svgEl('path', {
+        d: 'M' + a.x1 + ',' + a.y1 + ' C' + c.c1x + ',' + c.c1y + ' ' + c.c2x + ',' + c.c2y +
+           ' ' + a.x2 + ',' + a.y2,
+        class: 'arrow s-' + status + (lit ? ' lit' : '') + (dim ? ' dim' : ''),
+        'marker-end': 'url(#head-' + status + ')'
+      });
+      svg.appendChild(path);
+
+      if (tr.trigger) {
+        var m = midpoint(a, c);
+        var label = svgEl('text', {
+          x: m.x, y: m.y - 5,
+          class: 'arrow-label' + (lit ? ' lit' : '') + (dim ? ' dim' : '')
+        });
+        label.textContent = tr.trigger;
+        svg.appendChild(label);
+      }
+    });
+    return dangling;
+  }
+
+  // ---- render -------------------------------------------------------------
+  function bounds() {
+    var maxX = 0;
+    var maxY = 0;
+    Object.keys(pos).forEach(function (id) {
+      maxX = Math.max(maxX, pos[id].x + pos[id].w);
+      maxY = Math.max(maxY, pos[id].y + pos[id].h);
+    });
+    return { w: maxX, h: maxY };
+  }
+
+  function render() {
+    computeLayout();
+    cardsEl.textContent = '';
+    data.screens.filter(visible).forEach(function (s) {
+      var node = cardNode(s);
+      if (selected) node.classList.add(s.id === selected ? 'selected' : 'dim');
+      cardsEl.appendChild(node);
+    });
+
+    var dangling = drawArrows();
+    var box = bounds();
+    svg.setAttribute('width', box.w + 80);
+    svg.setAttribute('height', box.h + 80);
+
+    var warn = document.getElementById('warn');
+    warn.hidden = dangling === 0;
+    warn.textContent = dangling + ' transition(s) point at a screen that is not in the map.';
+
+    updateFilterCounts();
+  }
+
+  function applyView() {
+    world.style.transform = 'translate(' + view.x + 'px,' + view.y + 'px) scale(' + view.k + ')';
+  }
+
+  // ---- selection and details ----------------------------------------------
+  function transitionsOf(id, end) {
+    return transitions.filter(function (t) { return t[end] === id; });
+  }
+
+  function line(t, otherEnd) {
+    var other = byId[t[otherEnd]];
+    var name = other ? other.id + ' · ' + (other.title || '') : t[otherEnd] + ' (missing)';
+    var text = name + (t.trigger ? ' — ' + t.trigger : '');
+    return text + (t.condition ? ' [' + t.condition + ']' : '');
+  }
+
+  function showDetails(screen) {
+    var body = document.getElementById('details-body');
+    body.textContent = '';
+
+    var h = document.createElement('h2');
+    h.textContent = screen.title || screen.id;
+    var metaLine = document.createElement('div');
+    metaLine.className = 'meta';
+    metaLine.textContent = screen.id + ' · ' + statusOf(screen) + ' · ' + (screen.flow || 'Other') +
+      (screen.type === 'overlay' ? ' · overlay of ' + (screen.parent || '?') : '') +
+      (screen.global ? ' · available everywhere' : '');
+    var purpose = document.createElement('p');
+    purpose.className = 'purpose';
+    purpose.textContent = screen.purpose || '';
+    body.appendChild(h);
+    body.appendChild(metaLine);
+    body.appendChild(purpose);
+
+    if (screen.code) {
+      var codeHead = document.createElement('h3');
+      codeHead.textContent = 'Code';
+      var code = document.createElement('code');
+      code.textContent = screen.code;
+      body.appendChild(codeHead);
+      body.appendChild(code);
+    }
+
+    [['Arrives from', 'to', 'from'], ['Leads to', 'from', 'to']].forEach(function (spec) {
+      var list = transitionsOf(screen.id, spec[1]);
+      var head = document.createElement('h3');
+      head.textContent = spec[0];
+      body.appendChild(head);
+      if (list.length === 0) {
+        var none = document.createElement('p');
+        none.className = 'meta';
+        none.textContent = screen.global && spec[1] === 'to' ? 'from anywhere in the app' : 'nothing recorded';
+        body.appendChild(none);
+        return;
+      }
+      var ul = document.createElement('ul');
+      list.forEach(function (t) {
+        var li = document.createElement('li');
+        li.textContent = line(t, spec[2]);
+        ul.appendChild(li);
+      });
+      body.appendChild(ul);
+    });
+
+    details.hidden = false;
+  }
+
+  function select(id, opts) {
+    var screen = byId[id];
+    if (!screen) return;
+    if (!visible(screen)) {
+      filters[statusOf(screen)] = true;
+      syncFilterInputs();
+    }
+    selected = id;
+    render();
+    showDetails(screen);
+    if (window.location.hash.slice(1).toLowerCase() !== id.toLowerCase()) {
+      window.location.hash = id.toLowerCase();
+    }
+    if (opts && opts.center) centerOn(id);
+  }
+
+  function deselect() {
+    selected = null;
+    details.hidden = true;
+    render();
+  }
+
+  function centerOn(id) {
+    var p = pos[id];
+    if (!p) return;
+    view.x = stage.clientWidth / 2 - (p.x + p.w / 2) * view.k;
+    view.y = stage.clientHeight / 2 - (p.y + p.h / 2) * view.k;
+    applyView();
+  }
+
+  function fit() {
+    var box = bounds();
+    if (!box.w || !box.h) return;
+    var margin = 60;
+    var k = Math.min((stage.clientWidth - margin * 2) / box.w,
+                     (stage.clientHeight - margin * 2) / box.h, 1.2);
+    view.k = Math.max(MIN_K, Math.min(MAX_K, k));
+    view.x = (stage.clientWidth - box.w * view.k) / 2;
+    view.y = (stage.clientHeight - box.h * view.k) / 2;
+    applyView();
+  }
+
+  function zoomBy(factor, cx, cy) {
+    var k = Math.max(MIN_K, Math.min(MAX_K, view.k * factor));
+    var px = cx === undefined ? stage.clientWidth / 2 : cx;
+    var py = cy === undefined ? stage.clientHeight / 2 : cy;
+    view.x = px - (px - view.x) * (k / view.k);
+    view.y = py - (py - view.y) * (k / view.k);
+    view.k = k;
+    applyView();
+  }
+
+  // ---- legend -------------------------------------------------------------
+  function buildLegend() {
+    var flows = [];
+    data.screens.forEach(function (s) {
+      var f = s.flow || 'Other';
+      if (flows.indexOf(f) === -1) flows.push(f);
+    });
+    document.getElementById('legend-sub').textContent =
+      data.screens.length + ' screens · ' + flows.length + ' flows · ' + transitions.length +
+      ' transitions · ' + (meta.platform || 'mobile');
+
+    var box = document.getElementById('filters');
+    STATUSES.forEach(function (status) {
+      var label = document.createElement('label');
+      var input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = filters[status];
+      input.dataset.status = status;
+      input.addEventListener('change', function () {
+        filters[status] = input.checked;
+        if (selected && !visible(byId[selected])) deselect();
+        else render();
+      });
+      var swatch = document.createElement('span');
+      swatch.className = 'swatch';
+      swatch.style.borderTopColor = 'var(--' + status + ')';
+      swatch.style.borderTopStyle =
+        status === 'implemented' ? 'solid' : status === 'planned' ? 'dashed' : 'dotted';
+      var text = document.createElement('span');
+      text.textContent = status;
+      var count = document.createElement('span');
+      count.className = 'count';
+      count.dataset.count = status;
+      label.appendChild(input);
+      label.appendChild(swatch);
+      label.appendChild(text);
+      label.appendChild(count);
+      box.appendChild(label);
+    });
+    legend.hidden = false;
+  }
+
+  function updateFilterCounts() {
+    STATUSES.forEach(function (status) {
+      var node = document.querySelector('[data-count="' + status + '"]');
+      if (!node) return;
+      node.textContent = data.screens.filter(function (s) { return statusOf(s) === status; }).length;
+    });
+  }
+
+  function syncFilterInputs() {
+    STATUSES.forEach(function (status) {
+      var input = document.querySelector('[data-status="' + status + '"]');
+      if (input) input.checked = filters[status];
+    });
+  }
+
+  // ---- interaction --------------------------------------------------------
+  var drag = null;
+
+  stage.addEventListener('pointerdown', function (e) {
+    // The card is read here, not on pointerup: pointer capture retargets later events to the
+    // stage, so by then the original target is gone.
+    drag = {
+      x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: 0,
+      card: e.target.closest ? e.target.closest('.card') : null
+    };
+    stage.classList.add('dragging');
+    stage.setPointerCapture(e.pointerId);
+  });
+
+  stage.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    var dx = e.clientX - drag.x;
+    var dy = e.clientY - drag.y;
+    drag.moved = Math.max(drag.moved, Math.abs(dx) + Math.abs(dy));
+    view.x = drag.vx + dx;
+    view.y = drag.vy + dy;
+    applyView();
+  });
+
+  stage.addEventListener('pointerup', function () {
+    var wasDrag = drag && drag.moved > 4;
+    var card = drag ? drag.card : null;
+    drag = null;
+    stage.classList.remove('dragging');
+    if (wasDrag) return;
+    if (card) select(card.dataset.id);
+    else if (selected) deselect();
+  });
+
+  stage.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX, e.clientY);
+  }, { passive: false });
+
+  document.getElementById('fit').addEventListener('click', fit);
+  document.getElementById('zoom-in').addEventListener('click', function () { zoomBy(1.2); });
+  document.getElementById('zoom-out').addEventListener('click', function () { zoomBy(1 / 1.2); });
+  document.getElementById('details-close').addEventListener('click', deselect);
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && selected) deselect();
+  });
+
+  window.addEventListener('hashchange', function () {
+    var id = window.location.hash.slice(1).toUpperCase();
+    if (byId[id] && id !== selected) select(id, { center: true });
+  });
+
+  // ---- go -----------------------------------------------------------------
+  buildLegend();
+  render();
+  fit();
+
+  var initial = window.location.hash.slice(1).toUpperCase();
+  if (byId[initial]) select(initial, { center: true });
+})();
+</script>
+</body>
+</html>

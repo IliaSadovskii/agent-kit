@@ -199,6 +199,33 @@ if [ -n "$stale" ]; then
 fi
 
 # --------------------------------------------------------------------------------------------
+step "template payload syntax"
+
+# The screen map viewer is loaded as a plain script from a file:// page, where a syntax error is a
+# blank page and no message at all. Parse the payload's JavaScript here instead of in a browser.
+if command -v node >/dev/null 2>&1; then
+  while IFS= read -r js; do
+    node --check "$js" || fail "syntax error: $js"
+  done < <(find "$PLUGIN/templates" -name '*.js')
+
+  while IFS= read -r html; do
+    # node --check refuses a file it cannot classify, so the extraction needs a .js name.
+    tmpdir="$(mktemp -d)"
+    inline="$tmpdir/inline.js"
+    python3 - "$html" > "$inline" <<'PY'
+import re, sys
+src = open(sys.argv[1], encoding="utf-8").read()
+blocks = re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", src, re.S)
+sys.stdout.write("\n".join(blocks))
+PY
+    node --check "$inline" || fail "syntax error in the inline script of: $html"
+    rm -rf "$tmpdir"
+  done < <(find "$PLUGIN/templates" -name '*.html')
+else
+  printf 'node not available — template JavaScript not parsed\n'
+fi
+
+# --------------------------------------------------------------------------------------------
 step "no project-specific leakage in the payload"
 
 leaks="$(grep -rniE 'beeplish|english push tutor' "$PLUGIN" 2>/dev/null || true)"
