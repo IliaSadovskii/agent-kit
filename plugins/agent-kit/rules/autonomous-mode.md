@@ -1,6 +1,6 @@
 # Autonomous mode (flow rule)
 
-Applies during `ship` after the design is approved. The user may be asleep or away: work through to
+Applies during `ship` after the design is approved. The user is away: work through to
 the PR without them. These rules outrank any "wait for approval" instruction inside a skill.
 
 - **Don't stop to ask.** On ambiguity, pick a reasonable default consistent with the approved

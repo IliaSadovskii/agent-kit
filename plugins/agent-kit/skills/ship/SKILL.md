@@ -26,8 +26,8 @@ owner-only work becomes recorded manual actions, and only an insurmountable bloc
   `${CLAUDE_PLUGIN_ROOT}/rules/interactive-mode.md` instead of the autonomous rule. It changes
   nothing before design approval.
 - `--brief <spec-path>` — the file is a design sketch the owner already approved, typically written
-  by a `sprint` brief the evening before. **There are no interactive gates at all**: the autonomous
-  rule applies from the first step, because the run may be headless with nobody watching. Skip Task
+  by a `sprint` brief. **There are no interactive gates at all**: the autonomous rule applies from
+  the first step, because the run may be headless with nobody watching. Skip Task
   and Ideate — the sketch is the chosen, scoped task. A sibling `upstream.md` next to the spec,
   when present, records what actually happened to the features this one builds on; read it with
   the sketch — the sketch was written against those features as imagined, `upstream.md` is the
@@ -180,7 +180,7 @@ Claude Code's bundled `/code-review` is a better bug-finder than anything this k
 of independent agents, then a separate pass that scores each finding for confidence and drops the
 weak ones. It is also the one tool here an agent cannot start — only a person typing it can. Do not
 write it into this step as though you could, and do not stop the run to ask the owner to type it:
-after design approval they may be asleep, and a pipeline that waits for a human never finishes.
+after design approval they may be away, and a pipeline that waits for a human never finishes.
 
 So check first whether the project has the official `code-review` plugin enabled, because it decides
 how wide this step needs to be. That plugin is a fan of five independent reviewers plus a
