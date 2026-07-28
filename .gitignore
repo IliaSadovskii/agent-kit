@@ -1,2 +1,5 @@
 # Local scratch
 *.kit-new
+
+# Sprint working state — never repository content
+.agent-kit/sprint/
