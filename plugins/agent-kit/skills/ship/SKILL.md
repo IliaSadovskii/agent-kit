@@ -68,8 +68,12 @@ say so once at the start and continue.
   `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md`. Never merge. Then check CI — `gh pr checks`, or
   the closest the session has: a red pipeline is part of this step, not the owner's problem. Fix
   in-scope failures, rerun the verification the fix put at risk, and push again; if CI cannot be
-  observed from the session, say so in the PR. If no PR mechanism exists after every safe fallback,
-  report that as the terminal blocker once the branch is pushed.
+  observed from the session, say so in the PR. If the project has the official `code-review` plugin
+  enabled, run its command on the open PR now — it needs a pull request to exist, which is why it
+  lands here rather than in Review, and unlike the bundled `/code-review` an agent may invoke it.
+  Treat what it returns as a review round: fix in scope, rerun what the fixes put at risk, push. If
+  no PR mechanism exists after every safe fallback, report that as the terminal blocker once the
+  branch is pushed.
 - **Docs** — run `docs-reflection`. No-op by default. If living docs genuinely diverged, open a
   separate docs-only PR from the default branch; otherwise mark docs as current in the feature PR.
 
@@ -132,11 +136,12 @@ The bar is not "the tests pass" — it is that someone can merge this without re
    test layer, not a formality: a type error is a failing test. Fix product defects; never weaken a
    valid assertion for green output. A test that passes on a rerun with no change is a defect too —
    one known flake teaches everyone to ignore red, and then nothing in the suite means anything.
-4. **Confirm it against the running app with `/verify`** when the feature changed something a person
-   can see — an endpoint, a screen, a command. A green suite on an app that does not start is
-   exactly the failure this catches. Skip it only when there is no runnable surface, and say so. If
-   `/verify` is not available in the session, start the app with the project's own commands and
-   check the changed surface directly — the point is the running app, not the command.
+4. **Confirm it against the running app** when the feature changed something a person can see — an
+   endpoint, a screen, a command. Start the app with the project's own commands and exercise the
+   changed surface directly; a green suite on an app that does not start is exactly the failure this
+   catches. Do this yourself: `/verify` does the same thing better, but like `/code-review` it can
+   only be started by a person typing it, so it is a line for the PR description, not a step you can
+   run. Skip the check only when there is no runnable surface, and say so.
 
 If a layer the design called for could not be written, record which one and why in the Run log so
 it reaches the PR next to Assumptions. An unproven feature that says so is fine; one that looks
@@ -144,34 +149,41 @@ proven is not.
 
 ## Review
 
-Two questions, and one tool does not answer both. Run them concurrently; they do not depend on each
-other.
+Claude Code's bundled `/code-review` is a better bug-finder than anything this kit can write: a fan
+of independent agents, then a separate pass that scores each finding for confidence and drops the
+weak ones. It is also the one tool here an agent cannot start — only a person typing it can. Do not
+write it into this step as though you could, and do not stop the run to ask the owner to type it:
+after design approval they may be asleep, and a pipeline that waits for a human never finishes.
 
-1. **Is the code correct?** Run `/code-review`, the bundled multi-agent review. It reads the branch
-   diff in its own context, scores each finding for confidence, and drops the ones that do not
-   survive. Pass an effort level to match the change: `medium` for a routine feature, `high` or `xhigh` for
-   anything security-sensitive, concurrent, or wide. Fix what it returns.
-2. **Is it the feature that was approved?** `/code-review` does not know about the design. Delegate
-   to the `agent-kit:reviewer` agent, which reads the diff against the approved spec, the plan, the
-   project instructions, and the registered coding standards, and reports where the implementation
-   drifted. Fix critical and major findings.
+So use the strongest reviewer the session can actually reach, in this order.
 
-Then rerun the verification the fixes put at risk. Two independent passes over finished work in a
-fresh context is the right number; a third opinion on the same question buys agreement, not
-information.
+1. **The `agent-kit:reviewer` agent — always. This is the floor, not the ceiling.** It reads the
+   finished diff in a fresh context and covers both questions that matter: is the code correct, and
+   is it the feature that was approved — against the spec, the plan, the project instructions, and
+   the registered coding standards.
+2. **The `pr-review-toolkit` plugin's agents, when the project has it enabled.** Unlike the bundled
+   command, plugin agents *can* be delegated to. They are Anthropic's specialists, and each covers a
+   lens one general reviewer will underweight: `silent-failure-hunter` for swallowed errors and
+   fallbacks nobody learns about, `pr-test-analyzer` for whether the new tests would actually catch
+   a regression, `type-design-analyzer` for shapes that permit invalid states. Spawn the ones the
+   change warrants, concurrently, alongside step 1.
 
-Optionally, on a diff large enough that a human would find it a slog to read, follow with
-`/simplify`: four agents cover reuse of existing helpers, simplification, efficiency, and level of
-abstraction, and apply the fixes. It does not hunt for bugs, so it adds nothing the two passes above
-already did — it makes the result readable. Skip it on a small change, and rerun the suite after it,
+Fix critical and major findings, then rerun the verification the fixes put at risk. A reviewer asked
+to find gaps will find some even when the work is sound: fix what affects correctness or the approved
+requirements, and record the rest as deliberately deferred rather than building defensive scaffolding
+around it. When several reviewers report the same thing, that is one finding, not three.
+
+On a diff large enough that a human would find it a slog to read, follow with `/simplify`, which an
+agent *can* invoke: four agents cover reuse of existing helpers, simplification, efficiency, and
+level of abstraction, and apply the fixes. It does not hunt for bugs, so it adds no second opinion on
+correctness — it makes the result readable. Skip it on a small change, and rerun the suite after it,
 since it edits the code.
 
-A reviewer asked to find gaps will find some even when the work is sound. Fix what affects
-correctness or the approved requirements; record the rest as deliberately deferred rather than
-building defensive scaffolding around it.
-
-If `/code-review` is unavailable in the session, say so and have `agent-kit:reviewer` cover
-correctness as well, at a wider brief.
+The bundled review is not lost, it is deferred to the two moments a human is present: the PR
+description offers `/code-review` on this branch as a one-keystroke second opinion, and if the
+project has the official **`code-review` plugin** enabled, the PR step runs its command — that one is
+model-invocable, works on the open pull request, and brings the same multi-agent-plus-confidence
+architecture as the bundled version.
 
 ## Security
 

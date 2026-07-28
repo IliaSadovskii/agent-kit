@@ -24,8 +24,9 @@ On a project that has never used the kit, run `/agent-kit:ship`: it detects the 
 runs the bootstrap interview before anything else.
 
 Deliberately absent: there is no command for reviewing a diff, running tests, or provisioning
-infrastructure. `/code-review` and `/security-review` already do the first, plain conversation does
-the second better than a command would, and the third was a separate product living inside this one.
+infrastructure. Claude Code's own `/code-review` and `/security-review` already do the first, plain
+conversation does the second better than a command would, and the third was a separate product
+living inside this one.
 
 ## What is the plugin's, and what is the project's
 
@@ -54,17 +55,23 @@ plugin means the next update overwrites it — send the change upstream instead.
 
 The kit does not reimplement what Claude Code already does well. The pipelines call:
 
-- **`/code-review`** for correctness on a finished diff — a multi-agent pass that scores its own
-  findings for confidence and reports only what survives.
 - **`/security-review`** for the security pass, with the `claude-security` plugin as the deeper
   option when a project has it enabled.
-- **`/verify`** and **`/run`** to confirm a change against the running app rather than trusting a
-  green test suite.
+- **`/simplify`** to keep a large diff readable, and **`/run`** to drive the app while debugging.
 - The built-in **`Explore`** and **`Plan`** agents for codebase reconnaissance and competing
   architecture proposals during design.
 
-The kit's own `reviewer` agent covers the one thing none of those can: whether the diff matches the
-design that was approved for it.
+**What an agent cannot call.** The bundled `/code-review` and `/verify` are marked
+`disable-model-invocation`: only a person typing them starts them, in any session. That is a property
+of those skills, not a setting you can change, so the kit never pretends to run them. Instead the
+`reviewer` agent covers correctness and design conformance itself, the Test step drives the app with
+the project's own commands, and both bundled checks are offered in the PR description as
+one-keystroke second opinions at the moment the owner is already reading.
+
+Two Anthropic plugins close most of that gap, because plugin commands and agents *are*
+model-invocable. The kit uses them when a project has them enabled and works without them:
+`pr-review-toolkit` for specialist review lenses during Review, and `code-review` for a multi-agent
+confidence-scored pass on the open pull request.
 
 Two kinds of plugin are worth having alongside the kit, though it requires neither:
 
@@ -72,9 +79,9 @@ Two kinds of plugin are worth having alongside the kit, though it requires neith
   `rust-lsp`, and the rest of the family in the official directory. The Build step is told to look
   for an existing helper before writing one, and find-references is how that search actually
   succeeds; without it the agent is guessing at names.
-- **`pr-review-toolkit`** — Anthropic's specialist review agents, notably `silent-failure-hunter`
-  and `pr-test-analyzer`. The kit covers both concerns itself, but a second opinion from a different
-  author is worth more than a second opinion from the same one.
+- **`pr-review-toolkit`** and **`code-review`** — see "What an agent cannot call" above. These are
+  the plugins that give back the review depth the bundled `/code-review` has and cannot lend to an
+  agent, and they are the highest-value pair to enable alongside this kit.
 
 Writing tests is deliberately not delegated. Everything the kit hands off inspects finished work,
 which is why a generic version of it can exist at all; authoring tests means writing code inside

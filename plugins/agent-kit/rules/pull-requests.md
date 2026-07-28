@@ -16,7 +16,11 @@ Required sections:
 - **Architecture** — where the change plugs in and which layers it touches.
 - **Changes** — the key files and their role.
 - **Testing** — which tests, what they cover, and the run result.
-- **Review** — the reviewer and security findings, and how each was closed.
+- **Review** — the reviewer and security findings, and how each was closed. End it with the checks
+  only the owner can start, as commands they can copy: `/code-review` on this branch for an
+  independent multi-agent pass over correctness, and `/verify` to drive the running app. An agent
+  cannot invoke either one, so this line is the only way they get offered — and the owner is reading
+  this at exactly the moment a keystroke is cheap.
 - **Assumptions** — autonomous decisions taken and any deviations from the approved design,
   assembled from the plan's Run log.
 - A link to the cloud session when the session exposes one.

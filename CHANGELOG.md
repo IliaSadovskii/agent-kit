@@ -3,6 +3,42 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.6.1
+
+The kit's main review path never ran. Found in real use, not by the validator.
+
+Claude Code's bundled `/code-review` and `/verify` are marked `disable-model-invocation` — a property
+of those skills, not a session setting, so no agent in any session can start them. The kit wrote both
+into pipelines as the primary path, which meant:
+
+- `ship`'s Review step fell through to its fallback line every time; the real reviewer was the
+  fallback and the documented path was decoration.
+- `ship`'s Test step nominally confirmed the running app through `/verify`.
+- **`fix`'s Review step did nothing at all** — `/code-review` was its only reviewer, with no
+  fallback beneath it. `debug` inherited that through "continue through the tail of `fix`".
+- Worst of it: the `reviewer` agent was instructed *not* to hunt for bugs because "`/code-review`
+  already does that". Nothing did.
+
+Fixed by making every path something an agent can actually reach:
+
+- **`agent-kit:reviewer` is the primary reviewer** in `ship` and `fix`, and covers correctness as
+  well as design conformance. It gained a Correctness lens, and two lenses borrowed from what the
+  bundled review does and the kit had no answer for: **History** (`git blame`/`git log -L` over the
+  replaced lines, so a "cleanup" does not delete a guard added on purpose) and **Settled elsewhere**
+  (review comments on the PRs that last touched these files — conventions the project agreed to
+  without writing down).
+- **Plugin commands and agents *are* model-invocable**, unlike their bundled equivalents. So the
+  Review step now escalates through `pr-review-toolkit`'s specialists when a project has that plugin
+  enabled, and the PR step runs the official `code-review` plugin's command on the open pull request
+  — same multi-agent, confidence-scored architecture as the bundled version, reachable by an agent.
+  Both optional; the kit works without them.
+- **The Test step drives the app with the project's own commands.**
+- **The bundled pair is offered, not invoked.** The PR description's Review section ends with
+  `/code-review` and `/verify` as commands the owner can copy — the only way they get offered at all,
+  and the owner is reading it at the moment a keystroke is cheap. `ship` explicitly must not stop and
+  wait for them: after design approval the owner may be asleep, and a pipeline that waits for a human
+  never finishes.
+
 ## 0.6.0
 
 Two carriers for guarantees the kit could previously only phrase as prose: the project's CI, and a

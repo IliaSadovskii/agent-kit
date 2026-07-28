@@ -22,7 +22,7 @@ Symptom: `$ARGUMENTS`
 4. **Resolve** — one of two outcomes:
    - **Fix** — when the fix is clear and in scope, correct the root cause rather than the symptom,
      add a regression test that fails without the fix, then continue through the tail of `fix`:
-     test, `/code-review`, PR.
+     test, review, PR.
    - **Diagnosis** — when the cause needs the owner's decision (a product trade-off, a risky
      architectural change, work beyond this scope), stop and report the root cause, the
      reproduction, and the options, without changing code.
