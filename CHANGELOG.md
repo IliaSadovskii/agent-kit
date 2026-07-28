@@ -3,6 +3,29 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.13.0
+
+The architecture stance stops being one question with one answer.
+
+- **A project gets a stance per area, not a stance.** The domain, the HTTP surface, background work,
+  the client, how data is reached — a project answers the architecture question separately wherever
+  its answer actually differs, and asking for a single global one forced everything after it through
+  a wrong frame. A CRUD app still has one line; a layered product has three or four. The areas are
+  derived from the application type and from what the codebase already separates, never from a
+  checklist — inventing areas a project does not have is the failure mode, because each line becomes
+  a rule someone obeys forever.
+- **The question is where to deviate, not what to choose.** The framework's own idiom holds
+  everywhere the owner does not depart from it, so the round asks about departures and their cost.
+  Nobody answers "choose an architecture" well at bootstrap, before the code that would inform the
+  answer exists; everyone can answer "here is where I would leave the framework's path, and why".
+  Areas where the default is plainly right are declared rather than asked.
+- **The playbook records a table, looked up by area.** `brainstorming` names the stance for the area
+  its feature changes and designs inside that row; `reviewer` checks against the same row. A feature
+  touching the HTTP surface no longer reads a paragraph about the whole product to find its rule.
+- **A refresh may ask exactly one question**: the project grew an area the table has no row for. It
+  still never changes a recorded stance, and it still reports, by area, where the code has parted
+  from what the table says.
+
 ## 0.12.0
 
 0.11.0 fixed the presenting rule, and two skills that ask the owner questions did not notice: they

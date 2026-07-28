@@ -1,6 +1,6 @@
 ---
 name: stack-playbook
-description: Generate or refresh the stack playbook inside the project's registered coding standards — detect the stack and application type, record the owner's architecture stance, research the framework's current idioms and ecosystem libraries, and write short justified rules the pipelines load before every feature. Invoked by idea-interview at bootstrap, or when the user asks to create or update stack standards or the playbook.
+description: Generate or refresh the stack playbook inside the project's registered coding standards — detect the stack and application type, record the owner's architecture stance for each area that has its own, research the framework's current idioms and ecosystem libraries, and write short justified rules the pipelines load before every feature. Invoked by idea-interview at bootstrap, or when the user asks to create or update stack standards or the playbook.
 ---
 
 # Stack playbook
@@ -21,28 +21,38 @@ against — that placement, not repetition in prompts, is what makes the rules i
    tests are written here. In an existing project the playbook describes the house style before it
    prescribes anything; where existing code contradicts the framework's idiom, note which one wins
    and why rather than silently picking.
-3. **Record the architecture stance — discussed at bootstrap, decided by the owner.** Nothing here
-   is preset by the kit: from the stack and code analysis, propose the stance you would choose for
-   this project — the framework's own idiom, DDD-style modules, something else — with a one-line
-   reason, put up per `${CLAUDE_PLUGIN_ROOT}/rules/presenting.md` as one structured question with
-   your recommendation marked.
+3. **Record the architecture stances — proposed from evidence, decided by the owner.** Nothing here
+   is preset by the kit, and there is rarely only one. A project answers the architecture question
+   separately in each area where its answer actually differs — the domain, the HTTP surface,
+   background work, the client, how data is reached. A CRUD app has one line; a layered product has
+   three or four. Derive the areas from the application type and from what this codebase already
+   separates, never from a checklist: inventing areas a project does not have is the failure mode
+   here, because every line becomes a rule somebody has to obey forever.
 
-   Ask it with its consequences attached rather than as a word. A stance answered "DDD" and nothing
-   else leaves you to invent where boundaries sit, what a module is, and what may cross one — and
-   that invented part is what the owner will actually feel in every later review. Put the concrete
-   reading up together with the question: *this stance, in this repo, means these boundaries and
-   this layout.* It is the most expensive decision in the playbook to reverse and the only one every
-   future feature inherits, so it earns a screen of the owner's attention where a feature decision
-   earns a line.
+   Make it answerable by defaulting. **The framework's own idiom holds everywhere the owner does not
+   deviate**, so the question is never "choose an architecture" — nobody answers that well at
+   bootstrap, before the code that would inform it exists — but "here is where I would depart from
+   the framework, and what that buys and costs". Areas where the framework's default is plainly
+   right are declared in *taken as given*, not asked.
 
-   If the owner is absent, derive the stance from the code, mark it `derived` in the document, and
-   surface it where the run's decisions are actually read — the PR's Assumptions, the sprint report
+   Put the set up in one round per `${CLAUDE_PLUGIN_ROOT}/rules/presenting.md` — one fork per area,
+   recommendation marked, each with its concrete reading attached. A stance answered "DDD" and
+   nothing else leaves you to invent where boundaries sit, what a module is, and what may cross one,
+   and that invented part is what the owner will feel in every later review. These are the most
+   expensive decisions the kit records and every future feature inherits them, so they earn a screen
+   of the owner's attention where a feature decision earns a line.
+
+   An area the project does not have yet is not asked about. When it appears — the product grows
+   background work it never had — that is one question at the refresh that meets it, and one new row.
+
+   If the owner is absent, derive the stances from the code, mark them `derived` in the document, and
+   surface them where the run's decisions are actually read — the PR's Assumptions, the sprint report
    — not only in a log. A stance nobody chose is the first thing the owner should be offered the
    chance to correct, rather than a line they discover months later.
 
-   Once recorded the stance is followed consistently and changes only on the owner's word — never as
-   a side effect of a refresh; proportionality applies *inside* it — module boundaries per the
-   stance, no ceremony around a five-line helper.
+   Once recorded they are followed consistently and change only on the owner's word — never as a side
+   effect of a refresh; proportionality applies *inside* them — boundaries per the stance of that
+   area, no ceremony around a five-line helper.
 4. **Research the ecosystem, don't recall it.** With network access, check the official
    documentation and release notes for the installed framework version, and the ecosystem's own
    catalogues (Packagist, npm, crates.io, pub.dev — whatever the stack uses) for the library map
@@ -55,7 +65,10 @@ against — that placement, not repetition in prompts, is what makes the rules i
    the generation date — that is what makes the freshness check below cost seconds instead of a
    re-research. Sections:
    - **Stack profile** — languages, frameworks, installed versions, application type. One block.
-   - **Architecture stance** — the recorded style and its concrete meaning here.
+   - **Architecture stances** — a table, one row per area: the area, the stance, and what it means
+     concretely in this repository. `brainstorming` designs inside it and `reviewer` checks against
+     it, and both need the row for the area they are touching — a feature changing the HTTP surface
+     should not have to read a paragraph about the whole product to find its rule.
    - **Patterns this framework rewards** — the idioms this stack is designed around (for a Laravel
      app: form requests, policies, jobs; for the stack at hand: its own list), and the line each
      earns its place with. Include when a heavier pattern is warranted, stated as an entry
@@ -84,21 +97,20 @@ one of them costs anything:
   matches the dependency manifests. Say nothing and move on; this is the outcome almost every run
   hits, and it must cost seconds.
 - **Missing** — no playbook, or a standards document with no fingerprint (written before this
-  skill existed). Run the full generation above. Interactive runs ask the stance question with its
-  concrete reading; headless ones derive it, mark it `derived`, and surface it as step 3 requires.
+  skill existed). Run the full generation above. Interactive runs put the stance round up with each
+  area's concrete reading; headless ones derive them, mark them `derived`, and surface them as step
+  3 requires.
 - **Stale** — the fingerprint no longer matches: dependencies were added or removed, a framework
   version moved. Refresh what the drift touches — the stack profile and the library map, plus a
-  patterns look when the framework itself changed — and leave the architecture stance untouched;
-  it changes only when the owner says so. Note the refresh in one line so the run's record shows
+  patterns look when the framework itself changed — and leave the recorded stances untouched;
+  they change only when the owner says so. Note the refresh in one line so the run's record shows
   why the standards moved.
 
-  One thing a refresh looks at without touching: whether the code still matches the stance the
-  document records. Where they have visibly parted — the boundaries the stance describes are not the
-  boundaries the code has — say so in one line as a finding. Which of the two is wrong is the
-  owner's call, and it is a call they cannot make while nobody tells them the two diverged. A stance
-  the code stopped following is the kind of thing that quietly makes every design decision after it
-  slightly wrong.
+  Two things a refresh looks at without touching. Whether the code still matches the stance recorded
+  for each area — where they have visibly parted, say so in one line naming the area, because which
+  of the two is wrong is the owner's call and they cannot make it while nobody tells them the two
+  diverged. And whether the project has grown an area the table has no row for; that is the one
+  question a refresh may ask.
 
 The owner can still ask for a refresh at any time — after adopting a new library worth
-generalizing, or when changing the architecture stance itself, which only ever happens by their
-word.
+generalizing, or when changing a recorded stance, which only ever happens by their word.

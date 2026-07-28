@@ -59,8 +59,9 @@ propose adding it, and it is more useful than a blank.
 
 Read the coding-standards document registered in `.agent-kit/project/manifest.yml` →
 `sources.coding_standards` before implementing. It carries the stack playbook — stack profile,
-architecture stance, the framework's rewarded patterns, the ecosystem library map, testing idioms —
-and the stance recorded there is followed in every mode, not only in pipelines. In particular:
+architecture stances per area, the framework's rewarded patterns, the ecosystem library map, testing
+idioms — and the stance recorded for the area you are working in is followed in every mode, not only
+in pipelines. In particular:
 
 - KISS first; add patterns only for demonstrated duplication, coupling, or risk.
 - Follow SOLID, pragmatic DRY, explicit behavior, and testable boundaries.

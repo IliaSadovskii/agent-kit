@@ -102,8 +102,8 @@ where unexamined assumptions cost the most. The design itself can be three sente
    one `Plan` agent per approach, each given only its own mandate, so they do not converge on the
    same answer; on a small one, write them yourself. Then form your own opinion and present the
    trade-offs as the alternatives table from the presenting rule, recommendation marked. Whatever
-   wins, the design names the architecture stance it follows from the coding standards and stays
-   inside it.
+   wins, the design names the stance the coding standards record for the area it changes — that
+   table has a row per area, so take the row, not the whole document — and stays inside it.
 7. **Decide how this feature will be proven.** See below. This is part of the design, not an
    afterthought at the end of the build.
 8. **Present the design and get explicit approval.** One screen, in the order the presenting rule
