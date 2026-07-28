@@ -53,6 +53,11 @@ Read `.agent-kit/project/manifest.yml` (language, bootstrap state, source paths)
 `.agent-kit/project/instructions.md`, `README.md`, and whichever `manifest.sources.*` documents the
 task actually touches. Never assume fixed documentation paths.
 
+Then run `stack-playbook`'s freshness check on the registered coding standards: current costs
+seconds and no words; missing or stale is repaired before design, because the design is about to
+rely on what the playbook knows. Under `--brief` this happens without questions — the stance is
+derived and logged if it was never recorded.
+
 In a hosted session, missing dependencies are a recoverable setup action via the project's
 idempotent `scripts/cloud-setup.sh` — not a question for the user. A long autonomous run is what
 [auto mode](https://code.claude.com/docs/en/permission-modes) is for; if the session is not in it,

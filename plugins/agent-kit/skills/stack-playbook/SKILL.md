@@ -21,13 +21,15 @@ against — that placement, not repetition in prompts, is what makes the rules i
    tests are written here. In an existing project the playbook describes the house style before it
    prescribes anything; where existing code contradicts the framework's idiom, note which one wins
    and why rather than silently picking.
-3. **Record the architecture stance — the owner's call, not a detection.** One structured question
-   when the owner is present: the style this project is built in — the framework's own idiom,
-   DDD-style modules, or whatever the owner names — with what that means concretely for this repo
-   (where boundaries live, what a "module" is). If the owner is absent, derive the stance from the
-   code and log it as an assumption. The stance is followed consistently once recorded;
-   proportionality applies *inside* it — module boundaries per the stance, no ceremony around a
-   five-line helper.
+3. **Record the architecture stance — discussed at bootstrap, decided by the owner.** Nothing here
+   is preset by the kit: from the stack and code analysis, propose the stance you would choose for
+   this project — the framework's own idiom, DDD-style modules, something else — with a one-line
+   reason, as one structured question with your recommendation marked. The owner's answer is
+   recorded with what it means concretely for this repo (where boundaries live, what a "module"
+   is). If the owner is absent, derive the stance from the code and log it as an assumption. Once
+   recorded the stance is followed consistently and changes only on the owner's word — never as a
+   side effect of a refresh; proportionality applies *inside* it — module boundaries per the
+   stance, no ceremony around a five-line helper.
 4. **Research the ecosystem, don't recall it.** With network access, check the official
    documentation and release notes for the installed framework version, and the ecosystem's own
    catalogues (Packagist, npm, crates.io, pub.dev — whatever the stack uses) for the library map
@@ -35,7 +37,10 @@ against — that placement, not repetition in prompts, is what makes the rules i
    definition. Without network, write from knowledge and mark the library map `unverified` so the
    next connected session knows to check it.
 5. **Write the playbook into the registered document**, updating in place and preserving the
-   owner's own edits — reconcile, never clobber. Sections:
+   owner's own edits — reconcile, never clobber. End it with a **fingerprint**: the dependency
+   manifests and lockfiles it was generated from, with the framework versions read from them, and
+   the generation date — that is what makes the freshness check below cost seconds instead of a
+   re-research. Sections:
    - **Stack profile** — languages, frameworks, installed versions, application type. One block.
    - **Architecture stance** — the recorded style and its concrete meaning here.
    - **Patterns this framework rewards** — the idioms this stack is designed around (for a Laravel
@@ -56,5 +61,24 @@ The always-on proportionality rule (engine: "Reaching for what already exists") 
 everything the playbook recommends — the library map says *where to look*, that rule says *when
 taking is right*. The playbook must not restate it, only rely on it.
 
-Refresh is manual: rerun this skill when the owner asks, or when bootstrap runs again. No
-automatic staleness checking.
+## The freshness check
+
+`ship` runs this at the start of every run (and `sprint`'s night features inherit it through
+`ship --brief`), so the owner never has to remember the playbook exists. Three outcomes, and only
+one of them costs anything:
+
+- **Current** — the registered document exists, carries a fingerprint, and the fingerprint still
+  matches the dependency manifests. Say nothing and move on; this is the outcome almost every run
+  hits, and it must cost seconds.
+- **Missing** — no playbook, or a standards document with no fingerprint (written before this
+  skill existed). Run the full generation above. Interactive runs ask the stance question;
+  headless ones derive and log it.
+- **Stale** — the fingerprint no longer matches: dependencies were added or removed, a framework
+  version moved. Refresh what the drift touches — the stack profile and the library map, plus a
+  patterns look when the framework itself changed — and leave the architecture stance untouched;
+  it changes only when the owner says so. Note the refresh in one line so the run's record shows
+  why the standards moved.
+
+The owner can still ask for a refresh at any time — after adopting a new library worth
+generalizing, or when changing the architecture stance itself, which only ever happens by their
+word.
