@@ -42,7 +42,9 @@ owner-only work becomes recorded manual actions, and only an insurmountable bloc
   feature's terminal blocker: report it rather than shipping a different feature. The expanded
   spec is still written and committed. Incompatible with `--manual`; for the two gates below, a
   brief counts as a supplied free-text task.
-- Remaining free text is the chosen task and skips roadmap task selection.
+- Remaining free text is the chosen task and skips roadmap task selection. A screen id in it — `S7`,
+  alone or inside a sentence — is a task about a screen the project's map already knows; see "Screen
+  references" below.
 
 Either mode appends autonomous decisions and owner-only work to the plan's Run log as they happen;
 the PR step assembles its Assumptions and Manual actions from that section, not from memory.
@@ -103,6 +105,9 @@ say so once at the start and continue.
   branch is pushed.
 - **Docs** — run `docs-reflection`. No-op by default. If living docs genuinely diverged, open a
   separate docs-only PR from the default branch; otherwise mark docs as current in the feature PR.
+  The project's screen map is the one exception: when this feature changed what the app shows, the
+  map is updated on the feature branch and pushed to this PR, because a card marked `implemented`
+  points at code that only exists here.
 
 The pipeline is complete when the feature PR exists with CI green or its state reported, and docs
 reflection is resolved — or when an insurmountable blocker has been reported with the branch left
@@ -143,6 +148,39 @@ impossible without a north star.
   unavailable, and every autonomous default will be judged against the code rather than a stated
   intent. Not blocked, and not silent: the owner sees it on every review and runs `--rebootstrap`
   when they have had enough.
+
+## Screen references
+
+A task that names a screen id — `S7` on its own, or "rebuild S7 with the saved filters" — is work on
+a screen the project's map already describes. Resolve it at the Task step, before Ideate scopes
+anything. The grammar is a standalone `S<digits>` token, so `S7Adapter` and `TLS7` are not screen
+references.
+
+Find the map at `.agent-kit/project/manifest.yml` → `sources.screens` when that key has a value, and
+at `docs/screens/screens.data.js` when it does not — the manifest template ships the key empty, so a
+project whose map is on disk and unregistered is the common case, not an error. The file is read
+under `${CLAUDE_PLUGIN_ROOT}/skills/screens/references/format.md`.
+
+The entry seeds the task definition: `title` and `purpose` say what the screen is for, `layout` says
+what is on it, `status` says whether this run builds it or changes something that exists, and every
+transition with the id at either end says what it must be reachable from and where it leads. That is
+input, not a finished spec — Ideate still runs unless `--no-ideate` or `--brief` applies, and Design
+still explores the code.
+
+Two things stop the run before design rather than guessing, and both name `/agent-kit:screens`:
+
+- **The id is not in the map** — say so and list the ids that are. A near miss is usually a typo the
+  owner fixes in one word.
+- **The project has no map** — say so and stop. Never fall back to reading `S7` as prose: a task
+  about a screen nobody can look at is exactly what this resolution exists to prevent.
+
+Under `--brief` the sketch is the approved unit of work, so an id inside it is a cross-reference
+rather than the task: read the map entry as context for the design expansion when a map exists, and
+record its absence in the Run log rather than blocking a run nobody is watching.
+
+Building the screen does not update the map. The Docs step does that, so that exactly one step
+writes the file — and `screens.data.js` is the only part of it a feature ever writes, since the
+viewer beside it is plugin-owned wherever it sits.
 
 ## Test
 
