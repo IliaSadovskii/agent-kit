@@ -1,7 +1,7 @@
 ---
 name: ship
 description: Own a feature end-to-end — choose it, scope it, design it, plan it, build it, test it, review it, and open the pull request. Interaction is front-loaded and ends at design approval; after that the run is autonomous.
-argument-hint: "[task] [--manual] [--no-ideate] [--rebootstrap]"
+argument-hint: "[task] [--manual] [--no-ideate] [--rebootstrap] [--brief spec-path]"
 disable-model-invocation: true
 ---
 
@@ -25,6 +25,16 @@ owner-only work becomes recorded manual actions, and only an insurmountable bloc
 - `--manual` keeps the user in the loop after design approval — read
   `${CLAUDE_PLUGIN_ROOT}/rules/interactive-mode.md` instead of the autonomous rule. It changes
   nothing before design approval.
+- `--brief <spec-path>` — the file is a design sketch the owner already approved, typically written
+  by a `sprint` brief the evening before. **There are no interactive gates at all**: the autonomous
+  rule applies from the first step, because the run may be headless with nobody watching. Skip Task
+  and Ideate — the sketch is the chosen, scoped task. Design still runs `brainstorming`'s
+  exploration and alternatives, but as expansion rather than interview: every decision the sketch
+  settles is settled; anything it leaves open becomes an autonomous default in the Run log; and if
+  exploration finds the sketch wrong on a point — an approach that cannot work as written — deviate
+  as narrowly as possible and record the deviation, don't stop to ask. The expanded spec is still
+  written and committed. Incompatible with `--manual`; for the two gates below, a brief counts as a
+  supplied free-text task.
 - Remaining free text is the chosen task and skips roadmap task selection.
 
 Either mode appends autonomous decisions and owner-only work to the plan's Run log as they happen;
@@ -54,7 +64,8 @@ say so once at the start and continue.
   docs to judge the feature against.
 - **Design** — run `brainstorming`: explore the codebase, clarify behavior, compare approaches,
   present a design, and get explicit approval. No implementation code before approval. After
-  approval, write the feature spec and enter autonomous mode.
+  approval, write the feature spec and enter autonomous mode. Under `--brief` this step is
+  expansion, not interview — see Arguments.
 - **Plan** — run `writing-plans` for an executable implementation plan. No approval gate.
 - **Build** — implement the approved design task by task using the project's conventions. Keep
   commits coherent and verification close to the changed behavior. The always-on rule about reaching
