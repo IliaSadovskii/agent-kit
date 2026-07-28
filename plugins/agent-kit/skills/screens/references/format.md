@@ -52,10 +52,10 @@ at the map.
 | `title` | yes | What the team calls this screen. |
 | `purpose` | yes | One line: what a person does here. Not a description of the widgets. |
 | `status` | yes | `implemented` \| `planned` \| `idea` \| `rejected` — see below. |
-| `flow` | yes | Grouping key; each distinct value becomes a column, in first-appearance order. |
+| `flow` | yes | Grouping key — a part of the app a person would name (onboarding, browse, checkout). It groups screens rather than placing them: position comes from the transitions, and a flow keeps its screens together only where that costs no crossings. |
 | `code` | implemented only | Repo-relative path to the file that implements it. This is what lets a later run tell "planned" from "shipped" without guessing. |
 | `type` | no | `screen` (default) or `overlay` — a sheet, modal, or dialog drawn over another screen. |
-| `parent` | overlays | The screen id an overlay is drawn over. It is drawn smaller, attached under its parent, which requires the parent to share its `flow` and to appear earlier in the file. |
+| `parent` | overlays | The screen id an overlay is drawn over. It is drawn smaller, attached under its parent, wherever in the file that parent sits. |
 | `global` | no | `true` for a screen reachable from everywhere — a tab bar destination, an offline notice, a global error. It gets an "everywhere" badge instead of an arrow from every other card. |
 | `layout` | yes | The wireframe, as rows. |
 
@@ -142,7 +142,7 @@ appear in the legend, and each names the ids involved:
 | Two entries share an id | The later one wins | The duplicated ids |
 | `status` is not one of the four | The card, as `planned` | The screen ids and the value found |
 | `meta.platform` is not one of the three | Phone frame | The value found |
-| An overlay's `parent` is missing, or not earlier in the same flow | The card, in its own place in the column | The screen ids |
+| An overlay's `parent` is not on the map | The card, ranked like any other screen | The screen ids |
 | `type` is not a known element | A neutral block labelled with the type | Nothing — this one is legitimate; see above |
 
 ## Writing the file
@@ -150,6 +150,7 @@ appear in the legend, and each names the ids involved:
 The agent edits this file and nothing else in `docs/screens/`. Keep it reviewable:
 
 - One element per line inside a row when the row is long; one transition per line.
-- Screens in reading order within their flow, flows in the order a person meets them.
+- Screens in reading order within their flow, flows in the order a person meets them. This is for
+  the reader of the diff; the viewer places screens from the transitions, not from file order.
 - Append new screens at the end of their flow's group rather than reordering the file — a diff that
   moves ten entries to insert one hides the change.

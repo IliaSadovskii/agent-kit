@@ -49,7 +49,11 @@ and stop. No files, no branch, no PR. An empty map is worse than none: it looks 
    `implemented` and carries its `code` path; a screen described in the docs with no code behind it
    is `planned`.
 4. **Compose the map.** Group screens into flows a person would recognize (onboarding, browse,
-   checkout, account) — flows become the columns, so this grouping is what makes the map readable.
+   checkout, account). The viewer places screens by their transitions — entry screens on the left,
+   each step one rank further right — so what makes the map readable is that the transitions are
+   complete and honest, not the grouping. A flow keeps its screens near each other where that costs
+   nothing; a screen with no transitions has nothing to place it by, and lands at the left edge as
+   though it were an entry point.
    Write the wireframe rows per the reference, from what the screen actually contains. Write
    transitions for the paths the docs or the code support, and give each one a trigger in the
    person's words.

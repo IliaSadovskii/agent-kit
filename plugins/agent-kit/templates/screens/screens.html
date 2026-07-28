@@ -41,6 +41,7 @@
     color: var(--ink);
     font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     overflow: hidden;
+    overscroll-behavior: none;
   }
 
   #stage {
@@ -50,6 +51,11 @@
     cursor: grab;
     background-image: radial-gradient(var(--line) 1px, transparent 1px);
     background-size: 28px 28px;
+    /* The gesture belongs to the map, not to the page. Without this a drag scrolls the document
+       and a pinch zooms the browser, which is what makes a pannable canvas unusable on a phone. */
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
   #stage.dragging { cursor: grabbing; }
 
@@ -245,24 +251,46 @@
     box-shadow: 0 6px 24px rgba(15, 23, 42, 0.08);
   }
 
-  #legend { top: 16px; left: 16px; padding: 12px 14px; max-width: 240px; }
-  #legend h1 { margin: 0 0 2px; font-size: 14px; }
-  #legend .sub { margin: 0 0 10px; font-size: 11px; color: var(--muted); }
-  #legend label { display: flex; align-items: center; gap: 7px; font-size: 12px; cursor: pointer; padding: 1px 0; }
+  #legend { top: 12px; left: 12px; padding: 10px 12px; max-width: 240px; }
+  #legend h1 { margin: 0; font-size: 14px; }
+  #legend .sub { margin: 2px 0 10px; font-size: 11px; color: var(--muted); }
+  #legend label { display: flex; align-items: center; gap: 7px; font-size: 12px; cursor: pointer; padding: 2px 0; }
   #legend .swatch { width: 18px; height: 0; border-top-width: 2px; }
   #legend .count { margin-left: auto; font-size: 10px; color: var(--muted); }
-  #legend .tools { display: flex; gap: 6px; margin-top: 10px; }
-  #legend button {
-    font: inherit;
-    font-size: 11px;
-    padding: 3px 9px;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 7px;
-    cursor: pointer;
-  }
   #legend .warn { margin-top: 8px; font-size: 11px; color: #b45309; white-space: pre-line; }
   #legend .hint { margin-top: 8px; font-size: 10px; color: var(--muted); }
+
+  /* The legend sits on top of the map, so it must be possible to get it out of the way — on a
+     phone it covers the screens underneath it, and a filter panel is worth less than the map. */
+  #legend-head { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  #legend-toggle {
+    margin-left: auto;
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    font: inherit; font-size: 13px; line-height: 1;
+    background: var(--bg); color: var(--muted);
+    border: 1px solid var(--line); border-radius: 7px; cursor: pointer;
+  }
+  #legend.collapsed .sub, #legend.collapsed #filters,
+  #legend.collapsed .warn, #legend.collapsed .hint { display: none; }
+  #legend.collapsed { padding-bottom: 10px; }
+
+  /* Zoom controls live outside the legend so that collapsing it never takes them away. */
+  #tools {
+    position: absolute;
+    right: 12px; bottom: 12px;
+    display: flex; gap: 8px;
+    z-index: 2;
+  }
+  #tools button {
+    font: inherit; font-size: 13px;
+    min-width: 40px; height: 40px;
+    padding: 0 12px;
+    background: var(--panel); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.08);
+    cursor: pointer;
+  }
 
   #details { top: 16px; right: 16px; width: 288px; max-height: calc(100% - 32px); overflow: auto; padding: 14px 16px; }
   #details h2 { margin: 0 0 2px; font-size: 15px; }
@@ -274,12 +302,31 @@
   #details code { font-size: 11px; background: var(--bg); padding: 1px 4px; border-radius: 4px; }
   #details .close { position: absolute; top: 10px; right: 12px; border: 0; background: none; font-size: 16px; color: var(--muted); cursor: pointer; }
 
-  #empty { top: 50%; left: 50%; transform: translate(-50%, -50%); width: 460px; padding: 24px 26px; }
+  #empty { top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(460px, calc(100% - 32px)); padding: 24px 26px; }
   #empty h1 { margin: 0 0 8px; font-size: 16px; }
   #empty p { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
   #empty code { font-size: 12px; background: var(--bg); padding: 1px 5px; border-radius: 4px; }
 
   [hidden] { display: none !important; }
+
+  /* ---- narrow screens ----------------------------------------------------- */
+  /* A phone has no room for two floating panels beside the map. The details panel becomes a sheet
+     across the bottom — it covers a strip rather than half the canvas, and the map above it stays
+     draggable. */
+  @media (max-width: 720px) {
+    #legend { top: 8px; left: 8px; right: 8px; max-width: none; }
+    #details {
+      top: auto; left: 0; right: 0; bottom: 0;
+      width: auto; max-height: 46%;
+      border-radius: 14px 14px 0 0;
+      border-left: 0; border-right: 0; border-bottom: 0;
+      padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+      box-shadow: 0 -8px 28px rgba(15, 23, 42, 0.14);
+    }
+    #details .close { top: 8px; right: 10px; font-size: 22px; width: 32px; height: 32px; }
+    #tools { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+    #tools button { min-width: 44px; height: 44px; }
+  }
 </style>
 </head>
 <body>
@@ -307,17 +354,21 @@
 </div>
 
 <aside id="legend" class="panel" hidden>
-  <h1>Screen map</h1>
+  <div id="legend-head">
+    <h1>Screen map</h1>
+    <button type="button" id="legend-toggle" aria-expanded="true" aria-label="Collapse the legend">−</button>
+  </div>
   <p class="sub" id="legend-sub"></p>
   <div id="filters"></div>
-  <div class="tools">
-    <button type="button" id="fit">Fit</button>
-    <button type="button" id="zoom-in">+</button>
-    <button type="button" id="zoom-out">−</button>
-  </div>
   <p class="warn" id="warn" hidden></p>
-  <p class="hint">Drag to pan, wheel to zoom, click a screen for details.</p>
+  <p class="hint">Drag or swipe to pan, pinch or scroll to zoom, tap a screen for details.</p>
 </aside>
+
+<div id="tools" hidden>
+  <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
+  <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
+  <button type="button" id="fit">Fit</button>
+</div>
 
 <aside id="details" class="panel" hidden>
   <button type="button" class="close" id="details-close" aria-label="Close">×</button>
@@ -351,9 +402,11 @@
   var HEAD_H = 26;           // card title row
   var FOOT_H = 20;           // card badge row
   var BORDER = 1.5;          // the card's own border — part of its box, so part of its geometry
-  var COL_GAP = 150;         // space between flow columns; also the corridor an arrow may bow into
-  var ROW_GAP = 64;          // vertical space between screens in a column
-  var GUTTER = 90;           // the same corridor, left of the first column, where no column is
+  var COL_GAP = 150;         // space between ranks; also the corridor an arrow may bow into
+  var ROW_GAP = 64;          // vertical space between screens within a rank
+  var GUTTER = 90;           // the same corridor, left of the first rank, where no rank is
+  var LANE_GAP = 130;        // space above the lane the always-available screens sit in
+  var SWEEPS = 8;            // ordering passes over the ranks; more stops paying quickly
   var OVERLAY_SCALE = 0.78;  // overlays are drawn smaller, attached under their parent
   var OVERLAY_GAP = 26;
   var MIN_K = 0.15;
@@ -463,59 +516,277 @@
     return filters[statusOf(screen)];
   }
 
-  // ---- layout: columns by flow, overlays attached to their parent ----------
+  // ---- layout: a directed graph, left to right -----------------------------
+  // The map is read the way the app is used: entry screens on the left, and every transition that
+  // moves the person forward points right. A screen's rank is the longest path to it, so nothing
+  // sits left of what leads to it; inside a rank the order is chosen to cross as few arrows as
+  // possible. `flow` groups screens rather than placing them — two screens of one flow that are
+  // three steps apart belong three ranks apart, not side by side.
+
+  // Kahn's algorithm, but it must terminate on a map with cycles — and a real app is full of them
+  // (a back button is a cycle). When nothing is free, the least-constrained screen is opened by
+  // force and the edges still pointing at it become back edges.
+  function topoOrder(ids, out, inn) {
+    var indeg = {};
+    var seen = {};
+    var order = [];
+    var queue = [];
+    ids.forEach(function (id) {
+      indeg[id] = (inn[id] || []).length;
+      if (indeg[id] === 0) queue.push(id);
+    });
+
+    while (order.length < ids.length) {
+      if (!queue.length) {
+        var best = null;
+        ids.forEach(function (id) {
+          if (!seen[id] && (best === null || indeg[id] < indeg[best])) best = id;
+        });
+        if (best === null) break;
+        queue.push(best);
+      }
+      var id = queue.shift();
+      if (seen[id]) continue;
+      seen[id] = true;
+      order.push(id);
+      (out[id] || []).forEach(function (t) {
+        if (seen[t]) return;              // a back edge: it constrains nothing
+        indeg[t]--;
+        if (indeg[t] <= 0) queue.push(t);
+      });
+    }
+    return order;
+  }
+
+  // Two edges between the same pair of ranks cross when their endpoints are in opposite order.
+  function countCrossings(left, right, out) {
+    var seat = {};
+    right.forEach(function (id, i) { seat[id] = i; });
+    var edges = [];
+    left.forEach(function (id, i) {
+      (out[id] || []).forEach(function (t) {
+        if (seat[t] !== undefined) edges.push([i, seat[t]]);
+      });
+    });
+    var n = 0;
+    for (var a = 0; a < edges.length; a++) {
+      for (var b = a + 1; b < edges.length; b++) {
+        var p = edges[a];
+        var q = edges[b];
+        if ((p[0] - q[0]) * (p[1] - q[1]) < 0) n++;
+      }
+    }
+    return n;
+  }
+
+  function median(values) {
+    if (!values.length) return -1;
+    var v = values.slice().sort(function (a, b) { return a - b; });
+    var mid = Math.floor(v.length / 2);
+    return v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2;
+  }
+
   function computeLayout() {
     pos = {};
     runIssues = [];
     var shown = screens.filter(visible);
-    var flows = [];
+    var drawn = {};
+    shown.forEach(function (s) { drawn[s.id] = s; });
+
+    // Overlays ride under the screen they open over instead of taking a rank of their own: a modal
+    // is not a step forward. One whose parent is not on the map is ranked like any other screen.
+    var riders = {};
+    var nodes = [];
     shown.forEach(function (s) {
+      if (s.type === 'overlay' && s.parent) {
+        if (drawn[s.parent]) {
+          (riders[s.parent] || (riders[s.parent] = [])).push(s);
+          return;
+        }
+        runIssues.push(s.id + ' is an overlay of ' + s.parent + ', which is ' +
+          (byId[s.parent] ? 'filtered out' : 'not in the map') + ' — drawn on its own.');
+      }
+      nodes.push(s);
+    });
+
+    // A global screen is reachable from everywhere, so its distance from the entry means nothing.
+    // Ranking it would draw that meaningless number as a position; it gets a lane instead.
+    var lane = nodes.filter(function (s) { return s.global; });
+    var ranked = nodes.filter(function (s) { return !s.global; });
+    if (!ranked.length) { ranked = lane; lane = []; }
+
+    var host = {};             // every drawn screen → the node that carries it
+    shown.forEach(function (s) { host[s.id] = s.id; });
+    Object.keys(riders).forEach(function (p) {
+      riders[p].forEach(function (o) { host[o.id] = p; });
+    });
+
+    var ids = ranked.map(function (s) { return s.id; });
+    var isRanked = {};
+    ids.forEach(function (id) { isRanked[id] = true; });
+
+    var out = {};
+    var inn = {};
+    ids.forEach(function (id) { out[id] = []; inn[id] = []; });
+    transitions.forEach(function (t) {
+      var a = host[t.from];
+      var b = host[t.to];
+      if (!a || !b || a === b || !isRanked[a] || !isRanked[b]) return;
+      if (out[a].indexOf(b) === -1) out[a].push(b);
+      if (inn[b].indexOf(a) === -1) inn[b].push(a);
+    });
+
+    // Rank: the longest path from an entry screen. Only edges that run forward in the topological
+    // order count, so a back button cannot push its own target one rank to the right.
+    var order = topoOrder(ids, out, inn);
+    var seat = {};
+    order.forEach(function (id, i) { seat[id] = i; });
+    var rankOf = {};
+    ids.forEach(function (id) { rankOf[id] = 0; });
+    order.forEach(function (id) {
+      (out[id] || []).forEach(function (t) {
+        if (seat[t] === undefined || seat[t] < seat[id]) return;   // back edge
+        rankOf[t] = Math.max(rankOf[t], rankOf[id] + 1);
+      });
+    });
+
+    var ranks = [];
+    ids.forEach(function (id) {
+      var r = rankOf[id];
+      (ranks[r] || (ranks[r] = [])).push(id);
+    });
+    for (var r = 0; r < ranks.length; r++) if (!ranks[r]) ranks[r] = [];
+
+    // Screens of one flow stay together where the crossings do not object — the first ordering is
+    // by flow, and the sweeps below only move a screen when it buys a crossing.
+    var flowSeat = {};
+    var flowOrder = [];
+    ranked.forEach(function (s) {
       var f = s.flow || 'Other';
-      if (flows.indexOf(f) === -1) flows.push(f);
+      if (flowOrder.indexOf(f) === -1) flowOrder.push(f);
+    });
+    ranked.forEach(function (s) { flowSeat[s.id] = flowOrder.indexOf(s.flow || 'Other'); });
+    ranks.forEach(function (rank) {
+      rank.sort(function (a, b) { return flowSeat[a] - flowSeat[b] || seat[a] - seat[b]; });
     });
 
-    flows.forEach(function (flow, ci) {
-      var column = shown.filter(function (s) { return (s.flow || 'Other') === flow; });
+    function totalCrossings(rs) {
+      var n = 0;
+      for (var i = 0; i + 1 < rs.length; i++) n += countCrossings(rs[i], rs[i + 1], out);
+      return n;
+    }
 
-      // Overlays are lifted next to their parent; one whose parent is elsewhere keeps its own
-      // place in the column and says so, rather than being drawn against a card that is not there.
-      var ordered = [];
-      column.forEach(function (s) {
-        if (s.type === 'overlay' && s.parent) {
-          var at = -1;
-          ordered.forEach(function (o, i) { if (o.screen.id === s.parent) at = i; });
-          if (at !== -1) { ordered.splice(at + 1, 0, { screen: s, attached: true }); return; }
-          runIssues.push(s.id + ' is an overlay of ' + s.parent + ', which is ' +
-            (byId[s.parent] ? 'not earlier in the same flow' : 'not in the map') + ' — drawn on its own.');
-        }
-        ordered.push({ screen: s, attached: false });
-      });
+    // The median heuristic: a screen wants to sit across from the screens it connects to. Sweeping
+    // both ways settles most maps in a few passes; the best ordering seen is what gets drawn, so a
+    // sweep that makes things worse costs nothing.
+    var best = ranks.map(function (rank) { return rank.slice(); });
+    var bestCount = totalCrossings(ranks);
+    for (var pass = 0; pass < SWEEPS && bestCount > 0; pass++) {
+      var down = pass % 2 === 0;
+      var from = down ? 1 : ranks.length - 2;
+      var step = down ? 1 : -1;
+      for (var i = from; down ? i < ranks.length : i >= 0; i += step) {
+        var neighbours = ranks[i + (down ? -1 : 1)];
+        if (!neighbours) continue;
+        var where = {};
+        neighbours.forEach(function (id, at) { where[id] = at; });
+        var keys = {};
+        ranks[i].forEach(function (id, at) {
+          var linked = (down ? inn[id] : out[id]) || [];
+          var seats = linked.map(function (o) { return where[o]; })
+            .filter(function (v) { return v !== undefined; });
+          var m = median(seats);
+          keys[id] = m === -1 ? at : m;      // nothing to align to: hold its place
+        });
+        ranks[i] = ranks[i].slice().sort(function (a, b) { return keys[a] - keys[b]; });
+      }
+      var count = totalCrossings(ranks);
+      if (count < bestCount) {
+        bestCount = count;
+        best = ranks.map(function (rank) { return rank.slice(); });
+      }
+    }
+    ranks = best;
 
-      var x = ci * (CARD_W + COL_GAP);
+    // ---- coordinates ------------------------------------------------------
+    function slotHeight(id) {
+      var extra = (riders[id] || []).length;
+      return CARD_H + extra * (CARD_H * OVERLAY_SCALE + OVERLAY_GAP);
+    }
+
+    var top = {};
+    ranks.forEach(function (rank) {
       var y = 0;
-      var lastOverlay = {};    // parent id → the box of the overlay already attached to it
-      ordered.forEach(function (entry) {
-        var s = entry.screen;
-        var overlay = s.type === 'overlay';
-        var k = overlay ? OVERLAY_SCALE : 1;
-        var box = { w: CARD_W * k, h: CARD_H * k, k: k };
-
-        if (entry.attached) {
-          // Positioned from the parent's own box — never from the running cursor, which is what
-          // used to push a detached overlay above the top of the map.
-          var anchor = lastOverlay[s.parent] || pos[s.parent];
-          box.x = pos[s.parent].x + OVERLAY_INDENT;
-          box.y = anchor.y + anchor.h + OVERLAY_GAP;
-          lastOverlay[s.parent] = box;
-          y = Math.max(y, box.y + box.h + ROW_GAP);
-        } else {
-          box.x = x;
-          box.y = y;
-          y += box.h + ROW_GAP;
-        }
-        pos[s.id] = box;
+      rank.forEach(function (id) {
+        top[id] = y;
+        y += slotHeight(id) + ROW_GAP;
       });
     });
+
+    // Pull each screen level with what it connects to, then push the rank back apart. Straighter
+    // arrows are the whole point of ranking: an edge that runs flat is read at a glance.
+    for (var round = 0; round < 4; round++) {
+      var forward = round % 2 === 0;
+      var start = forward ? 1 : ranks.length - 2;
+      var dir = forward ? 1 : -1;
+      for (var j = start; forward ? j < ranks.length : j >= 0; j += dir) {
+        var others = ranks[j + (forward ? -1 : 1)];
+        if (!others) continue;
+        var wanted = {};
+        ranks[j].forEach(function (id) {
+          var linked = (forward ? inn[id] : out[id]) || [];
+          var centres = linked.filter(function (o) { return top[o] !== undefined; })
+            .map(function (o) { return top[o] + slotHeight(o) / 2; });
+          wanted[id] = centres.length ? median(centres) - slotHeight(id) / 2 : top[id];
+        });
+        var cursor = -Infinity;
+        ranks[j].forEach(function (id) {
+          top[id] = Math.max(wanted[id], cursor);
+          cursor = top[id] + slotHeight(id) + ROW_GAP;
+        });
+      }
+    }
+
+    var lowest = 0;
+    ranks.forEach(function (rank, ri) {
+      rank.forEach(function (id) {
+        var box = { x: ri * (CARD_W + COL_GAP), y: top[id], w: CARD_W, h: CARD_H, k: 1 };
+        pos[id] = box;
+        lowest = Math.max(lowest, box.y + box.h);
+
+        (riders[id] || []).forEach(function (o, oi) {
+          var oh = CARD_H * OVERLAY_SCALE;
+          var obox = {
+            x: box.x + OVERLAY_INDENT,
+            y: box.y + CARD_H + OVERLAY_GAP + oi * (oh + OVERLAY_GAP),
+            w: CARD_W * OVERLAY_SCALE, h: oh, k: OVERLAY_SCALE
+          };
+          pos[o.id] = obox;
+          lowest = Math.max(lowest, obox.y + obox.h);
+        });
+      });
+    });
+
+    // The lane: always-available screens in a row of their own under the graph.
+    var laneY = lowest + LANE_GAP;
+    lane.forEach(function (s, i) {
+      pos[s.id] = { x: i * (CARD_W + COL_GAP), y: laneY, w: CARD_W, h: CARD_H, k: 1 };
+      (riders[s.id] || []).forEach(function (o, oi) {
+        var oh = CARD_H * OVERLAY_SCALE;
+        pos[o.id] = {
+          x: pos[s.id].x + OVERLAY_INDENT,
+          y: laneY + CARD_H + OVERLAY_GAP + oi * (oh + OVERLAY_GAP),
+          w: CARD_W * OVERLAY_SCALE, h: oh, k: OVERLAY_SCALE
+        };
+      });
+    });
+
+    // Ranks are packed from their own zero, so the whole map is lifted back to the origin once.
+    var minY = Infinity;
+    Object.keys(pos).forEach(function (id) { minY = Math.min(minY, pos[id].y); });
+    if (minY !== Infinity && minY !== 0) {
+      Object.keys(pos).forEach(function (id) { pos[id].y -= minY; });
+    }
   }
 
   // ---- the wireframe body -------------------------------------------------
@@ -627,8 +898,13 @@
     if (b.x >= a.x + a.w) {
       return { x1: a.x + a.w, y1: a.y + a.h / 2, x2: b.x, y2: b.y + b.h / 2, bow: 'h' };
     }
+    // A transition that runs back against the flow — a Back button, a cancel — leaves the bottom
+    // and swoops under the ranks between. Routed along the middle it would be drawn straight
+    // through every card in its way, and read as a forward step besides.
     if (b.x + b.w <= a.x) {
-      return { x1: a.x, y1: a.y + a.h / 2, x2: b.x + b.w, y2: b.y + b.h / 2, bow: 'h' };
+      return {
+        x1: a.x + a.w * 0.35, y1: a.y + a.h, x2: b.x + b.w * 0.65, y2: b.y + b.h, bow: 'back'
+      };
     }
     // Same column, target below: down the corridor beside the column rather than down its middle,
     // which is where an attached overlay sits. An arrow that passes under a card takes its label
@@ -650,6 +926,11 @@
     var dy = Math.abs(t.y2 - t.y1);
     if (t.bow === 'self') {
       return { c1x: t.x1 + 64, c1y: t.y1 - 16, c2x: t.x2 + 64, c2y: t.y2 + 16 };
+    }
+    if (t.bow === 'back') {
+      // Deep enough to clear the cards it passes under, and deeper the further it travels.
+      var drop = Math.min(190, 60 + Math.abs(t.x2 - t.x1) / 5) + dy / 4;
+      return { c1x: t.x1 - 20, c1y: t.y1 + drop, c2x: t.x2 + 20, c2y: t.y2 + drop };
     }
     if (t.bow === 'aside') {
       // Never bow deeper than the corridor: an unbounded bow on a long edge swings the curve
@@ -879,11 +1160,17 @@
     applySelection();
   }
 
+  function narrow() {
+    return stage.clientWidth <= 720;
+  }
+
   function centerOn(id) {
     var p = pos[id];
     if (!p) return;
+    // The bottom sheet owns the lower part of a narrow screen: aim above it, not behind it.
+    var sheet = narrow() && !details.hidden ? stage.clientHeight * 0.22 : 0;
     view.x = stage.clientWidth / 2 - (p.x + p.w / 2) * view.k;
-    view.y = stage.clientHeight / 2 - (p.y + p.h / 2) * view.k;
+    view.y = stage.clientHeight / 2 - sheet - (p.y + p.h / 2) * view.k;
     applyView();
   }
 
@@ -947,24 +1234,77 @@
       label.appendChild(count);
       box.appendChild(label);
     });
+
+    // Collapsed by default where it would otherwise cover the map it explains.
+    setLegend(!narrow());
     legend.hidden = false;
+    document.getElementById('tools').hidden = false;
+  }
+
+  function setLegend(open) {
+    var toggle = document.getElementById('legend-toggle');
+    legend.classList.toggle('collapsed', !open);
+    toggle.textContent = open ? '−' : '+';
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.setAttribute('aria-label', open ? 'Collapse the legend' : 'Expand the legend');
   }
 
   // ---- interaction --------------------------------------------------------
+  // Every pointer is tracked, not just the first: one is a pan, two are a pinch. A viewer that
+  // listens to one pointer leaves a phone with no way to zoom, because the browser's own pinch is
+  // given up by `touch-action: none` the moment panning is made to work at all.
+  var pointers = {};
   var drag = null;
+  var pinch = null;
+
+  function pointerList() {
+    return Object.keys(pointers).map(function (k) { return pointers[k]; });
+  }
+
+  function pinchNow() {
+    var p = pointerList();
+    var dx = p[0].x - p[1].x;
+    var dy = p[0].y - p[1].y;
+    return { d: Math.sqrt(dx * dx + dy * dy) || 1, cx: (p[0].x + p[1].x) / 2, cy: (p[0].y + p[1].y) / 2 };
+  }
+
+  function startDrag(x, y, card, moved) {
+    drag = { x: x, y: y, vx: view.x, vy: view.y, moved: moved || 0, card: card || null };
+    stage.classList.add('dragging');
+  }
 
   stage.addEventListener('pointerdown', function (e) {
-    // The card is read here, not on pointerup: pointer capture retargets later events to the
-    // stage, so by then the original target is gone.
-    drag = {
-      x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: 0,
-      card: e.target.closest ? e.target.closest('.card') : null
-    };
-    stage.classList.add('dragging');
+    pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
     stage.setPointerCapture(e.pointerId);
+    var n = Object.keys(pointers).length;
+    if (n === 1) {
+      // The card is read here, not on pointerup: pointer capture retargets later events to the
+      // stage, so by then the original target is gone.
+      startDrag(e.clientX, e.clientY, e.target.closest ? e.target.closest('.card') : null, 0);
+    } else if (n === 2) {
+      drag = null;                       // a second finger means zoom — and means this is no tap
+      stage.classList.remove('dragging');
+      var s = pinchNow();
+      pinch = { d: s.d, cx: s.cx, cy: s.cy, vx: view.x, vy: view.y, k: view.k };
+    }
   });
 
   stage.addEventListener('pointermove', function (e) {
+    if (!pointers[e.pointerId]) return;
+    pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+
+    if (pinch && Object.keys(pointers).length >= 2) {
+      var s = pinchNow();
+      var k = Math.max(MIN_K, Math.min(MAX_K, pinch.k * (s.d / pinch.d)));
+      // The point the fingers closed on stays under them, so the map zooms where it is looked at
+      // and follows the gesture across the screen at the same time.
+      view.x = s.cx - (pinch.cx - pinch.vx) * (k / pinch.k);
+      view.y = s.cy - (pinch.cy - pinch.vy) * (k / pinch.k);
+      view.k = k;
+      applyView();
+      return;
+    }
+
     if (!drag) return;
     var dx = e.clientX - drag.x;
     var dy = e.clientY - drag.y;
@@ -974,15 +1314,33 @@
     applyView();
   });
 
-  stage.addEventListener('pointerup', function () {
-    var wasDrag = drag && drag.moved > 4;
-    var card = drag ? drag.card : null;
-    drag = null;
-    stage.classList.remove('dragging');
-    if (wasDrag) return;
-    if (card) select(card.dataset.id);
-    else if (selected) deselect();
-  });
+  function endPointer(e) {
+    delete pointers[e.pointerId];
+    var left = Object.keys(pointers).length;
+    if (left < 2) pinch = null;
+
+    if (left === 0) {
+      var wasDrag = drag && drag.moved > 4;
+      var card = drag ? drag.card : null;
+      drag = null;
+      stage.classList.remove('dragging');
+      if (wasDrag) return;
+      // On a narrow screen the details sheet covers the bottom of the map, so the screen just
+      // tapped is brought to the middle rather than left underneath it.
+      if (card) select(card.dataset.id, narrow());
+      else if (selected) deselect();
+      return;
+    }
+    // A finger lifted out of a pinch: carry on panning with the one still down, and never let it
+    // finish as a tap.
+    if (left === 1) {
+      var only = pointerList()[0];
+      startDrag(only.x, only.y, null, 99);
+    }
+  }
+
+  stage.addEventListener('pointerup', endPointer);
+  stage.addEventListener('pointercancel', endPointer);
 
   stage.addEventListener('wheel', function (e) {
     e.preventDefault();
@@ -993,6 +1351,9 @@
   document.getElementById('zoom-in').addEventListener('click', function () { zoomBy(1.2); });
   document.getElementById('zoom-out').addEventListener('click', function () { zoomBy(1 / 1.2); });
   document.getElementById('details-close').addEventListener('click', deselect);
+  document.getElementById('legend-head').addEventListener('click', function () {
+    setLegend(legend.classList.contains('collapsed'));
+  });
 
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && selected) deselect();
