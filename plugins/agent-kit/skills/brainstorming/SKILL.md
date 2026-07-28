@@ -28,24 +28,66 @@ where unexamined assumptions cost the most. The design itself can be three sente
      handling, extension points. Ask each to end with the 5–10 files most worth reading, then read
      those files yourself. The agents locate the code; the understanding has to be yours, because
      you are the one designing against it.
-3. **Judge how well this feature is already specified.** Does the roadmap or spec say enough to
-   build it well — what it does, how the user interacts with it, when it is done, which constraints
-   apply? If it is thin, say so and go deeper into behavior and success criteria before proposing
-   anything. If it is rich, confirm quickly; don't manufacture questions the docs already answer.
-   This sets the depth of everything below.
+
+   One angle is not optional at either size: **who else depends on what this change touches.** Find
+   the callers, the subscribers, and the stored data of every surface being altered — find-references
+   answers this in one call where a name search takes five — and work out whether the change alters
+   what any of them sees. A feature that quietly moves a neighbour's behavior is the most expensive
+   thing an unattended run can produce, and the owner is the only one who knows whether that
+   neighbour was meant to move.
+3. **Check the documents against the code, then judge what they leave open.** A document was true
+   when it was written; the code is what runs. Verify the claims this feature leans on — only those,
+   not the document as a whole — and where the two disagree, the divergence is not yours to resolve
+   silently: put it up as a fact. *The spec says X, the code does Y — which is right?* The answer
+   often changes the feature, and it is a question the owner can answer in seconds.
+
+   Unchecked stale documents are the main reason a design's questions land as strange: the reasoning
+   is sound and the ground under it is three months old. Note each divergence for the `docs` command
+   as well, so it is repaired rather than rediscovered next time.
+
+   Then judge what is genuinely left open: does the roadmap or spec still say enough to build this
+   well — what it does, how the user interacts with it, when it is done, which constraints apply? If
+   it is thin, go deeper into behavior and success criteria before proposing anything. If it is rich
+   and the code agrees with it, confirm quickly rather than manufacturing questions it already
+   answers.
 4. **Resolve every ambiguity now.** This is the step that decides the quality of the run: the user
    is here, and after approval every open decision becomes an autonomous default logged in the PR's
-   Assumptions. Cover edge cases, error handling, integration points, scope boundaries, backward
-   compatibility, and performance expectations.
+   Assumptions.
 
-   How to ask is governed by `${CLAUDE_PLUGIN_ROOT}/rules/presenting.md`: only questions whose
-   answer changes the work, facts looked up rather than asked, independent decisions batched into
-   one structured round, dependency chains sequenced shape-changer first, and a recommendation on
-   every question. Decisions with an obviously better answer are not questions at all — they go into
-   the design's *taken as given* section.
+   **Sweep first, then cut.** A design that arrives with two questions has usually not been filtered
+   hard — it has skipped the enumeration, and a question taken off the top of the head reads as
+   random because it is. So before asking anything, walk the axes below and write down every
+   candidate. This list is working material and is never shown:
 
-   Depth follows step 3: press hard where the answers are genuinely open, and move fast where the
-   documents already settled them. Thoroughness is not the same thing as an interrogation.
+   - **States and transitions** — what this thing can be in, and what moves it between them.
+   - **The unhappy paths** — empty, missing, duplicate, out of order, concurrent, partial failure,
+     retry, timeout.
+   - **Data over time** — what is stored, what has to migrate, what happens to the rows that already
+     exist.
+   - **Permissions and boundaries** — who may do this, what changes for who may not, what crosses a
+     trust boundary.
+   - **The behavior it alters** — what someone relying on how it works today would notice.
+   - **The neighbours** from step 2 — whose expectations move, and whether that was intended.
+   - **The edge of the feature** — the adjacent thing a reasonable person would assume is included
+     and is not, or the reverse.
+   - **Scale and cost** — the volumes, sizes, and frequencies this has to hold up at, and what
+     should happen when it does not.
+   - **Reversibility** — which of these would be expensive to undo once built and shipped.
+
+   Then cut hard, by `${CLAUDE_PLUGIN_ROOT}/rules/presenting.md`: only questions whose answer changes
+   the work, facts looked up rather than asked, each one named against the concrete code rather than
+   software in general, independent decisions batched into one structured round, dependency chains
+   sequenced shape-changer first, and a recommendation on every question. Most of the sweep dies
+   here, and that is the point — the survivors are the ones you could not answer yourself.
+
+   The reversibility axis decides what survives the cut. Expensive to undo goes to the owner even
+   when you hold a confident default; cheap and confident is declared in *taken as given*; cheap and
+   still open is listed in *left to the build* with the default you will take. Between the sweep and
+   those three groups, nothing quietly disappears — which is what lets the filter stay strict
+   without the design going shallow.
+
+   How much of this the feature earns is the depth dial below. Thoroughness is not the same thing as
+   an interrogation.
 5. **Ask the ecosystem before designing from scratch.** On a feature of substance, check whether
    this is a problem the stack already solved whole: first the dependencies the project has
    installed, then the ecosystem the coding standards' library map points into. A found solution
@@ -65,14 +107,39 @@ where unexamined assumptions cost the most. The design itself can be three sente
 7. **Decide how this feature will be proven.** See below. This is part of the design, not an
    afterthought at the end of the build.
 8. **Present the design and get explicit approval.** One screen, in the order the presenting rule
-   gives: goal, diagram, alternatives table, *your call*, *taken as given*, verification. Approval
-   is one round, not a section-by-section walkthrough — the owner answers the open forks and says
-   go, or pushes back on any part. Architecture, components, data flow, and error handling live in
-   the diagram and the decision lines, not in paragraphs.
+   gives: goal, diagram, alternatives table, *your call*, *taken as given*, *left to the build*,
+   verification. Approval is one round — two on a deep feature, shape then mechanics, per the same
+   rule — and not a section-by-section walkthrough: the owner answers the open forks and says go, or
+   pushes back on any part, including a line they would rather settle now than leave to the build.
+   Architecture, components, data flow, and error handling live in the diagram and the decision
+   lines, not in paragraphs.
 9. **Write the spec** to `docs/specs/YYYY-MM-DD-<topic>-design.md` and commit it, including the
-   verification plan and the resolved decisions from both sections. Diagrams go in as Mermaid —
+   verification plan and the resolved decisions from all three sections — what was left open and
+   its default is part of the record, not a loose end. Diagrams go in as Mermaid —
    GitHub renders them. Prose in the user's language; code, paths, and identifiers in English.
 10. **Invoke `writing-plans`.** That is the terminal step — no other skill, and no further gate.
+
+## Depth
+
+How much of the owner's attention this design is worth is a decision, and it is made before the
+design starts rather than discovered halfway through it.
+
+- **light** — a small, well-understood change. The sweep still runs; most of it dies at the cut. The
+  design can be three sentences and a verification line.
+- **normal** — the default. Everything above, one approval round.
+- **deep** — a feature large enough, or expensive enough to get wrong, that the owner wants the
+  detail discussed. Two rounds, shape then mechanics. The internal mechanics a normal feature settles
+  silently — the shape of a state machine, where a boundary sits, what a failure does to the rest of
+  the flow — are legitimate material here, and this is the one place a question may be asked because
+  the answer is genuinely hard rather than because it is expensive to reverse.
+
+`sprint` records the level per feature during its brief; `ship` takes `--deep` and `--quick`. With
+nothing given, judge it from the feature and state your choice in one line before you start asking,
+so the owner can move it — guessing low skims something expensive, guessing high spends attention
+they did not want to spend, and both are cheap to correct if you say the level out loud.
+
+Depth raises how much detail is worth a question. It never lowers the filter: a question whose
+answers all lead to the same work is not asked at any level.
 
 ## The verification plan
 

@@ -6,7 +6,9 @@ the PR without them. These rules outrank any "wait for approval" instruction ins
 - **Don't stop to ask.** On ambiguity, pick a reasonable default consistent with the approved
   design, the always-on governance, `.agent-kit/project/instructions.md`, and the project's
   coding standards. Append what you assumed and why to the plan's Run log at the moment you decide;
-  the PR's Assumptions are assembled from it.
+  the PR's Assumptions are assembled from it. Where the design's *left to the build* list already
+  named a default for this decision, that default is the answer — the owner saw it and did not pull
+  it back. Departing from one is a deviation, and logged as such.
 - **When something contradicts the approved design** — an approach fails, a decision conflicts with
   the codebase — pick the best option in your judgment and continue. Describe the deviation and its
   cause in the Run log, marked as a deviation.

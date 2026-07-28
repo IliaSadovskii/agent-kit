@@ -1,7 +1,7 @@
 ---
 name: ship
 description: Own a feature end-to-end — choose it, scope it, design it, plan it, build it, test it, review it, and open the pull request. Interaction is front-loaded and ends at design approval; after that the run is autonomous.
-argument-hint: "[task] [--manual] [--no-ideate] [--rebootstrap] [--brief spec-path]"
+argument-hint: "[task] [--deep|--quick] [--manual] [--no-ideate] [--rebootstrap] [--brief spec-path]"
 disable-model-invocation: true
 ---
 
@@ -20,6 +20,12 @@ owner-only work becomes recorded manual actions, and only an insurmountable bloc
 
 `$ARGUMENTS`
 
+- `--deep` and `--quick` set the depth `brainstorming` designs at — a two-round conversation that
+  goes into the mechanics, or the shortest honest design the feature can have. With neither, the
+  depth is judged from the feature and stated in one line before the questions start, so it can be
+  moved. Neither flag changes anything after design approval, and `--quick` never drops a question
+  about something expensive to reverse. Under `--brief` neither applies: the sketch was already
+  designed at the depth its brief agreed.
 - `--rebootstrap` reruns the project interview.
 - `--no-ideate` skips product scoping and builds the task as written.
 - `--manual` keeps the user in the loop after design approval — read

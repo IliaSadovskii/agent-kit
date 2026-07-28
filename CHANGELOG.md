@@ -3,6 +3,40 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.11.0
+
+Design conversations stop being thin. Every rule in the kit pushed one way — spend less of the
+owner's attention — and with no counterweight the pipelines settled into asking two shallow
+questions and calling the design agreed.
+
+- **The sweep before the cut.** `brainstorming` now enumerates candidate questions across fixed axes
+  — states and transitions, unhappy paths, data over time, permissions and boundaries, altered
+  behavior, neighbours, the edge of the feature, scale, reversibility — and only then applies the
+  filter. Too few questions was never a strict filter; it was an enumeration that never happened, and
+  a question picked off the top of the head is exactly the one that reads as random.
+- **Silence has a price too.** A decision expensive to reverse — a migration, a public interface,
+  visible behavior, a boundary the next feature builds on — is now put to the owner even when the
+  design holds a confident default, because after the gate it is settled alone. The pruning rule
+  stays; it stops doubling as an excuse to arrive with nothing.
+- **Questions name this codebase.** A question that would read the same in any project is treated as
+  evidence the exploration has not happened yet, not as a question.
+- **Documents are checked against the code.** Only the claims a feature leans on, and a divergence is
+  put up as a fact — *the spec says X, the code does Y* — rather than resolved silently. Stale
+  documents are the main reason sound reasoning produces odd questions.
+- **Neighbours are found before anything is proposed.** Callers, subscribers, and stored data of
+  every surface being altered, and whether what they see changes. An unattended run moving a
+  neighbour's behavior is the most expensive thing it can do.
+- **A third decision group: *left to the build*.** What stays open past the gate, each line with the
+  default that will be taken, so the owner can pull any of it back while it is still cheap instead of
+  meeting it as an assumption in a pull request. Autonomous mode treats those defaults as answers.
+- **Depth is chosen, not guessed.** `light` / `normal` / `deep` per feature — `sprint` agrees it when
+  the batch is composed and records it in `queue.yml`, `ship` takes `--deep` and `--quick`, and with
+  neither the level is judged and stated in one line so it can be moved. A `deep` feature gets two
+  rounds, shape then mechanics, and its internal mechanics become fair game for questions.
+- **The sprint brief loses its clock.** The hour of attention and the ten minutes per feature are
+  gone; the brief ends when nothing expensive to reverse is still open. A batch of small features
+  takes minutes, one turning on a migration takes as long as that decision takes.
+
 ## 0.10.0
 
 A sprint stops being a stack of pull requests the owner has to merge in the right order, and becomes

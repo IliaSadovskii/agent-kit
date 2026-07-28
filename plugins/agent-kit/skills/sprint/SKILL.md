@@ -7,16 +7,20 @@ disable-model-invocation: true
 
 # Sprint
 
-Two phases in one command. **The brief** — interactive, the owner is here, budgeted at an hour of
-their attention. **The run** — autonomous, the owner is away; each feature executes as
+Two phases in one command. **The brief** — interactive, the owner is here. It runs until the batch
+is settled, not until a clock says stop: it is finished when nothing is left open that would be
+expensive to reverse once the run starts. A batch of small features can be briefed in minutes; one
+that turns on a data migration and two public interfaces takes as long as those three decisions
+take. **The run** — autonomous, the owner is away; each feature executes as
 `/agent-kit:ship --brief <spec>` in a fresh headless session, because one ship run nearly fills a
 context and a queue of them in one session would not survive. The contract of the whole command:
 after the brief's last question, nothing asks the owner anything until the final report. Start it
 whenever you like — over a working afternoon or before bed; the run is unattended either way, and
 nothing in it depends on the hour.
 
-`${CLAUDE_PLUGIN_ROOT}/rules/presenting.md` governs every moment of the brief. The budget only
-holds if designs arrive as one screen and questions arrive batched.
+`${CLAUDE_PLUGIN_ROOT}/rules/presenting.md` governs every moment of the brief. Length is spent on
+questions, never on prose: designs arrive as one screen and questions arrive batched, so what the
+brief costs the owner is deciding things rather than reading you explain them.
 
 Like `riff`, a sprint needs a north star and a roadmap to choose work against. If the project is
 not bootstrapped, say so and offer `/agent-kit:ship`, which runs the interview first.
@@ -33,22 +37,39 @@ before opening a new brief.
    then propose one coherent batch of 3–6 features with an explicit dependency order — which features build on which, which are independent. Put the composition up
    as one structured choice, not an essay. Fewer, coherent features beat many loose ones: shared
    context between them is what makes a batch cheaper than N separate sittings.
+
+   Propose a depth for each feature in the same round — `light`, `normal`, or `deep`, as
+   `brainstorming` defines them — with a word on why, and let the owner move them. This is the one
+   place the batch's shape and its cost in attention are visible together, and a feature the owner
+   marks `deep` is a promise that its sketch will be a real design conversation rather than a
+   summary. Record the level in `queue.yml`; the run session reads it back.
 2. **Scope the batch in one pass.** An `ideate`-style round over all chosen features together:
    what is in and out of each, deferred ideas to the roadmap. Structured questions, only where the
    answer changes what gets built.
-3. **Sketch each design — this is a sketch, not a full design.** Explore enough to name the
-   approach, then present per the presenting rule: goal, a small diagram when there is structure,
-   the *your call* forks, the *taken as given* list, and how the feature will be proven. Key
-   decisions and boundaries only; component detail is the run session's job. One approval round
-   per feature, about ten minutes of the owner's attention each. What the owner settles here is
-   exactly what `ship --brief` will treat as settled; what is left open becomes the run's logged
-   assumptions — say so at the first sketch so the trade is explicit.
+3. **Design each feature to the depth it was given.** Explore enough to be concrete —
+   `brainstorming`'s candidate sweep, its documents-against-the-code check, and its neighbours pass
+   all apply here, and a sprint is where they earn the most, because nothing downstream will catch a
+   missed neighbour or a stale document once the run is unattended. Then present per the presenting
+   rule: goal, a small diagram when there is structure, the *your call* forks, the *taken as given*
+   list, *left to the run*, and how the feature will be proven.
 
-   Spend the owner's question budget where wrongness is expensive. A fork on an irreversible or
-   hard-to-change surface — a data migration, a public API shape, a security boundary, money —
-   earns a deep question; internal mechanics earn none, however interesting. An unattended
-   deviation is cheap to fix where code is private and brutal where it is not, and the interview
-   should mirror exactly that asymmetry.
+   What the depth buys:
+
+   - `light` — the approach in a few lines plus done-means; component detail is the run's job.
+   - `normal` — key decisions and boundaries, one approval round.
+   - `deep` — two rounds, shape then mechanics, as full as an interactive design. The mechanics
+     settled here are settled, which is the entire reason a feature gets marked deep.
+
+   What the owner settles is exactly what `ship --brief` will treat as settled; what is left open
+   becomes the run's logged assumptions. Say that once at the first sketch, and after that show it
+   concretely as each feature's *left to the run* list rather than repeating the warning.
+
+   Spend questions where wrongness is expensive. A fork on an irreversible or hard-to-change
+   surface — a data migration, a public API shape, a security boundary, money — earns a question at
+   any depth, however small the feature, and earns it even when you hold a confident answer.
+   Internal mechanics earn one only at `deep`, where the owner has asked for precisely that. An
+   unattended deviation is cheap to fix where code is private and brutal where it is not, and the
+   brief mirrors that asymmetry — which governs *which* questions get asked, not how few.
 
    An unattended run is also cheap in a way an interactive one is not: nobody is waiting.
    Verification too slow to sit through is affordable here — mutation testing over the changed code
@@ -66,8 +87,8 @@ before opening a new brief.
      02-<feature-slug>/spec.md
    ```
 
-   Each `spec.md` is the approved sketch: goal, scope in and out, settled decisions, points
-   deliberately left open, and **done means** — the observable acceptance criteria the run
+   Each `spec.md` is the approved design: goal, scope in and out, settled decisions, the *left to
+   the run* list with the default named for each item, and **done means** — the observable acceptance criteria the run
    session's tester must prove, with the verification expectations. A sketch without done-means
    lines gives the run nothing to aim its tests at; do not close a sketch's approval round
    without them. `queue.yml` is the sprint's durable memory:
@@ -82,6 +103,7 @@ before opening a new brief.
    features:
      - id: 01-password-reset
        spec: 01-password-reset/spec.md
+       depth: normal          # light | normal | deep, as agreed in the brief
        branch: claude/password-reset
        base: main           # or the branch of the feature it depends on
        depends_on: null     # or a feature id
