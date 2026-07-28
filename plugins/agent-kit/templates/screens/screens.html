@@ -1,0 +1,1389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Screen map</title>
+<!--
+  The screen map viewer. Open this file directly in a browser — no server, no build, no network.
+  It reads `screens.data.js` from the same directory and draws every screen as a wireframe card,
+  every transition as a labelled arrow.
+
+  agent-kit:plugin-owned — this file is replaced whole by plugin updates. Edit `screens.data.js`,
+  never this one; viewer improvements ship upstream.
+-->
+<style>
+  :root {
+    --bg: #f8fafc;
+    --ink: #0f172a;
+    --muted: #64748b;
+    --line: #cbd5e1;
+    --panel: #ffffff;
+    --implemented: #0f766e;
+    --planned: #2563eb;
+    --idea: #9333ea;
+    --rejected: #94a3b8;
+
+    /* Card geometry. The arrows are drawn from the same numbers, so the script overwrites these
+       at load from its own constants — change them there, not here. */
+    --pad: 10px;
+    --head-h: 26px;
+    --foot-h: 20px;
+    --border: 1.5px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  #stage {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    cursor: grab;
+    background-image: radial-gradient(var(--line) 1px, transparent 1px);
+    background-size: 28px 28px;
+    /* The gesture belongs to the map, not to the page. Without this a drag scrolls the document
+       and a pinch zooms the browser, which is what makes a pannable canvas unusable on a phone. */
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  #stage.dragging { cursor: grabbing; }
+
+  #world {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+  }
+
+  #arrows, #arrow-labels {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .arrow { fill: none; stroke-width: 1.6; }
+  .arrow.s-implemented { stroke: var(--implemented); }
+  .arrow.s-planned { stroke: var(--planned); stroke-dasharray: 6 4; }
+  .arrow.s-idea { stroke: var(--idea); stroke-dasharray: 2 4; }
+  .arrow.s-rejected { stroke: var(--rejected); stroke-dasharray: 2 4; }
+  .arrow.dim { opacity: 0.18; }
+  .arrow.lit { stroke-width: 2.6; }
+
+  /* Marker fills live here rather than on the element: a presentation attribute holding a CSS
+     variable is not reliably resolved, a stylesheet rule always is. */
+  #head-implemented path { fill: var(--implemented); }
+  #head-planned path { fill: var(--planned); }
+  #head-idea path { fill: var(--idea); }
+  #head-rejected path { fill: var(--rejected); }
+
+  .arrow-label {
+    font: 10px/1 system-ui, sans-serif;
+    fill: var(--muted);
+    stroke: var(--bg);
+    stroke-width: 3px;
+    paint-order: stroke;
+    text-anchor: middle;
+  }
+  .arrow-label.dim { opacity: 0.18; }
+  .arrow-label.lit { fill: var(--ink); font-weight: 600; }
+
+  /* ---- cards ------------------------------------------------------------- */
+
+  .card {
+    position: absolute;
+    transform-origin: 0 0;
+    padding: var(--pad);
+    background: var(--panel);
+    border: var(--border) solid var(--line);
+    border-radius: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .card.s-implemented { border-color: var(--implemented); }
+  .card.s-planned { border-style: dashed; border-color: var(--planned); }
+  .card.s-idea { border-style: dotted; border-color: var(--idea); }
+  .card.s-rejected { border-color: var(--rejected); opacity: 0.65; }
+  .card.dim { opacity: 0.25; }
+  .card.selected { box-shadow: 0 0 0 4px rgba(15, 23, 42, 0.12); }
+
+  .card-head {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    height: var(--head-h);
+    overflow: hidden;
+  }
+  .card-head .sid {
+    font: 600 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--muted);
+  }
+  .card-head .stitle {
+    font-weight: 600;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-foot {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    height: var(--foot-h);
+    padding-top: 4px;
+    font-size: 10px;
+    color: var(--muted);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .badge {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0 6px;
+    line-height: 14px;
+  }
+  .badge.global { border-color: var(--implemented); color: var(--implemented); }
+
+  /* ---- the wireframe itself ---------------------------------------------- */
+
+  .frame {
+    position: relative;
+    background: #fff;
+    border: 1.5px solid var(--ink);
+    overflow: hidden;
+  }
+  .frame.phone { border-radius: 22px; border-width: 4px; }
+  .frame.browser { border-radius: 6px; }
+
+  .chrome-notch {
+    position: absolute;
+    top: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 42px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--ink);
+  }
+  .chrome-bar {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 14px;
+    padding: 0 5px;
+    background: #e2e8f0;
+    border-bottom: 1px solid var(--line);
+  }
+  .chrome-bar i {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--line);
+  }
+
+  .body {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    height: 100%;
+    padding: 12px 8px 8px;
+  }
+  .frame.browser .body { height: calc(100% - 14px); padding: 8px; }
+
+  .row { display: flex; align-items: center; gap: 4px; }
+  .row.bottom { margin-top: auto; }
+
+  .el {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    line-height: 1;
+    color: var(--muted);
+    background: #f1f5f9;
+    border-radius: 3px;
+    overflow: hidden;
+    white-space: nowrap;
+    padding: 0 3px;
+  }
+  .el-header { height: 18px; background: #e2e8f0; color: var(--ink); font-weight: 600; font-size: 9px; }
+  .el-text { height: 12px; }
+  .el-input { height: 18px; background: #fff; border: 1px solid var(--line); justify-content: flex-start; }
+  .el-search { height: 18px; background: #fff; border: 1px solid var(--line); border-radius: 9px; justify-content: flex-start; }
+  .el-button { height: 18px; background: var(--ink); color: #fff; border-radius: 4px; font-weight: 600; }
+  .el-card { height: 34px; background: #fff; border: 1px solid var(--line); }
+  .el-image { height: 46px; background: repeating-linear-gradient(45deg, #e2e8f0 0 6px, #eef2f7 6px 12px); }
+  .el-icon { flex: 0 0 16px; height: 16px; border-radius: 4px; background: #e2e8f0; }
+  .el-unknown { height: 12px; background: transparent; border: 1px dashed var(--line); font-style: italic; }
+  .el-custom { display: block; background: transparent; text-align: center; color: var(--ink); }
+
+  .el-stack { flex-direction: column; gap: 3px; background: transparent; align-items: stretch; }
+  .el-stack > i { display: block; height: 12px; background: #f1f5f9; border-radius: 3px; }
+  .el-strip { gap: 3px; background: transparent; }
+  .el-strip > i { flex: 1 1 0; height: 11px; background: #e2e8f0; border-radius: 999px; }
+  .el-tabs > i { border-radius: 3px; height: 14px; }
+  .el-tabs > i:first-child { background: var(--ink); }
+  .el-tabbar { height: 20px; background: #e2e8f0; border-radius: 4px; padding: 0 4px; }
+  .el-tabbar > i { flex: 0 1 14px; height: 10px; border-radius: 2px; background: #fff; }
+
+  /* ---- legend and details ------------------------------------------------ */
+
+  .panel {
+    position: absolute;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.08);
+  }
+
+  #legend { top: 12px; left: 12px; padding: 10px 12px; max-width: 240px; }
+  #legend h1 { margin: 0; font-size: 14px; }
+  #legend .sub { margin: 2px 0 10px; font-size: 11px; color: var(--muted); }
+  #legend label { display: flex; align-items: center; gap: 7px; font-size: 12px; cursor: pointer; padding: 2px 0; }
+  #legend .swatch { width: 18px; height: 0; border-top-width: 2px; }
+  #legend .count { margin-left: auto; font-size: 10px; color: var(--muted); }
+  #legend .warn { margin-top: 8px; font-size: 11px; color: #b45309; white-space: pre-line; }
+  #legend .hint { margin-top: 8px; font-size: 10px; color: var(--muted); }
+
+  /* The legend sits on top of the map, so it must be possible to get it out of the way — on a
+     phone it covers the screens underneath it, and a filter panel is worth less than the map. */
+  #legend-head { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  #legend-toggle {
+    margin-left: auto;
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    font: inherit; font-size: 13px; line-height: 1;
+    background: var(--bg); color: var(--muted);
+    border: 1px solid var(--line); border-radius: 7px; cursor: pointer;
+  }
+  #legend.collapsed .sub, #legend.collapsed #filters,
+  #legend.collapsed .warn, #legend.collapsed .hint { display: none; }
+  #legend.collapsed { padding-bottom: 10px; }
+
+  /* Zoom controls live outside the legend so that collapsing it never takes them away. */
+  #tools {
+    position: absolute;
+    right: 12px; bottom: 12px;
+    display: flex; gap: 8px;
+    z-index: 2;
+  }
+  #tools button {
+    font: inherit; font-size: 13px;
+    min-width: 40px; height: 40px;
+    padding: 0 12px;
+    background: var(--panel); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.08);
+    cursor: pointer;
+  }
+
+  #details { top: 16px; right: 16px; width: 288px; max-height: calc(100% - 32px); overflow: auto; padding: 14px 16px; }
+  #details h2 { margin: 0 0 2px; font-size: 15px; }
+  #details .meta { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+  #details .purpose { font-size: 13px; margin: 0 0 12px; }
+  #details h3 { margin: 12px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+  #details ul { margin: 0; padding-left: 16px; font-size: 12px; }
+  #details li { margin-bottom: 3px; }
+  #details code { font-size: 11px; background: var(--bg); padding: 1px 4px; border-radius: 4px; }
+  #details .close { position: absolute; top: 10px; right: 12px; border: 0; background: none; font-size: 16px; color: var(--muted); cursor: pointer; }
+
+  #empty { top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(460px, calc(100% - 32px)); padding: 24px 26px; }
+  #empty h1 { margin: 0 0 8px; font-size: 16px; }
+  #empty p { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+  #empty code { font-size: 12px; background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+
+  [hidden] { display: none !important; }
+
+  /* ---- narrow screens ----------------------------------------------------- */
+  /* A phone has no room for two floating panels beside the map. The details panel becomes a sheet
+     across the bottom — it covers a strip rather than half the canvas, and the map above it stays
+     draggable. */
+  @media (max-width: 720px) {
+    #legend { top: 8px; left: 8px; right: 8px; max-width: none; }
+    #details {
+      top: auto; left: 0; right: 0; bottom: 0;
+      width: auto; max-height: 46%;
+      border-radius: 14px 14px 0 0;
+      border-left: 0; border-right: 0; border-bottom: 0;
+      padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+      box-shadow: 0 -8px 28px rgba(15, 23, 42, 0.14);
+    }
+    #details .close { top: 8px; right: 10px; font-size: 22px; width: 32px; height: 32px; }
+    #tools { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+    #tools button { min-width: 44px; height: 44px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div id="world">
+    <svg id="arrows" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="head-implemented" markerWidth="9" markerHeight="7" refX="8" refY="3.5"
+                orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L9,3.5 L0,7 z"/></marker>
+        <marker id="head-planned" markerWidth="9" markerHeight="7" refX="8" refY="3.5"
+                orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L9,3.5 L0,7 z"/></marker>
+        <marker id="head-idea" markerWidth="9" markerHeight="7" refX="8" refY="3.5"
+                orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L9,3.5 L0,7 z"/></marker>
+        <marker id="head-rejected" markerWidth="9" markerHeight="7" refX="8" refY="3.5"
+                orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L9,3.5 L0,7 z"/></marker>
+      </defs>
+      <g id="arrow-paths"></g>
+    </svg>
+    <div id="cards"></div>
+    <!-- Labels sit above the cards while their arrows sit below them: a curve disappearing behind
+         a card reads as depth, a trigger disappearing behind one reads as a missing fact. -->
+    <svg id="arrow-labels" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+</div>
+
+<aside id="legend" class="panel" hidden>
+  <div id="legend-head">
+    <h1>Screen map</h1>
+    <button type="button" id="legend-toggle" aria-expanded="true" aria-label="Collapse the legend">−</button>
+  </div>
+  <p class="sub" id="legend-sub"></p>
+  <div id="filters"></div>
+  <p class="warn" id="warn" hidden></p>
+  <p class="hint">Drag or swipe to pan, pinch or scroll to zoom, tap a screen for details.</p>
+</aside>
+
+<div id="tools" hidden>
+  <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
+  <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
+  <button type="button" id="fit">Fit</button>
+</div>
+
+<aside id="details" class="panel" hidden>
+  <button type="button" class="close" id="details-close" aria-label="Close">×</button>
+  <div id="details-body"></div>
+</aside>
+
+<section id="empty" class="panel" hidden>
+  <h1>No screen map here yet</h1>
+  <p id="empty-why"></p>
+  <p>The viewer reads <code>screens.data.js</code> from this directory. Run
+     <code>/agent-kit:screens</code> in the project to generate or repair it.</p>
+</section>
+
+<script src="screens.data.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // Ordered worst-last: a status's rank is its index, and an arrow takes the weaker of its ends.
+  var STATUSES = ['implemented', 'planned', 'idea', 'rejected'];
+  var FALLBACK_STATUS = 'planned';
+  var SWATCH = { implemented: 'solid', planned: 'dashed', idea: 'dotted', rejected: 'dotted' };
+
+  var GEO = {
+    mobile: { w: 176, h: 320, chrome: 'phone' },
+    web: { w: 300, h: 190, chrome: 'browser' }
+  };
+  GEO.desktop = GEO.web;
+
+  var PAD = 10;              // card padding around the frame
+  var HEAD_H = 26;           // card title row
+  var FOOT_H = 20;           // card badge row
+  var BORDER = 1.5;          // the card's own border — part of its box, so part of its geometry
+  var COL_GAP = 150;         // space between ranks; also the corridor an arrow may bow into
+  var ROW_GAP = 64;          // vertical space between screens within a rank
+  var GUTTER = 90;           // the same corridor, left of the first rank, where no rank is
+  var LANE_GAP = 130;        // space above the lane the always-available screens sit in
+  var SWEEPS = 8;            // ordering passes over the ranks; more stops paying quickly
+  var OVERLAY_SCALE = 0.78;  // overlays are drawn smaller, attached under their parent
+  var OVERLAY_GAP = 26;
+  var MIN_K = 0.15;
+  var MAX_K = 2.5;
+
+  // Wireframe element types. Anything not named here draws as a labelled neutral block: the data
+  // file outlives the viewer copied beside it, and a map that goes blank on an unknown word is
+  // worse than one showing a grey box.
+  var REPEATED = { list: 'el-stack', chips: 'el-strip', tabs: 'el-strip', tabbar: 'el-strip' };
+  var LABELLED = ['header', 'text', 'input', 'search', 'button', 'card', 'image'];
+
+  var stage = document.getElementById('stage');
+  var world = document.getElementById('world');
+  var svg = document.getElementById('arrows');
+  var pathLayer = document.getElementById('arrow-paths');
+  var labelLayer = document.getElementById('arrow-labels');
+  var cardsEl = document.getElementById('cards');
+  var legend = document.getElementById('legend');
+  var details = document.getElementById('details');
+  var warnEl = document.getElementById('warn');
+
+  var data = window.SCREENS;
+
+  function bail(why) {
+    document.getElementById('empty-why').textContent = why;
+    document.getElementById('empty').hidden = false;
+  }
+
+  if (!data) {
+    return bail('screens.data.js did not load, or it does not assign window.SCREENS.');
+  }
+  if (!Array.isArray(data.screens)) {
+    return bail('screens.data.js loaded, but it has no `screens` array.');
+  }
+  if (data.screens.length === 0) {
+    return bail('The map is empty — `screens` has no entries.');
+  }
+
+  var meta = data.meta || {};
+  var geo = GEO[meta.platform] || GEO.mobile;
+  var CARD_W = geo.w + PAD * 2 + BORDER * 2;
+  var CARD_H = geo.h + HEAD_H + FOOT_H + PAD * 2 + BORDER * 2;
+  var OVERLAY_INDENT = CARD_W * (1 - OVERLAY_SCALE) / 2;   // centred under its parent
+  var transitions = Array.isArray(data.transitions) ? data.transitions : [];
+
+  // The stylesheet draws the cards, the script draws the arrows between them; both need the same
+  // numbers, so the script hands its own down rather than trusting them to agree.
+  var rootStyle = document.documentElement.style;
+  rootStyle.setProperty('--pad', PAD + 'px');
+  rootStyle.setProperty('--head-h', HEAD_H + 'px');
+  rootStyle.setProperty('--foot-h', FOOT_H + 'px');
+  rootStyle.setProperty('--border', BORDER + 'px');
+
+  // Everything the file says that cannot be honoured is named in the legend, with the ids
+  // involved: a map that quietly repairs its own data is a map that lies. `issues` is fixed at
+  // load, `runIssues` is whatever this particular draw found.
+  var issues = [];
+  var runIssues = [];
+
+  if (meta.platform && !GEO[meta.platform]) {
+    issues.push('meta.platform is "' + meta.platform + '", not mobile/web/desktop — phone frame used.');
+  }
+
+  var byId = {};
+  var nameless = 0;
+  var duplicates = [];
+  data.screens.forEach(function (s) {
+    if (!s || typeof s.id !== 'string' || !s.id) { nameless++; return; }
+    if (byId[s.id]) duplicates.push(s.id);
+    byId[s.id] = s;
+  });
+  // The later entry wins, so an earlier namesake is dropped rather than drawn underneath it.
+  var screens = data.screens.filter(function (s) { return s && byId[s.id] === s; });
+
+  if (nameless) issues.push('Entries with no id, which cannot be drawn: ' + nameless + '.');
+  if (duplicates.length) issues.push('Duplicate ids, later entry wins: ' + duplicates.join(', ') + '.');
+
+  var odd = screens.filter(function (s) { return STATUSES.indexOf(s.status) === -1; });
+  if (odd.length) {
+    issues.push('Unrecognized status, drawn as ' + FALLBACK_STATUS + ': ' + odd.map(function (s) {
+      return s.id + ' (' + s.status + ')';
+    }).join(', ') + '.');
+  }
+
+  if (screens.length === 0) {
+    return bail('Every entry in `screens` was unusable — ' + issues.join(' '));
+  }
+
+  var filters = { implemented: true, planned: true, idea: true, rejected: false };
+  var checkboxes = {};
+  var selected = null;
+  var view = { x: 40, y: 40, k: 1 };
+  var pos = {};
+  var cards = [];            // { id, node }
+  var arcs = [];             // { from, to, path, label } — what selection re-styles
+
+  function rank(screen) {
+    var i = STATUSES.indexOf(screen.status);
+    return i === -1 ? STATUSES.indexOf(FALLBACK_STATUS) : i;
+  }
+
+  function statusOf(screen) {
+    return STATUSES[rank(screen)];
+  }
+
+  function visible(screen) {
+    return filters[statusOf(screen)];
+  }
+
+  // ---- layout: a directed graph, left to right -----------------------------
+  // The map is read the way the app is used: entry screens on the left, and every transition that
+  // moves the person forward points right. A screen's rank is the longest path to it, so nothing
+  // sits left of what leads to it; inside a rank the order is chosen to cross as few arrows as
+  // possible. `flow` groups screens rather than placing them — two screens of one flow that are
+  // three steps apart belong three ranks apart, not side by side.
+
+  // Kahn's algorithm, but it must terminate on a map with cycles — and a real app is full of them
+  // (a back button is a cycle). When nothing is free, the least-constrained screen is opened by
+  // force and the edges still pointing at it become back edges.
+  function topoOrder(ids, out, inn) {
+    var indeg = {};
+    var seen = {};
+    var order = [];
+    var queue = [];
+    ids.forEach(function (id) {
+      indeg[id] = (inn[id] || []).length;
+      if (indeg[id] === 0) queue.push(id);
+    });
+
+    while (order.length < ids.length) {
+      if (!queue.length) {
+        var best = null;
+        ids.forEach(function (id) {
+          if (!seen[id] && (best === null || indeg[id] < indeg[best])) best = id;
+        });
+        if (best === null) break;
+        queue.push(best);
+      }
+      var id = queue.shift();
+      if (seen[id]) continue;
+      seen[id] = true;
+      order.push(id);
+      (out[id] || []).forEach(function (t) {
+        if (seen[t]) return;              // a back edge: it constrains nothing
+        indeg[t]--;
+        if (indeg[t] <= 0) queue.push(t);
+      });
+    }
+    return order;
+  }
+
+  // Two edges between the same pair of ranks cross when their endpoints are in opposite order.
+  function countCrossings(left, right, out) {
+    var seat = {};
+    right.forEach(function (id, i) { seat[id] = i; });
+    var edges = [];
+    left.forEach(function (id, i) {
+      (out[id] || []).forEach(function (t) {
+        if (seat[t] !== undefined) edges.push([i, seat[t]]);
+      });
+    });
+    var n = 0;
+    for (var a = 0; a < edges.length; a++) {
+      for (var b = a + 1; b < edges.length; b++) {
+        var p = edges[a];
+        var q = edges[b];
+        if ((p[0] - q[0]) * (p[1] - q[1]) < 0) n++;
+      }
+    }
+    return n;
+  }
+
+  function median(values) {
+    if (!values.length) return -1;
+    var v = values.slice().sort(function (a, b) { return a - b; });
+    var mid = Math.floor(v.length / 2);
+    return v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2;
+  }
+
+  function computeLayout() {
+    pos = {};
+    runIssues = [];
+    var shown = screens.filter(visible);
+    var drawn = {};
+    shown.forEach(function (s) { drawn[s.id] = s; });
+
+    // Overlays ride under the screen they open over instead of taking a rank of their own: a modal
+    // is not a step forward. One whose parent is not on the map is ranked like any other screen.
+    var riders = {};
+    var nodes = [];
+    shown.forEach(function (s) {
+      if (s.type === 'overlay' && s.parent) {
+        if (drawn[s.parent]) {
+          (riders[s.parent] || (riders[s.parent] = [])).push(s);
+          return;
+        }
+        runIssues.push(s.id + ' is an overlay of ' + s.parent + ', which is ' +
+          (byId[s.parent] ? 'filtered out' : 'not in the map') + ' — drawn on its own.');
+      }
+      nodes.push(s);
+    });
+
+    // A global screen is reachable from everywhere, so its distance from the entry means nothing.
+    // Ranking it would draw that meaningless number as a position; it gets a lane instead.
+    var lane = nodes.filter(function (s) { return s.global; });
+    var ranked = nodes.filter(function (s) { return !s.global; });
+    if (!ranked.length) { ranked = lane; lane = []; }
+
+    var host = {};             // every drawn screen → the node that carries it
+    shown.forEach(function (s) { host[s.id] = s.id; });
+    Object.keys(riders).forEach(function (p) {
+      riders[p].forEach(function (o) { host[o.id] = p; });
+    });
+
+    var ids = ranked.map(function (s) { return s.id; });
+    var isRanked = {};
+    ids.forEach(function (id) { isRanked[id] = true; });
+
+    var out = {};
+    var inn = {};
+    ids.forEach(function (id) { out[id] = []; inn[id] = []; });
+    transitions.forEach(function (t) {
+      var a = host[t.from];
+      var b = host[t.to];
+      if (!a || !b || a === b || !isRanked[a] || !isRanked[b]) return;
+      if (out[a].indexOf(b) === -1) out[a].push(b);
+      if (inn[b].indexOf(a) === -1) inn[b].push(a);
+    });
+
+    // Rank: the longest path from an entry screen. Only edges that run forward in the topological
+    // order count, so a back button cannot push its own target one rank to the right.
+    var order = topoOrder(ids, out, inn);
+    var seat = {};
+    order.forEach(function (id, i) { seat[id] = i; });
+    var rankOf = {};
+    ids.forEach(function (id) { rankOf[id] = 0; });
+    order.forEach(function (id) {
+      (out[id] || []).forEach(function (t) {
+        if (seat[t] === undefined || seat[t] < seat[id]) return;   // back edge
+        rankOf[t] = Math.max(rankOf[t], rankOf[id] + 1);
+      });
+    });
+
+    var ranks = [];
+    ids.forEach(function (id) {
+      var r = rankOf[id];
+      (ranks[r] || (ranks[r] = [])).push(id);
+    });
+    for (var r = 0; r < ranks.length; r++) if (!ranks[r]) ranks[r] = [];
+
+    // Screens of one flow stay together where the crossings do not object — the first ordering is
+    // by flow, and the sweeps below only move a screen when it buys a crossing.
+    var flowSeat = {};
+    var flowOrder = [];
+    ranked.forEach(function (s) {
+      var f = s.flow || 'Other';
+      if (flowOrder.indexOf(f) === -1) flowOrder.push(f);
+    });
+    ranked.forEach(function (s) { flowSeat[s.id] = flowOrder.indexOf(s.flow || 'Other'); });
+    ranks.forEach(function (rank) {
+      rank.sort(function (a, b) { return flowSeat[a] - flowSeat[b] || seat[a] - seat[b]; });
+    });
+
+    function totalCrossings(rs) {
+      var n = 0;
+      for (var i = 0; i + 1 < rs.length; i++) n += countCrossings(rs[i], rs[i + 1], out);
+      return n;
+    }
+
+    // The median heuristic: a screen wants to sit across from the screens it connects to. Sweeping
+    // both ways settles most maps in a few passes; the best ordering seen is what gets drawn, so a
+    // sweep that makes things worse costs nothing.
+    var best = ranks.map(function (rank) { return rank.slice(); });
+    var bestCount = totalCrossings(ranks);
+    for (var pass = 0; pass < SWEEPS && bestCount > 0; pass++) {
+      var down = pass % 2 === 0;
+      var from = down ? 1 : ranks.length - 2;
+      var step = down ? 1 : -1;
+      for (var i = from; down ? i < ranks.length : i >= 0; i += step) {
+        var neighbours = ranks[i + (down ? -1 : 1)];
+        if (!neighbours) continue;
+        var where = {};
+        neighbours.forEach(function (id, at) { where[id] = at; });
+        var keys = {};
+        ranks[i].forEach(function (id, at) {
+          var linked = (down ? inn[id] : out[id]) || [];
+          var seats = linked.map(function (o) { return where[o]; })
+            .filter(function (v) { return v !== undefined; });
+          var m = median(seats);
+          keys[id] = m === -1 ? at : m;      // nothing to align to: hold its place
+        });
+        ranks[i] = ranks[i].slice().sort(function (a, b) { return keys[a] - keys[b]; });
+      }
+      var count = totalCrossings(ranks);
+      if (count < bestCount) {
+        bestCount = count;
+        best = ranks.map(function (rank) { return rank.slice(); });
+      }
+    }
+    ranks = best;
+
+    // ---- coordinates ------------------------------------------------------
+    function slotHeight(id) {
+      var extra = (riders[id] || []).length;
+      return CARD_H + extra * (CARD_H * OVERLAY_SCALE + OVERLAY_GAP);
+    }
+
+    var top = {};
+    ranks.forEach(function (rank) {
+      var y = 0;
+      rank.forEach(function (id) {
+        top[id] = y;
+        y += slotHeight(id) + ROW_GAP;
+      });
+    });
+
+    // Pull each screen level with what it connects to, then push the rank back apart. Straighter
+    // arrows are the whole point of ranking: an edge that runs flat is read at a glance.
+    for (var round = 0; round < 4; round++) {
+      var forward = round % 2 === 0;
+      var start = forward ? 1 : ranks.length - 2;
+      var dir = forward ? 1 : -1;
+      for (var j = start; forward ? j < ranks.length : j >= 0; j += dir) {
+        var others = ranks[j + (forward ? -1 : 1)];
+        if (!others) continue;
+        var wanted = {};
+        ranks[j].forEach(function (id) {
+          var linked = (forward ? inn[id] : out[id]) || [];
+          var centres = linked.filter(function (o) { return top[o] !== undefined; })
+            .map(function (o) { return top[o] + slotHeight(o) / 2; });
+          wanted[id] = centres.length ? median(centres) - slotHeight(id) / 2 : top[id];
+        });
+        var cursor = -Infinity;
+        ranks[j].forEach(function (id) {
+          top[id] = Math.max(wanted[id], cursor);
+          cursor = top[id] + slotHeight(id) + ROW_GAP;
+        });
+      }
+    }
+
+    var lowest = 0;
+    ranks.forEach(function (rank, ri) {
+      rank.forEach(function (id) {
+        var box = { x: ri * (CARD_W + COL_GAP), y: top[id], w: CARD_W, h: CARD_H, k: 1 };
+        pos[id] = box;
+        lowest = Math.max(lowest, box.y + box.h);
+
+        (riders[id] || []).forEach(function (o, oi) {
+          var oh = CARD_H * OVERLAY_SCALE;
+          var obox = {
+            x: box.x + OVERLAY_INDENT,
+            y: box.y + CARD_H + OVERLAY_GAP + oi * (oh + OVERLAY_GAP),
+            w: CARD_W * OVERLAY_SCALE, h: oh, k: OVERLAY_SCALE
+          };
+          pos[o.id] = obox;
+          lowest = Math.max(lowest, obox.y + obox.h);
+        });
+      });
+    });
+
+    // The lane: always-available screens in a row of their own under the graph.
+    var laneY = lowest + LANE_GAP;
+    lane.forEach(function (s, i) {
+      pos[s.id] = { x: i * (CARD_W + COL_GAP), y: laneY, w: CARD_W, h: CARD_H, k: 1 };
+      (riders[s.id] || []).forEach(function (o, oi) {
+        var oh = CARD_H * OVERLAY_SCALE;
+        pos[o.id] = {
+          x: pos[s.id].x + OVERLAY_INDENT,
+          y: laneY + CARD_H + OVERLAY_GAP + oi * (oh + OVERLAY_GAP),
+          w: CARD_W * OVERLAY_SCALE, h: oh, k: OVERLAY_SCALE
+        };
+      });
+    });
+
+    // Ranks are packed from their own zero, so the whole map is lifted back to the origin once.
+    var minY = Infinity;
+    Object.keys(pos).forEach(function (id) { minY = Math.min(minY, pos[id].y); });
+    if (minY !== Infinity && minY !== 0) {
+      Object.keys(pos).forEach(function (id) { pos[id].y -= minY; });
+    }
+  }
+
+  // ---- the wireframe body -------------------------------------------------
+  function repeat(parent, n) {
+    var count = Math.max(1, Math.min(8, n || 3));
+    for (var i = 0; i < count; i++) parent.appendChild(document.createElement('i'));
+  }
+
+  function elementNode(el) {
+    var type = el && el.type ? el.type : 'text';
+    var node = document.createElement('div');
+    node.className = 'el el-' + type;
+
+    if (REPEATED[type]) {
+      node.classList.add(REPEATED[type]);
+      repeat(node, el.n);
+    } else if (type === 'custom') {
+      // The data file is executed JavaScript from this repository, so its html is as trusted as
+      // the file itself; this adds no reach the file did not already have.
+      node.innerHTML = el.html || '';
+    } else if (LABELLED.indexOf(type) !== -1) {
+      node.textContent = el.label || '';
+    } else if (type !== 'icon') {
+      node.className = 'el el-unknown';
+      node.textContent = type;
+    }
+    return node;
+  }
+
+  function frameNode(screen) {
+    var frame = document.createElement('div');
+    frame.className = 'frame ' + geo.chrome;
+    frame.style.width = geo.w + 'px';
+    frame.style.height = geo.h + 'px';
+
+    if (geo.chrome === 'phone') {
+      var notch = document.createElement('div');
+      notch.className = 'chrome-notch';
+      frame.appendChild(notch);
+    } else {
+      var bar = document.createElement('div');
+      bar.className = 'chrome-bar';
+      repeat(bar, 3);
+      frame.appendChild(bar);
+    }
+
+    var body = document.createElement('div');
+    body.className = 'body';
+    (screen.layout || []).forEach(function (row) {
+      var cells = Array.isArray(row) ? row : [row];
+      var rowEl = document.createElement('div');
+      rowEl.className = 'row';
+      if (cells.some(function (c) { return c && c.type === 'tabbar'; })) rowEl.classList.add('bottom');
+      cells.forEach(function (cell) { rowEl.appendChild(elementNode(cell)); });
+      body.appendChild(rowEl);
+    });
+    frame.appendChild(body);
+    return frame;
+  }
+
+  function badge(text, extra) {
+    var b = document.createElement('span');
+    b.className = 'badge' + (extra ? ' ' + extra : '');
+    b.textContent = text;
+    return b;
+  }
+
+  function cardNode(screen) {
+    var p = pos[screen.id];
+    var card = document.createElement('div');
+    card.className = 'card s-' + statusOf(screen);
+    card.style.left = p.x + 'px';
+    card.style.top = p.y + 'px';
+    card.style.width = CARD_W + 'px';
+    card.style.height = CARD_H + 'px';
+    if (p.k !== 1) card.style.transform = 'scale(' + p.k + ')';
+    card.dataset.id = screen.id;
+
+    var head = document.createElement('div');
+    head.className = 'card-head';
+    var sid = document.createElement('span');
+    sid.className = 'sid';
+    sid.textContent = screen.id;
+    var title = document.createElement('span');
+    title.className = 'stitle';
+    title.textContent = screen.title || screen.id;
+    head.appendChild(sid);
+    head.appendChild(title);
+
+    var foot = document.createElement('div');
+    foot.className = 'card-foot';
+    foot.appendChild(badge(statusOf(screen)));
+    if (screen.global) foot.appendChild(badge('everywhere', 'global'));
+    if (screen.type === 'overlay') foot.appendChild(badge('over ' + (screen.parent || '?')));
+
+    card.appendChild(head);
+    card.appendChild(frameNode(screen));
+    card.appendChild(foot);
+    return card;
+  }
+
+  // ---- arrows -------------------------------------------------------------
+  function anchors(a, b) {
+    // A screen that leads back to itself — a refresh, a re-entry — loops off its own right edge.
+    if (a === b) {
+      return { x1: a.x + a.w, y1: a.y + a.h * 0.35, x2: a.x + a.w, y2: a.y + a.h * 0.65, bow: 'self' };
+    }
+    // Different columns: leave the near side, arrive on the facing side.
+    if (b.x >= a.x + a.w) {
+      return { x1: a.x + a.w, y1: a.y + a.h / 2, x2: b.x, y2: b.y + b.h / 2, bow: 'h' };
+    }
+    // A transition that runs back against the flow — a Back button, a cancel — leaves the bottom
+    // and swoops under the ranks between. Routed along the middle it would be drawn straight
+    // through every card in its way, and read as a forward step besides.
+    if (b.x + b.w <= a.x) {
+      return {
+        x1: a.x + a.w * 0.35, y1: a.y + a.h, x2: b.x + b.w * 0.65, y2: b.y + b.h, bow: 'back'
+      };
+    }
+    // Same column, target below: down the corridor beside the column rather than down its middle,
+    // which is where an attached overlay sits. An arrow that passes under a card takes its label
+    // with it, and the label is the half of the arrow that carries the meaning.
+    if (b.y > a.y) {
+      return {
+        x1: a.x, y1: a.y + a.h * 0.72, x2: b.x, y2: b.y + b.h * 0.28,
+        bow: 'aside', dir: -1, room: a.x >= COL_GAP ? COL_GAP : GUTTER
+      };
+    }
+    // Same column, target above: a back edge, routed around the other side.
+    return {
+      x1: a.x + a.w, y1: a.y + a.h / 2, x2: b.x + b.w, y2: b.y + b.h / 2,
+      bow: 'aside', dir: 1, room: COL_GAP
+    };
+  }
+
+  function curve(t) {
+    var dy = Math.abs(t.y2 - t.y1);
+    if (t.bow === 'self') {
+      return { c1x: t.x1 + 64, c1y: t.y1 - 16, c2x: t.x2 + 64, c2y: t.y2 + 16 };
+    }
+    if (t.bow === 'back') {
+      // Deep enough to clear the cards it passes under, and deeper the further it travels.
+      var drop = Math.min(190, 60 + Math.abs(t.x2 - t.x1) / 5) + dy / 4;
+      return { c1x: t.x1 - 20, c1y: t.y1 + drop, c2x: t.x2 + 20, c2y: t.y2 + drop };
+    }
+    if (t.bow === 'aside') {
+      // Never bow deeper than the corridor: an unbounded bow on a long edge swings the curve
+      // straight through the neighbouring flow.
+      var off = Math.min(t.room - 20, Math.max(50, dy / 3)) * t.dir;
+      return { c1x: t.x1 + off, c1y: t.y1, c2x: t.x2 + off, c2y: t.y2 };
+    }
+    var cx = Math.max(40, Math.abs(t.x2 - t.x1) / 2);
+    var dir = t.x2 >= t.x1 ? 1 : -1;
+    return { c1x: t.x1 + cx * dir, c1y: t.y1, c2x: t.x2 - cx * dir, c2y: t.y2 };
+  }
+
+  function midpoint(t, c) {
+    // A cubic bezier at its midpoint — the eighths of its four control points.
+    return {
+      x: (t.x1 + 3 * c.c1x + 3 * c.c2x + t.x2) / 8,
+      y: (t.y1 + 3 * c.c1y + 3 * c.c2y + t.y2) / 8
+    };
+  }
+
+  function svgEl(name, attrs) {
+    var node = document.createElementNS('http://www.w3.org/2000/svg', name);
+    Object.keys(attrs).forEach(function (k) { node.setAttribute(k, attrs[k]); });
+    return node;
+  }
+
+  function styled(node, base) {
+    node.baseClass = base;
+    node.setAttribute('class', base);
+    return node;
+  }
+
+  function drawArrows() {
+    pathLayer.textContent = '';
+    labelLayer.textContent = '';
+    arcs = [];
+
+    var dangling = [];
+    var pending = [];
+    transitions.forEach(function (tr) {
+      var from = byId[tr.from];
+      var to = byId[tr.to];
+      if (!from || !to) { dangling.push(tr.id || tr.from + '→' + tr.to); return; }
+      if (!pos[tr.from] || !pos[tr.to]) return;
+
+      var a = anchors(pos[tr.from], pos[tr.to]);
+      var c = curve(a);
+      var status = STATUSES[Math.max(rank(from), rank(to))];
+      var arc = { from: tr.from, to: tr.to };
+
+      arc.path = styled(svgEl('path', {
+        d: 'M' + a.x1 + ',' + a.y1 + ' C' + c.c1x + ',' + c.c1y + ' ' + c.c2x + ',' + c.c2y +
+           ' ' + a.x2 + ',' + a.y2,
+        'marker-end': 'url(#head-' + status + ')'
+      }), 'arrow s-' + status);
+      pathLayer.appendChild(arc.path);
+      arcs.push(arc);
+
+      if (tr.trigger) {
+        var m = midpoint(a, c);
+        pending.push({ arc: arc, x: m.x, y: m.y - 5, text: tr.trigger });
+      }
+    });
+
+    // Two labels must not land on top of each other, whatever their curves do: nudge each one
+    // down until it clears those already placed. Bounded, so a dense map degrades into a stack
+    // rather than into a loop. Half-widths are estimated from the text — nothing is measurable
+    // until it is in the document, and by then the position is already decided.
+    var placed = [];
+    pending.forEach(function (label) {
+      label.half = 4 + label.text.length * 2.6;
+      for (var tries = 0; tries < 6; tries++) {
+        var clash = placed.some(function (p) {
+          return Math.abs(p.x - label.x) < p.half + label.half && Math.abs(p.y - label.y) < 12;
+        });
+        if (!clash) break;
+        label.y += 13;
+      }
+      placed.push(label);
+      label.arc.label = styled(svgEl('text', { x: label.x, y: label.y }), 'arrow-label');
+      label.arc.label.textContent = label.text;
+      labelLayer.appendChild(label.arc.label);
+    });
+
+    if (dangling.length) {
+      runIssues.push('Transitions with no such screen at one end: ' + dangling.join(', ') + '.');
+    }
+  }
+
+  // ---- render -------------------------------------------------------------
+  function bounds() {
+    var maxX = 0;
+    var maxY = 0;
+    Object.keys(pos).forEach(function (id) {
+      maxX = Math.max(maxX, pos[id].x + pos[id].w);
+      maxY = Math.max(maxY, pos[id].y + pos[id].h);
+    });
+    // Columns start at 0, so only the corridors beside and below them have to be added back.
+    return { x: -GUTTER, y: -30, w: maxX + GUTTER + 80, h: maxY + 60 };
+  }
+
+  function renderMap() {
+    computeLayout();
+    cardsEl.textContent = '';
+    cards = screens.filter(visible).map(function (s) {
+      var node = cardNode(s);
+      cardsEl.appendChild(node);
+      return { id: s.id, node: node };
+    });
+
+    drawArrows();
+
+    var box = bounds();
+    [svg, labelLayer].forEach(function (layer) {
+      layer.setAttribute('width', box.x + box.w + 80);
+      layer.setAttribute('height', box.y + box.h + 80);
+    });
+
+    var reported = issues.concat(runIssues);
+    warnEl.hidden = reported.length === 0;
+    warnEl.textContent = reported.join('\n');
+
+    applySelection();
+  }
+
+  // Selection changes classes and nothing else, so it must not rebuild the map: on a large map
+  // that is thousands of elements thrown away on a click.
+  function applySelection() {
+    cards.forEach(function (c) {
+      c.node.classList.remove('selected');
+      c.node.classList.remove('dim');
+      if (selected) c.node.classList.add(c.id === selected ? 'selected' : 'dim');
+    });
+    arcs.forEach(function (arc) {
+      var lit = selected && (arc.from === selected || arc.to === selected);
+      var suffix = selected ? (lit ? ' lit' : ' dim') : '';
+      [arc.path, arc.label].forEach(function (node) {
+        if (node) node.setAttribute('class', node.baseClass + suffix);
+      });
+    });
+  }
+
+  function applyView() {
+    world.style.transform = 'translate(' + view.x + 'px,' + view.y + 'px) scale(' + view.k + ')';
+  }
+
+  // ---- selection and details ----------------------------------------------
+  function transitionsOf(id, end) {
+    return transitions.filter(function (t) { return t[end] === id; });
+  }
+
+  function showDetails(screen) {
+    var body = document.getElementById('details-body');
+    body.textContent = '';
+
+    var h = document.createElement('h2');
+    h.textContent = screen.title || screen.id;
+    var metaLine = document.createElement('div');
+    metaLine.className = 'meta';
+    metaLine.textContent = screen.id + ' · ' + statusOf(screen) + ' · ' + (screen.flow || 'Other') +
+      (screen.type === 'overlay' ? ' · overlay of ' + (screen.parent || '?') : '') +
+      (screen.global ? ' · available everywhere' : '');
+    var purpose = document.createElement('p');
+    purpose.className = 'purpose';
+    purpose.textContent = screen.purpose || '';
+    body.appendChild(h);
+    body.appendChild(metaLine);
+    body.appendChild(purpose);
+
+    if (screen.code) {
+      var codeHead = document.createElement('h3');
+      codeHead.textContent = 'Code';
+      var code = document.createElement('code');
+      code.textContent = screen.code;
+      body.appendChild(codeHead);
+      body.appendChild(code);
+    }
+
+    [['Arrives from', 'to'], ['Leads to', 'from']].forEach(function (spec) {
+      var end = spec[1];
+      var other = end === 'to' ? 'from' : 'to';
+      var list = transitionsOf(screen.id, end);
+      var head = document.createElement('h3');
+      head.textContent = spec[0];
+      body.appendChild(head);
+
+      if (list.length === 0) {
+        var none = document.createElement('p');
+        none.className = 'meta';
+        none.textContent = screen.global && end === 'to' ? 'from anywhere in the app' : 'nothing recorded';
+        body.appendChild(none);
+        return;
+      }
+      var ul = document.createElement('ul');
+      list.forEach(function (t) {
+        var target = byId[t[other]];
+        var li = document.createElement('li');
+        li.textContent = (target ? target.id + ' · ' + (target.title || '') : t[other] + ' (missing)') +
+          (t.trigger ? ' — ' + t.trigger : '') + (t.condition ? ' [' + t.condition + ']' : '');
+        ul.appendChild(li);
+      });
+      body.appendChild(ul);
+    });
+
+    details.hidden = false;
+  }
+
+  function select(id, center) {
+    var screen = byId[id];
+    if (!screen) return;
+    selected = id;
+    if (!visible(screen)) {
+      filters[statusOf(screen)] = true;
+      checkboxes[statusOf(screen)].checked = true;
+      renderMap();
+    } else {
+      applySelection();
+    }
+    showDetails(screen);
+    window.location.hash = id.toLowerCase();
+    if (center) centerOn(id);
+  }
+
+  function deselect() {
+    selected = null;
+    details.hidden = true;
+    applySelection();
+  }
+
+  function narrow() {
+    return stage.clientWidth <= 720;
+  }
+
+  function centerOn(id) {
+    var p = pos[id];
+    if (!p) return;
+    // The bottom sheet owns the lower part of a narrow screen: aim above it, not behind it.
+    var sheet = narrow() && !details.hidden ? stage.clientHeight * 0.22 : 0;
+    view.x = stage.clientWidth / 2 - (p.x + p.w / 2) * view.k;
+    view.y = stage.clientHeight / 2 - sheet - (p.y + p.h / 2) * view.k;
+    applyView();
+  }
+
+  function fit() {
+    var box = bounds();
+    if (!box.w || !box.h) return;
+    var k = Math.min(stage.clientWidth / box.w, stage.clientHeight / box.h, 1.2);
+    view.k = Math.max(MIN_K, Math.min(MAX_K, k));
+    view.x = (stage.clientWidth - box.w * view.k) / 2 - box.x * view.k;
+    view.y = (stage.clientHeight - box.h * view.k) / 2 - box.y * view.k;
+    applyView();
+  }
+
+  function zoomBy(factor, cx, cy) {
+    var k = Math.max(MIN_K, Math.min(MAX_K, view.k * factor));
+    var px = cx === undefined ? stage.clientWidth / 2 : cx;
+    var py = cy === undefined ? stage.clientHeight / 2 : cy;
+    view.x = px - (px - view.x) * (k / view.k);
+    view.y = py - (py - view.y) * (k / view.k);
+    view.k = k;
+    applyView();
+  }
+
+  // ---- legend -------------------------------------------------------------
+  function buildLegend() {
+    var flows = [];
+    screens.forEach(function (s) {
+      var f = s.flow || 'Other';
+      if (flows.indexOf(f) === -1) flows.push(f);
+    });
+    document.getElementById('legend-sub').textContent =
+      screens.length + ' screens · ' + flows.length + ' flows · ' + transitions.length +
+      ' transitions · ' + (meta.platform || 'mobile');
+
+    var box = document.getElementById('filters');
+    STATUSES.forEach(function (status) {
+      var label = document.createElement('label');
+      var input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = filters[status];
+      input.addEventListener('change', function () {
+        filters[status] = input.checked;
+        if (selected && !visible(byId[selected])) deselect();
+        renderMap();
+      });
+      checkboxes[status] = input;
+
+      var swatch = document.createElement('span');
+      swatch.className = 'swatch';
+      swatch.style.borderTop = '2px ' + SWATCH[status] + ' var(--' + status + ')';
+      var text = document.createElement('span');
+      text.textContent = status;
+      // The counts never change: they are taken over the whole file, not over what is filtered in.
+      var count = document.createElement('span');
+      count.className = 'count';
+      count.textContent = screens.filter(function (s) { return statusOf(s) === status; }).length;
+
+      label.appendChild(input);
+      label.appendChild(swatch);
+      label.appendChild(text);
+      label.appendChild(count);
+      box.appendChild(label);
+    });
+
+    // Collapsed by default where it would otherwise cover the map it explains.
+    setLegend(!narrow());
+    legend.hidden = false;
+    document.getElementById('tools').hidden = false;
+  }
+
+  function setLegend(open) {
+    var toggle = document.getElementById('legend-toggle');
+    legend.classList.toggle('collapsed', !open);
+    toggle.textContent = open ? '−' : '+';
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.setAttribute('aria-label', open ? 'Collapse the legend' : 'Expand the legend');
+  }
+
+  // ---- interaction --------------------------------------------------------
+  // Every pointer is tracked, not just the first: one is a pan, two are a pinch. A viewer that
+  // listens to one pointer leaves a phone with no way to zoom, because the browser's own pinch is
+  // given up by `touch-action: none` the moment panning is made to work at all.
+  var pointers = {};
+  var drag = null;
+  var pinch = null;
+
+  function pointerList() {
+    return Object.keys(pointers).map(function (k) { return pointers[k]; });
+  }
+
+  function pinchNow() {
+    var p = pointerList();
+    var dx = p[0].x - p[1].x;
+    var dy = p[0].y - p[1].y;
+    return { d: Math.sqrt(dx * dx + dy * dy) || 1, cx: (p[0].x + p[1].x) / 2, cy: (p[0].y + p[1].y) / 2 };
+  }
+
+  function startDrag(x, y, card, moved) {
+    drag = { x: x, y: y, vx: view.x, vy: view.y, moved: moved || 0, card: card || null };
+    stage.classList.add('dragging');
+  }
+
+  stage.addEventListener('pointerdown', function (e) {
+    pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+    stage.setPointerCapture(e.pointerId);
+    var n = Object.keys(pointers).length;
+    if (n === 1) {
+      // The card is read here, not on pointerup: pointer capture retargets later events to the
+      // stage, so by then the original target is gone.
+      startDrag(e.clientX, e.clientY, e.target.closest ? e.target.closest('.card') : null, 0);
+    } else if (n === 2) {
+      drag = null;                       // a second finger means zoom — and means this is no tap
+      stage.classList.remove('dragging');
+      var s = pinchNow();
+      pinch = { d: s.d, cx: s.cx, cy: s.cy, vx: view.x, vy: view.y, k: view.k };
+    }
+  });
+
+  stage.addEventListener('pointermove', function (e) {
+    if (!pointers[e.pointerId]) return;
+    pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+
+    if (pinch && Object.keys(pointers).length >= 2) {
+      var s = pinchNow();
+      var k = Math.max(MIN_K, Math.min(MAX_K, pinch.k * (s.d / pinch.d)));
+      // The point the fingers closed on stays under them, so the map zooms where it is looked at
+      // and follows the gesture across the screen at the same time.
+      view.x = s.cx - (pinch.cx - pinch.vx) * (k / pinch.k);
+      view.y = s.cy - (pinch.cy - pinch.vy) * (k / pinch.k);
+      view.k = k;
+      applyView();
+      return;
+    }
+
+    if (!drag) return;
+    var dx = e.clientX - drag.x;
+    var dy = e.clientY - drag.y;
+    drag.moved = Math.max(drag.moved, Math.abs(dx) + Math.abs(dy));
+    view.x = drag.vx + dx;
+    view.y = drag.vy + dy;
+    applyView();
+  });
+
+  function endPointer(e) {
+    delete pointers[e.pointerId];
+    var left = Object.keys(pointers).length;
+    if (left < 2) pinch = null;
+
+    if (left === 0) {
+      var wasDrag = drag && drag.moved > 4;
+      var card = drag ? drag.card : null;
+      drag = null;
+      stage.classList.remove('dragging');
+      if (wasDrag) return;
+      // On a narrow screen the details sheet covers the bottom of the map, so the screen just
+      // tapped is brought to the middle rather than left underneath it.
+      if (card) select(card.dataset.id, narrow());
+      else if (selected) deselect();
+      return;
+    }
+    // A finger lifted out of a pinch: carry on panning with the one still down, and never let it
+    // finish as a tap.
+    if (left === 1) {
+      var only = pointerList()[0];
+      startDrag(only.x, only.y, null, 99);
+    }
+  }
+
+  stage.addEventListener('pointerup', endPointer);
+  stage.addEventListener('pointercancel', endPointer);
+
+  stage.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX, e.clientY);
+  }, { passive: false });
+
+  document.getElementById('fit').addEventListener('click', fit);
+  document.getElementById('zoom-in').addEventListener('click', function () { zoomBy(1.2); });
+  document.getElementById('zoom-out').addEventListener('click', function () { zoomBy(1 / 1.2); });
+  document.getElementById('details-close').addEventListener('click', deselect);
+  document.getElementById('legend-head').addEventListener('click', function () {
+    setLegend(legend.classList.contains('collapsed'));
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && selected) deselect();
+  });
+
+  window.addEventListener('hashchange', function () {
+    var id = window.location.hash.slice(1).toUpperCase();
+    if (byId[id] && id !== selected) select(id, true);
+  });
+
+  // ---- go -----------------------------------------------------------------
+  buildLegend();
+
+  // The deep link is resolved before the first draw, so #s7 costs one render rather than two.
+  var initial = window.location.hash.slice(1).toUpperCase();
+  if (byId[initial]) {
+    selected = initial;
+    if (!visible(byId[initial])) {
+      filters[statusOf(byId[initial])] = true;
+      checkboxes[statusOf(byId[initial])].checked = true;
+    }
+  }
+
+  renderMap();
+  fit();
+  if (selected) {
+    showDetails(byId[selected]);
+    centerOn(selected);
+  }
+})();
+</script>
+</body>
+</html>

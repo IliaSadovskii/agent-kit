@@ -16,6 +16,7 @@ Plugin skills are namespaced, so every command below is `/agent-kit:<name>`.
 | `/agent-kit:debug [symptom]` | Reproduce, isolate, root-cause, fix with a regression test |
 | `/agent-kit:address [pr]` | Close a review round on an open PR — comments and CI in, fixes and replies out |
 | `/agent-kit:docs` | Reconcile living documentation |
+| `/agent-kit:screens` | Map every screen and transition, and keep the map true |
 | `/agent-kit:riff [theme]` | Interactive strategy, builds nothing |
 
 The kit also ships two subagents, `agent-kit:reviewer` and `agent-kit:tester`, which the pipelines
@@ -38,6 +39,7 @@ the plugin (replaced by every update)
   agents/                 reviewer and tester subagents
   rules/                  autonomous mode, interactive mode, pull requests
   templates/project/      what bootstrap copies into a project
+  templates/screens/      the screen map viewer, copied by /agent-kit:screens
   hooks/, scripts/        session start, cloud dependency setup, and the guard hook
 
 the project (never touched by an update)
@@ -48,6 +50,10 @@ the project (never touched by an update)
 
 The kit records where your documents live; it never moves or duplicates them. `bootstrapped: true`
 in the manifest means the foundation exists, not that every future feature is specified.
+
+The single exception is the screen map viewer, which `/agent-kit:screens` copies into
+`docs/screens/` and replaces when the plugin ships a newer one; it says so in its own header. The
+map beside it, `screens.data.js`, is yours — reconciled, never regenerated.
 
 To customize behavior, write to `.agent-kit/project/instructions.md`. Editing a file inside the
 plugin means the next update overwrites it — send the change upstream instead.

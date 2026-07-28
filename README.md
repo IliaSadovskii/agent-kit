@@ -52,12 +52,13 @@ the marketplace.
 | `/agent-kit:debug [symptom]` | Reproduce, isolate, root-cause, then fix with a regression test |
 | `/agent-kit:address [pr]` | Close a review round on an open PR: comments and CI in, fixes and replies out |
 | `/agent-kit:docs` | Reconcile living documentation where it genuinely diverged |
+| `/agent-kit:screens` | Map every screen and transition, and keep the map true as the app grows |
 | `/agent-kit:riff [theme]` | Strategic brainstorm; builds nothing |
 
 `ship --manual` swaps the autonomous contract for a consultative one with checkpoints, when you want
 to co-develop rather than delegate.
 
-Seven commands, and the list is meant to stay short. A command earns its place by being a pipeline
+Eight commands, and the list is meant to stay short. A command earns its place by being a pipeline
 you could not get by asking in plain words — not by wrapping something Claude Code already does.
 
 ## What it does not reinvent
@@ -75,6 +76,11 @@ diff matches the design that was approved for it.
 | Every file under `plugins/agent-kit/` | `.agent-kit/project/manifest.yml` and `instructions.md` |
 | The skills, agents, rules, and hooks it installs | Your product docs, source, tests, and `CLAUDE.md` |
 
+One file crosses that line on purpose — the screen map viewer, `docs/screens/screens.html`, which
+`/agent-kit:screens` copies in and later replaces; see
+[docs/developing.md](docs/developing.md#what-must-never-end-up-in-the-plugin). The map beside it is
+yours.
+
 Project-specific rules belong in `.agent-kit/project/instructions.md`, which no update rewrites. If
 you find yourself wanting to edit a file inside the plugin, that is a signal the change belongs
 upstream — send a pull request instead of carrying a local fork.
@@ -90,6 +96,7 @@ plugins/agent-kit/
   agents/                         reviewer and tester subagents
   rules/                          autonomous mode, interactive mode, pull requests
   templates/project/              what bootstrap copies into a project
+  templates/screens/              the screen map viewer, copied by /agent-kit:screens
   hooks/, scripts/                session start, cloud dependency setup, and the guard that
                                   turns the never-rules into explicit confirmations
 ```

@@ -41,6 +41,12 @@ done
 grep -q '^bootstrapped: false' "$PLUGIN/templates/project/manifest.yml" \
   || fail "the manifest template must ship unbootstrapped"
 
+# The screen map viewer is the one payload file that is copied into a project and then replaced by
+# a later update. That exception to "once copied it belongs to that repository" is only safe while
+# the file says so where whoever opens it will read it.
+grep -q 'agent-kit:plugin-owned' "$PLUGIN/templates/screens/screens.html" \
+  || fail "the screen map viewer must carry the agent-kit:plugin-owned marker in its header"
+
 # engine.md is delivered through a SessionStart hook, whose output Claude Code caps at 10,000
 # characters. Past the cap it is written to a file and replaced with a preview, so the governance
 # would silently stop being always-on.
@@ -191,11 +197,59 @@ while IFS= read -r ref; do
 done < <(grep -rhoE '\$\{CLAUDE_PLUGIN_ROOT\}/[A-Za-z0-9_./-]+' "$PLUGIN" \
            | sed 's|${CLAUDE_PLUGIN_ROOT}/||' | sed 's|[.,)]*$||' | sort -u)
 
+# A template page and the scripts it loads are copied into a project together, so the same rule
+# applies to them: a src the page names but the payload does not ship is a blank page in someone
+# else's repository.
+while IFS= read -r html; do
+  while IFS= read -r src; do
+    [ -e "${html%/*}/$src" ] || fail "$html loads a script that does not ship beside it: $src"
+  done < <(grep -oE '<script[^>]*[[:space:]]src="[^"]*"' "$html" | sed 's/.*[[:space:]]src="//; s/"$//')
+done < <(find "$PLUGIN/templates" -name '*.html')
+
 # Paths from the pre-plugin layout must not survive anywhere in the payload.
 stale="$(grep -rnE '\.agent-kit/(engine|skills|rules|workflows|roles|GUIDE|NOTICE|scripts|kit\.lock)' "$PLUGIN" || true)"
 if [ -n "$stale" ]; then
   printf '%s\n' "$stale" >&2
   fail "payload references the pre-plugin .agent-kit/ layout"
+fi
+
+# --------------------------------------------------------------------------------------------
+step "template payload syntax"
+
+# A template page is loaded as a plain script from a file:// page, where a syntax error is a blank
+# page and no message at all. Parse the payload's JavaScript here instead of in a browser.
+if command -v node >/dev/null 2>&1; then
+  while IFS= read -r js; do
+    node --check "$js" || fail "syntax error: $js"
+  done < <(find "$PLUGIN/templates" -name '*.js')
+
+  # Every inline <script> of a template page, parsed but never run — vm.Script compiles, which is
+  # exactly the check, and reading the page in node keeps the step to one interpreter.
+  while IFS= read -r html; do
+    node -e '
+      const fs = require("fs"), vm = require("vm");
+      const src = fs.readFileSync(process.argv[1], "utf8");
+      const blocks = [...src.matchAll(/<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/g)];
+      if (!blocks.length) process.exit(0);
+      for (const [, code] of blocks) new vm.Script(code);
+    ' "$html" || fail "syntax error in the inline script of: $html"
+  done < <(find "$PLUGIN/templates" -name '*.html')
+
+  # `node --check` parses but never runs. A data file that assigns the wrong global, or throws on
+  # load, passes the parse and still reaches the owner as the same blank page — so load the screen
+  # map's data the way the viewer does and check the viewer's own precondition. The error itself is
+  # half the value of the check, so it is not swallowed.
+  node -e '
+    global.window = {};
+    require(require("path").resolve(process.argv[1]));
+    const d = global.window.SCREENS;
+    if (!d || !Array.isArray(d.screens) || !d.screens.length) {
+      throw new Error("no non-empty window.SCREENS after loading the file");
+    }
+  ' "$PLUGIN/templates/screens/screens.data.js" \
+    || fail "the screen map demo data does not load into a non-empty window.SCREENS"
+else
+  printf 'node not available — skipped\n'
 fi
 
 # --------------------------------------------------------------------------------------------
