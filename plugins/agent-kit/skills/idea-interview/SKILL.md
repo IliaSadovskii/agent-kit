@@ -38,10 +38,12 @@ for it, and say in one line what was set up and what is still missing.
 2. **Ask the communication language first.** The manifest does not exist yet, so greet neutrally,
    ask, and use that language for the rest of the interview. It becomes `manifest.language`.
    Generated docs are prose in it; code, paths, and identifiers stay English.
-3. **Interview about the gaps only** — see coverage below. Batch independent facts — MVP bounds,
-   platform constraints, external services — into one message of up to four questions, multiple
-   choice where it fits. Decisions that depend on each other go one at a time, in dependency order,
-   so a settled answer can moot the rest of its branch.
+3. **Interview about the gaps only** — see coverage below, and ask per
+   `${CLAUDE_PLUGIN_ROOT}/rules/presenting.md`: independent facts — MVP bounds, platform
+   constraints, external services — batched into one structured round of up to four questions,
+   multiple choice where it fits; decisions that depend on each other one at a time in dependency
+   order, so a settled answer can moot the rest of its branch; a recommendation on every question
+   that has a sensible default.
 4. **Play back the shape** — the product understanding and the docs and scaffolding you intend to
    create. Adjust on feedback. This is the interactive gate of this skill.
 5. **Produce the core docs** — record existing docs by path; generate the missing ones into a

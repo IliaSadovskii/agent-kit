@@ -3,6 +3,31 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.12.0
+
+0.11.0 fixed the presenting rule, and two skills that ask the owner questions did not notice: they
+carried a hand-copied fragment of the rule instead of pointing at it.
+
+- **`stack-playbook` and `idea-interview` now defer to the rule** rather than restating a piece of
+  it, so they pick up the counterweight, the codebase-grounded questions, and the three decision
+  groups — and the next fix to the rule as well.
+- **The architecture stance is asked with its consequences attached.** It is the most expensive
+  decision the kit ever records and every later feature inherits it, yet it was one question
+  answerable in one word, leaving the agent to invent where boundaries sit and what a module is.
+  The concrete reading of the stance for this repo now goes up together with the question. Derived
+  without the owner, it is marked `derived` and surfaced where the run's decisions are read — the
+  PR's Assumptions, the sprint report — instead of only in a log.
+- **A refresh reports a stance the code stopped following.** It still never changes the stance, but
+  where the boundaries in the document are no longer the boundaries in the code it says so in one
+  line. Which of the two is wrong is the owner's call, and they cannot make it while nobody tells
+  them the two parted.
+- **`ideate` checks the roadmap against the code** before generating, for the claims the riff leans
+  on. Ideas argued against a product that was last written down six months ago are the ones that
+  feel beside the point.
+- **Depth reaches the product layer.** `ideate`'s proportionality off-ramp is taken readily on a
+  `light` feature and not at all on a `deep` one — the owner asked for the discussion, and the
+  product layer is where its cheapest version happens.
+
 ## 0.11.0
 
 Design conversations stop being thin. Every rule in the kit pushed one way — spend less of the

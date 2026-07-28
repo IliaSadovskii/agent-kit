@@ -24,11 +24,24 @@ against — that placement, not repetition in prompts, is what makes the rules i
 3. **Record the architecture stance — discussed at bootstrap, decided by the owner.** Nothing here
    is preset by the kit: from the stack and code analysis, propose the stance you would choose for
    this project — the framework's own idiom, DDD-style modules, something else — with a one-line
-   reason, as one structured question with your recommendation marked. The owner's answer is
-   recorded with what it means concretely for this repo (where boundaries live, what a "module"
-   is). If the owner is absent, derive the stance from the code and log it as an assumption. Once
-   recorded the stance is followed consistently and changes only on the owner's word — never as a
-   side effect of a refresh; proportionality applies *inside* it — module boundaries per the
+   reason, put up per `${CLAUDE_PLUGIN_ROOT}/rules/presenting.md` as one structured question with
+   your recommendation marked.
+
+   Ask it with its consequences attached rather than as a word. A stance answered "DDD" and nothing
+   else leaves you to invent where boundaries sit, what a module is, and what may cross one — and
+   that invented part is what the owner will actually feel in every later review. Put the concrete
+   reading up together with the question: *this stance, in this repo, means these boundaries and
+   this layout.* It is the most expensive decision in the playbook to reverse and the only one every
+   future feature inherits, so it earns a screen of the owner's attention where a feature decision
+   earns a line.
+
+   If the owner is absent, derive the stance from the code, mark it `derived` in the document, and
+   surface it where the run's decisions are actually read — the PR's Assumptions, the sprint report
+   — not only in a log. A stance nobody chose is the first thing the owner should be offered the
+   chance to correct, rather than a line they discover months later.
+
+   Once recorded the stance is followed consistently and changes only on the owner's word — never as
+   a side effect of a refresh; proportionality applies *inside* it — module boundaries per the
    stance, no ceremony around a five-line helper.
 4. **Research the ecosystem, don't recall it.** With network access, check the official
    documentation and release notes for the installed framework version, and the ecosystem's own
@@ -71,13 +84,20 @@ one of them costs anything:
   matches the dependency manifests. Say nothing and move on; this is the outcome almost every run
   hits, and it must cost seconds.
 - **Missing** — no playbook, or a standards document with no fingerprint (written before this
-  skill existed). Run the full generation above. Interactive runs ask the stance question;
-  headless ones derive and log it.
+  skill existed). Run the full generation above. Interactive runs ask the stance question with its
+  concrete reading; headless ones derive it, mark it `derived`, and surface it as step 3 requires.
 - **Stale** — the fingerprint no longer matches: dependencies were added or removed, a framework
   version moved. Refresh what the drift touches — the stack profile and the library map, plus a
   patterns look when the framework itself changed — and leave the architecture stance untouched;
   it changes only when the owner says so. Note the refresh in one line so the run's record shows
   why the standards moved.
+
+  One thing a refresh looks at without touching: whether the code still matches the stance the
+  document records. Where they have visibly parted — the boundaries the stance describes are not the
+  boundaries the code has — say so in one line as a finding. Which of the two is wrong is the
+  owner's call, and it is a call they cannot make while nobody tells them the two diverged. A stance
+  the code stopped following is the kind of thing that quietly makes every design decision after it
+  slightly wrong.
 
 The owner can still ask for a refresh at any time — after adopting a new library worth
 generalizing, or when changing the architecture stance itself, which only ever happens by their

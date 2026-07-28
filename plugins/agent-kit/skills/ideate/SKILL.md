@@ -16,20 +16,30 @@ Two scopes, same skill:
 
 The user is present throughout. Propose and argue; don't pick a direction and run with it. Put
 everything to them in the shape `${CLAUDE_PLUGIN_ROOT}/rules/presenting.md` prescribes: verdicts
-and options as compact tables or structured choices, decisions split into *your call* and *taken as
-given*, no walls of text.
+and options as compact tables or structured choices, decisions sorted into its three groups — *your
+call*, *taken as given*, *left to the build* — no walls of text.
 
 ## Steps
 
 1. **Load context** — `.agent-kit/project/manifest.yml`, then the `sources` documents it registers
    (idea, roadmap, product spec) and what already exists in the code. Take paths from the manifest.
    The product's north star lives in `sources.idea`; every idea is judged against it.
+
+   Then check what you read against the code. A roadmap describes the product as it was last written
+   down, and the part of it this riff touches may already be built, built differently, or quietly
+   dropped. Verify the claims this riff leans on — only those — and where a document and the code
+   disagree, put the divergence up as a fact instead of reasoning on top of it. Ideas generated
+   against a product that no longer exists are exactly the ones that feel beside the point.
 2. **Frame the arena** — broad scope: the theme from `$ARGUMENTS`, or ask in one message what to
    riff on. Feature scope: state what the feature is meant to do as written, and the underlying
    user need it serves. The need matters more than the wording — that is where better ideas come
    from.
 3. **Check proportionality** — if the feature is trivial and there is genuinely nothing to improve,
-   say so in a sentence and hand straight to design. Don't manufacture ideas to look busy.
+   say so in a sentence and hand straight to design. Don't manufacture ideas to look busy. The
+   feature's depth decides how readily this off-ramp is taken — `brainstorming` defines the levels,
+   `sprint` and `ship` set them: `light` takes it easily, `deep` does not take it at all. The owner
+   asked for the discussion, and the product layer is where its cheapest version happens, before a
+   single decision has been designed against.
 4. **Generate** — work the lenses below for concrete, specific ideas. Broad scope goes wide;
    feature scope stays bounded to this feature and its immediate neighbours. Hold judgment here.
 5. **Spar** — now judge. State each idea's best version before assessing it, give a verdict with a
