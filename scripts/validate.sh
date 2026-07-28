@@ -197,6 +197,15 @@ while IFS= read -r ref; do
 done < <(grep -rhoE '\$\{CLAUDE_PLUGIN_ROOT\}/[A-Za-z0-9_./-]+' "$PLUGIN" \
            | sed 's|${CLAUDE_PLUGIN_ROOT}/||' | sed 's|[.,)]*$||' | sort -u)
 
+# Skills take document paths only from the project manifest, so every `sources.<key>` the payload
+# reads has to be a key the manifest template ships. Renaming one there is a silent break: the skill
+# keeps naming a key nobody writes and reports the document as absent. `sources.screens` is read by
+# three skills and written by one, which is exactly the spread that makes a rename look harmless.
+while IFS= read -r key; do
+  grep -qE "^  $key:" "$PLUGIN/templates/project/manifest.yml" \
+    || fail "payload reads manifest sources.$key, which the manifest template does not ship"
+done < <(grep -rhoE '\bsources\.[a-z_]+' "$PLUGIN" | sed 's|sources\.||' | sort -u)
+
 # A template page and the scripts it loads are copied into a project together, so the same rule
 # applies to them: a src the page names but the payload does not ship is a blank page in someone
 # else's repository.
@@ -248,6 +257,31 @@ if command -v node >/dev/null 2>&1; then
     }
   ' "$PLUGIN/templates/screens/screens.data.js" \
     || fail "the screen map demo data does not load into a non-empty window.SCREENS"
+
+  # The demo map is what the format reference sends a reader to as the valid file, and a feature's
+  # Docs step now edits a real map by the same two rules: allocate ids from the counters and raise
+  # them, and give a card that reached `implemented` the `code` path that proves it. Neither rule is
+  # visible in the viewer — a counter that has fallen behind hands out an id that is already taken,
+  # which is the id reuse the format forbids — so an example that breaks one ships as the pattern.
+  node -e '
+    global.window = {};
+    require(require("path").resolve(process.argv[1]));
+    const d = global.window.SCREENS;
+    const top = (items) => (items || []).reduce(
+      (m, x) => Math.max(m, parseInt(String(x.id).slice(1), 10) || 0), 0);
+    const bad = [];
+    if (!(d.meta.nextScreenId > top(d.screens))) {
+      bad.push(`meta.nextScreenId ${d.meta.nextScreenId} does not clear S${top(d.screens)}`);
+    }
+    if (!(d.meta.nextTransitionId > top(d.transitions))) {
+      bad.push(`meta.nextTransitionId ${d.meta.nextTransitionId} does not clear T${top(d.transitions)}`);
+    }
+    for (const s of d.screens) {
+      if (s.status === "implemented" && !s.code) bad.push(`${s.id} is implemented with no code path`);
+    }
+    if (bad.length) throw new Error(bad.join("; "));
+  ' "$PLUGIN/templates/screens/screens.data.js" \
+    || fail "the screen map demo data breaks a rule the skills tell a project's map to keep"
 else
   printf 'node not available — skipped\n'
 fi
