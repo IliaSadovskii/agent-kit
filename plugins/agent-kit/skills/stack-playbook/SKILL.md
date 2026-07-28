@@ -63,7 +63,7 @@ taking is right*. The playbook must not restate it, only rely on it.
 
 ## The freshness check
 
-`ship` runs this at the start of every run (and `sprint`'s night features inherit it through
+`ship` runs this at the start of every run (and `sprint`'s features inherit it through
 `ship --brief`), so the owner never has to remember the playbook exists. Three outcomes, and only
 one of them costs anything:
 

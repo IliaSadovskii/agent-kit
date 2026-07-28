@@ -47,7 +47,7 @@ the marketplace.
 | Command | What it does |
 |---|---|
 | `/agent-kit:ship [task]` | Front-loaded interaction, then autonomous through to a PR |
-| `/agent-kit:sprint [theme]` | An evening hour of briefing buys a night of ship runs — stacked PRs by morning |
+| `/agent-kit:sprint [theme]` | An hour of briefing buys a queue of unattended ship runs — stacked PRs at the end |
 | `/agent-kit:fix [task]` | Lightweight path for a local, low-risk change |
 | `/agent-kit:debug [symptom]` | Reproduce, isolate, root-cause, then fix with a regression test |
 | `/agent-kit:address [pr]` | Close a review round on an open PR: comments and CI in, fixes and replies out |

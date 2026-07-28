@@ -11,7 +11,7 @@ Plugin skills are namespaced, so every command below is `/agent-kit:<name>`.
 | Command | Behavior |
 |---|---|
 | `/agent-kit:ship [task]` | Front-loaded interaction, then autonomous to PR |
-| `/agent-kit:sprint [theme]` | One evening hour of briefing, then a night of ship runs — stacked PRs by morning |
+| `/agent-kit:sprint [theme]` | One hour of briefing, then a queue of unattended ship runs — stacked PRs at the end |
 | `/agent-kit:fix [task]` | Lightweight path for a local, low-risk change |
 | `/agent-kit:debug [symptom]` | Reproduce, isolate, root-cause, fix with a regression test |
 | `/agent-kit:address [pr]` | Close a review round on an open PR — comments and CI in, fixes and replies out |
