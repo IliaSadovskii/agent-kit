@@ -46,7 +46,8 @@ say so once at the start and continue.
 - **Gate** — two different things have to be true before a feature, and they are not the same gate.
   See "The two gates" below.
 - **Task** — use the free-text task when supplied. Otherwise read the idea and roadmap sources,
-  inspect current code and recent history, propose 2–3 next coherent chunks, and let the user choose.
+  inspect current code and recent history, propose 2–3 next coherent chunks, and let the user choose
+  — as one structured choice per `${CLAUDE_PLUGIN_ROOT}/rules/presenting.md`, not an essay.
 - **Ideate** — unless `--no-ideate`, run `ideate` scoped to the chosen feature: ask whether it is
   the best version of itself, agree what is in and out, and optionally roadmap what is deferred. The
   user may decline and build the roadmap version unchanged. Skipped when the project has no product
