@@ -39,6 +39,20 @@ before opening a new brief.
    per feature, about ten minutes of the owner's attention each. What the owner settles here is
    exactly what `ship --brief` will treat as settled; what is left open becomes the night run's
    logged assumptions — say so at the first sketch so the trade is explicit.
+
+   Spend the owner's question budget where wrongness is expensive. A fork on an irreversible or
+   hard-to-change surface — a data migration, a public API shape, a security boundary, money —
+   earns a deep question; internal mechanics earn none, however interesting. A night deviation is
+   cheap to fix where code is private and brutal where it is not, and the interview should mirror
+   exactly that asymmetry.
+
+   The night is also cheap in a way an interactive run is not: nobody is waiting. Verification too
+   slow for the day is affordable after dark — mutation testing over the changed code (the one
+   mechanical proof that the new tests *can* fail), property-based tests where there is parsing,
+   arithmetic, or an invariant, a full end-to-end pass over the touched surface instead of a
+   smoke. Name in each sketch which heavy layer the feature earns, if any — resilience testing
+   only where the product genuinely has failure modes to survive — and the night session owes it
+   as part of the verification plan.
 4. **Write the sprint to disk.**
 
    ```text
