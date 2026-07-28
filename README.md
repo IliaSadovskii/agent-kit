@@ -76,10 +76,10 @@ diff matches the design that was approved for it.
 | Every file under `plugins/agent-kit/` | `.agent-kit/project/manifest.yml` and `instructions.md` |
 | The skills, agents, rules, and hooks it installs | Your product docs, source, tests, and `CLAUDE.md` |
 
-One file crosses that line on purpose: the screen map viewer `docs/screens/screens.html`, which
-`/agent-kit:screens` copies in and refreshes. It is plugin code that happens to sit in your
-repository so the map opens with a double click — the map itself, `screens.data.js`, is yours and is
-never overwritten.
+One file crosses that line on purpose — the screen map viewer, `docs/screens/screens.html`, which
+`/agent-kit:screens` copies in and later replaces; see
+[docs/developing.md](docs/developing.md#what-must-never-end-up-in-the-plugin). The map beside it is
+yours.
 
 Project-specific rules belong in `.agent-kit/project/instructions.md`, which no update rewrites. If
 you find yourself wanting to edit a file inside the plugin, that is a signal the change belongs

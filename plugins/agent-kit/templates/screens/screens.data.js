@@ -1,21 +1,18 @@
-// The screen map of the app. Generated and reconciled by /agent-kit:screens; open screens.html
-// next to it in a browser to read it. This file is the only one the agent edits — the viewer is
-// replaced by plugin updates, so changes made to it are lost.
+// DEMO MAP — the example that ships with the kit, of an app that does not exist. It is never
+// copied into a project: /agent-kit:screens writes the project's own map from the project's own
+// documents and code. Open screens.html beside it to see the viewer working, and change
+// `platform` below to 'web' to see the other card frame.
 //
-// The format is documented in the skill's references/format.md. In short: `meta` holds the
-// platform and the id counters, `screens` holds one entry per screen with a `layout` of rows, and
-// `transitions` holds the arrows. Ids are never reused — a deleted screen leaves a permanent gap,
-// so an old conversation that says "S7" always means the same screen.
-//
-// This copy is the demo map that ships with the kit: it exercises every feature of the format at
-// once, which makes it both the example and a way to see the viewer working before a real project
-// has a map of its own. Change `platform` below to 'web' and reload to see the other card frame.
+// It is also the worked example of the format, which is documented in full in the skill's
+// references/format.md: `meta` holds the platform and the id counters, `screens` holds one entry
+// per screen with a `layout` of rows, and `transitions` holds the arrows. Ids are never reused —
+// see the reference for why that rule is absolute.
 
 window.SCREENS = {
   meta: {
     platform: 'mobile',        // mobile | web | desktop — picks the card frame
     nextScreenId: 11,          // the next free S<n>; never decreases
-    nextTransitionId: 13,      // the next free T<n>; never decreases
+    nextTransitionId: 14,      // the next free T<n>; never decreases
   },
 
   screens: [
@@ -169,5 +166,6 @@ window.SCREENS = {
     { id: 'T10', from: 'S5', to: 'S4', trigger: 'back' },
     { id: 'T11', from: 'S7', to: 'S8', trigger: 'taps Invite friends' },
     { id: 'T12', from: 'S7', to: 'S2', trigger: 'signs out' },
+    { id: 'T13', from: 'S4', to: 'S4', trigger: 'pull to refresh' },
   ],
 };

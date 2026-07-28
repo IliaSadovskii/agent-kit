@@ -7,9 +7,7 @@ disable-model-invocation: true
 # Screens
 
 A product that has screens is understood by looking at them, not by reading a list of them. This
-command turns the project's own documents and code into a map: every screen as a mini-wireframe,
-every transition as a labelled arrow, and a status on each card separating what exists from what
-was agreed, floated, or dropped.
+command turns the project's own documents and code into that picture.
 
 It writes exactly two files, at `manifest.sources.screens` when that is already registered and in
 `docs/screens/` by default when it is not:
@@ -30,8 +28,9 @@ element vocabulary and the id rules. Do not invent fields; the viewer only draws
 
 Then find the ground truth:
 
-- `.agent-kit/project/manifest.yml` → the registered idea, roadmap, and documentation sources, and
-  `sources.screens` if a map already exists.
+- `.agent-kit/project/manifest.yml` → the registered idea, roadmap, and documentation sources;
+  `sources.coding_standards`, which is where the stack playbook recorded this project's stack and
+  its house conventions; and `sources.screens` if a map already exists.
 - No manifest — this still works. Read `docs/` and `README.md`, and say once that the map is built
   from those because the project has no registered sources.
 
@@ -41,10 +40,9 @@ and stop. No files, no branch, no PR. An empty map is worse than none: it looks 
 
 ## First run
 
-1. **Detect the platform.** Mobile, web, or desktop, from the stack — a React Native or Flutter
-   project is `mobile`, a Next.js or Rails app is `web`, an Electron or native shell is `desktop`.
-   It only picks the card frame. Say which you chose; the owner overrides it in one word and the
-   choice is never re-detected over their head afterwards.
+1. **Set the platform, once.** If `meta.platform` already has a value, leave it alone — it is the
+   owner's. Otherwise derive it from the stack the playbook recorded, or from the code: mobile, web,
+   or desktop. It only picks the card frame. Say which you chose.
 2. **Read the product documents** for the screens that are *described* — the idea document, the
    roadmap, any flow or UX notes. These give you purposes and triggers, which code cannot.
 3. **Scan the code** for the screens that *exist* — see below. A screen found in code is
@@ -52,9 +50,9 @@ and stop. No files, no branch, no PR. An empty map is worse than none: it looks 
    is `planned`.
 4. **Compose the map.** Group screens into flows a person would recognize (onboarding, browse,
    checkout, account) — flows become the columns, so this grouping is what makes the map readable.
-   Write the wireframe rows from what the screen actually contains: three to six load-bearing
-   elements, not a transcription of every control. Write transitions for the paths you can support
-   from the docs or the code, and give each one a trigger in the person's words.
+   Write the wireframe rows per the reference, from what the screen actually contains. Write
+   transitions for the paths the docs or the code support, and give each one a trigger in the
+   person's words.
 5. **Copy the viewer** from `${CLAUDE_PLUGIN_ROOT}/templates/screens/screens.html` unchanged. Do
    not copy the demo `screens.data.js` next to it — that is the kit's example, and the project's map
    replaces it.
@@ -67,7 +65,7 @@ Regenerating throws away everything the map knows that the code does not: the re
 ideas, the phrasing the owner corrected. So read the existing file first and change it in place.
 
 - **Ids are stable.** Allocate new ones from `meta.nextScreenId` / `meta.nextTransitionId` and raise
-  the counter. Never renumber, never reuse a gap.
+  the counter; the reference explains why that rule has no exceptions.
 - **`planned` → `implemented`** when the code appeared, with the `code` path filled in. That flip is
   the map's main job.
 - **`implemented` → drift, not deletion,** when the code is gone: check whether it moved before
@@ -76,33 +74,27 @@ ideas, the phrasing the owner corrected. So read the existing file first and cha
   screen that got built becomes `implemented`, and that is worth saying out loud in the PR.
 - **New screens found in code or docs are added** to the flow they belong to, appended after their
   neighbours rather than reordered into place.
-- **The viewer is refreshed** when it differs from the plugin's current copy. It is plugin-owned and
-  says so in its own header — nobody edits it, so replacing it is how viewer improvements reach a
-  project. Mention the refresh in the PR; it is the one time this command touches that file after
-  the first run.
+- **The viewer is refreshed** when it differs from the plugin's current copy — it is plugin-owned
+  wherever it sits, which `docs/developing.md` records as the one exception to what a project owns.
+  Copy it over and mention the refresh in the PR.
 
 Report the drift you found either way: what flipped, what is new, what the docs promise and the
 code does not have.
 
 ## The code scan
 
-Best-effort and stack-aware. Routes first, because a router is a screen inventory somebody already
-wrote; then screen-shaped components:
+**Find the router first.** Whatever the stack calls it — a routes directory, a navigator, a URL
+configuration, a list of destinations — it is a screen inventory somebody already wrote and kept
+current, and reading it beats pattern-matching component names. The playbook in
+`sources.coding_standards` names this project's framework and its conventions; a shipped list of
+per-stack file patterns would be stale training data pretending to be knowledge.
 
-| Stack | Where the screens are |
-|---|---|
-| Next.js / React | `app/**/page.*`, `pages/**`, `<Route>` elements in a router config |
-| Vue / Nuxt | `pages/**`, `routes` in the router module |
-| Svelte / SvelteKit | `src/routes/**` |
-| React Native | the navigator's `<Screen name=…>` entries |
-| Flutter | `GoRoute` / `MaterialPageRoute` declarations, widgets returning a `Scaffold` |
-| SwiftUI / UIKit | `struct … : View`, `UIViewController` subclasses |
-| Android Compose | `@Composable fun …Screen`, `NavHost` destinations |
-| Django / Rails / Laravel | the URL configuration plus the templates it renders |
+**Then the screens the router does not reach** — modals, sheets, error and empty states. Take the
+naming convention from the screen files the router did point at: one of them names the pattern for
+the rest.
 
-Where the stack is not in that table, find the project's own convention — one screen file you know
-about names the pattern for the rest. What the scan cannot resolve is reported as drift; it is
-never guessed at, and a screen the scan cannot name is better absent than wrong.
+What the scan cannot resolve is reported as drift and never guessed at. A screen this command
+cannot name is one the next run will find; a screen it invents is one the owner has to disprove.
 
 ## Boundaries
 

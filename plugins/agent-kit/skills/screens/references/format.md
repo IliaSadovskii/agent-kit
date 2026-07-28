@@ -20,7 +20,7 @@ the fastest way to see a valid file.
 
 | Field | Values | Meaning |
 |---|---|---|
-| `platform` | `mobile` \| `web` \| `desktop` | Picks the card frame: a phone for `mobile`, a browser window otherwise. Detected once at first generation; the owner may override it and it is never re-detected over their choice. Anything else falls back to the phone frame and is reported in the legend. |
+| `platform` | `mobile` \| `web` \| `desktop` | Picks the card frame: a phone for `mobile`, a browser window otherwise. Set once at first generation; once it has a value it is the owner's, and no later run re-detects it. |
 | `nextScreenId` | integer | The next free `S<n>`. |
 | `nextTransitionId` | integer | The next free `T<n>`. |
 
@@ -55,7 +55,7 @@ at the map.
 | `flow` | yes | Grouping key; each distinct value becomes a column, in first-appearance order. |
 | `code` | implemented only | Repo-relative path to the file that implements it. This is what lets a later run tell "planned" from "shipped" without guessing. |
 | `type` | no | `screen` (default) or `overlay` — a sheet, modal, or dialog drawn over another screen. |
-| `parent` | overlays | The screen id an overlay is drawn over. The viewer attaches it, smaller, under its parent, which requires the parent to share the overlay's `flow` and to appear earlier in the file. An overlay whose parent is elsewhere still renders — in its own place in the column — and the mismatch is reported. |
+| `parent` | overlays | The screen id an overlay is drawn over. It is drawn smaller, attached under its parent, which requires the parent to share its `flow` and to appear earlier in the file. |
 | `global` | no | `true` for a screen reachable from everywhere — a tab bar destination, an offline notice, a global error. It gets an "everywhere" badge instead of an arrow from every other card. |
 | `layout` | yes | The wireframe, as rows. |
 
@@ -69,9 +69,9 @@ at the map.
   forever: the map's job includes remembering *why not*, so the same idea does not get re-proposed
   every quarter. Put the reason in `purpose`.
 
-Anything else is drawn as `planned` — of the four, "agreed but not built" is the reading least
-likely to overstate what exists — and it is reported in the legend rather than absorbed. A screen
-silently downgraded from shipped to planned is precisely the lie this document exists to prevent.
+Anything else is drawn as `planned`: of the four, "agreed but not built" is the reading least
+likely to overstate what exists. A screen silently downgraded from shipped to planned would be
+exactly the lie this document exists to prevent, so the viewer names it instead.
 
 ## `layout` — the wireframe
 
@@ -113,8 +113,8 @@ is inserted as-is, which is no more reach than the file already has: `screens.da
 this repository loads, so its contents are trusted exactly as far as the repository is.
 
 **An unknown `type` renders as a labelled neutral block rather than breaking the map.** The data
-file outlives the viewer copied beside it; a map that goes blank because someone wrote `slider` is
-worse than one showing a grey box.
+file outlives the viewer copied beside it, and a grey box next to a readable label still tells the
+reader what is on the screen; a blank page tells them nothing.
 
 ## A transition
 
@@ -125,7 +125,7 @@ worse than one showing a grey box.
 | Field | Required | Meaning |
 |---|---|---|
 | `id` | yes | `T<n>`, never reused. |
-| `from`, `to` | yes | Screen ids. A transition pointing at a missing screen is reported by the viewer, not drawn. `from` equal to `to` is a real transition — a refresh, a re-entry — and draws as a loop on the card's edge. |
+| `from`, `to` | yes | Screen ids. `from` equal to `to` is a real transition — a refresh, a re-entry — and draws as a loop on the card's edge. |
 | `trigger` | yes | The arrow's label — what the person did. Two or three words: "taps Save", "session expires". |
 | `condition` | no | When the trigger only sometimes leads here. Shown in the details panel. |
 
@@ -153,4 +153,3 @@ The agent edits this file and nothing else in `docs/screens/`. Keep it reviewabl
 - Screens in reading order within their flow, flows in the order a person meets them.
 - Append new screens at the end of their flow's group rather than reordering the file — a diff that
   moves ten entries to insert one hides the change.
-- Never renumber, never compact the gaps, never sort by id.
