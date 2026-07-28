@@ -49,7 +49,10 @@ before opening a new brief.
    ```
 
    Each `spec.md` is the approved sketch: goal, scope in and out, settled decisions, points
-   deliberately left open, verification expectations. `queue.yml` is the sprint's durable memory:
+   deliberately left open, and **done means** — the observable acceptance criteria the night
+   session's tester must prove, with the verification expectations. A sketch without done-means
+   lines gives the night nothing to aim its tests at; do not close a sketch's approval round
+   without them. `queue.yml` is the sprint's durable memory:
 
    ```yaml
    sprint: 2026-07-28-auth
@@ -83,7 +86,11 @@ Then loop until no feature is runnable:
 1. **Pick** the first `pending` feature whose `depends_on` is `null` or `done`.
 2. **Check out its `base`** — `main` freshly pulled for independent features, the dependency's
    feature branch for dependent ones. The child session branches from whatever is checked out.
-3. **Mark it `running`** in `queue.yml`, then launch the child in the background and wait for it:
+3. **Hand down what actually happened.** For a dependent feature, write `<id>/upstream.md` before
+   launch: the parent's deviations and assumptions, pulled from its Run log or PR body, in a few
+   lines. The sketch was written against the parent as imagined the evening before; `upstream.md`
+   is the diff against reality, and `ship --brief` reads it with the spec.
+4. **Mark it `running`** in `queue.yml`, then launch the child in the background and wait for it:
 
    ```bash
    claude -p "/agent-kit:ship --brief <absolute path to spec.md>" \
@@ -93,24 +100,39 @@ Then loop until no feature is runnable:
    One child at a time, by design: parallel features in one repository conflict, and sequencing is
    what lets dependent features stack. A feature takes hours — run the child in the background and
    check on it periodically rather than holding a foreground call against a timeout.
-4. **On exit, record the outcome.** Find the feature's PR (`gh pr list --head <branch>`), mark
-   `done` with `pr` filled, or `blocked` with a one-line `note` naming the reason. A rate-limit
-   exit is not a failure: wait for the reset and relaunch the same feature. A `blocked` feature
-   blocks its dependents — mark them too, with `note: blocked by <id>` — and the loop moves on to
-   the next runnable feature instead of stopping.
-5. **Never merge anything.** The stacked PRs wait for the owner; a dependent feature builds on its
+5. **On exit, record the outcome.** Find the feature's PR (`gh pr list --head <branch>`), and mark
+   `done` with `pr` filled. A rate-limit exit is not a failure: wait for the reset and relaunch
+   the same feature. A real failure gets **one informed retry** before it costs anything: reset
+   the branch state, relaunch the same feature once with the tail of its `run.log` alongside the
+   spec — a transient 3 a.m. failure should not take a stack down. Only after the retry mark it
+   `blocked` with a one-line `note` naming the reason; a `blocked` feature blocks its dependents —
+   mark them too, with `note: blocked by <id>` — and the loop moves on to the next runnable
+   feature instead of stopping.
+6. **Never merge anything.** The stacked PRs wait for the owner; a dependent feature builds on its
    parent's *branch*, not on a merge.
 
 The queue file is updated at every transition, not at the end — it is how a resumed session finds
 out where the night stood.
 
+## The integration check
+
+Features green one by one are not yet a green module — and a module the owner can merge into the
+app with no rework is the whole point of the night. When the loop empties, check out the tip of
+each stack and each independent branch, run the project's full declared suite there, and start the
+app if it has a runnable surface, exercising what the batch changed. A failure traceable to one
+feature gets one fix round on that feature's branch — fix, rerun what the fix put at risk, push,
+note it in the queue; anything wider than one feature is reported, not patched at dawn. The
+verdict, per branch, leads the morning report.
+
 ## The morning report
 
-When nothing is runnable, set the sprint `status` accordingly, write
-`.agent-kit/sprint/<sprint>/REPORT.md`, and present it: a table of feature / status / PR / what
-needs the owner's eye (assumption counts, blockers, red CI), then the merge order for the stacked
-PRs, and the commands for what comes next — `/agent-kit:address <pr>` for review rounds, resuming
-the sprint for blocked features. Keep it to one screen; the details live in the PRs.
+When the integration check is done, set the sprint `status` accordingly, write
+`.agent-kit/sprint/<sprint>/REPORT.md`, and present it. In order: the integration verdict; a table
+of feature / status / PR / CI; then **the decisions taken without the owner** — each feature's
+assumptions and deviations gathered from the night's Run logs, as short lines, not counts, because
+they are the exact places the owner's eye is needed; then the merge order for the stacked PRs and
+the commands for what comes next — `/agent-kit:address <pr>` for review rounds, resuming the
+sprint for blocked features. Keep it to one screen; the details live in the PRs.
 
 ## Resume
 
