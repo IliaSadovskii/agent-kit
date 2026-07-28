@@ -107,7 +107,8 @@ say so once at the start and continue.
   separate docs-only PR from the default branch; otherwise mark docs as current in the feature PR.
   The project's screen map is the one exception: when this feature changed what the app shows, the
   map is updated on the feature branch and pushed to this PR, because a card marked `implemented`
-  points at code that only exists here.
+  points at code that only exists here. That push lands after the PR step declared CI green, so
+  check the pipeline once more afterwards — the map is a script the project may lint or build.
 
 The pipeline is complete when the feature PR exists with CI green or its state reported, and docs
 reflection is resolved — or when an insurmountable blocker has been reported with the branch left
@@ -156,16 +157,18 @@ a screen the project's map already describes. Resolve it at the Task step, befor
 anything. The grammar is a standalone `S<digits>` token, so `S7Adapter` and `TLS7` are not screen
 references.
 
-Find the map at `.agent-kit/project/manifest.yml` → `sources.screens` when that key has a value, and
-at `docs/screens/screens.data.js` when it does not — the manifest template ships the key empty, so a
-project whose map is on disk and unregistered is the common case, not an error. The file is read
-under `${CLAUDE_PLUGIN_ROOT}/skills/screens/references/format.md`.
+Find the map at `.agent-kit/project/manifest.yml` → `sources.screens`, and at
+`docs/screens/screens.data.js` when that key is empty or its path is gone — the manifest template
+ships the key empty, so look on disk before concluding there is no map. The file is read under
+`${CLAUDE_PLUGIN_ROOT}/skills/screens/references/format.md`.
 
 The entry seeds the task definition: `title` and `purpose` say what the screen is for, `layout` says
 what is on it, `status` says whether this run builds it or changes something that exists, and every
 transition with the id at either end says what it must be reachable from and where it leads. That is
 input, not a finished spec — Ideate still runs unless `--no-ideate` or `--brief` applies, and Design
-still explores the code.
+still explores the code. A `status` of `rejected` is the owner's own decision not to have this
+screen: say so before building it, rather than quietly reviving what the map remembers them
+dropping.
 
 Two things stop the run before design rather than guessing, and both name `/agent-kit:screens`:
 
@@ -175,8 +178,9 @@ Two things stop the run before design rather than guessing, and both name `/agen
   about a screen nobody can look at is exactly what this resolution exists to prevent.
 
 Under `--brief` the sketch is the approved unit of work, so an id inside it is a cross-reference
-rather than the task: read the map entry as context for the design expansion when a map exists, and
-record its absence in the Run log rather than blocking a run nobody is watching.
+rather than the task: read the map entry as context for the design expansion, and when the map or
+the id is missing write that in the Run log and carry on with the sketch, rather than blocking a run
+nobody is watching.
 
 Building the screen does not update the map. The Docs step does that, so that exactly one step
 writes the file — and `screens.data.js` is the only part of it a feature ever writes, since the
