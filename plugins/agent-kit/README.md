@@ -17,6 +17,7 @@ Plugin skills are namespaced, so every command below is `/agent-kit:<name>`.
 | `/agent-kit:address [pr]` | Close a review round on an open PR — comments and CI in, fixes and replies out |
 | `/agent-kit:docs` | Reconcile living documentation |
 | `/agent-kit:screens` | Map every screen and transition, and keep the map true |
+| `/agent-kit:screens-riff [focus]` | Propose the screens the app is missing, onto the map |
 | `/agent-kit:riff [theme]` | Interactive strategy, builds nothing |
 
 The kit also ships two subagents, `agent-kit:reviewer` and `agent-kit:tester`, which the pipelines
