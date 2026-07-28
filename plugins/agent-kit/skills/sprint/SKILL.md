@@ -24,9 +24,11 @@ before opening a new brief.
 
 ## The brief
 
-1. **Compose the batch.** Theme from `$ARGUMENTS`, or ask once. Read the idea and roadmap sources,
-   the code, and recent history, then propose one coherent batch of 3–6 features with an explicit
-   dependency order — which features build on which, which are independent. Put the composition up
+1. **Compose the batch.** First run `stack-playbook`'s freshness check — the evening, with the
+   owner present, is the cheapest moment to repair a missing or stale playbook, and every sketch
+   tonight will lean on its library map; current costs seconds and no words. Then: theme from
+   `$ARGUMENTS`, or ask once. Read the idea and roadmap sources, the code, and recent history,
+   then propose one coherent batch of 3–6 features with an explicit dependency order — which features build on which, which are independent. Put the composition up
    as one structured choice, not an essay. Fewer, coherent features beat many loose ones: shared
    context between them is what makes a batch cheaper than N separate evenings.
 2. **Scope the batch in one pass.** An `ideate`-style round over all chosen features together:

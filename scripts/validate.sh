@@ -171,7 +171,7 @@ for missing in sorted(documented - skill_names):
 for undocumented in sorted(skill_names - documented):
     # Skills the pipelines call internally do not need a README row.
     if undocumented in {"brainstorming", "writing-plans", "ideate", "idea-interview",
-                        "docs-reflection"}:
+                        "docs-reflection", "stack-playbook"}:
         continue
     errors.append(f"skill {undocumented!r} is not documented in {plugin}/README.md")
 
