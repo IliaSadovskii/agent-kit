@@ -16,6 +16,13 @@ asking routine questions.
 /plugin install agent-kit@agent-kit
 ```
 
+That is the whole install. It also pulls in Anthropic's `code-review` and `pr-review-toolkit`
+plugins, which the kit declares as dependencies — Claude Code resolves those automatically and lists
+them at the end of the install. They supply review depth that Claude Code's bundled `/code-review`
+has but cannot lend to an agent; see [the plugin's README](plugins/agent-kit/README.md#working-with-the-rest-of-claude-code)
+for why. If they cannot be reached — a locked-down marketplace policy, a Claude Code old enough not
+to ship the official marketplace — the kit still runs and reviews with its own agent instead.
+
 Then start a fresh session and run `/agent-kit:ship`. On a project that has never used the kit it
 interviews you about the product, records where your docs live, generates only what is missing, and
 opens a bootstrap PR before it builds anything.

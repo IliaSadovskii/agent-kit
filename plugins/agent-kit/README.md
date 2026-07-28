@@ -69,18 +69,17 @@ the project's own commands, and both bundled checks are offered in the PR descri
 one-keystroke second opinions at the moment the owner is already reading.
 
 Two Anthropic plugins close most of that gap, because plugin commands and agents *are*
-model-invocable. The kit uses them when a project has them enabled and works without them:
+model-invocable — and the kit declares both as dependencies, so installing the kit installs them.
+Nothing to do by hand.
 
-```text
-/plugin install pr-review-toolkit@claude-plugins-official
-/plugin install code-review@claude-plugins-official
-```
+- **`pr-review-toolkit`** supplies specialist review agents the Review step delegates to:
+  `pr-review-toolkit:silent-failure-hunter`, `:pr-test-analyzer`, `:type-design-analyzer`.
+- **`code-review`** supplies `/code-review:code-review`, a multi-agent confidence-scored pass the PR
+  step runs on the open pull request. Same architecture as the bundled command, reachable by an agent.
 
-The official marketplace ships pre-configured with Claude Code, so there is no marketplace to add.
-`pr-review-toolkit` supplies specialist review agents the kit delegates to during Review;
-`code-review` supplies a multi-agent, confidence-scored pass that the PR step runs on the open pull
-request. Install them once at user scope and every project has them, or declare them in a project's
-`.claude/settings.json` to pin them for everyone working in that repository.
+If they are missing anyway — an organization policy that blocks the official marketplace, or a Claude
+Code old enough not to ship it — nothing breaks. Every step that uses them says "when enabled", and
+the `reviewer` agent covers correctness on its own. You lose depth, not the pipeline.
 
 Two kinds of plugin are worth having alongside the kit, though it requires neither:
 

@@ -14,5 +14,8 @@
       "source": "./plugins/agent-kit",
       "description": "Build product features through long-running Claude Code sessions: front-loaded interaction on what to build and how, then autonomous work through to a pull request."
     }
+  ],
+  "allowCrossMarketplaceDependenciesOn": [
+    "claude-plugins-official"
   ]
 }

@@ -17,5 +17,15 @@
     "code-review",
     "autonomous",
     "pull-request"
+  ],
+  "dependencies": [
+    {
+      "name": "code-review",
+      "marketplace": "claude-plugins-official"
+    },
+    {
+      "name": "pr-review-toolkit",
+      "marketplace": "claude-plugins-official"
+    }
   ]
 }

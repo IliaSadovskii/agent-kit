@@ -93,6 +93,20 @@ if market is not None and manifest is not None:
         if entry.get("source") == f"./{plugin}" and entry.get("description") != manifest.get("description"):
             errors.append("marketplace.json plugin description != plugin.json description")
 
+# A dependency on a plugin from another marketplace fails the install outright unless this
+# marketplace — the root one, since it hosts what the user installs — allowlists that source.
+if manifest is not None and market is not None:
+    allowed = set(market.get("allowCrossMarketplaceDependenciesOn") or [])
+    for dep in manifest.get("dependencies") or []:
+        if not isinstance(dep, dict):
+            continue
+        origin = dep.get("marketplace")
+        if origin and origin not in allowed:
+            errors.append(
+                f"plugin.json depends on {dep.get('name')!r} from marketplace {origin!r}, which is "
+                "not in marketplace.json allowCrossMarketplaceDependenciesOn — the install would fail"
+            )
+
 
 def frontmatter(path):
     with open(path, encoding="utf-8") as fh:

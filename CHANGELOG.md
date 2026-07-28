@@ -39,6 +39,26 @@ Fixed by making every path something an agent can actually reach:
   wait for them: after design approval the owner may be asleep, and a pipeline that waits for a human
   never finishes.
 
+## 0.7.0
+
+One install gets everything. 0.6.1 and 0.6.2 taught the kit to *use* Anthropic's `code-review` and
+`pr-review-toolkit`; this makes them arrive on their own.
+
+- **The kit declares both as dependencies.** `/plugin install agent-kit@agent-kit` now resolves and
+  installs them too, and Claude Code lists what it added at the end of the install. Nothing to
+  install by hand, and no per-project step.
+- Cross-marketplace dependencies are blocked by default, and the allowlist that unblocks them belongs
+  to the marketplace the user installs *from* — this one. `marketplace.json` now carries
+  `allowCrossMarketplaceDependenciesOn: ["claude-plugins-official"]`. Without it the install fails
+  outright, so the validator refuses to ship a cross-marketplace dependency whose source is not
+  allowlisted.
+- No version constraints on either dependency: those resolve against git tags in someone else's
+  repository, so pinning would break the moment their tagging convention differed.
+- If the dependencies cannot be reached at all — an organization policy blocking the official
+  marketplace, or a Claude Code old enough not to ship it — they are left unresolved and the kit
+  still runs. Every step that uses them is written "when enabled", and the `reviewer` agent covers
+  correctness alone. You lose depth, not the pipeline.
+
 ## 0.6.2
 
 Follow-up audit of the same class of bug as 0.6.1: an instruction the agent cannot act on.
