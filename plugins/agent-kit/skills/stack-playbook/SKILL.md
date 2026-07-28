@@ -1,6 +1,6 @@
 ---
 name: stack-playbook
-description: Generate or refresh the stack playbook inside the project's registered coding standards — detect the stack and application type, record the owner's architecture stance for each area that has its own, research the framework's current idioms and ecosystem libraries, and write short justified rules the pipelines load before every feature. Invoked by idea-interview at bootstrap, or when the user asks to create or update stack standards or the playbook.
+description: Generate or refresh the stack playbook inside the project's registered coding standards — detect the stack and application type, research the framework's current idioms and ecosystem libraries, derive each area's architecture stance from the code and that research, write short justified rules the pipelines load before every feature, and close by showing the owner what was concluded and inviting the rules only they know. Invoked by idea-interview at bootstrap, or when the user asks to create or update stack standards or the playbook.
 ---
 
 # Stack playbook
@@ -19,9 +19,15 @@ against — that placement, not repetition in prompts, is what makes the rules i
    ones: a version upgrade is a feature for the roadmap, never a playbook side effect.
 2. **Mine the codebase for the real conventions.** How modules are laid out, how errors flow, how
    tests are written here. In an existing project the playbook describes the house style before it
-   prescribes anything; where existing code contradicts the framework's idiom, note which one wins
-   and why rather than silently picking.
-3. **Record the architecture stances — proposed from evidence, decided by the owner.** Nothing here
+   prescribes anything; where existing code contradicts the stack's idiom, record both sides — step
+   4 decides what it means for new work, and the close-out puts that decision to the owner.
+3. **Research the ecosystem, don't recall it.** With network access, check the official
+   documentation and release notes for the installed framework version, and the ecosystem's own
+   catalogues (Packagist, npm, crates.io, pub.dev — whatever the stack uses) for the library map
+   below. Prefer sources over memory: training-data knowledge of an ecosystem is stale by
+   definition. Without network, write from knowledge and mark the library map `unverified` so the
+   next connected session knows to check it.
+4. **Write down the architecture stances — observed and researched, not interviewed.** Nothing here
    is preset by the kit, and there is rarely only one. A project answers the architecture question
    separately in each area where its answer actually differs — the domain, the HTTP surface,
    background work, the client, how data is reached. A CRUD app has one line; a layered product has
@@ -29,36 +35,19 @@ against — that placement, not repetition in prompts, is what makes the rules i
    separates, never from a checklist: inventing areas a project does not have is the failure mode
    here, because every line becomes a rule somebody has to obey forever.
 
-   Make it answerable by defaulting. **The framework's own idiom holds everywhere the owner does not
-   deviate**, so the question is never "choose an architecture" — nobody answers that well at
-   bootstrap, before the code that would inform it exists — but "here is where I would depart from
-   the framework, and what that buys and costs". Areas where the framework's default is plainly
-   right are declared in *taken as given*, not asked.
+   Each row is filled from the two sources above it: what the code already does, and what this stack
+   is understood to do well. Nothing here is asked. Choosing an architecture is not a question anyone
+   answers well at bootstrap, before the code that would inform the answer exists, and a stance the
+   owner does have will land far better against a finished playbook than against a blank prompt —
+   which is what the close-out in step 6 is for.
 
-   Put the set up in one round per `${CLAUDE_PLUGIN_ROOT}/rules/presenting.md` — one fork per area,
-   recommendation marked, each with its concrete reading attached. A stance answered "DDD" and
-   nothing else leaves you to invent where boundaries sit, what a module is, and what may cross one,
-   and that invented part is what the owner will feel in every later review. These are the most
-   expensive decisions the kit records and every future feature inherits them, so they earn a screen
-   of the owner's attention where a feature decision earns a line.
+   Where the code and the stack's practice disagree, follow the code, record the idiom as the rule
+   for new work, and carry the disagreement into the close-out as a line the owner can overturn.
+   Silently picking either side is the one thing not allowed.
 
-   An area the project does not have yet is not asked about. When it appears — the product grows
-   background work it never had — that is one question at the refresh that meets it, and one new row.
-
-   If the owner is absent, derive the stances from the code, mark them `derived` in the document, and
-   surface them where the run's decisions are actually read — the PR's Assumptions, the sprint report
-   — not only in a log. A stance nobody chose is the first thing the owner should be offered the
-   chance to correct, rather than a line they discover months later.
-
-   Once recorded they are followed consistently and change only on the owner's word — never as a side
-   effect of a refresh; proportionality applies *inside* them — boundaries per the stance of that
-   area, no ceremony around a five-line helper.
-4. **Research the ecosystem, don't recall it.** With network access, check the official
-   documentation and release notes for the installed framework version, and the ecosystem's own
-   catalogues (Packagist, npm, crates.io, pub.dev — whatever the stack uses) for the library map
-   below. Prefer sources over memory: training-data knowledge of an ecosystem is stale by
-   definition. Without network, write from knowledge and mark the library map `unverified` so the
-   next connected session knows to check it.
+   Once recorded, stances are followed consistently and change only on the owner's word — never as a
+   side effect of a refresh; proportionality applies *inside* them — boundaries per the stance of
+   that area, no ceremony around a five-line helper.
 5. **Write the playbook into the registered document**, updating in place and preserving the
    owner's own edits — reconcile, never clobber. End it with a **fingerprint**: the dependency
    manifests and lockfiles it was generated from, with the framework versions read from them, and
@@ -82,6 +71,28 @@ against — that placement, not repetition in prompts, is what makes the rules i
 6. **Keep it loadable.** Every rule is one line with its justification; the whole playbook should
    be readable in a minute, because it is read before every feature. Depth belongs in the linked
    official docs, not here.
+7. **Close out: show what you concluded, then invite what only the owner knows.** This replaces the
+   interview that used to open this skill, and it is the better trade — an owner reacting to a
+   finished playbook remembers what they actually care about, where the same person facing a blank
+   architecture question at bootstrap does not.
+
+   Put up one screen: the stack profile in a line, the stance table, the library map's picks, the
+   testing idioms, and any disagreement step 4 carried here — each of those as one line with what
+   you did about it. Then invite the addition. Phrase it so the invitation is concrete about *where*
+   an answer would go and open about *what* it could be — the shape being roughly *this was derived
+   from your code and from the practice of this stack; none of your own rules are in it yet — what
+   is wrong, and what is missing?* Render it in the project's language and its own words rather than
+   translating a fixed sentence.
+
+   That wording is doing specific work, so keep its two halves. Naming the sources is what invites
+   disagreement with a conclusion rather than deference to it. Saying that nothing of theirs is in
+   the document yet is what makes the owner scan the table for the gap — which is the moment a
+   preference the code could never have shown gets remembered and said out loud.
+
+   Silence is consent: no answer means the playbook stands as written, and an owner who does not
+   care has paid one screen. Whatever they add is written into the document as their rule, in their
+   words, attributed so a later refresh preserves it rather than reconciling it away. Headless runs
+   ask nothing — the same summary goes to the run record.
 
 The always-on proportionality rule (engine: "Reaching for what already exists") is the frame for
 everything the playbook recommends — the library map says *where to look*, that rule says *when
@@ -97,20 +108,18 @@ one of them costs anything:
   matches the dependency manifests. Say nothing and move on; this is the outcome almost every run
   hits, and it must cost seconds.
 - **Missing** — no playbook, or a standards document with no fingerprint (written before this
-  skill existed). Run the full generation above. Interactive runs put the stance round up with each
-  area's concrete reading; headless ones derive them, mark them `derived`, and surface them as step
-  3 requires.
+  skill existed). Run the full generation above, close-out included: this is the one moment the
+  owner is invited to put their own rules in, and it costs a screen.
 - **Stale** — the fingerprint no longer matches: dependencies were added or removed, a framework
   version moved. Refresh what the drift touches — the stack profile and the library map, plus a
   patterns look when the framework itself changed — and leave the recorded stances untouched;
   they change only when the owner says so. Note the refresh in one line so the run's record shows
   why the standards moved.
 
-  Two things a refresh looks at without touching. Whether the code still matches the stance recorded
-  for each area — where they have visibly parted, say so in one line naming the area, because which
-  of the two is wrong is the owner's call and they cannot make it while nobody tells them the two
-  diverged. And whether the project has grown an area the table has no row for; that is the one
-  question a refresh may ask.
+  Two things a refresh reports without touching: an area where the code has visibly parted from the
+  stance recorded for it, and an area the project has grown that the table has no row for. Both are
+  lines in that one-line note, not questions — the owner is mid-feature, and neither is urgent
+  enough to interrupt it. They can act on either by asking for a refresh.
 
 The owner can still ask for a refresh at any time — after adopting a new library worth
 generalizing, or when changing a recorded stance, which only ever happens by their word.

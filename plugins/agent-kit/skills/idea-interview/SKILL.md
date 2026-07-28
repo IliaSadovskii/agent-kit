@@ -95,7 +95,10 @@ spend the author's attention only on what the code genuinely cannot tell you:
   required: the `Task` step of `ship` cannot propose work without it. Do not reconstruct a
   retrospective phasing of what already shipped; nobody reads that. Cover only what is ahead.
 - **Which conventions are real** — where the existing code is the standard to follow, and where it
-  is legacy the author would rather not spread.
+  is legacy the author would rather not spread. Don't ask this here: `stack-playbook` reaches the
+  same ground from evidence and closes by putting its conclusions up for exactly this correction.
+  Asking in both places asks twice, and the version with a finished playbook on screen gets the
+  better answer.
 
 An architecture document here describes what *is*, not what is planned, and is worth writing only
 when the codebase is large enough that a newcomer would need the map.

@@ -3,6 +3,30 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.14.0
+
+The playbook stops interviewing the owner about architecture and starts showing them what it
+concluded.
+
+- **Nothing about architecture is asked any more.** Each area's stance is derived from two sources
+  the skill already had: what the code does, and what the stack is understood to do well, researched
+  from the framework's own documentation and the ecosystem's catalogues rather than recalled. The
+  research step now runs before the stances that depend on it.
+- **The skill closes by putting its conclusions up.** One screen — stack profile, the stance table,
+  the library map's picks, the testing idioms, and any place the code and the stack's practice
+  disagreed, each with what was done about it — followed by an invitation to add what only the owner
+  knows. An owner reacting to a finished playbook remembers what they care about; the same person
+  facing a blank architecture question at bootstrap does not, which is what the old interview asked
+  them to do.
+- **Silence is consent.** No answer leaves the playbook as written, so an owner who does not care
+  pays one screen and nothing else. What they do add is written in as their rule, in their words,
+  and preserved by later refreshes. Headless runs ask nothing and send the summary to the run record.
+- **The refresh asks nothing either.** A stance the code has parted from, and a new area with no row
+  yet, are reported in its one-line note instead of interrupting a feature with a question.
+- **`idea-interview` stops asking the same thing in other words.** "Which conventions are real, and
+  which are legacy you would rather not spread" is the playbook's close-out question, asked once,
+  where there is something concrete on screen to answer against.
+
 ## 0.13.0
 
 The architecture stance stops being one question with one answer.

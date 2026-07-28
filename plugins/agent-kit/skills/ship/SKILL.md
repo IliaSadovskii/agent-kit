@@ -63,8 +63,8 @@ task actually touches. Never assume fixed documentation paths.
 
 Then run `stack-playbook`'s freshness check on the registered coding standards: current costs
 seconds and no words; missing or stale is repaired before design, because the design is about to
-rely on what the playbook knows. Under `--brief` this happens without questions — any stance that
-was never recorded is derived, marked, and logged.
+rely on what the playbook knows. Under `--brief` this happens without questions — the playbook's
+close-out goes to the run record instead of the owner.
 
 In a hosted session, missing dependencies are a recoverable setup action via the project's
 idempotent `scripts/cloud-setup.sh` — not a question for the user. A long autonomous run is what
