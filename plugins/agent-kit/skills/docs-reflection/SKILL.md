@@ -23,6 +23,18 @@ doc change. Churn is the failure mode — a settled doc stays settled.
      something become redundant, did a later phase's premises shift?
    - **Architecture, product spec, domain docs** — did the implementation diverge from the draft?
      Reconcile the summary; don't copy spec detail into them.
+   - **Screen map** — when the project has one, at `manifest.sources.screens` or, since the manifest
+     ships that key empty, at `docs/screens/screens.data.js`. It is a living document like any
+     other, and this is where a feature pays its debt to it: a screen this feature built flips
+     `planned` → `implemented` with its `code` path filled in, and a screen this feature introduced
+     is added as `implemented` with the same path — no card claims to be built without one. New
+     screens and transitions take ids from `meta.nextScreenId` / `meta.nextTransitionId` with the
+     counter raised, and both ends of a new transition must be on the map, or the viewer reports it
+     as dangling in front of whoever opens it. Nothing else on the map is touched: the format and
+     the id rules belong to `/agent-kit:screens`
+     (`${CLAUDE_PLUGIN_ROOT}/skills/screens/references/format.md`), reflection never renumbers, and
+     a card this feature did not affect is that command's drift to find, not this step's. Only
+     `screens.data.js` — never the viewer beside it.
    - **Open questions** — did this feature answer one, or raise a new one?
    - **Coding standards** — only when the feature established a durable new convention, not per
      routine feature. One more trigger: a review or security finding that traced back to a rule
@@ -42,3 +54,11 @@ instead of editing the file; that file changes with the user.
 - **Something changed** — a separate branch off the default branch, one commit
   `docs: sync after <feature>`, and a PR touching only the affected docs, saying which changed and
   why and linking the feature PR. Autonomous, no gate. Docs stay out of the code PR.
+- **The screen map changed** — the one exception: it rides in the feature PR. A card flipped to
+  `implemented` points at code that exists only on the feature branch, so the same card on a branch
+  cut from the default branch would point at nothing. Run `node --check` on the data file first if
+  the project has Node — the map is loaded as a script, so a syntax error is a blank page and no
+  message at all. Then commit it there, push it to the open PR, and say which cards moved and what
+  drifted; if nothing else diverged, that note carries the `## Docs: reviewed, current` line too.
+  Run from `/agent-kit:docs`, where there is no feature branch, the map goes in the docs PR like
+  every other document.
