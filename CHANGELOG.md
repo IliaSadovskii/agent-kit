@@ -39,6 +39,23 @@ Fixed by making every path something an agent can actually reach:
   wait for them: after design approval the owner may be asleep, and a pipeline that waits for a human
   never finishes.
 
+## 0.6.2
+
+Follow-up audit of the same class of bug as 0.6.1: an instruction the agent cannot act on.
+
+- **Plugin agents and commands carry their plugin's name**, and 0.6.1 wrote them bare. Delegating to
+  `silent-failure-hunter` resolves to nothing; `pr-review-toolkit:silent-failure-hunter` is the real
+  name. Same for the review pass on the open PR, now spelled `/code-review:code-review`.
+- The README gives the two install commands and says the official marketplace is already configured,
+  so nobody has to work out where these plugins come from.
+
+Audited and found sound, no change needed: the kit's own five pipelines are user-invoked and its five
+internal skills are not, so pipelines can call them; `/security-review`, `/simplify`, and `/run` are
+model-invocable, unlike `/code-review` and `/verify`; the `gh` and CI steps already degrade when the
+session cannot reach them; and the guard hook asks on `git push origin main`, `git push --force`, and
+`gh pr merge` while staying silent on `git status`, `echo "git push --force"`, and a push of
+`claude/main-fix`.
+
 ## 0.6.0
 
 Two carriers for guarantees the kit could previously only phrase as prose: the project's CI, and a

@@ -69,8 +69,9 @@ say so once at the start and continue.
   the closest the session has: a red pipeline is part of this step, not the owner's problem. Fix
   in-scope failures, rerun the verification the fix put at risk, and push again; if CI cannot be
   observed from the session, say so in the PR. If the project has the official `code-review` plugin
-  enabled, run its command on the open PR now — it needs a pull request to exist, which is why it
-  lands here rather than in Review, and unlike the bundled `/code-review` an agent may invoke it.
+  enabled, run `/code-review:code-review` on the open PR now — the plugin command carries the
+  plugin's name, it needs a pull request to exist, which is why it lands here rather than in Review,
+  and unlike the bundled `/code-review` an agent may invoke it.
   Treat what it returns as a review round: fix in scope, rerun what the fixes put at risk, push. If
   no PR mechanism exists after every safe fallback, report that as the terminal blocker once the
   branch is pushed.
@@ -163,10 +164,12 @@ So use the strongest reviewer the session can actually reach, in this order.
    the registered coding standards.
 2. **The `pr-review-toolkit` plugin's agents, when the project has it enabled.** Unlike the bundled
    command, plugin agents *can* be delegated to. They are Anthropic's specialists, and each covers a
-   lens one general reviewer will underweight: `silent-failure-hunter` for swallowed errors and
-   fallbacks nobody learns about, `pr-test-analyzer` for whether the new tests would actually catch
-   a regression, `type-design-analyzer` for shapes that permit invalid states. Spawn the ones the
-   change warrants, concurrently, alongside step 1.
+   lens one general reviewer will underweight: `pr-review-toolkit:silent-failure-hunter` for
+   swallowed errors and fallbacks nobody learns about, `pr-review-toolkit:pr-test-analyzer` for
+   whether the new tests would actually catch a regression, and
+   `pr-review-toolkit:type-design-analyzer` for shapes that permit invalid states. Plugin agents
+   carry the plugin's name, so those scoped names are what you delegate to. Spawn the ones the change
+   warrants, concurrently, alongside step 1.
 
 Fix critical and major findings, then rerun the verification the fixes put at risk. A reviewer asked
 to find gaps will find some even when the work is sound: fix what affects correctness or the approved

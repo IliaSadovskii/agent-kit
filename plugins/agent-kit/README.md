@@ -70,8 +70,17 @@ one-keystroke second opinions at the moment the owner is already reading.
 
 Two Anthropic plugins close most of that gap, because plugin commands and agents *are*
 model-invocable. The kit uses them when a project has them enabled and works without them:
-`pr-review-toolkit` for specialist review lenses during Review, and `code-review` for a multi-agent
-confidence-scored pass on the open pull request.
+
+```text
+/plugin install pr-review-toolkit@claude-plugins-official
+/plugin install code-review@claude-plugins-official
+```
+
+The official marketplace ships pre-configured with Claude Code, so there is no marketplace to add.
+`pr-review-toolkit` supplies specialist review agents the kit delegates to during Review;
+`code-review` supplies a multi-agent, confidence-scored pass that the PR step runs on the open pull
+request. Install them once at user scope and every project has them, or declare them in a project's
+`.claude/settings.json` to pin them for everyone working in that repository.
 
 Two kinds of plugin are worth having alongside the kit, though it requires neither:
 
