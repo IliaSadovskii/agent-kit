@@ -60,6 +60,8 @@ _HEADING = re.compile(r"^(#{1,6})\s+(.*?)(?:\s+#+)?\s*$")
 # one would end the fence early and turn the example's own `#` lines into headings.
 _FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
 
+_REV = re.compile(r"^[0-9a-f]{12}$")
+
 _SCREEN_ID = re.compile(r"\bid\s*:\s*['\"](S\d+)['\"]")
 _SCREEN_STATUS = re.compile(r"\bstatus\s*:\s*['\"](\w+)['\"]")
 
@@ -194,7 +196,9 @@ def anchor_section(text, key):
     owning = [h for h in all_headings if h[2] < at]
     if not owning:
         end = all_headings[0][2] if all_headings else len(text.splitlines())
-        preamble = text.splitlines()[:end]
+        marked = {line for places in anchors(text).values() for line in places}
+        preamble = [line for number, line in enumerate(text.splitlines()[:end])
+                    if number not in marked]
         return ("\n".join(preamble) + "\n" if preamble else ""), None
     level, _, start = owning[-1]
     return _body(text, all_headings, level, start), start
@@ -378,9 +382,13 @@ def plan(root, contract, index):
 def apply_results(root, contract, index, results):
     """Merge grader results into the index, and drop entries the contract no longer lists.
 
-    Each result is {collection, key, facts, gaps}. The rev is recomputed from the file here rather
-    than taken from the plan: a document edited while the grader was running must come back stale
-    on the next check, not be recorded as parsed.
+    Each result is {collection, key, rev, facts, gaps}, where `rev` is copied verbatim from the plan
+    that produced it — the hash of the text the grader actually read.
+
+    That is why it is not recomputed here. A document edited while the grader was running would then
+    be recorded as parsed at its *new* hash while the facts describe the old text, and nothing would
+    ever re-read it. Recording what the grader saw makes the next check call the entry stale, which
+    is the honest answer and costs one call to correct.
     """
     bound = entry_bindings(contract)
     merged = {"version": index.get("version", 1)}
@@ -401,11 +409,16 @@ def apply_results(root, contract, index, results):
             continue
         if item["error"]:
             raise ValueError(f"{collection}/{key}: {item['error']}")
+        graded = str(result.get("rev") or "")
+        if not _REV.match(graded):
+            raise ValueError(f"{collection}/{key}: no `rev` on the result — copy it from the plan "
+                             "entry the grader was given, so the index records the text that was "
+                             "actually read")
         resolved = item["resolved"]
         merged.setdefault(collection, {})[key] = {
             "at": item["at"],
             "line": resolved["line"],
-            "rev": resolved["rev"],
+            "rev": graded,
             "facts": _clean_facts(result.get("facts")),
             "gaps": [str(gap) for gap in (result.get("gaps") or [])],
         }
@@ -439,7 +452,12 @@ def refresh(root, contract, grader):
     groups = plan(root, contract, index)
     results = []
     for group in groups:
-        results.extend(grader(group) or [])
+        # Copying the plan's rev onto a result that came back without one is what the agent does in
+        # the real flow; a grader is asked for facts, not for bookkeeping.
+        seen = {(entry["collection"], entry["key"]): entry["rev"] for entry in group["entries"]}
+        for result in grader(group) or []:
+            result.setdefault("rev", seen.get((result.get("collection"), result.get("key"))))
+            results.append(result)
     return apply_results(root, contract, index, results), len(groups)
 
 
@@ -531,20 +549,23 @@ def cross_check(index, screens=None):
             continue
         for key in sorted(present[collection]):
             for referenced in _listed(_facts(index, collection, key), fact, shape):
-                if referenced in present[target]:
+                if referenced in present[target] or (target, referenced) in unknown:
                     continue
                 unknown.add((target, referenced))
                 findings.append((f"{collection}/{key}",
                                  f"names {target}/{referenced}, which no entry describes"))
 
-    findings += _check_statuses(index, present, unknown)
-    findings += _check_rights(index, present, unknown)
+    # The checks below need no second guard against a key reported here: each of them already skips
+    # a key that is not in its target collection, and a key this loop reported is exactly one that
+    # is not.
+    findings += _check_statuses(index, present)
+    findings += _check_rights(index, present)
     findings += _check_screens(index, present, screens)
-    findings += _check_lifecycle(index, present, unknown)
+    findings += _check_lifecycle(index, present)
     return findings
 
 
-def _check_statuses(index, present, unknown):
+def _check_statuses(index, present):
     """A status an action sets exists in that entity's lifecycle."""
     findings = []
     for key in sorted(present["actions"]):
@@ -556,7 +577,7 @@ def _check_statuses(index, present, unknown):
                                  f"sets {pair!r} — a status reads entity.state, so the entity it "
                                  "belongs to cannot be checked"))
                 continue
-            if entity not in present["entities"] or ("entities", entity) in unknown:
+            if entity not in present["entities"]:
                 continue
             states = _listed(_facts(index, "entities", entity), "states", "many")
             if state not in states:
@@ -567,7 +588,7 @@ def _check_statuses(index, present, unknown):
     return findings
 
 
-def _check_rights(index, present, unknown):
+def _check_rights(index, present):
     """An action available to an actor is one that actor has the right to, and vice versa."""
     findings = []
     if not present["actors"] or not present["actions"]:
@@ -580,7 +601,7 @@ def _check_rights(index, present, unknown):
                                                "initiator, even if it is the product itself"))
             continue
         attributed.add(actor)
-        if actor not in present["actors"] or ("actors", actor) in unknown:
+        if actor not in present["actors"]:
             continue
         if key not in _listed(_facts(index, "actors", actor), "actions", "many"):
             findings.append((f"actions/{key}",
@@ -615,7 +636,7 @@ def _check_screens(index, present, screens):
     return findings
 
 
-def _check_lifecycle(index, present, unknown):
+def _check_lifecycle(index, present):
     """An entity the product writes has an action that creates it and one that closes it."""
     findings = []
     if not present["entities"] or not present["actions"]:
@@ -676,6 +697,8 @@ def set_entries(text, collection, entries):
     else in the file.
     """
     lines = text.splitlines(keepends=True)
+    if lines and not lines[-1].endswith("\n"):
+        lines[-1] += "\n"
     top = _block_start(lines, "collections:", 0)
     if top is None:
         raise SectionError("the contract has no `collections:` block")

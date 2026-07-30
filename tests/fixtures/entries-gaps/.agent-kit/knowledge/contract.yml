@@ -1,0 +1,72 @@
+# The same entries, with the gaps a grader recorded against two of them.
+#
+# Each gap is a finding, and the per-collection summary counts them.
+
+version: 1
+
+slots:
+  north_star:
+    status: open_question
+    criterion: a reader outside the project can say what it is for
+
+  architecture_stance:
+    status: not_applicable
+    reason: a fixture has no architecture to take a stance on
+
+  verification:
+    status: not_applicable
+    reason: >-
+      a fixture proves nothing by running, and a contract that named this repository's real command
+      would run the suite from inside the suite
+
+  mvp_bounds:
+    status: not_applicable
+    reason: nothing is in or out of a fixture
+
+  scenarios:
+    status: not_applicable
+    reason: no product data to walk a scenario over
+
+  deferred_seams:
+    status: not_applicable
+    reason: nothing is postponed in a fixture
+
+collections:
+  actors:
+    status: filled
+    sources:
+      - docs/PRODUCT.md
+    entries:
+      developer:
+        at: docs/PRODUCT.md#kit:developer
+      broker:
+        at: docs/PRODUCT.md#kit:broker
+    criterion: everyone who initiates anything
+
+  entities:
+    status: filled
+    sources:
+      - docs/PRODUCT.md
+    entries:
+      offer:
+        at: docs/PRODUCT.md#kit:offer
+    criterion: every entity names its states
+
+  actions:
+    status: filled
+    sources:
+      - docs/PRODUCT.md
+    entries:
+      developer.create_offer:
+        at: docs/PRODUCT.md#kit:developer.create_offer
+      broker.accept_offer:
+        at: docs/PRODUCT.md#kit:broker.accept_offer
+    criterion: each one says who, what changes, and to which status
+
+  screens:
+    status: not_applicable
+    reason: the screen map is the authority; this fixture points at it rather than describing it
+
+  integrations:
+    status: not_applicable
+    reason: a fixture depends on nothing outside itself

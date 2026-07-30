@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Tests for the kit's YAML-subset reader.
+"""Tests for the kit's YAML-subset reader and writer.
 
-Two layers live here:
+Four layers live here:
 
 * **unit** — every construct the subset admits, and one test per construct outside it, asserting
   the message *and* the line number: a reader that says "line 7: anchors are outside the subset"
@@ -9,10 +9,17 @@ Two layers live here:
 * **round trip** — the two files this feature ships are read back and compared against what the
   files say. Everything the kit writes, the kit reads back identically; the check script's verdicts
   are worth nothing if the values it reasons over are not the ones on disk.
+* **unit, the writer** — the values that read back as something other than themselves unless they
+  are quoted. The index the writer produces is a cache keyed by hashes, so a value that changes on
+  the way to disk is not a cosmetic problem: it is an entry that can never come clean again.
+* **property-based** (fixed seed, stdlib `random`) — structures generated from the subset's own
+  alphabet, asserting `load(dump(x)) == x`. The structure is built before it is written, so the
+  generator is the oracle and never restates the writer's own choices.
 
 Run directly (`python3 tests/test_kit_yaml.py`); `scripts/validate.sh` runs it the same way.
 """
 import os
+import random
 import sys
 import unittest
 
@@ -24,6 +31,9 @@ import kit_yaml  # noqa: E402  — the path above is what makes this importable 
 
 TEMPLATE = os.path.join(REPO, "plugins", "agent-kit", "templates", "project", "contract.yml")
 OWN_CONTRACT = os.path.join(REPO, ".agent-kit", "knowledge", "contract.yml")
+
+# A failure has to be reproducible from the report alone, so the seed is fixed and printed.
+SEED = 20260731
 
 
 class SubsetTest(unittest.TestCase):
@@ -288,6 +298,188 @@ class RoundTripTest(unittest.TestCase):
                         self.assertIsInstance(value, str)
                         self.assertNotIn("\n", value)
                         self.assertTrue(value.strip())
+
+
+class WriterTest(unittest.TestCase):
+    """`dump`, and the values that would come back as something other than themselves.
+
+    The writer's only customer is a machine-owned file — the derived index — and that file is a
+    cache keyed by section hashes. A hash written down as a number, or a gap whose leading `#` is
+    eaten as a comment, is not a cosmetic problem: it is an entry that never matches itself again.
+    """
+
+    def round_trip(self, value):
+        text = kit_yaml.dump({"k": value})
+        self.assertTrue(text.endswith("\n"), f"a file ends with a newline: {text!r}")
+        return kit_yaml.load(text)["k"]
+
+    def test_the_scalars_a_reader_would_otherwise_take_for_something_else(self):
+        for value in ("true", "True", "false", "null", "~", "123", "-7", "1.5", "",
+                      "#a leading hash", "a trailing # comment", "  ", " leading space",
+                      "trailing space ", "a line\nand another", "[]", "{}", "- a dash",
+                      "yes", "0", "'single'", '"double"'):
+            with self.subTest(value=value):
+                self.assertEqual(self.round_trip(value), value)
+
+    def test_a_hash_that_is_all_digits_survives_being_written_down(self):
+        """The case the reader is already careful about, from the other side.
+
+        About one section hash in two hundred is all digits. Written plain it reads back as an int
+        and can never equal its own hexdigest, so the entry it belongs to is stale for ever.
+        """
+        for rev in ("007891234567", "123456789012", "031657175672"):
+            with self.subTest(rev=rev):
+                self.assertEqual(self.round_trip(rev), rev)
+                self.assertIsInstance(self.round_trip(rev), str)
+
+    def test_a_value_holding_both_a_quote_and_a_comment_opener(self):
+        """Exactly why single quotes are tried before double.
+
+        The reader cannot tell an escaped `"` inside a double-quoted scalar from the closing one,
+        so it thinks the scalar ended and reads the ` #` after it as a comment. Single quotes have
+        no escapes to be confused by.
+        """
+        value = 'he said "ok". # and then left'
+        self.assertEqual(self.round_trip(value), value)
+        hand_written = 'k: "{}"\n'.format(value.replace('"', '\\"'))
+        with self.assertRaises(kit_yaml.KitYamlError):
+            kit_yaml.load(hand_written)
+
+    def test_a_value_the_subset_cannot_hold_is_refused_by_name(self):
+        """A silently wrong file is the one outcome the writer may not produce.
+
+        By name, not just by refusing: the caller has to be able to say which value it was, and
+        `str()`-ing the thing into the file would give a document that reads back as prose.
+        """
+        for value, named in (({1, 2}, "set"), (object(), "object"), ((1, 2), "tuple"),
+                             (b"bytes", "bytes")):
+            with self.subTest(value=repr(value)):
+                with self.assertRaises(kit_yaml.KitYamlError) as caught:
+                    kit_yaml.dump({"k": value})
+                self.assertIn(f"{named} is outside the subset", str(caught.exception))
+
+    def test_a_float_with_no_plain_form_in_the_subset_is_refused(self):
+        """`1e+20` and `inf` are legal Python and outside the numbers this reader accepts."""
+        for value in (float("inf"), float("nan"), 1e20, 1e-5):
+            with self.subTest(value=repr(value)):
+                with self.assertRaises(kit_yaml.KitYamlError) as caught:
+                    kit_yaml.dump({"k": value})
+                self.assertIn("has no plain form in the subset", str(caught.exception))
+
+    def test_a_key_that_is_not_a_string_is_refused(self):
+        with self.assertRaises(kit_yaml.KitYamlError) as caught:
+            kit_yaml.dump({1: "a"})
+        self.assertIn("a key must be a string", str(caught.exception))
+
+    def test_a_key_the_reader_could_not_take_back_is_refused_not_written(self):
+        """The proof-by-reading-it-back at the end of `dump`, doing its job."""
+        with self.assertRaises(kit_yaml.KitYamlError):
+            kit_yaml.dump({'a "quoted" key': "x"})
+
+    def test_a_document_that_is_not_a_mapping_is_refused(self):
+        for data in ([1, 2], "text", None, 7):
+            with self.subTest(data=data):
+                with self.assertRaises(kit_yaml.KitYamlError) as caught:
+                    kit_yaml.dump(data)
+                self.assertIn("mapping at the top level", str(caught.exception))
+
+    def test_empty_collections_are_written_inline(self):
+        self.assertEqual(kit_yaml.dump({"sources": [], "facts": {}}),
+                         "sources: []\nfacts: {}\n")
+        self.assertEqual(kit_yaml.load("sources: []\nfacts: {}\n"),
+                         {"sources": [], "facts": {}})
+
+    def test_a_document_with_no_keys_in_it_is_refused(self):
+        """The reader gives back `None` for an empty file, so an empty mapping has no rendering.
+
+        It is refused rather than written as a blank file that would read back as nothing. Every
+        document the kit writes carries at least `version`, so this is a limit, not a gap.
+        """
+        with self.assertRaises(kit_yaml.KitYamlError):
+            kit_yaml.dump({})
+
+    def test_null_is_written_as_a_bare_key(self):
+        self.assertEqual(kit_yaml.dump({"reason": None}), "reason:\n")
+        self.assertIsNone(kit_yaml.load(kit_yaml.dump({"reason": None}))["reason"])
+
+    def test_nesting_is_two_spaces_per_level_and_a_list_is_indented_under_its_key(self):
+        text = kit_yaml.dump({"actions": {"a.b": {"facts": {"reads": ["lot", "request"]}}}})
+        self.assertEqual(text, "actions:\n  a.b:\n    facts:\n      reads:\n"
+                               "        - lot\n        - request\n")
+
+    def test_a_list_of_maps_comes_back_as_a_list_of_maps(self):
+        data = {"entries": [{"id": "a", "gaps": []}, {"id": "b", "gaps": ["one"]}]}
+        self.assertEqual(kit_yaml.load(kit_yaml.dump(data)), data)
+
+    def test_non_ascii_keys_and_values_survive(self):
+        data = {"сущности": {"оффер": {"states": ["ожидает", "принят"]}}}
+        self.assertEqual(kit_yaml.load(kit_yaml.dump(data)), data)
+
+    def test_plain_is_preferred_where_it_reads_back_unchanged(self):
+        """These files are read by people; quoting what needs no quotes is a cost with no payer."""
+        text = kit_yaml.dump({"at": "docs/OFFERS.md#kit:developer.create_offer",
+                              "line": 47, "rev": "a3f1c9d4e2b1", "actor": "developer"})
+        self.assertEqual(text, "at: docs/OFFERS.md#kit:developer.create_offer\n"
+                               "line: 47\nrev: a3f1c9d4e2b1\nactor: developer\n")
+
+
+def generate_value(rng, depth=0):
+    """A value drawn from the subset's own alphabet. The structure is the oracle."""
+    scalars = [None, True, False, 0, 42, -7, 1000000, 1.5, -0.25,
+               "plain text", "", "true", "007891234567", "123456789012", "#leading hash",
+               "trailing # comment", " padded ", "a\nnewline", 'quote " and # hash',
+               "Оффер от агентства", "docs/A.md#kit:developer.create_offer", "[]", "-"]
+    shape = rng.random()
+    if depth >= 3 or shape < 0.55:
+        return rng.choice(scalars)
+    if shape < 0.8:
+        return [generate_value(rng, depth + 1) for _ in range(rng.randint(0, 3))]
+    return generate_map(rng, depth + 1)
+
+
+def generate_map(rng, depth=0):
+    keys = ["version", "actions", "a.b", "developer.create_offer", "123", "kind", "штука",
+            "with space", "S12", "_private", "-dash"]
+    return {key: generate_value(rng, depth)
+            for key in rng.sample(keys, rng.randint(0, min(4, len(keys))))}
+
+
+def generate_document(rng):
+    """A whole document: a mapping with at least one key, because that is what a file holds."""
+    while True:
+        data = generate_map(rng)
+        if data:
+            return data
+
+
+class WriterRoundTripPropertyTest(unittest.TestCase):
+    """`load(dump(x)) == x` over generated structures.
+
+    Generating the structure first and writing it second is what makes this a property and not a
+    restatement: nothing here knows or cares which quoting the writer picked, only that the value
+    that went in is the value that comes out.
+    """
+
+    STRUCTURES = 200
+
+    def test_every_generated_structure_survives_the_round_trip(self):
+        rng = random.Random(SEED)
+        for number in range(self.STRUCTURES):
+            data = generate_document(rng)
+            with self.subTest(seed=SEED, structure=number):
+                text = kit_yaml.dump(data)
+                self.assertEqual(kit_yaml.load(text), data,
+                                 f"seed {SEED}, structure {number}\n{data!r}\n--- written ---\n"
+                                 f"{text}")
+
+    def test_dumping_twice_produces_the_same_bytes(self):
+        """A derived file that is committed must not churn a diff on a run that changed nothing."""
+        rng = random.Random(SEED + 1)
+        for number in range(self.STRUCTURES):
+            data = generate_document(rng)
+            with self.subTest(seed=SEED + 1, structure=number):
+                once = kit_yaml.dump(data)
+                self.assertEqual(kit_yaml.dump(kit_yaml.load(once)), once)
 
 
 if __name__ == "__main__":

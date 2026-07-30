@@ -321,7 +321,7 @@ def render(report):
         if not total:
             continue
         found = _entry_findings(report, collection)
-        summary = f"{total} entries"
+        summary = f"{total} entr{'ies' if total != 1 else 'y'}"
         if found:
             summary += f" · {found} finding{'s' if found != 1 else ''}"
         lines.append(f"{collection:<12} {summary}")

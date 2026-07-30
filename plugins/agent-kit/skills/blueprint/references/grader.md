@@ -39,6 +39,7 @@ A flat list, one object per entry the group asked about:
   {
     "collection": "actions",
     "key": "developer.create_offer",
+    "rev": "a3f1c9d4e2b1",
     "facts": {
       "actor": "developer",
       "trigger": "a buyer request the developer has a matching lot for",
@@ -52,8 +53,10 @@ A flat list, one object per entry the group asked about:
 ]
 ```
 
-`collection` and `key` come back exactly as the plan gave them. An entry you cannot parse still gets
-an object: empty `facts`, and a `gaps` entry saying what is missing.
+`collection`, `key` and `rev` come back exactly as the plan gave them — `rev` is bookkeeping the
+caller needs, not a judgement, and inventing one would record facts against text nobody read. An
+entry you cannot parse still gets an object: empty `facts`, and a `gaps` entry saying what is
+missing.
 
 ## The facts, per collection
 

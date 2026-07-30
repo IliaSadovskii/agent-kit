@@ -77,10 +77,12 @@ with the rubric at
 `${CLAUDE_PLUGIN_ROOT}/skills/blueprint/references/grader.md`, which defines the facts to extract
 and the bar to judge against. The grader reads prose and returns data; it does not edit anything.
 
-Collect the results into one JSON file, a flat list:
+Collect the results into one JSON file, a flat list. **Copy `collection`, `key` and `rev` from the
+plan entry verbatim** — `rev` is the hash of the text the grader actually read, and it is what makes
+a document edited mid-run come back stale instead of being recorded as parsed:
 
 ```json
-[{"collection": "actions", "key": "developer.create_offer",
+[{"collection": "actions", "key": "developer.create_offer", "rev": "a3f1c9d4e2b1",
   "facts": {"actor": "developer", "statuses_set": ["offer.pending"], "screens": ["S12"]},
   "gaps": []}]
 ```
@@ -91,10 +93,9 @@ Collect the results into one JSON file, a flat list:
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/blueprint_index.py" --apply results.json
 ```
 
-The script recomputes each section's hash from the file on disk — so a document edited while the
-grader was running comes back stale next time rather than being recorded as parsed — writes
-`.agent-kit/knowledge/index.yml`, and drops entries the contract no longer lists. Then run `--check`
-and report what the cross-checks found.
+The script writes `.agent-kit/knowledge/index.yml` and drops entries the contract no longer lists.
+It refuses a result with no `rev`, by name, rather than guessing one from the current file. Then
+run `--check` and report what the cross-checks found.
 
 Commit the index. It is derived, but derived by dozens of grader calls, and a clone, a CI run and a
 headless run should inherit the cache rather than pay for it again.

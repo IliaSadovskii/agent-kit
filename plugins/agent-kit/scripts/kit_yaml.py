@@ -395,6 +395,11 @@ def dump(data):
     """
     if not isinstance(data, dict):
         raise KitYamlError("a kit document is a mapping at the top level", 0)
+    if not data:
+        # An empty file reads back as None, not as an empty mapping, so there is nothing to write
+        # that would round-trip. Every file the kit writes carries `version:` anyway.
+        raise KitYamlError("an empty mapping has no form in the subset — a kit document carries at "
+                           "least `version`", 0)
     lines = []
     _render_map(data, 0, lines, "")
     text = "".join(line + "\n" for line in lines)

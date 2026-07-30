@@ -77,3 +77,35 @@ Upstream: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/03-knowledge-collect
   slug elsewhere. The parse cache is `index.yml` itself, beside each entry's `rev`; no second file.
   The report follows the design's section 3 sample. The rubric is the design's own bar — *can an
   implementer act on this without asking?*
+- step Build — done. `kit_yaml.dump`, `kit_knowledge.py`, `blueprint_index.py`, the entry half of
+  `blueprint_check.py`, the template, the skill and its rubric, both READMEs, the changelog.
+- deviation — an anchor line is **not** part of the hashed section body. The spec's own placement
+  flow would otherwise invalidate every entry it had just bound, so adopting anchors would cost a
+  second full parse of the corpus for a change that adds no information. The anchor is the kit's
+  marker, not the owner's prose. Proven by test rather than argued.
+- test — delegated to `agent-kit:tester`: 79 checks in a new `tests/test_kit_knowledge.py`, 17 more
+  on the writer in `tests/test_kit_yaml.py`, 21 more in `tests/test_blueprint_check.py`, and seven
+  fixture projects — one per cross-check, differing only in `index.yml`. It ran its own mutation
+  harness over the payload: 40 deliberate breakages, 39 killed, 1 equivalent mutant (dead code,
+  since removed).
+- test — it found three real defects, all fixed here. (1) `apply_results` recorded the *current*
+  file's hash while the facts described the text the grader had been given, so a document edited
+  mid-run was filed as parsed and never re-read — the exact opposite of what its own docstring
+  promised. A result now carries the `rev` the plan handed it, and a result without one is refused
+  by name. (2) An entry referencing an undescribed key through two facts produced two identical
+  findings; the design says one finding, not four. Deduplicated on the key, which also made the
+  `unknown` set the other checks were passed dead — removed. (3) `set_entries` on a contract whose
+  last line had no terminator glued the new block onto it and made the file unparsable — the kit
+  breaking a file it was editing.
+- test — three smaller things the tester reported without a red test, all fixed: the preamble path
+  of `anchor_section` did not drop anchor lines while every other body did; `render` printed
+  "1 entries"; `dump({})` failed with the round-trip message instead of naming the cause. One
+  report was against the spec rather than the code — a heading whose literal text begins `kit:` is
+  read as an anchor and reported as a missing anchor, which the spec claimed was named by kind. The
+  spec now records the limit as it actually behaves.
+- step Test — done. `scripts/validate.sh` green: 79 + 63 + 78 + 11 checks, plus manifests,
+  frontmatter, references, payload syntax and the stdlib-only import parse. No runnable app
+  surface — this is a script and a skill — so step 4's check against a running app is the CLI
+  driven end to end by hand over a scratch project, which is recorded in the realest measurement
+  below. Static analysis: the repository has no linter or type checker; `validate.sh`'s AST pass
+  over the payload is the whole static layer and it is green.

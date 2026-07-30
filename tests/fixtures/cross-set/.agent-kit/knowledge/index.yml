@@ -1,0 +1,70 @@
+# Derived by /agent-kit:blueprint --index. Do not edit by hand — the next run rewrites it.
+#
+# One entry per instance the contract enumerates: where its prose lives, the hash of that section
+# when it was last parsed, the structural facts a grader extracted from it, and what the entry does
+# not answer. `rev` is the cache: an entry whose section still hashes to it is not parsed again.
+#
+# Committed on purpose. It is derived, but derived by dozens of grader calls, and a clone, a CI run
+# and a headless run should inherit the cache rather than pay for it a second time.
+
+version: 1
+actors:
+  developer:
+    at: docs/PRODUCT.md#kit:developer
+    line: 17
+    rev: f3bfacf4567b
+    facts:
+      kind: role
+      actions:
+        - developer.create_offer
+    gaps: []
+  broker:
+    at: docs/PRODUCT.md#kit:broker
+    line: 22
+    rev: 095b6912ea6c
+    facts:
+      kind: role
+      actions:
+        - broker.accept_offer
+    gaps: []
+entities:
+  offer:
+    at: docs/PRODUCT.md#kit:offer
+    line: 27
+    rev: 6d377506220c
+    facts:
+      states:
+        - pending
+        - accepted
+      created_by:
+        - developer.create_offer
+      closed_by:
+        - broker.accept_offer
+    gaps: []
+actions:
+  developer.create_offer:
+    at: docs/PRODUCT.md#kit:developer.create_offer
+    line: 6
+    rev: ca709bc1b35e
+    facts:
+      actor: developer
+      trigger: a buyer request the developer has a matching lot for
+      entities_written:
+        - offer
+        - deal
+      statuses_set:
+        - offer.pending
+        - deal.created
+    gaps: []
+  broker.accept_offer:
+    at: docs/PRODUCT.md#kit:broker.accept_offer
+    line: 12
+    rev: f995a50b0ed2
+    facts:
+      actor: broker
+      trigger: a pending offer the buyer wants
+      entities_written:
+        - offer
+      statuses_set:
+        - offer.accepted
+    gaps: []

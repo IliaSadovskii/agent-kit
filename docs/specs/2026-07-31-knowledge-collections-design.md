@@ -49,8 +49,10 @@ collections:
 `at:` is the stage-1 `path#…` grammar with one addition: **a fragment beginning `kit:` names an
 anchor**, anything else is a heading's literal text. One field, one grammar, and the two binding
 kinds sit side by side in the file so an owner can see which entries drift when a heading is
-renamed. The cost of the shortcut is a heading whose literal text begins `kit:`; the check says so
-by name when it meets one rather than silently reading it as an anchor.
+renamed. The cost of the shortcut is a heading whose literal text begins `kit:`: that
+binding is read as an anchor, and the check reports a missing anchor rather than a missing heading.
+A documented limit with a loud symptom, not a silent misread — and rare enough that paying for it
+with a second field on every entry would be the worse trade.
 
 Entries are **proposed by a grader and recorded here** — the brief settled that. A mechanical
 heading-level rule does not survive real documents, where entries sit at different depths or inside
@@ -159,8 +161,10 @@ a document is one call; editing one section later is one call carrying that one 
 stays per-section, so a rewritten paragraph never re-parses fifty entries. One code path, both
 properties.
 
-`--apply` merges the results, recomputing each entry's `rev` from the file at apply time, and drops
-index entries the contract no longer lists. Everything else in the index is left byte-identical.
+`--apply` merges the results and drops index entries the contract no longer lists. Each entry
+records the `rev` the plan handed the grader — the hash of the text that was actually read, not the
+file's hash at apply time. A document edited while the grader was running therefore comes back stale
+on the next check, instead of being recorded as parsed at a hash whose text nobody has seen.
 
 The module also exposes `refresh(root, grader)` — plan, call, apply — which is how the tests count
 grader calls with a fake grader, and how the cache behaviour is proven mechanically rather than

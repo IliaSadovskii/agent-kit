@@ -16,6 +16,12 @@ Layers, and why each one is here:
   directory, because it depends on a live hash, and the verification commands by actually running
   them.
 
+The collections' entries are reported here too, in the last three classes: the per-collection
+counts, the split between an entry that drifted (a finding, exit 1) and one whose document is gone
+(structural, exit 2), and the promise that `--check` reads the index and never writes it. The
+resolver and the cross-checks themselves live in `tests/test_kit_knowledge.py`; what is asserted
+here is what reaches the reader and what a gate reads off the exit code.
+
 Every command any fixture names is trivial (`true`, `exit 3`, `sleep`). This repository's own
 contract names `scripts/validate.sh`, which runs these tests: nothing here may ever run the
 commands of the real contract, or the build would recurse. `check(root, run_commands=False)` is the
@@ -37,6 +43,7 @@ REPO = os.path.normpath(os.path.join(HERE, os.pardir))
 sys.path.insert(0, os.path.join(REPO, "plugins", "agent-kit", "scripts"))
 
 import blueprint_check  # noqa: E402  — the path above is what makes this importable from any cwd
+import kit_knowledge  # noqa: E402
 import kit_yaml  # noqa: E402
 
 from blueprint_check import (COLLECTION_SLOTS, SINGULAR_SLOTS, SectionError, check,  # noqa: E402
@@ -881,6 +888,330 @@ class TrustBoundaryTest(CheckMixin, ContractWriterMixin, unittest.TestCase):
             report = check(os.path.join(root, "project"))
         self.assertEqual(report.exit_code, 2)
         self.assertIn("could not be checked", render(report))
+
+
+# ------------------------------------------------------------------------------------------
+# Contract / end to end: the collections' entries, over checked-in fixture projects
+
+
+class EntryFixtureTest(CheckMixin, unittest.TestCase):
+    """One miniature project per cross-check that fires it, and one where none of them do.
+
+    The fixtures carry a contract, the owner's prose with anchors in it, a derived index whose revs
+    match that prose, and — where the check needs one — a screen map. They are what a real project
+    looks like from the check's side, which is why the messages are asserted here and not only the
+    counts.
+    """
+
+    def fixture(self, name):
+        return os.path.join(FIXTURES, name)
+
+    def check_fixture(self, name, code):
+        done = self.run_check(self.fixture(name), "--check")
+        self.assertEqual(done.returncode, code, done.stdout + done.stderr)
+        # A fixture whose documents were edited without its index would report every entry stale,
+        # and every assertion below would still pass while proving nothing.
+        self.assertNotIn("changed since last parse", done.stdout,
+                         f"the {name} fixture's index no longer matches its documents; the index "
+                         "is generated, so regenerate it rather than editing the hashes")
+        return done.stdout
+
+    def test_entries_with_nothing_wrong_with_them_exit_zero(self):
+        output = self.check_fixture("entries-clean", 0)
+        self.assertReports(output, "actors       2 entries", "entities     1 entry",
+                           "actions      2 entries")
+        self.assertNotIn("⚠", output)
+        self.assertNotIn("✗", output)
+        self.assertNotIn("drift", output)
+
+    def test_a_gap_is_a_finding_and_the_collection_summary_counts_it(self):
+        output = self.check_fixture("entries-gaps", 1)
+        self.assertReports(
+            output,
+            "actors       2 entries",
+            "entities     1 entry · 1 finding",
+            "actions      2 entries · 1 finding",
+            "⚠ entities/offer",
+            "the prose does not answer: no transition is named out of `accepted`",
+            "⚠ actions/developer.create_offer",
+            "the prose does not answer: nothing says what happens when the buyer request is "
+            "withdrawn first",
+        )
+
+    def test_set_completeness(self):
+        output = self.check_fixture("cross-set", 1)
+        self.assertReports(output, "⚠ actions/developer.create_offer",
+                           "names entities/deal, which no entry describes")
+
+    def test_statuses(self):
+        output = self.check_fixture("cross-statuses", 1)
+        self.assertReports(output, "⚠ actions/broker.accept_offer",
+                           "sets offer.accepted — no `accepted` state in entities/offer",
+                           "(states are: pending)")
+
+    def test_rights_in_both_directions(self):
+        output = self.check_fixture("cross-rights", 1)
+        self.assertReports(
+            output,
+            "⚠ actions/broker.accept_offer",
+            "attributed to actors/developer, which does not list it among the actions it may "
+            "perform",
+            "⚠ actors/broker",
+            "declared, but no action is attributed to it",
+        )
+
+    def test_screens_in_both_directions(self):
+        output = self.check_fixture("cross-screens", 1)
+        self.assertReports(output,
+                           "⚠ actions/developer.create_offer",
+                           "launches from S9, which is not on the screen map",
+                           "⚠ screens/S1",
+                           "on the map, and no action is launched from it")
+        for screen in ("S3", "S4"):
+            # Rejected is the owner's decision not to have it; an idea is not yet a promise.
+            self.assertNotIn(f"screens/{screen}", output)
+
+    def test_lifecycle(self):
+        output = self.check_fixture("cross-lifecycle", 1)
+        self.assertReports(output, "⚠ entities/offer",
+                           "no action creates it — is it a reference book maintained by hand?",
+                           "no action closes it — every state machine needs a way out")
+
+    def test_every_cross_check_fixture_differs_from_the_clean_one_only_in_its_index(self):
+        """The fixtures are a controlled experiment, and this is what keeps them one.
+
+        If a violating fixture's prose or contract drifted from the clean one, its finding might be
+        coming from something other than the facts it was built to break.
+        """
+        for name in ("cross-set", "cross-statuses", "cross-rights", "cross-screens",
+                     "cross-lifecycle", "entries-gaps"):
+            for relative in (os.path.join("docs", "PRODUCT.md"), CONTRACT_PATH):
+                with self.subTest(fixture=name, file=relative):
+                    with open(os.path.join(self.fixture(name), relative), encoding="utf-8") as fh:
+                        theirs = fh.read()
+                    with open(os.path.join(self.fixture("entries-clean"), relative),
+                              encoding="utf-8") as fh:
+                        clean = fh.read()
+                    if relative == CONTRACT_PATH:
+                        # Only the two header comment lines say which fixture this is.
+                        theirs = "".join(theirs.splitlines(keepends=True)[3:])
+                        clean = "".join(clean.splitlines(keepends=True)[3:])
+                    self.assertEqual(theirs, clean)
+
+
+# ------------------------------------------------------------------------------------------
+# Integration: an entry whose binding no longer resolves, and where the exit code lands
+
+
+class EntryProjectMixin(ContractWriterMixin):
+    """A project whose collections carry entries, with an index derived from its own documents."""
+
+    DOCUMENT = "\n".join([
+        "# Offers",
+        "",
+        "## Creating an offer",
+        "<!-- kit: developer.create_offer -->",
+        "",
+        "A developer publishes an offer.",
+        "",
+        "## Accepting an offer",
+        "",
+        "A broker accepts it.",
+        "",
+    ])
+
+    def build(self, entries, document=None, index=True, facts=None, gaps=None, root=None):
+        """A project with one document, `entries` bound into `actions`, and a matching index."""
+        if root is None:
+            root = tempfile.mkdtemp()
+            self.addCleanup(shutil.rmtree, root)
+        os.makedirs(os.path.join(root, "docs"), exist_ok=True)
+        self.write_document(root, self.DOCUMENT if document is None else document)
+        self.write_contract(root, collections={"actions": {
+            "status": "filled",
+            "sources": ["docs/*.md"],
+            "entries": {key: {"at": at} for key, at in entries.items()},
+            "criterion": "each one says who and what changes",
+        }})
+        if index:
+            self.write_index(root, entries, facts or {}, gaps or {})
+        return root
+
+    def write_document(self, root, text):
+        with open(os.path.join(root, "docs", "offers.md"), "w", encoding="utf-8") as handle:
+            handle.write(text)
+
+    def write_index(self, root, entries, facts, gaps):
+        """Only the entries that resolve: an entry the index never saw is the ordinary case."""
+        index = {"version": 1}
+        for key, at in entries.items():
+            try:
+                resolved = kit_knowledge.resolve(root, at)
+            except kit_knowledge.SectionError:
+                continue
+            index.setdefault("actions", {})[key] = {
+                "at": at, "line": resolved["line"], "rev": resolved["rev"],
+                "facts": facts.get(key, {}), "gaps": gaps.get(key, []),
+            }
+        return kit_knowledge.write_index(root, index)
+
+
+class EntryDriftTest(EntryProjectMixin, CheckMixin, unittest.TestCase):
+    """Where an unresolved entry lands, which is the one place this departs from stage 1.
+
+    A slot is the project's single answer to a question, and an unresolved binding leaves the check
+    with nothing to say — structural, exit 2. An entry is one instance among twenty-three and the
+    other twenty-two are still checkable, so it is a finding, exit 1. A missing document, a
+    duplicate anchor and an entry with no binding at all stay structural on both sides.
+    """
+
+    def test_a_removed_anchor_is_a_finding_reported_as_anchor_drift(self):
+        root = self.build({"developer.create_offer": "docs/offers.md#kit:developer.create_offer"})
+        self.write_document(root, self.DOCUMENT.replace(
+            "<!-- kit: developer.create_offer -->\n", ""))
+        done = self.run_check(root, "--check")
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        self.assertReports(done.stdout, "anchor drift  actions/developer.create_offer",
+                           "no anchor `<!-- kit: developer.create_offer -->`")
+        self.assertNotIn("✗", done.stdout)
+
+    def test_a_renamed_heading_is_a_finding_reported_as_heading_drift(self):
+        root = self.build({"broker.accept_offer": "docs/offers.md#Accepting an offer"})
+        self.write_document(root, self.DOCUMENT.replace("## Accepting an offer",
+                                                        "## Accepting the offer"))
+        done = self.run_check(root, "--check")
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        self.assertReports(done.stdout, "heading drift  actions/broker.accept_offer",
+                           "no heading 'Accepting an offer'")
+        self.assertNotIn("✗", done.stdout)
+
+    def test_a_document_that_is_gone_is_structural(self):
+        root = self.build({"developer.create_offer": "docs/gone.md#kit:developer.create_offer"})
+        done = self.run_check(root, "--check")
+        self.assertEqual(done.returncode, 2, done.stdout + done.stderr)
+        self.assertReports(done.stdout, "✗ actions/developer.create_offer",
+                           "source file is gone: docs/gone.md")
+
+    def test_a_duplicate_anchor_is_structural(self):
+        """A binding that resolves to two places resolves to neither."""
+        root = self.build({"developer.create_offer": "docs/offers.md#kit:developer.create_offer"})
+        self.write_document(root, self.DOCUMENT.replace(
+            "## Accepting an offer",
+            "## Accepting an offer\n<!-- kit: developer.create_offer -->"))
+        done = self.run_check(root, "--check")
+        self.assertEqual(done.returncode, 2, done.stdout + done.stderr)
+        self.assertReports(done.stdout, "✗ actions/developer.create_offer",
+                           "is not unique", "line 4", "line 9")
+
+    def test_an_entry_with_no_binding_at_all_is_structural(self):
+        root = self.build({"developer.create_offer": None})
+        done = self.run_check(root, "--check")
+        self.assertEqual(done.returncode, 2, done.stdout + done.stderr)
+        self.assertReports(done.stdout, "✗ actions/developer.create_offer",
+                           "no binding recorded — an entry says where its prose lives")
+
+    def test_an_entry_binding_cannot_reach_outside_the_project(self):
+        """A contract can arrive in a pull request, and an entry is a path out of it."""
+        with tempfile.TemporaryDirectory() as outer:
+            with open(os.path.join(outer, "private.md"), "w", encoding="utf-8") as handle:
+                handle.write("# Credentials\n\nhunter2\n")
+            root = os.path.join(outer, "project")
+            os.makedirs(root)
+            self.build({"a.b": "../private.md#Credentials"}, root=root)
+            done = self.run_check(root, "--check")
+            self.assertEqual(done.returncode, 2, done.stdout)
+            self.assertIn("points outside the project", done.stdout)
+            self.assertNotIn("hunter2", done.stdout)
+
+    def test_one_drifted_entry_leaves_the_others_reported(self):
+        """The reason drift is a finding at all: the rest of the collection is still checkable."""
+        root = self.build({"developer.create_offer": "docs/offers.md#kit:developer.create_offer",
+                           "broker.accept_offer": "docs/offers.md#Accepting an offer"},
+                          gaps={"broker.accept_offer": ["nothing says what a rejection does"]})
+        self.write_document(root, self.DOCUMENT.replace(
+            "<!-- kit: developer.create_offer -->\n", ""))
+        done = self.run_check(root, "--check")
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        self.assertReports(done.stdout,
+                           "actions      2 entries · 2 findings",
+                           "anchor drift  actions/developer.create_offer",
+                           "⚠ actions/broker.accept_offer",
+                           "the prose does not answer: nothing says what a rejection does")
+
+
+class EntryStalenessTest(EntryProjectMixin, CheckMixin, unittest.TestCase):
+    """The parse cache, from the reading side. `--check` compares hashes and spends nothing."""
+
+    def setUp(self):
+        self.root = self.build(
+            {"developer.create_offer": "docs/offers.md#kit:developer.create_offer",
+             "broker.accept_offer": "docs/offers.md#Accepting an offer"})
+
+    def test_an_index_that_matches_the_documents_is_clean(self):
+        done = self.run_check(self.root, "--check")
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertReports(done.stdout, "actions      2 entries")
+        self.assertNotIn("stale", done.stdout)
+
+    def test_editing_a_bound_section_reports_the_document_stale_and_counts_the_entries(self):
+        self.write_document(self.root, self.DOCUMENT.replace(
+            "A developer publishes an offer.", "A developer publishes an offer, priced."
+        ).replace("A broker accepts it.", "A broker accepts it, or does not."))
+        done = self.run_check(self.root, "--check")
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        self.assertReports(done.stdout,
+                           "stale        docs/offers.md changed since last parse (2 entries)",
+                           "`blueprint --index`")
+
+    def test_one_edited_section_reports_one_entry_not_the_whole_document(self):
+        self.write_document(self.root, self.DOCUMENT.replace("A broker accepts it.",
+                                                             "A broker accepts it, or does not."))
+        done = self.run_check(self.root, "--check")
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        self.assertIn("stale        docs/offers.md changed since last parse (1 entry)", done.stdout)
+
+    def test_a_check_writes_nothing_at_all(self):
+        """`--check` is put in front of every build command, so it may not cost or change a thing.
+
+        Byte equality of the index is the observable half. The other half is asserted from inside:
+        while this contract is checked, writing the index raises, so a regression fails the suite
+        instead of quietly rewriting a committed cache on someone's machine.
+        """
+        path = os.path.join(self.root, kit_knowledge.INDEX_PATH)
+        with open(path, "rb") as handle:
+            before = handle.read()
+        self.write_document(self.root, self.DOCUMENT.replace("A broker accepts it.", "Rewritten."))
+        self.run_check(self.root, "--check")
+        with open(path, "rb") as handle:
+            self.assertEqual(handle.read(), before, "the check rewrote the index it was reading")
+
+        def refuse(*args, **kwargs):
+            raise AssertionError("--check wrote the index; parsing is `--index`, a separate mode")
+
+        original = kit_knowledge.write_index
+        kit_knowledge.write_index = refuse
+        self.addCleanup(setattr, kit_knowledge, "write_index", original)
+        self.assertEqual(check(self.root, run_commands=False).exit_code, 1)
+
+    def test_a_malformed_index_is_structural_and_names_the_repair(self):
+        with open(os.path.join(self.root, kit_knowledge.INDEX_PATH), "w",
+                  encoding="utf-8") as handle:
+            handle.write("version: 1\nactions:\n  a.b: &anchor\n    rev: 1\n")
+        done = self.run_check(self.root, "--check")
+        self.assertEqual(done.returncode, 2, done.stdout + done.stderr)
+        self.assertReports(done.stdout, "✗ .agent-kit/knowledge/index.yml",
+                           "anchors are outside the subset",
+                           "the index is derived; rebuild it with `blueprint --index`")
+
+    def test_an_index_entry_the_contract_dropped_is_simply_ignored(self):
+        """The index is derived, so a leftover in it is noise, not a verdict about the project."""
+        index = kit_yaml.load_path(os.path.join(self.root, kit_knowledge.INDEX_PATH))
+        index["actions"]["ghost.action"] = {"at": "docs/gone.md#kit:ghost", "rev": "0" * 12,
+                                            "facts": {}, "gaps": ["a gap nobody asked for"]}
+        kit_knowledge.write_index(self.root, index)
+        done = self.run_check(self.root, "--check")
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertNotIn("ghost", done.stdout)
 
 
 if __name__ == "__main__":
