@@ -30,9 +30,27 @@ be a pointer rather than a procedure.
 2. Add `disable-model-invocation: true` if it is a pipeline the user should trigger deliberately,
    and `argument-hint` if it takes arguments. Skills the pipelines call internally
    (`brainstorming`, `writing-plans`, and the rest) leave both off so they stay invokable.
-3. If it is a user-facing command, add a row to `plugins/agent-kit/README.md` — the validator checks
-   that the README and the skill directory agree in both directions.
+3. If it is a user-facing command, add a row to **both** READMEs — `plugins/agent-kit/README.md` and
+   the root `README.md`, which is the storefront — and update the root README's "N commands"
+   sentence. The validator checks the plugin README against the skill directory in both directions,
+   and the storefront for coverage and for that count.
 4. `scripts/validate.sh`.
+
+That one line of frontmatter is the whole difference between a command and an internal skill, so
+the validator holds both sides of it:
+
+- `argument-hint` is read only for a slash command. It may not survive on a skill that is not one,
+  and a command whose body reads `$ARGUMENTS` must declare it.
+- An internal skill's description must say **which skill invokes it** — that clause is its routing
+  signal and the only record of who calls it — and the named caller's body must actually name it
+  back in backticks. A skill nobody reaches still passes every other check.
+- Every `/agent-kit:<name>` written in the payload or either README must be a skill that still
+  carries `disable-model-invocation: true`. `CHANGELOG.md`, `migrations/`, and `docs/` are records
+  of a moment and are exempt.
+
+Absorbing a command into another one — 0.17.0 did it three times — is therefore a small edit made in
+one place: drop those two frontmatter keys, rewrite the description to name the caller, add the name
+to the internal-skill allowlist in `validate.sh`, and let the validator find everything else.
 
 Supporting files go in the skill's own directory and are referenced as
 `${CLAUDE_PLUGIN_ROOT}/skills/<name>/references/<file>.md`. The validator resolves every such path

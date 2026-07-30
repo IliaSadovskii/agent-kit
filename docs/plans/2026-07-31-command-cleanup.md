@@ -118,3 +118,22 @@ Brief: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/01-command-cleanup/spec
   is still `fix --pr <n>`. Recorded because it is the security-relevant property of the mechanism
   this whole feature uses, not because it is a defect.
 - step Security — done.
+- step PR — done. PR #12 against `main`, CI (`validate`) green on the first run. The `code-review`
+  plugin's pass ran on the open PR: five reviewers plus the CLAUDE.md and history lenses returned
+  one finding worth acting on — that this plan and the PR description both claimed the
+  `docs/developing.md` update as done while the diff did not contain it. It was the Docs step's
+  work, still ahead; it is in the branch now, and the claim is backed.
+- note — one of that pass's subagents left the repository checked out on `main` mid-review. Nothing
+  was lost (the branch was pushed and the tree was clean) and the branch was restored, but it is
+  worth knowing that the review fan can move the working tree under a run.
+- docs — `docs/developing.md` is the registered coding standards, and its "Adding a skill"
+  procedure no longer described what the build now enforces: a command needs a row in both READMEs
+  and the count sentence, `argument-hint` is paired with `disable-model-invocation` in both
+  directions, and an internal skill has to name its caller and be named back. Someone following the
+  four old steps would have gone red. Nothing else in `docs/` had diverged.
+- deviation — `docs-reflection` says a changed document leaves the feature PR and goes to its own
+  branch off the default branch. This one stays here, on the same reasoning the skill already makes
+  for the screen map: it documents rules that exist only on this branch, so a docs PR cut from
+  `main` would describe checks `main` does not have — and six stacked features are about to edit
+  these same files.
+- step Docs — done.
