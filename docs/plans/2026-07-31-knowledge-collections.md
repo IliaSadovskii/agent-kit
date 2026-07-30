@@ -71,8 +71,9 @@ Upstream: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/03-knowledge-collect
   the rest of the collection is still checkable; a missing document, an unreadable contract and a
   duplicate anchor stay structural. Recorded in the spec.
 - decision — `at: path#kit:<key>` names an anchor and any other fragment names a heading, so both
-  binding kinds keep stage 1's one grammar. A heading whose literal text begins `kit:` is named as
-  such by the check rather than read as an anchor.
+  binding kinds keep stage 1's one grammar. The cost is a heading whose literal text begins `kit:`:
+  that binding reads as an anchor and the check reports a missing anchor. A documented limit with a
+  loud symptom, rather than a second field on every entry.
 - decision — the entry key format is the brief's default: `<actor>.<action>` for actions, a bare
   slug elsewhere. The parse cache is `index.yml` itself, beside each entry's `rev`; no second file.
   The report follows the design's section 3 sample. The rubric is the design's own bar — *can an
@@ -109,3 +110,35 @@ Upstream: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/03-knowledge-collect
   driven end to end by hand over a scratch project, which is recorded in the realest measurement
   below. Static analysis: the repository has no linter or type checker; `validate.sh`'s AST pass
   over the payload is the whole static layer and it is green.
+
+### The realest measurement
+
+Two documents of the read-only corpus, parsed through the `file#heading` path against a scratch
+copy under `/tmp` — `/projects/realest` itself was never written to, and
+`git -C /projects/realest status --porcelain` is empty.
+
+| | `docs/OFFERS.md` | `docs/user-stories/DEVELOPER_SELLER.md` | total |
+|---|---|---|---|
+| entries bound | 4 | 9 | 13 |
+| grader calls | 1 | 1 | 2 |
+| tokens | 39,597 | 39,825 | 79,422 |
+| wall clock | 145 s | 163 s | 163 s concurrent, 309 s serial |
+
+Result: 44 gaps, 7 cross-check findings, 14 unreached screens. `--check` over the finished index
+runs in **0.05 s**.
+
+The finding that matters for the design's open question 1: **nine entries cost the same as four.**
+Two calls is thin evidence, but at this size the per-call fixed cost — reading the rubric, the
+screen map and the group — dominates the marginal cost of an entry so completely that the two
+totals came out within 0.6% of each other. If that holds, the corpus cost scales with the number of
+**documents**, not entries, which is exactly the unit `--plan` already groups by.
+
+- decision — `--plan` sends whole-section text and the rubric is re-read per call. Both are the
+  reason a call costs what it does, and both are deliberate: a grader with a partial section invents
+  the rest, and a rubric summarised into the prompt is a rubric nobody can revise in one place.
+- note — the 14 "screen on the map, and no action is launched from it" findings and 6 of the 7
+  cross-check findings are artefacts of parsing 2 documents out of 14: the actors and screens they
+  name are described elsewhere in the corpus. The one that is not an artefact is
+  `actions/agency.clone_lot names actors/agency, which no entry describes`, and it is the check
+  working. Worth knowing before stage 6 puts this in front of a build: on a **partially** adopted
+  contract the map-coverage check is the noisiest of the five.
