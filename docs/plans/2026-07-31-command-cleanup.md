@@ -12,9 +12,9 @@ Brief: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/01-command-cleanup/spec
 | `plugins/agent-kit/skills/screens-riff/SKILL.md` | same, caller `riff`; the three-command table loses its own row |
 | `plugins/agent-kit/skills/fix/SKILL.md` | widened frame and description, `argument-hint` gains `[--pr <n>]`, two routing paragraphs |
 | `plugins/agent-kit/skills/riff/SKILL.md` | a screen theme runs `screens-riff` |
-| `plugins/agent-kit/skills/ship/SKILL.md` | `/agent-kit:address` → `/agent-kit:fix --pr <n>` |
-| `plugins/agent-kit/skills/sprint/SKILL.md` | two `/agent-kit:address` references repointed |
-| `plugins/agent-kit/engine.md` | the pipeline-command list drops `/agent-kit:debug`; the file must not grow past the cap |
+| `plugins/agent-kit/skills/ship/SKILL.md` | the `address` reference → `fix --pr <n>` |
+| `plugins/agent-kit/skills/sprint/SKILL.md` | two `address` references repointed |
+| `plugins/agent-kit/engine.md` | the pipeline-command list drops `debug`; the file must not grow past the cap |
 | `README.md`, `plugins/agent-kit/README.md` | three rows out; `fix` and `riff` rows rewritten; the count sentence |
 | `scripts/validate.sh` | three names into the internal allowlist; new stale-command-reference check |
 | `migrations/0.17.0.md` | new |
@@ -34,8 +34,9 @@ Brief: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/01-command-cleanup/spec
    cover; the "nine commands" sentence follows the count. Verify: both tables list exactly the
    skills whose frontmatter still carries `disable-model-invocation: true`.
 5. **`validate.sh`.** The allowlist gains three names; the new check reads every `/agent-kit:<name>`
-   in the repository outside history and requires it to be a live command. Verify: the check fails
-   against a deliberately stale reference, then passes once it is removed.
+   in the payload and the two READMEs and requires it to be a live command. Verify: the check fails
+   against a deliberately stale reference — both for an internal skill and for a name that is not a
+   skill at all — then passes once it is removed.
 6. **Migration note and changelog.** `migrations/0.17.0.md` in the shape of `0.4.0.md`; a `## 0.17.0`
    section directly under the changelog intro. Verify: full `scripts/validate.sh` green.
 
@@ -62,5 +63,8 @@ Brief: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/01-command-cleanup/spec
   slash command, and `ideate` already carries one as an internal skill, so this is the smallest
   honest repair rather than a prose rewrite.
 - decision — the new `validate.sh` check is the general form of the grep the brief asked for: every
-  `/agent-kit:<name>` outside `CHANGELOG.md` and `migrations/` must be a skill that still carries
-  `disable-model-invocation: true`. Five more features pass over these files.
+  `/agent-kit:<name>` in the shipped payload or either README must be a skill that still carries
+  `disable-model-invocation: true`. Five more features pass over these files. `CHANGELOG.md`,
+  `migrations/`, and `docs/` are out of its scope, being records of a moment.
+- step Build — done. Six commits: the three skills, the two callers, the repointed references, the
+  READMEs, the validator, and the migration note plus changelog.

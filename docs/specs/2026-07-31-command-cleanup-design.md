@@ -11,9 +11,9 @@ Three command entry points disappear and nothing they do disappears with them:
 
 | Was | Is now |
 |---|---|
-| `/agent-kit:debug [symptom]` | the `debug` skill, invoked by `fix` when the cause is unknown |
-| `/agent-kit:address [pr]` | the `address` skill, invoked by `fix --pr <n>` |
-| `/agent-kit:screens-riff [focus]` | the `screens-riff` skill, invoked by `riff` on a screen theme |
+| `debug` as a command | the `debug` skill, invoked by `fix` when the cause is unknown |
+| `address` as a command | the `address` skill, invoked by `fix --pr <n>` |
+| `screens-riff` as a command | the `screens-riff` skill, invoked by `riff` on a screen theme |
 
 `fix` widens from "the light path for a small change" to the design's own framing: *something is
 wrong — your words, a PR review, or an observed failure.*
@@ -57,11 +57,11 @@ description of what the owner now types, and the sentence under it stops contras
 with `riff`.
 
 **What `validate.sh` gains.** The brief asks for the dead-command grep, and the general form of it
-is stronger than a grep for three names: every `/agent-kit:<name>` written anywhere in the
-repository must be a skill whose frontmatter still marks it user-facing. `CHANGELOG.md` and
-`migrations/` are exempt — they are history, and naming a removed command is their job. Five more
-features in this batch pass over these files, so a check that catches *any* stale command reference
-is worth more than one that catches these three.
+is stronger than a grep for three names: every `/agent-kit:<name>` written in the shipped payload or
+in either README must be a skill whose frontmatter still marks it user-facing. That scope is the
+whole rule — `CHANGELOG.md`, `migrations/`, and the documents under `docs/` are records of a moment
+and name removed commands on purpose. Five more features in this batch pass over these files, so a
+check that catches *any* stale command reference is worth more than one that catches these three.
 
 The existing allowlist of internal skills in the README cross-check gains the three names, as the
 brief specifies. It stays a hand-maintained list rather than being derived from frontmatter: the

@@ -3,6 +3,29 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.17.0
+
+Nine commands become six. Three entry points are absorbed into the commands next to them, and
+nothing they did is lost — see [migrations/0.17.0.md](migrations/0.17.0.md).
+
+- **`debug` is reached through `fix`.** A task that names a symptom rather than a change runs the
+  root-cause pass first — reproduce, isolate, test hypotheses — and then continues through fix's own
+  tail. The judgment is made from the task text; there is no flag for it.
+- **`address` is `fix --pr <n>`.** A review round on an open PR is the same run it always was, with
+  the same execution contract; only the way in changed. `ship` and `sprint` now point there when
+  they name what closes a review round.
+- **`screens-riff` is `riff` on a screen theme.** A theme carrying a standalone `S<digits>` token,
+  or naming screens or the map, runs the screens pass — which still writes taken proposals onto the
+  map as `idea` cards and turned-down ones as `rejected` memory, so an idea is never proposed twice.
+  Riff is interactive, so an ambiguous theme is asked about rather than guessed.
+- **`fix` widened to match its new frame** — *something is wrong: your words, a PR review, or an
+  observed failure* — rather than "the light path for a small change". A review round on a `ship` PR
+  is not small, and it now arrives here.
+- **The validator refuses a stale command reference.** Absorbing a command breaks nothing loudly:
+  the skill still runs when a pipeline invokes it, so a `/agent-kit:<gone>` left in the payload just
+  tells a reader to type a command that is not in their list. Every command reference in the payload
+  and the READMEs must now name a skill that is still user-facing.
+
 ## 0.16.0
 
 A pipeline can no longer end its turn with steps left, and a run that stopped early is resumed
