@@ -3,6 +3,22 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.15.1
+
+A pipeline's named delegations stop being negotiable.
+
+- **`reviewer` and `tester` are steps, not judgment calls.** The baseline's advice on subagents was
+  written entirely as restraint — they cost context, don't spawn one for small work, keep the count
+  low — and never said that a delegation a pipeline names by name is that step rather than an option.
+  Two of three headless `ship --brief` runs in one sprint skipped Review and Test on that reading
+  while a third ran them; nothing in the kit's text made the third one right.
+- **A host instruction against spawning agents is about initiative, not about a requested step.** A
+  session may arrive carrying one. Typing the command is the request, so it does not reach the
+  pipeline's own delegations — and doing the review inline instead is not a substitute, since the
+  point is that the reviewer did not write the code.
+- **A delegation that cannot run is said out loud** — named, with the reason, in the run log and the
+  PR. Skipping one in silence produces a feature that looks reviewed and is not.
+
 ## 0.15.0
 
 The always-on governance gains the one rule it was missing: keep the diff surgical.

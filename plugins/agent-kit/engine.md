@@ -96,6 +96,16 @@ Do not spawn a subagent for work you could finish in a handful of tool calls, an
 double-check yourself. If one subagent can do the job, use one rather than several. Keep spawn
 counts low, and run genuinely independent tracks concurrently in one message rather than serially.
 
+All of that is about delegation you chose. A delegation a pipeline names by name — `reviewer` at
+ship's Review step, `tester` at its Test step — is not yours to weigh: it *is* that step, and the
+user invoking the command is the request for it. This holds hardest in a headless run, where nobody
+is there to ask and the session may carry a host instruction against calling agents unless the user
+asked. That instruction is about your own initiative; a step the user asked for by typing the command
+is not your initiative. Doing the same work inline is not a substitute — the whole value is that the
+reviewer did not write the code. If a named delegation genuinely cannot run, name it and say why in
+the run log and in the PR, out loud: a feature whose only independent review was skipped in silence
+is worse than one that says it has none.
+
 ## Core rules
 
 1. Work incrementally; don't land a large feature as one undifferentiated change.
