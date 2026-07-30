@@ -106,3 +106,15 @@ Brief: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/01-command-cleanup/spec
   work and lands on this branch rather than in a docs-only PR from `main`, where the rules it
   describes do not exist yet.
 - step Review — done.
+- security — `/security-review` over the branch diff: no findings. The only executable change is
+  inside the quoted `python3` heredoc in `scripts/validate.sh`, which reads files and compares
+  strings — no `exec`, no subprocess, no deserialization, and no write of any kind, so nothing a
+  fork's file names could reach. CI is `pull_request`, not `pull_request_target`, so a fork run
+  holds no secrets either. No new dangerous instruction in the payload.
+- security, noted below the reporting threshold — dropping `disable-model-invocation` is what makes
+  a skill model-invocable, so `address` can now be reached by the model's own judgment rather than
+  only by a typed command. Its contract of treating an owner's PR comment as approval is unchanged
+  and predates this change, `engine.md` still forbids routing free text into a pipeline, and entry
+  is still `fix --pr <n>`. Recorded because it is the security-relevant property of the mechanism
+  this whole feature uses, not because it is a defect.
+- step Security — done.
