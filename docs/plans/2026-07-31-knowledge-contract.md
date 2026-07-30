@@ -16,6 +16,8 @@ Upstream: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/02-knowledge-contrac
 | `tests/test_kit_yaml.py` | new — subset, errors, round-trip against the two shipped files |
 | `tests/test_blueprint_check.py` | new — exit codes, fixtures, the section-hash properties |
 | `tests/fixtures/**` | new — contract trees for the cases that do not depend on a live hash |
+| `plugins/agent-kit/scripts/guard.py` | the never-rules become an importable `refusal()` (Security step) |
+| `tests/test_guard.py` | new — the rules, and the hook protocol nothing could reach before |
 | `scripts/validate.sh` | runs both test files; stdlib-only import check; template/slot-list sync |
 | `docs/developing.md` | the stdlib-only rule, under "What must never end up in the plugin" |
 | `README.md`, `plugins/agent-kit/README.md` | a `blueprint` row in both tables; the count sentence |
