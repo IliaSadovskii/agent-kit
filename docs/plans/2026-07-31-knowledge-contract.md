@@ -183,3 +183,17 @@ Upstream: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/02-knowledge-contrac
 - note — the first end-to-end test written for the leading-zero `rev` passed against the bug,
   because the hash it happened to use was not all digits. The body in it now is one whose section
   hash really is `031657175672`, found by search, so the case is exercised rather than described.
+- step PR — done. PR #13, draft (a stacked feature cannot land code), CI green on the first run and
+  again after the review round's fixes. The round's outcome is posted on the pull request.
+- docs — `docs-reflection` found one divergence beyond what the Build step had already corrected:
+  the root README's layout block described `scripts/` as session start, cloud setup and the guard,
+  which is no longer all of it. Fixed here. `docs/developing.md` was updated on this branch with
+  the change that caused it — the same deviation feature 01 recorded and this one inherits, since a
+  docs PR cut from `main` would describe a validator `main` does not have.
+- docs — deliberately not touched: `docs/design/knowledge-and-gates.md` still opens "proposed, not
+  implemented". On `main` that is still true, and this branch is one of six stacked features that
+  have not landed. Rewriting it here would make a claim about work the default branch does not
+  have; it belongs to whoever merges the sprint's integration pull request.
+- docs — no screen map in this repository (`manifest.sources.screens` is null), so the Docs step's
+  map update does not apply.
+- step Docs — done.

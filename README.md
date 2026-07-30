@@ -102,8 +102,8 @@ plugins/agent-kit/
   rules/                          autonomous mode, interactive mode, pull requests
   templates/project/              what bootstrap copies into a project
   templates/screens/              the screen map viewer, copied by /agent-kit:screens
-  hooks/, scripts/                session start, cloud dependency setup, and the guard that
-                                  turns the never-rules into explicit confirmations
+  hooks/, scripts/                session start, cloud dependency setup, the guard that turns the
+                                  never-rules into explicit confirmations, and the knowledge check
 ```
 
 Behavior lives in exactly one file. A skill that only points at another file is a bug — the
