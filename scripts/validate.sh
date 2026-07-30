@@ -133,6 +133,7 @@ def frontmatter(path):
 
 skills_dir = os.path.join(repo, plugin, "skills")
 skill_names = set()
+commands = set()          # the skills a user can type: disable-model-invocation marks them
 for name in sorted(os.listdir(skills_dir)):
     path = os.path.join(skills_dir, name, "SKILL.md")
     if not os.path.isfile(path):
@@ -143,6 +144,8 @@ for name in sorted(os.listdir(skills_dir)):
         errors.append(f"skills/{name}/SKILL.md: no YAML frontmatter")
         continue
     skill_names.add(name)
+    if fields.get("disable-model-invocation") == "true":
+        commands.add(name)
     if fields.get("name") != name:
         errors.append(f"skills/{name}/SKILL.md: frontmatter name {fields.get('name')!r} != directory name")
     desc = fields.get("description", "")
@@ -177,9 +180,32 @@ for missing in sorted(documented - skill_names):
 for undocumented in sorted(skill_names - documented):
     # Skills the pipelines call internally do not need a README row.
     if undocumented in {"brainstorming", "writing-plans", "ideate", "idea-interview",
-                        "docs-reflection", "stack-playbook"}:
+                        "docs-reflection", "stack-playbook", "debug", "address", "screens-riff"}:
         continue
     errors.append(f"skill {undocumented!r} is not documented in {plugin}/README.md")
+
+# Absorbing a command into another one leaves nothing broken behind: the skill still works when a
+# pipeline invokes it by name, so a `/agent-kit:<gone>` left in the payload fails silently — the
+# reader types a command that is not in their list. Every command reference the payload or the
+# storefront makes must therefore name a skill that still carries `disable-model-invocation`.
+# History is exempt and lives elsewhere: CHANGELOG.md and migrations/ name removed commands on
+# purpose, and so do the design documents under docs/.
+sources = [os.path.join(repo, "README.md")]
+for root, dirs, files in os.walk(os.path.join(repo, plugin)):
+    sources.extend(os.path.join(root, f) for f in sorted(files))
+for path in sorted(sources):
+    try:
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+    except (OSError, UnicodeDecodeError):
+        continue
+    for name in sorted(set(re.findall(r"/agent-kit:([a-z-]+)", text)) - commands):
+        where = os.path.relpath(path, repo)
+        if name in skill_names:
+            errors.append(f"{where} writes /agent-kit:{name}, but {name!r} is an internal skill, "
+                          "not a command anyone can type")
+        else:
+            errors.append(f"{where} writes /agent-kit:{name}, which is not a skill at all")
 
 for e in errors:
     print(f"ERROR: {e}", file=sys.stderr)
