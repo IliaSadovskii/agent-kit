@@ -1,0 +1,136 @@
+# Knowledge contract — the questions the kit's pipelines must have answers to.
+#
+# Copied to .agent-kit/knowledge/contract.yml, which belongs to this repository: the kit never
+# writes here after it is created, so a plugin update cannot touch your verdicts.
+#
+# The kit does not want a document format. Your documents stay where they are, in your own style;
+# this file records, per slot, whether the answer exists and where it lives. Check it with:
+#
+#     /agent-kit:blueprint --check
+#
+# THE BAR IS A DELIBERATE VERDICT, NOT A FULL SLOT. Three statuses are terminal:
+#
+#   filled          answered, and the answer passes the slot's own criterion
+#   not_applicable  not relevant to this product — say why in `reason`
+#   open_question   a known unknown, accepted deliberately
+#
+# Two are not, and --check reports them:
+#
+#   empty           nobody has looked yet (every slot below ships in this state)
+#   conflicts       two sources disagree, which is worse than a gap: the agent is careful around a
+#                   gap and confident around wrong knowledge
+#
+# Never fill a slot to make it look full. An invented answer is read as your decision and built on.
+#
+# A `filled` slot binds to the prose that answers it:
+#
+#   source: docs/product/roadmap.md#What we are building
+#           path#heading — the heading's literal text, not a slug
+#   rev:    the hash --check recorded for that section; when the section changes, the slot goes
+#           stale and --check says so. Renaming the heading reads as a missing section.
+#
+# `criterion` is yours: one line saying what "answered" means for this project, so a later reader
+# can tell a filled slot from a paragraph that happens to exist.
+
+version: 1
+
+# --------------------------------------------------------------------------------------------
+# Singular slots — one answer per project.
+
+slots:
+  # What this product is for, and who it is for. Filled when someone outside the project could
+  # say what it does and why it exists.
+  north_star:
+    status: empty
+    source:
+    rev:
+    reason:
+    criterion:
+
+  # How this codebase is built and what it refuses to do: layering, where a new module goes, what
+  # must never enter the code. Filled when it decides an argument rather than describing one.
+  architecture_stance:
+    status: empty
+    source:
+    rev:
+    criterion:
+
+  # The commands that prove the project works. This is the one slot whose readiness is mechanical:
+  # --check runs every command from the project root and requires exit 0. A later version's step
+  # gate runs these same commands to close a pipeline step, which is where this slot earns its keep.
+  verification:
+    status: empty
+    commands:
+      # name: the shell command, e.g.
+      # test: make test
+      # lint: make lint
+    criterion: every command runs from the project root and exits 0
+
+  # What is in this version and what is deliberately out. Filled when there is an explicit in-list
+  # and an explicit out-list — no "and so on".
+  mvp_bounds:
+    status: empty
+    source:
+    rev:
+    criterion:
+
+  # The handful of end-to-end walks through the product, on concrete data. Filled when each one
+  # runs start to finish without the reader having to invent a step.
+  scenarios:
+    status: empty
+    source:
+    rev:
+    criterion:
+
+  # What is deliberately postponed. Filled when each deferred item names the one decision taken now
+  # that keeps it cheap later.
+  deferred_seams:
+    status: empty
+    source:
+    rev:
+    criterion:
+
+# --------------------------------------------------------------------------------------------
+# Collections — one entry per instance. At this kit version a collection carries a verdict and the
+# documents its entries live in; per-entry anchors, extraction and cross-checks arrive in a later
+# version, and they will read these same globs.
+
+collections:
+  # Who or what initiates anything: a user role, an operator, an external system, a schedule, or
+  # the product acting on its own. Not every product has roles; every product has actors.
+  actors:
+    status: empty
+    sources: []
+    reason:
+    criterion:
+
+  # The things the product keeps. Filled when every entity names its states, its allowed
+  # transitions, and its key relations.
+  entities:
+    status: empty
+    sources: []
+    reason:
+    criterion:
+
+  # Actor × action. Filled when each one says who, what triggers it, what happens step by step,
+  # which entities change and to which status, and what can go wrong.
+  actions:
+    status: empty
+    sources: []
+    reason:
+    criterion:
+
+  # The screens of the app. The screen map written by /agent-kit:screens stays the authority;
+  # point this at it rather than describing the screens twice.
+  screens:
+    status: empty
+    sources: []
+    reason:
+    criterion:
+
+  # Everything outside this codebase that it depends on, and what happens when each one is absent.
+  integrations:
+    status: empty
+    sources: []
+    reason:
+    criterion:

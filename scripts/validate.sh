@@ -22,7 +22,8 @@ for path in VERSION CHANGELOG.md README.md .claude-plugin/marketplace.json \
             "$PLUGIN/.claude-plugin/plugin.json" "$PLUGIN/engine.md" "$PLUGIN/README.md" \
             "$PLUGIN/NOTICE.md" "$PLUGIN/hooks/hooks.json" \
             "$PLUGIN/templates/project/manifest.yml" \
-            "$PLUGIN/templates/project/instructions.md"; do
+            "$PLUGIN/templates/project/instructions.md" \
+            "$PLUGIN/templates/project/contract.yml"; do
   [ -e "$path" ] || fail "missing: $path"
 done
 
@@ -377,6 +378,53 @@ if command -v node >/dev/null 2>&1; then
 else
   printf 'node not available — skipped\n'
 fi
+
+# --------------------------------------------------------------------------------------------
+step "payload scripts import the standard library only"
+
+# A hook or a check that dies on ImportError on someone else's machine takes the whole kit with it,
+# and the kit installs no dependencies. Parsing beats grepping: an import inside a function or a
+# try/except is still an import at run time.
+python3 - "$REPO/$PLUGIN" <<'PY'
+import ast, os, sys
+
+root = sys.argv[1]
+errors = []
+for base, _, files in os.walk(root):
+    siblings = {f[:-3] for f in files if f.endswith(".py")}
+    for name in sorted(f for f in files if f.endswith(".py")):
+        path = os.path.join(base, name)
+        with open(path, encoding="utf-8") as fh:
+            try:
+                tree = ast.parse(fh.read(), filename=path)
+            except SyntaxError as exc:
+                errors.append(f"{path}: {exc}")
+                continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                modules = [alias.name.split(".")[0] for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                modules = [] if node.level else [(node.module or "").split(".")[0]]
+            else:
+                continue
+            for module in modules:
+                if module and module not in sys.stdlib_module_names and module not in siblings:
+                    errors.append(f"{os.path.relpath(path, os.path.dirname(root))}: line "
+                                  f"{node.lineno} imports {module!r}, which is neither the standard "
+                                  "library nor a module shipped beside it")
+for e in errors:
+    print(f"ERROR: {e}", file=sys.stderr)
+sys.exit(1 if errors else 0)
+PY
+[ $? -eq 0 ] || fail "the payload imports something it does not ship"
+
+# --------------------------------------------------------------------------------------------
+step "python tests"
+
+# The repository's own test layer: plain executable checks over the scripts the payload ships.
+while IFS= read -r test; do
+  python3 "$test" || fail "tests failed: $test"
+done < <(find tests -name 'test_*.py' | sort)
 
 # --------------------------------------------------------------------------------------------
 step "no project-specific leakage in the payload"

@@ -12,8 +12,10 @@ plugins/agent-kit/                the plugin
   rules/                          autonomous mode, interactive mode, pull requests
   templates/project/              what bootstrap copies into a project
   templates/screens/              the screen map viewer, copied by /agent-kit:screens
-  hooks/hooks.json, scripts/      session start and cloud dependency setup
+  hooks/hooks.json, scripts/      session start, cloud dependency setup, the guard hooks, and
+                                  the knowledge check behind /agent-kit:blueprint
 scripts/                          validate.sh, release.sh
+tests/                            plain executable checks over the payload's scripts
 migrations/<version>.md           notes for a release that needs a manual step
 ```
 
@@ -115,6 +117,11 @@ Semver, from the perspective of a project using the kit:
   is never refreshed means every improvement to it stops at the projects that already ran the
   command. It carries the exception in its own header, and the data file beside it stays
   project-owned. Anything else copied into a project keeps the rule.
+- A third-party import in a shipped script. The kit installs nothing, so a script that imports
+  PyYAML dies on `ImportError` on someone else's machine — and a hook that dies takes the whole kit
+  with it. Every `.py` under the payload imports the standard library or a module shipped beside it,
+  and `validate.sh` parses each one to hold the line. The shared YAML-subset reader,
+  `scripts/kit_yaml.py`, exists for exactly this reason.
 - A reimplementation of something Claude Code ships. If a step could call `/code-review`,
   `/security-review`, `/verify`, or a built-in agent, it should — the kit's job is the ordering and
   the project context, not another review harness.
