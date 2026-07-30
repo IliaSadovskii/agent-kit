@@ -68,3 +68,22 @@ Brief: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/01-command-cleanup/spec
   `migrations/`, and `docs/` are out of its scope, being records of a moment.
 - step Build — done. Six commits: the three skills, the two callers, the repointed references, the
   READMEs, the validator, and the migration note plus changelog.
+- test — the only layer this change can be tested at is static/structural, inside
+  `scripts/validate.sh`. There is no runnable surface: the payload is markdown a Claude Code session
+  reads, so unit, integration, contract, end-to-end, and property layers have nothing to bind to,
+  and there is no mutation tool in the repository — each new assertion was instead broken by hand,
+  shown red, and restored. `.github/workflows/ci.yml` runs the same script, so CI inherits every
+  new check with no edit.
+- test — the `tester` agent added six assertions: the root README must document every command; its
+  command count in prose must match the frontmatter; `argument-hint` may not survive on a skill
+  that is no longer a command, and may not be missing from one that reads `$ARGUMENTS`; an internal
+  skill's description must name the skill that invokes it; and that named caller's body must
+  actually reference it. It verified them against a `main` worktree — the nine-command state — to
+  prove they encode an invariant rather than this diff.
+- unproven — that a Claude Code session actually routes from `fix` into `debug`/`address` and from
+  `riff` into `screens-riff`. The gate proves the wiring exists, not that the model follows it;
+  nothing available in this session can prove the latter.
+- unproven — `shellcheck` is not installed and may not be installed on this shared host. Every
+  change to `scripts/validate.sh` is inside a quoted `python3` heredoc, so the shell shellcheck
+  reads is byte-identical to `main`'s, and CI installs it and will see the same file.
+- step Test — done. `scripts/validate.sh` — the whole declared suite — green.

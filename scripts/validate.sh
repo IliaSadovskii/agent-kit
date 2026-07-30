@@ -134,6 +134,8 @@ def frontmatter(path):
 skills_dir = os.path.join(repo, plugin, "skills")
 skill_names = set()
 commands = set()          # the skills a user can type: disable-model-invocation marks them
+skill_fields = {}
+skill_bodies = {}
 for name in sorted(os.listdir(skills_dir)):
     path = os.path.join(skills_dir, name, "SKILL.md")
     if not os.path.isfile(path):
@@ -144,6 +146,8 @@ for name in sorted(os.listdir(skills_dir)):
         errors.append(f"skills/{name}/SKILL.md: no YAML frontmatter")
         continue
     skill_names.add(name)
+    skill_fields[name] = fields
+    skill_bodies[name] = body
     if fields.get("disable-model-invocation") == "true":
         commands.add(name)
     if fields.get("name") != name:
@@ -206,6 +210,68 @@ for path in sorted(sources):
                           "not a command anyone can type")
         else:
             errors.append(f"{where} writes /agent-kit:{name}, which is not a skill at all")
+
+# The storefront README is the other half of that promise: the plugin README is cross-checked
+# against the skill list in both directions above, the root one not at all. A command whose row
+# leaves one table and stays in the other is invisible to a reader of the wrong file, and the two
+# tables are edited by hand, one commit apart.
+root_readme = open(os.path.join(repo, "README.md"), encoding="utf-8").read()
+root_documented = set(re.findall(r"/agent-kit:([a-z-]+)", root_readme))
+for missing in sorted(commands - root_documented):
+    errors.append(f"README.md does not document /agent-kit:{missing}, which is a command "
+                  "(the plugin README and the storefront must list the same set)")
+
+# The storefront counts the commands in prose, and the count is the first thing to go stale when
+# one is absorbed into another — 0.17.0 had to rewrite "Nine commands" by hand. Only a sentence
+# that states a number is checked, so rewording the claim away is free.
+NUMBERS = {w: i for i, w in enumerate(
+    "zero one two three four five six seven eight nine ten eleven twelve".split())}
+for token in re.findall(r"\b([A-Za-z]+|\d+) commands\b", root_readme):
+    stated = int(token) if token.isdigit() else NUMBERS.get(token.lower())
+    if stated is not None and stated != len(commands):
+        errors.append(f"README.md says {token!r} commands; {len(commands)} skills carry "
+                      "disable-model-invocation: true")
+
+# `argument-hint` is read only when the skill is typed as a slash command. Left on a skill that a
+# pipeline now invokes, it is the visible half of a command that is no longer in anyone's list —
+# the leftover that makes "absorbed" look half-done to the next reader of the frontmatter.
+for name in sorted(skill_names - commands):
+    if "argument-hint" in skill_fields[name]:
+        errors.append(f"skills/{name}/SKILL.md carries argument-hint but not "
+                      "disable-model-invocation: true — argument-hint is read for a slash command "
+                      "only, so it advertises arguments to a menu row that does not exist")
+
+# The mirror image: a command that reads `$ARGUMENTS` takes arguments by definition, and without a
+# hint the command list offers no clue what to type after it.
+for name in sorted(commands):
+    if "$ARGUMENTS" in skill_bodies[name] and "argument-hint" not in skill_fields[name]:
+        errors.append(f"skills/{name}/SKILL.md is a command whose body reads $ARGUMENTS but "
+                      "declares no argument-hint")
+
+# An internal skill is reached one way only: another skill names it. Its description says which one
+# — that is the shape every internal skill in the payload uses, and for a skill absorbed out of the
+# command list it is the only remaining record of who calls it. Both halves have to be true, so
+# check the caller back: if the routing paragraph that replaced the command is ever rewritten away,
+# the skill keeps working when invoked and nothing invokes it, which no other check here would see.
+def names(needle, text):
+    return re.search(rf"(?<![\w-]){re.escape(needle)}(?![\w-])", text) is not None
+
+for name in sorted(skill_names - commands):
+    desc = skill_fields[name].get("description", "")
+    parts = re.split(r"invoked", desc, maxsplit=1, flags=re.I)
+    callers = ([s for s in sorted(skill_names) if s != name and names(s, parts[1])]
+               if len(parts) == 2 else [])
+    if not callers:
+        errors.append(f"skills/{name}/SKILL.md is internal, and its description does not say it is "
+                      "invoked by a named skill — for a skill nobody can type, that clause is the "
+                      "routing signal and the only record of who calls it")
+        continue
+    # The caller must actually route to it. A skill is named as `name` in the payload's prose, and
+    # only that form is a reference rather than the English word: `address` is what fix runs,
+    # "address" is what a review comment does.
+    if not any(f"`{name}`" in skill_bodies[c] for c in callers):
+        errors.append(f"skills/{name}/SKILL.md says it is invoked by {', '.join(callers)}, but no "
+                      f"body there names `{name}` — nothing reaches this skill any more")
 
 for e in errors:
     print(f"ERROR: {e}", file=sys.stderr)
