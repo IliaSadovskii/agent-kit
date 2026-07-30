@@ -229,7 +229,7 @@ commits the earlier batch already landed are common to both sides, so they merge
 
 **Rebuilding.** The integration branch is derived: nothing is committed to it directly, every change
 belongs on a feature branch, and the branch is rebuilt the same way whenever a feature branch moves
-after it was built — a review round through `/agent-kit:address`, a fix the owner asked for — or
+after it was built — a review round through `/agent-kit:fix --pr`, a fix the owner asked for — or
 `main` moves underneath it. Rebuild, rerun the suite, force-push. An integration PR built from stale
 tips is worse than none: it looks mergeable and delivers the previous version of the fix.
 
@@ -257,7 +257,7 @@ assumptions and deviations gathered from the run's Run logs, as short lines, not
 they are the exact places the owner's eye is needed; then **what to merge** — the integration PR,
 as the command that merges it the right way (`gh pr merge <n> --merge`), with the feature PRs listed
 as where to read each diff and explicitly not as things to merge; then the commands for what comes
-next — `/agent-kit:address <pr>` for review rounds, `--integrate` for taking the batch in parts,
+next — `/agent-kit:fix --pr <n>` for review rounds, `--integrate` for taking the batch in parts,
 resuming the sprint for blocked features. Keep it to one screen; the details live in the PRs.
 
 ## Resume

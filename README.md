@@ -1,8 +1,8 @@
 # agent-kit
 
 A Claude Code plugin for autonomous feature development. Enable it and the agent gains a handful of
-commands — ship a feature, fix a bug, debug a failure — each backed by an ordered pipeline instead
-of improvised behavior.
+commands — ship a feature, fix what is wrong, run a sprint — each backed by an ordered pipeline
+instead of improvised behavior.
 
 The owner stays in the loop where judgement matters (what to build, and the technical design) and
 steps out where it does not: after design approval the agent works through spec, plan,
@@ -48,19 +48,18 @@ the marketplace.
 |---|---|
 | `/agent-kit:ship [task]` | Front-loaded interaction, then autonomous through to a PR |
 | `/agent-kit:sprint [theme]` | One briefing sitting buys a queue of unattended ship runs — one mergeable PR at the end |
-| `/agent-kit:fix [task]` | Lightweight path for a local, low-risk change |
-| `/agent-kit:debug [symptom]` | Reproduce, isolate, root-cause, then fix with a regression test |
-| `/agent-kit:address [pr]` | Close a review round on an open PR: comments and CI in, fixes and replies out |
+| `/agent-kit:fix [task] [--pr n]` | Something is wrong: your words, a PR review, or an observed failure |
 | `/agent-kit:docs` | Reconcile living documentation where it genuinely diverged |
 | `/agent-kit:screens` | Map every screen and transition, and keep the map true as the app grows |
-| `/agent-kit:screens-riff [focus]` | Propose the screens the app is missing, straight onto the map |
-| `/agent-kit:riff [theme]` | Strategic brainstorm; builds nothing |
+| `/agent-kit:riff [theme]` | Strategic brainstorm; builds nothing — on a screen theme, the screens the app is missing |
 
 `ship --manual` swaps the autonomous contract for a consultative one with checkpoints, when you want
 to co-develop rather than delegate.
 
-Nine commands, and the list is meant to stay short. A command earns its place by being a pipeline
-you could not get by asking in plain words — not by wrapping something Claude Code already does.
+Six commands, and the list is meant to stay short. A command earns its place by being a pipeline you
+could not get by asking in plain words — not by wrapping something Claude Code already does. Root-
+cause debugging, a review round on an open PR, and proposing screens onto the map are all still
+here; they are reached through `fix` and `riff` rather than through commands of their own.
 
 ## What it does not reinvent
 

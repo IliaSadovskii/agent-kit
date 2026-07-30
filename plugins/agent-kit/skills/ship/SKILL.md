@@ -118,8 +118,8 @@ say so once at the start and continue.
 
 The pipeline is complete when the feature PR exists with CI green or its state reported, and docs
 reflection is resolved — or when an insurmountable blocker has been reported with the branch left
-in a recoverable state. When the owner's review comes back later, `/agent-kit:address` closes that
-round; it is not part of this run.
+in a recoverable state. When the owner's review comes back later, `/agent-kit:fix --pr <n>` closes
+that round; it is not part of this run.
 
 ## The run log
 
