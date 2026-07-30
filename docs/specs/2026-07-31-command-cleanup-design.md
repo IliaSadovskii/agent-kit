@@ -67,6 +67,15 @@ The existing allowlist of internal skills in the README cross-check gains the th
 brief specifies. It stays a hand-maintained list rather than being derived from frontmatter: the
 brief settled the mechanism, and the new check above already covers the direction that matters.
 
+The Test step added five more assertions to the same block, on the same reasoning — six features
+stack on this branch and they all edit these files. The root `README.md` must document every
+command, and its prose command count must match the frontmatter; `argument-hint` may not survive on
+a skill that is no longer a command, nor be missing from a command whose body reads `$ARGUMENTS`; an
+internal skill's description must name the skill that invokes it, and that skill's body must
+actually reference it back. The last one is the load-bearing one: it is what would catch a later
+feature rewriting `fix` or `riff` and dropping a routing paragraph, which would leave a working
+skill that nothing reaches — a failure no other check here can see.
+
 ## Out
 
 `docs` is untouched — it is absorbed into `blueprint --check` at stage 7, and removing it now would

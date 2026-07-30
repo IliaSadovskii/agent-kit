@@ -1,6 +1,6 @@
 ---
 name: debug
-description: Track a failure to its root cause — reproduce, isolate, form and test hypotheses, then either fix the cause with a regression test or report the diagnosis. Invoked by fix when the task names a symptom whose cause is not yet known, and by the user asking in plain words to debug something.
+description: Track a failure to its root cause — reproduce, isolate, form and test hypotheses, then either fix the cause with a regression test or report the diagnosis. Invoked by fix when the task names a symptom whose cause is not yet known, rather than naming the change to make.
 ---
 
 # Debug

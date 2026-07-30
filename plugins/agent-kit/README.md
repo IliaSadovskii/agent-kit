@@ -12,7 +12,7 @@ Plugin skills are namespaced, so every command below is `/agent-kit:<name>`.
 |---|---|
 | `/agent-kit:ship [task]` | Front-loaded interaction, then autonomous to PR |
 | `/agent-kit:sprint [theme]` | One briefing sitting, then a queue of unattended ship runs — one mergeable PR at the end |
-| `/agent-kit:fix [task] [--pr n]` | Something is wrong: your words, a PR review, or an observed failure |
+| `/agent-kit:fix [task] [--pr <n>]` | Something is wrong: your words, a PR review, or an observed failure |
 | `/agent-kit:docs` | Reconcile living documentation |
 | `/agent-kit:screens` | Map every screen and transition, and keep the map true |
 | `/agent-kit:riff [theme]` | Interactive strategy, builds nothing — on a screen theme, the screens the app is missing |

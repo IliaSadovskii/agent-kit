@@ -87,3 +87,22 @@ Brief: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/01-command-cleanup/spec
   change to `scripts/validate.sh` is inside a quoted `python3` heredoc, so the shell shellcheck
   reads is byte-identical to `main`'s, and CI installs it and will see the same file.
 - step Test — done. `scripts/validate.sh` — the whole declared suite — green.
+- review — the `reviewer` agent found nothing critical or major; it checked all five of the brief's
+  "Done means" conditions itself and they hold. Fixed from its minor findings: a soft line break
+  that would have rendered as "Root- cause" in the storefront README; `screens-riff`'s "Three
+  commands touch the map" above a table that now lists two commands; a clause I had added to
+  `debug`'s description offering it to plain free text, which widened the entry point past the
+  sketch and past `engine.md`'s own rule; `[--pr n]` in the README tables against `[--pr <n>]`
+  everywhere else; and the expanded spec, which described one new validator check where six shipped.
+- deferred — `screens-riff`'s body still calls itself "this command" in three places. The sketch
+  settled that the moved skills keep their prose whole, and these three sentences are true of a pass
+  the owner still reaches by typing something; rewriting them is prose churn inherited six times.
+- deferred — the new root-README check reads `/agent-kit:<name>` from the whole file rather than
+  from the command table, so a command mentioned only in prose would count as documented. The hole
+  is one-sided — an extra table row is still caught by the stale-reference check — and closing it
+  would mean parsing the table, which breaks on any honest reformatting.
+- decision — `docs/developing.md`'s "Adding a skill" procedure no longer lists everything the
+  validator now enforces. That is a real divergence caused by this feature, so it is the Docs step's
+  work and lands on this branch rather than in a docs-only PR from `main`, where the rules it
+  describes do not exist yet.
+- step Review — done.

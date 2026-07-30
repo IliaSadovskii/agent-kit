@@ -48,7 +48,7 @@ the marketplace.
 |---|---|
 | `/agent-kit:ship [task]` | Front-loaded interaction, then autonomous through to a PR |
 | `/agent-kit:sprint [theme]` | One briefing sitting buys a queue of unattended ship runs — one mergeable PR at the end |
-| `/agent-kit:fix [task] [--pr n]` | Something is wrong: your words, a PR review, or an observed failure |
+| `/agent-kit:fix [task] [--pr <n>]` | Something is wrong: your words, a PR review, or an observed failure |
 | `/agent-kit:docs` | Reconcile living documentation where it genuinely diverged |
 | `/agent-kit:screens` | Map every screen and transition, and keep the map true as the app grows |
 | `/agent-kit:riff [theme]` | Strategic brainstorm; builds nothing — on a screen theme, the screens the app is missing |
@@ -57,9 +57,10 @@ the marketplace.
 to co-develop rather than delegate.
 
 Six commands, and the list is meant to stay short. A command earns its place by being a pipeline you
-could not get by asking in plain words — not by wrapping something Claude Code already does. Root-
-cause debugging, a review round on an open PR, and proposing screens onto the map are all still
-here; they are reached through `fix` and `riff` rather than through commands of their own.
+could not get by asking in plain words — not by wrapping something Claude Code already does. Nothing
+was dropped to get there: root-cause debugging, a review round on an open PR, and proposing screens
+onto the map are all still here, reached through `fix` and `riff` rather than through commands of
+their own.
 
 ## What it does not reinvent
 

@@ -9,9 +9,9 @@ The map shows what the app *is*. This pass asks what it should become, and answe
 picture — a proposed screen is read next to the screens it sits between, which is the only way to
 tell whether it belongs there.
 
-Three commands touch the map, and keeping them apart is what makes it trustworthy:
+Three passes touch the map, and keeping them apart is what makes it trustworthy:
 
-| Command | Asks | Writes |
+| Pass | Asks | Writes |
 |---|---|---|
 | `/agent-kit:screens` | what is true today | every card kept true, including an idea that got built; invents nothing |
 | `/agent-kit:riff` on a screen theme | what is missing | `idea` and `rejected` cards, builds nothing |
