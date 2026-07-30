@@ -181,8 +181,8 @@ class SectionResolverTest(unittest.TestCase):
 
     def test_body_runs_to_the_next_heading_of_the_same_level(self):
         self.assertEqual(section_body(self.DOC, "Bound"),
-                         "\nthe answer\n\n### Nested\n\na detail of the answer\n")
-        self.assertEqual(section_body(self.DOC, "Sibling"), "\nnot the answer")
+                         "\nthe answer\n\n### Nested\n\na detail of the answer\n\n")
+        self.assertEqual(section_body(self.DOC, "Sibling"), "\nnot the answer\n")
 
     def test_body_swallows_a_deeper_subsection(self):
         """"The next heading of the same level *or shallower*" — a nested `###` is inside."""
@@ -193,14 +193,14 @@ class SectionResolverTest(unittest.TestCase):
 
     def test_body_stops_at_a_shallower_heading(self):
         text = "# One\n\n## Two\n\n### Three\n\nthree body\n\n# Four\n\nfour body\n"
-        self.assertEqual(section_body(text, "Three"), "\nthree body\n")
+        self.assertEqual(section_body(text, "Three"), "\nthree body\n\n")
 
     def test_body_of_the_last_section_runs_to_the_end_of_the_file(self):
-        self.assertEqual(section_body("# One\n\nlast\n", "One"), "\nlast")
+        self.assertEqual(section_body("# One\n\nlast\n", "One"), "\nlast\n")
 
     def test_a_fenced_heading_does_not_end_a_section(self):
         text = "# One\n\n```\n# Fake\n```\n\n# Two\n\nsecond\n"
-        self.assertEqual(section_body(text, "One"), "\n```\n# Fake\n```\n")
+        self.assertEqual(section_body(text, "One"), "\n```\n# Fake\n```\n\n")
 
     def test_missing_heading_raises(self):
         with self.assertRaises(SectionError) as caught:
@@ -306,8 +306,12 @@ class SectionHashPropertyTest(unittest.TestCase):
             text = as_text(lines)
             for index, (_, title, _) in enumerate(sections):
                 start, end = true_span(sections, index, len(lines))
+                body = lines[start:end]
+                # Every line the file has, terminated the way the file terminates it — so a section
+                # holding one blank line is not the same text as a section holding nothing.
+                expected = "\n".join(body) + "\n" if body else ""
                 with self.subTest(seed=SEED, document=number, section=title):
-                    self.assertEqual(section_body(text, title), "\n".join(lines[start:end]),
+                    self.assertEqual(section_body(text, title), expected,
                                      f"seed {SEED}, document {number}:\n{text}")
 
     def test_the_hash_changes_when_and_only_when_the_body_changes(self):
@@ -335,6 +339,47 @@ class SectionHashPropertyTest(unittest.TestCase):
                     else:
                         self.assertEqual(before, after, "edit outside the section, hash changed"
                                                         f"\n{detail}")
+
+    def test_lines_added_and_removed_outside_the_section_leave_the_hash_alone(self):
+        """The other half of "only when": an edit elsewhere shifts every line number after it.
+
+        Mutating lines in place cannot catch a resolver that remembered where the section was
+        instead of re-finding it, because in-place mutation never moves anything.
+        """
+        removable = ("a claim", "another line of prose", "  indented prose", "", "- a list item")
+        for number, rng, lines, sections in self.documents():
+            index = rng.randrange(len(sections))
+            _, title, _ = sections[index]
+            start, end = true_span(sections, index, len(lines))
+            before = section_rev(as_text(lines), title)
+            for at in range(len(lines) + 1):
+                mutated = list(lines)
+                mutated.insert(at, "an inserted line")
+                inside = start <= at <= end
+                with self.subTest(seed=SEED, document=number, section=title, inserted_at=at):
+                    after = section_rev(as_text(mutated), title)
+                    detail = (f"seed {SEED}, document {number}, section {title!r} (body lines "
+                              f"{start}:{end}), inserted at {at}\n{as_text(lines)}")
+                    if inside:
+                        self.assertNotEqual(before, after, f"line added inside\n{detail}")
+                    else:
+                        self.assertEqual(before, after, f"line added outside\n{detail}")
+            for at, line in enumerate(lines):
+                # Headings and fences carry the structure; removing one moves a boundary, which is
+                # a different question from whether the body changed.
+                if line not in removable:
+                    continue
+                mutated = list(lines)
+                del mutated[at]
+                inside = start <= at < end
+                with self.subTest(seed=SEED, document=number, section=title, removed=at):
+                    after = section_rev(as_text(mutated), title)
+                    detail = (f"seed {SEED}, document {number}, section {title!r} (body lines "
+                              f"{start}:{end}), removed line {at}: {line!r}\n{as_text(lines)}")
+                    if inside:
+                        self.assertNotEqual(before, after, f"line removed inside\n{detail}")
+                    else:
+                        self.assertEqual(before, after, f"line removed outside\n{detail}")
 
     def test_renaming_the_bound_heading_is_a_missing_section(self):
         for number, rng, lines, sections in self.documents():
@@ -394,7 +439,7 @@ class ExitCodeTest(CheckMixin, ContractWriterMixin, unittest.TestCase):
             "⚠ slots/moonshot",
             "not a slot this kit version knows",
             "⚠ slots/architecture_stance",
-            "but never verified — record rev: 797d598271bf",
+            "but never verified — record rev: 724310f60748",
             "⚠ slots/verification",
             "names no commands",
             "⚠ collections/entities",
@@ -602,8 +647,12 @@ class VerificationCommandTest(CheckMixin, ContractWriterMixin, unittest.TestCase
                 "commands": {"test": None},
             }})
             done = self.run_check(root, "--check")
-        self.assertNotEqual(done.returncode, 0, done.stdout)
-        self.assertIn("verification", done.stdout)
+        # 2, not 1: a command that cannot be run is the same structural failure as a command that
+        # ran and failed, and the crash this replaced exited 1 by accident of the traceback.
+        self.assertEqual(done.returncode, 2, done.stdout)
+        self.assertIn("slots/verification", done.stdout)
+        self.assertIn("is not a command", done.stdout)
+        self.assertNotIn("Traceback", done.stdout)
 
 
 # ------------------------------------------------------------------------------------------

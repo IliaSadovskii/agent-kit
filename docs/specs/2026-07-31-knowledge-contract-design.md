@@ -81,8 +81,9 @@ and swallow half the file. "Same level or shallower" is identical in the flat ca
 nested one, so that is what ships. The invariant the property tests state is unchanged: **a section's
 hash changes when and only when the text between its heading and its boundary changes.**
 
-The body is hashed raw — no normalization, so the invariant holds literally — as `sha256`, truncated
-to twelve hex characters. A renamed or deleted heading is a *missing section*, reported as such;
+The body is hashed as `sha256`, truncated to twelve hex characters. Nothing in it is normalized
+except line endings, so the invariant holds literally over the text and a CRLF checkout does not
+make every binding in the project stale at once. A renamed or deleted heading is a *missing section*, reported as such;
 stage 2's anchors are what will fix that, and until then it is an honest limitation rather than a
 silent one. A heading text that appears twice in one file is an **ambiguous** binding and is reported
 too: the kit cannot tell which of them the slot meant, and picking the first would be a guess.
@@ -131,8 +132,9 @@ subset, and a round-trip test reads both back and asserts the values are what th
 verification commands from that same directory, with a five-minute per-command timeout so a wedged
 command fails loudly rather than hanging the gate stage 6 will put in front of every build command.
 
-Output follows the design's sample: a summary line per category, then one block per finding, then a
-`stale` line. Nothing else. It never calls a grader and it never writes anything.
+Output follows the design's sample: a summary line per category, a line per verification command
+that ran, then one block per finding, then a `stale` line. Nothing else — no progress, no banner, no
+audit trail of what was fine. It never calls a grader and it never writes anything.
 
 ## Why CI does not run `--check` on this repository
 
@@ -161,8 +163,11 @@ payload-boundary rules live.
 `plugins/agent-kit/skills/blueprint/SKILL.md`, `disable-model-invocation: true`, one mode. `--check`
 runs the script and reads its output back to the owner. A bare invocation says plainly that the
 interview lands in a later version and offers `--check`; it does not improvise an interview. A
-project with no contract yet is told where the template is and is not written to — this feature does
-not touch the owner's files at all.
+project with no contract yet is told where the template is, and the command offers to copy it in —
+on an explicit yes, and with every slot arriving `empty`. What this feature never does is write to
+the owner's prose documents, or put a verdict in a slot on their behalf: `--check` itself writes
+nothing at all, and the two edits the skill may offer — a stale `rev`, and a binding that has none —
+are the mechanical ones whose answer is already in the report.
 
 It joins the command table in both READMEs, and the storefront's count sentence goes from six to
 seven.

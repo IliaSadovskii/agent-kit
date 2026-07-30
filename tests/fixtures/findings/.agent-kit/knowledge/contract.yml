@@ -1,4 +1,4 @@
-# Every kind of finding at once, and no structural fault: one run must report all eight rather
+# Every kind of finding at once, and no structural fault: one run must report all nine rather
 # than the first, and exit 1.
 
 version: 1

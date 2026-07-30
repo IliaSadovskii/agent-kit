@@ -422,9 +422,15 @@ PY
 step "python tests"
 
 # The repository's own test layer: plain executable checks over the scripts the payload ships.
-while IFS= read -r test; do
+# A loop over a glob is silent when the glob is empty, and a test step that finds no tests is the
+# one failure mode nothing downstream would notice — so count them first.
+mapfile -t tests < <(find tests -name 'test_*.py' 2>/dev/null | sort)
+if [ "${#tests[@]}" -eq 0 ]; then
+  fail "no tests found under tests/ — the suite cannot pass by being absent"
+fi
+for test in "${tests[@]}"; do
   python3 "$test" || fail "tests failed: $test"
-done < <(find tests -name 'test_*.py' | sort)
+done
 
 # --------------------------------------------------------------------------------------------
 step "no project-specific leakage in the payload"

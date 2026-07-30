@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """A reader for the YAML subset the kit's machine-owned files are written in.
 
 Nothing the kit ships may import a third-party module: a hook that dies on `ImportError` on
@@ -8,9 +7,8 @@ this is the reader the kit's scripts share instead.
 The subset is defined by what those files actually use — nested maps by indentation, lists of
 scalars and lists of maps, plain and quoted scalars, `null` / `true` / `false` / numbers, comments,
 literal and folded block scalars (`|`, `>`, `|-`, `>-`), and the empty flow collections `[]` and
-`{}`. Anything outside it raises KitYamlError
-naming the construct and the line, so a caller can say what it does not understand instead of
-guessing at a value.
+`{}`. Anything outside it raises KitYamlError naming the construct and the line, so a caller can
+say what it does not understand instead of guessing at a value.
 """
 import re
 
@@ -46,15 +44,20 @@ def _strip_comment(text):
     A `source:` value is `docs/developing.md#What must never end up in the plugin`. A reader that
     treats every `#` as a comment eats the binding, so `#` opens a comment only at the start of a
     line or after whitespace — which is YAML's own rule.
+
+    A quote opens a quoted scalar under that same rule. Mid-word it is just a character, or the
+    apostrophe in `criterion: the owner's own rules` would open a quote that never closes and the
+    comment after it would be read as part of the value.
     """
     quote = ""
     for i, ch in enumerate(text):
+        opens = i == 0 or text[i - 1] in " \t"
         if quote:
             if ch == quote:
                 quote = ""
-        elif ch in "\"'":
+        elif ch in "\"'" and opens:
             quote = ch
-        elif ch == "#" and (i == 0 or text[i - 1] in " \t"):
+        elif ch == "#" and opens:
             return text[:i]
     return text
 

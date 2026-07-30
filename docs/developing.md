@@ -75,7 +75,10 @@ shows the agents, and `/hooks` shows the SessionStart entries. Edits to a skill 
 `scripts/validate.sh` covers what a session cannot tell you at a glance: manifest and version
 agreement across `VERSION`, `plugin.json`, and `marketplace.json`; skill and agent frontmatter;
 dangling `${CLAUDE_PLUGIN_ROOT}` references; leftover paths from the pre-plugin layout; the
-`engine.md` size cap; and `claude plugin validate --strict` when the CLI is available.
+`engine.md` size cap; that no payload script imports anything the kit does not ship; and
+`claude plugin validate --strict` when the CLI is available. It also runs the repository's own
+tests — every `tests/test_*.py`, executed directly, which is why they are stdlib-only and need no
+runner.
 
 ### The engine size cap
 

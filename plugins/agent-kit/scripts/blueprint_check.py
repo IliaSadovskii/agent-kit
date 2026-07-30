@@ -78,6 +78,10 @@ def section_body(text, heading):
     Line endings are normalized, so a CRLF checkout does not make every binding stale; nothing else
     is. Whitespace inside the section is part of it — the hash is meant to notice edits, and an edit
     that only moved whitespace is still an edit the owner made.
+
+    Each line keeps its terminator, which is what the file has. Joining without one would make a
+    section holding a single blank line and a section holding nothing the same text, and an edit
+    between the two would be the one edit the hash could not see.
     """
     all_headings = headings(text)
     matches = [h for h in all_headings if h[1] == heading]
@@ -92,7 +96,8 @@ def section_body(text, heading):
         if other_start > start and other_level <= level:
             end = other_start
             break
-    return "\n".join(text.splitlines()[start + 1:end])
+    body = text.splitlines()[start + 1:end]
+    return "\n".join(body) + "\n" if body else ""
 
 
 def section_rev(text, heading):
@@ -160,8 +165,12 @@ def _check_binding(report, root, where, entry):
     if not os.path.isfile(full):
         report.fault(where, f"source file is gone: {path}")
         return
-    with open(full, encoding="utf-8") as handle:
-        text = handle.read()
+    try:
+        with open(full, encoding="utf-8") as handle:
+            text = handle.read()
+    except (OSError, UnicodeDecodeError) as exc:
+        report.fault(where, f"{path}: {exc}")
+        return
     try:
         actual = section_rev(text, heading)
     except SectionError as exc:
@@ -220,7 +229,7 @@ def check(root, run_commands=True):
     except kit_yaml.KitYamlError as exc:
         report.fault(CONTRACT_PATH, f"{exc} — the kit reads a YAML subset and will not guess")
         return report
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         report.fault(CONTRACT_PATH, str(exc))
         return report
     if not isinstance(contract, dict):

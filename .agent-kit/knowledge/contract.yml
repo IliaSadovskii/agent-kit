@@ -22,11 +22,11 @@ slots:
   architecture_stance:
     status: filled
     source: docs/developing.md#What must never end up in the plugin
-    rev: c53c81c6f4ea
+    rev: 2f280be7ed4b
     criterion: >-
-      the rules that decide where a change belongs and what must never enter the payload —
-      project-specific content, a file the project owns, a third-party import, a reimplementation
-      of something Claude Code already ships
+      the boundary the payload may not cross, decided rather than described — no project-specific
+      content, no file the project owns, no third-party import, no reimplementation of something
+      Claude Code already ships
 
   verification:
     status: filled
@@ -55,9 +55,10 @@ slots:
   deferred_seams:
     status: not_applicable
     reason: >-
-      deferred work here is a stage list per design document — docs/design/knowledge-and-gates.md
-      section 9 is the current one — and the kit ships each stage as a usable release rather than
-      holding seams open in an unreleased MVP
+      the kit ships each stage as a usable release rather than holding seams open in an unreleased
+      MVP. The nearest prose is the stage list in docs/design/knowledge-and-gates.md section 9, and
+      it is deliberately not bound here: it orders the work, it does not name the decision taken now
+      that keeps each deferral cheap, which is what this slot asks for
 
 collections:
   actors:

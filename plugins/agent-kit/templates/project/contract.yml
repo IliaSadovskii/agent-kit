@@ -53,6 +53,7 @@ slots:
     status: empty
     source:
     rev:
+    reason:
     criterion:
 
   # The commands that prove the project works. This is the one slot whose readiness is mechanical:
@@ -64,6 +65,7 @@ slots:
       # name: the shell command, e.g.
       # test: make test
       # lint: make lint
+    reason:
     criterion: every command runs from the project root and exits 0
 
   # What is in this version and what is deliberately out. Filled when there is an explicit in-list
@@ -72,6 +74,7 @@ slots:
     status: empty
     source:
     rev:
+    reason:
     criterion:
 
   # The handful of end-to-end walks through the product, on concrete data. Filled when each one
@@ -80,6 +83,7 @@ slots:
     status: empty
     source:
     rev:
+    reason:
     criterion:
 
   # What is deliberately postponed. Filled when each deferred item names the one decision taken now
@@ -88,6 +92,7 @@ slots:
     status: empty
     source:
     rev:
+    reason:
     criterion:
 
 # --------------------------------------------------------------------------------------------

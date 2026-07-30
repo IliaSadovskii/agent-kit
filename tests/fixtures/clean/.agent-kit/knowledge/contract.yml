@@ -7,13 +7,13 @@ slots:
   north_star:
     status: filled
     source: docs/handbook.md#Verification
-    rev: 9b1c94ed5b31
+    rev: e61e6196bc07
     criterion: a reader outside the project can say what it is for
 
   architecture_stance:
     status: filled
     source: docs/handbook.md#Boundaries
-    rev: 797d598271bf
+    rev: 724310f60748
     criterion: the rules that decide where a change belongs
 
   verification:

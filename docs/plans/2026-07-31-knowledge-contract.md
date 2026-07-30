@@ -100,8 +100,37 @@ Upstream: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/02-knowledge-contrac
   the section of `docs/developing.md` that `architecture_stance` binds to fails the build until the
   `rev` is updated. That is the contract doing its job on the repository that ships it; the failure
   renders the whole check report, including the new hash to paste in.
-- step Test — done. `scripts/validate.sh` green: 90 tests, plus manifests, frontmatter, references,
+- step Test — done. `scripts/validate.sh` green: 91 tests, plus manifests, frontmatter, references,
   payload syntax, the new stdlib-only import check, and `claude plugin validate --strict`. The
   runnable surface is the check itself, exercised against this repository's real documents: clean
   exits 0; editing the bound section reports it stale with both hashes; editing a different section
   of the same file stays clean; renaming the bound heading is reported as a missing section, exit 2.
+- review — the `code-review` plugin is enabled here, so the `reviewer` agent carried the
+  design-conformance question alone and the bug hunt goes to the PR step. Its verdict: this is the
+  feature that was approved — every "Done means" bullet true, nothing from "Out" present, the four
+  constraints from `upstream.md` met, `VERSION` / `plugin.json` / `marketplace.json` untouched. It
+  raised nineteen findings; three major, and those are fixed:
+  `validate.sh`'s new test step passed vacuously when the glob matched nothing (it now counts the
+  files first and fails on zero); the test written for the crashing-command defect asserted only a
+  non-zero exit, so a return to exit 1 would have passed it; and an apostrophe in a plain scalar —
+  `criterion: the owner's rules` — opened a quote that never closed, so a trailing comment was read
+  into the value silently, which is the one outcome the reader's own contract forbids.
+- review — fixed alongside them: a bound document that cannot be read no longer escapes as a
+  traceback; the template ships a `reason` placeholder on every slot, not only the first; the
+  `deferred_seams` and `architecture_stance` entries in this repository's contract say more exactly
+  what they claim; three sentences in the spec that the implementation had outgrown; two
+  documentation lines the diff had made stale.
+- deviation — the property test the reviewer asked for (lines added and removed, not only edited in
+  place) found a genuine collision: joined without terminators, a section holding one blank line and
+  a section holding nothing hash the same. Section bodies now keep each line's terminator, which is
+  what the file has. That changes every recorded `rev`, so this repository's contract and the
+  fixtures were recomputed.
+- review, deliberately not acted on — `open_question` on `north_star` is a stretched reading of "a
+  known unknown", and the alternative was to give the README's opening paragraphs a heading purely
+  so a slot could bind to them; the contract's own comment explains the gap instead. The template
+  still has no automatic path into a project: bootstrap does not copy it, because the interview that
+  owns that file is stage 7 and the brief's scope does not include wiring it — `--check` says where
+  the template is and the command offers to copy it. A usage error exits 2, the same code stage 6
+  will read as structural; recorded rather than changed, since inventing a fourth code to
+  distinguish a typo from a broken contract buys nothing yet.
+- step Review — done.
