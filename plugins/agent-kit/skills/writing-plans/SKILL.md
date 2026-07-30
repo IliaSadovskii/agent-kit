@@ -46,8 +46,10 @@ needs tooling the project does not have yet, name it here — the Test step inst
 
 ## Run log
 
-Empty at planning time. The build appends assumptions, deviations, skipped layers, and manual
-actions here as they happen — the `ship` pipeline owns the rules and assembles the PR from it.
+Opens with the run's branch and the ordered steps still ahead — `ship` specifies those two lines and
+a `Stop` hook holds the run to them. The build appends assumptions, deviations, skipped layers,
+manual actions, and one line settling each step as it ends; the `ship` pipeline owns the rules and
+assembles the PR from it.
 ```
 
 The file map is where decomposition gets locked in: one responsibility per file, files that change

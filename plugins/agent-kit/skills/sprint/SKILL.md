@@ -108,6 +108,7 @@ before opening a new brief.
        base: main           # or the branch of the feature it depends on
        depends_on: null     # or a feature id
        status: pending      # pending | running | done | blocked
+       session: null        # the uuid the child ran under, so it can be resumed
        pr: null
        note: null
    ```
@@ -138,13 +139,35 @@ Then loop until no feature is runnable:
 
    ```bash
    claude -p "/agent-kit:ship --brief <absolute path to spec.md>" \
+     --session-id "$(python3 -c 'import uuid; print(uuid.uuid4())')" \
      > .agent-kit/sprint/<sprint>/<id>/run.log 2>&1
    ```
+
+   Record that id in `queue.yml` as `session` before launching. A child that stops mid-pipeline can
+   then be picked up where it stood instead of rebuilt from nothing, and without it the only way
+   back into its context is guessing which transcript was its.
 
    One child at a time, by design: parallel features in one repository conflict, and sequencing is
    what lets dependent features stack. A feature takes hours — run the child in the background and
    check on it periodically rather than holding a foreground call against a timeout.
-5. **On exit, record the outcome.** Find the feature's PR (`gh pr list --head <branch>`), and mark
+5. **On exit, check the pipeline actually finished, then record the outcome.** Exit code 0 proves the
+   process ended, not that the run reached its end — a step read inline can take over the child's
+   role, and the turn ends with that step's report. So read the plan's Run log: `done` needs every
+   declared step settled and a PR that exists. If steps are unsettled, nothing is lost and this is
+   not the retry below — resume the child's own session, which costs seconds where a relaunch costs
+   hours:
+
+   ```bash
+   claude -p --resume <session from queue.yml> \
+     "Continue the pipeline from your first unsettled step in the plan's Run log." \
+     >> .agent-kit/sprint/<sprint>/<id>/run.log 2>&1
+   ```
+
+   Do not finish those steps by hand from here. The orchestrator holds none of the feature's
+   context, and a pull request assembled from outside it is not the one the pipeline would have
+   written — it is a guess wearing the pipeline's name.
+
+   Then find the feature's PR (`gh pr list --head <branch>`), and mark
    `done` with `pr` filled. A rate-limit exit is not a failure: wait for the reset and relaunch
    the same feature. A real failure gets **one informed retry** before it costs anything: reset
    the branch state, relaunch the same feature once with the tail of its `run.log` alongside the

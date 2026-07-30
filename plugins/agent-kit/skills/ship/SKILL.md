@@ -129,6 +129,23 @@ the owner can do, append one line there and commit it with the task — never ho
 step. A run this long outlives its own context: what is not in the run log or the code does not
 survive, and it is also how a resumed session finds out where the last one stood.
 
+It also carries the run's own position in the pipeline, and that part is not optional. Open the Run
+log, when the plan is written, with the branch and the steps still ahead of you:
+
+```markdown
+**Branch:** claude/<branch>
+**Steps:** Build, Test, Review, Security, PR, Docs
+```
+
+Then settle each step as it ends, one line each — `- step Review — done`,
+`- step Security — skipped: no runnable surface`, `- step PR — blocked: no remote configured`. A
+`Stop` hook reads this against the branch you are on and refuses to end the turn while a step has
+no line, because a long context loses its ordering to whatever instruction is freshest: a review
+prompt read inline can reassign the role, and the turn ends with a report where a pull request was
+due. So settle a step the moment it actually ends rather than in a batch at the end, and when you
+stop on a blocker, write it against the step it blocked. Every outcome settles a step; only silence
+does not.
+
 ## The two gates
 
 Technical setup and product bootstrap are separate concerns, and only one of them is a gate.

@@ -3,6 +3,29 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.16.0
+
+A pipeline can no longer end its turn with steps left, and a run that stopped early is resumed
+instead of rebuilt.
+
+- **The Run log carries the run's position, not just its surprises.** It opens with the branch and
+  the ordered steps ahead, and each step is settled by its own line as it ends — `done`, or
+  `skipped: why`, or `blocked: why`. Every outcome settles a step; only silence does not.
+- **A `Stop` hook holds the run to that list.** Step order is prose, and prose loses to whatever
+  instruction is freshest in a long context: a review prompt read inline can reassign the role, and
+  the turn ends with a report where a pull request was due. The hook reads the plan on the current
+  branch and hands the turn back with the steps that have no line. It nudges once, so it cannot loop,
+  and it is silent unless a plan on this branch declares both header lines — an ordinary
+  conversation, a repository that never ran a pipeline, and every plan written before this version
+  are all untouched.
+- **`sprint` stops trusting exit code 0.** A child that ended is not a child that finished: before
+  marking a feature `done` it reads the Run log for unsettled steps, and resumes the child's own
+  session rather than relaunching the feature or finishing the steps by hand from the orchestrator,
+  which holds none of the feature's context.
+- **Each child runs under a recorded session id.** `sprint` launches with `--session-id` and keeps
+  the uuid in `queue.yml`, which is what makes that resume a `--resume` rather than a guess about
+  which transcript belonged to the run.
+
 ## 0.15.1
 
 A pipeline's named delegations stop being negotiable.

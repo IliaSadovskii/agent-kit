@@ -3,3 +3,6 @@
 
 # Sprint working state — never repository content
 .agent-kit/sprint/
+
+# Python bytecode
+__pycache__/
