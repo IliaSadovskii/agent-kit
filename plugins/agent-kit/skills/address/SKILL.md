@@ -1,8 +1,6 @@
 ---
 name: address
-description: Close a review round on an open pull request — read the owner's comments and the CI status, fix what is in scope, rerun the verification the fixes put at risk, push, and answer every thread. Use after ship or fix opened a PR and feedback came back.
-argument-hint: "[pr-number]"
-disable-model-invocation: true
+description: Close a review round on an open pull request — read the owner's comments and the CI status, fix what is in scope, rerun the verification the fixes put at risk, push, and answer every thread. Invoked by fix --pr <n> after ship or fix opened a PR and feedback came back; it owns that run end to end.
 ---
 
 # Address
@@ -10,7 +8,8 @@ disable-model-invocation: true
 Close one round of pull-request feedback. `ship` ends at an open PR; this is the loop that runs
 when the owner's review and the CI results come back.
 
-PR: `$ARGUMENTS` — a number or URL, otherwise the PR of the current branch (`gh pr view`).
+PR: `$ARGUMENTS`, or the number or URL `fix --pr` handed you — otherwise the PR of the current
+branch (`gh pr view`).
 
 1. **Collect** — the PR's review threads and comments and its CI status (`gh pr view`,
    `gh pr checks`, `gh api` for inline threads). Read the diff alongside the spec and plan under

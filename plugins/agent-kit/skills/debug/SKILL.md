@@ -1,8 +1,6 @@
 ---
 name: debug
-description: Track a failure to its root cause — reproduce, isolate, form and test hypotheses, then either fix the cause with a regression test or report the diagnosis. Use when something is broken and the cause is unknown.
-argument-hint: "[symptom]"
-disable-model-invocation: true
+description: Track a failure to its root cause — reproduce, isolate, form and test hypotheses, then either fix the cause with a regression test or report the diagnosis. Invoked by fix when the task names a symptom whose cause is not yet known, and by the user asking in plain words to debug something.
 ---
 
 # Debug
@@ -10,7 +8,7 @@ disable-model-invocation: true
 Tracking a failure to its root cause. This is a distinct discipline, not a lighter `ship`:
 reproduce, isolate, find the cause, and only then decide what to do about it.
 
-Symptom: `$ARGUMENTS`
+Symptom: `$ARGUMENTS`, or the failure `fix` handed you.
 
 1. **Reproduce** — confirm the failure firsthand. Establish what is broken, what triggers it, and
    what "fixed" will look like. Don't theorize before you can reproduce. If the failure is only

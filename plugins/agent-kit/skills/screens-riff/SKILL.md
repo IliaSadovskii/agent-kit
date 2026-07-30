@@ -1,8 +1,6 @@
 ---
 name: screens-riff
-description: Product thinking about the screens themselves — study the existing screen map, the product documents, and the code, then propose the screens the app is missing. Taken proposals land on the map as idea cards next to what already exists; turned-down ones stay as rejected memory, so the same idea is not proposed twice. Use when the owner asks what the app should grow next, what a flow is missing, or what to do with the screen map now that it exists.
-argument-hint: "[focus]"
-disable-model-invocation: true
+description: Product thinking about the screens themselves — study the existing screen map, the product documents, and the code, then propose the screens the app is missing. Taken proposals land on the map as idea cards next to what already exists; turned-down ones stay as rejected memory, so the same idea is not proposed twice. Invoked by riff when the theme is a screen theme — a screen id, the map itself, or the screens of a flow.
 ---
 
 # Screens riff
@@ -16,12 +14,12 @@ Three commands touch the map, and keeping them apart is what makes it trustworth
 | Command | Asks | Writes |
 |---|---|---|
 | `/agent-kit:screens` | what is true today | every card kept true, including an idea that got built; invents nothing |
-| `/agent-kit:screens-riff` | what is missing | `idea` and `rejected` cards, builds nothing |
-| `/agent-kit:riff` | what the product should be | roadmap lines, draws nothing |
+| `/agent-kit:riff` on a screen theme | what is missing | `idea` and `rejected` cards, builds nothing |
+| `/agent-kit:riff` on anything else | what the product should be | roadmap lines, draws nothing |
 
-This one is visual and product-shaped; `riff` is strategy. If a proposal here turns out to be a
-strategy question rather than a screen, say so in the review and point at `/agent-kit:riff` rather
-than drawing a card for it.
+This pass is visual and product-shaped; riff's broad scope is strategy. If a proposal here turns out
+to be a strategy question rather than a screen, say so in the review and point at a broad
+`/agent-kit:riff` rather than drawing a card for it.
 
 ## Before you start
 
@@ -40,9 +38,9 @@ a brainstorm is worthless for the one thing a map is for. And if the project has
 a library, a CLI, a service — `/agent-kit:screens` will say so too, so do not push the owner toward
 generating an empty map to have something to riff on.
 
-`$ARGUMENTS` is an optional focus: a flow, a screen id, an area of the product. Without one, the
-whole map is the arena — unlike `riff`, this command does not have to ask what to think about,
-because the map already bounds it.
+`$ARGUMENTS`, or the theme `riff` handed you, is an optional focus: a flow, a screen id, an area of
+the product. Without one, the whole map is the arena — unlike riff's broad scope, this pass does not
+have to ask what to think about, because the map already bounds it.
 
 ## What you read before proposing anything
 
