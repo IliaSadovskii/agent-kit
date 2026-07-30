@@ -5,8 +5,9 @@ installed it — see [docs/developing.md](docs/developing.md#versioning).
 
 ## 0.17.0
 
-Nine commands become six. Three entry points are absorbed into the commands next to them, and
-nothing they did is lost — see [migrations/0.17.0.md](migrations/0.17.0.md).
+Nine commands become six, and one arrives. Three entry points are absorbed into the commands next
+to them, and nothing they did is lost — see [migrations/0.17.0.md](migrations/0.17.0.md). The new
+one, `blueprint`, is the first half of a knowledge layer the other commands will stand on.
 
 - **`debug` is reached through `fix`.** A task that names a symptom rather than a change runs the
   root-cause pass first — reproduce, isolate, test hypotheses — and then continues through fix's own
@@ -25,6 +26,25 @@ nothing they did is lost — see [migrations/0.17.0.md](migrations/0.17.0.md).
   the skill still runs when a pipeline invokes it, so a `/agent-kit:<gone>` left in the payload just
   tells a reader to type a command that is not in their list. Every command reference in the payload
   and the READMEs must now name a skill that is still user-facing.
+- **A project can now be held to what it claims to know.** `.agent-kit/knowledge/contract.yml`
+  records, per slot, whether the answer exists and where it lives — `filled` with a binding into
+  your own prose, `not_applicable` with a reason, or `open_question`. The bar is a deliberate
+  verdict, not a full slot: a slot the project does not need but is required to fill gets filled
+  with invention, and invented knowledge is worse than a gap.
+- **`/agent-kit:blueprint --check` answers mechanically, in seconds.** Every slot has a terminal
+  verdict, every source resolves, every bound section still hashes to what was recorded, and every
+  command in the `verification` slot actually runs and returns zero — that one slot is proven by
+  running it, never by reading it. Three exit codes: clean, findings, structural failure. No grader
+  and no questions, which is what lets a later version put it in front of every build command.
+- **Staleness is per section, not per file.** A slot binds to `path#heading` and the hash covers
+  that section only, so editing a document elsewhere does not light up every slot bound to it — a
+  signal that is always on is a signal nobody reads. A renamed heading reads as a missing section
+  and is reported as one; anchors that survive a rename come with the collections in a later
+  version, and until then the limitation is loud rather than silent.
+- **The kit's scripts stay dependency-free, and the build proves it.** Contracts are read by a small
+  stdlib-only YAML-subset reader the kit ships, and `validate.sh` parses every `.py` in the payload
+  to fail an import of anything the kit does not install. A hook that dies on `ImportError` on
+  someone else's machine takes the whole kit with it.
 
 ## 0.16.0
 

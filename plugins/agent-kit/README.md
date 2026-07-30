@@ -16,6 +16,7 @@ Plugin skills are namespaced, so every command below is `/agent-kit:<name>`.
 | `/agent-kit:docs` | Reconcile living documentation |
 | `/agent-kit:screens` | Map every screen and transition, and keep the map true |
 | `/agent-kit:riff [theme]` | Interactive strategy, builds nothing — on a screen theme, the screens the app is missing |
+| `/agent-kit:blueprint --check` | Audit the knowledge contract: slots with no verdict, stale bindings, verification commands that fail |
 
 The kit also ships two subagents, `agent-kit:reviewer` and `agent-kit:tester`, which the pipelines
 invoke on finished work.
@@ -43,6 +44,7 @@ the plugin (replaced by every update)
 the project (never touched by an update)
   .agent-kit/project/manifest.yml     automation state and the paths to your documents
   .agent-kit/project/instructions.md  your stack, commands, and conventions
+  .agent-kit/knowledge/contract.yml   which questions the kit has answers to, and where they live
   CLAUDE.md, docs/, source, tests, secrets
 ```
 

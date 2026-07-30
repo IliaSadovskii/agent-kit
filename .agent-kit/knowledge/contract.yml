@@ -1,0 +1,92 @@
+# Knowledge contract — the kit's own, filled honestly rather than fully.
+#
+# This repository is the plugin's source, not a product built with it, so most of the product slots
+# are genuinely not applicable and say why. Nothing here is invented to make a slot look full: an
+# invented answer would be read afterwards as a decision and built on.
+#
+# Checked by: /agent-kit:blueprint --check
+
+version: 1
+
+slots:
+  # The kit's purpose is stated in the root README's opening paragraphs, which carry no heading of
+  # their own — so there is nothing for a slot to bind to that is not the whole file, and hashing
+  # a whole document makes a signal that is always on. Recorded as the deliberate gap it is; the
+  # anchors a later version places are what will close it.
+  north_star:
+    status: open_question
+    criterion: >-
+      one paragraph a reader outside the project could use to say what the kit is for, bound to a
+      heading of its own
+
+  architecture_stance:
+    status: filled
+    source: docs/developing.md#What must never end up in the plugin
+    rev: c53c81c6f4ea
+    criterion: >-
+      the rules that decide where a change belongs and what must never enter the payload —
+      project-specific content, a file the project owns, a third-party import, a reimplementation
+      of something Claude Code already ships
+
+  verification:
+    status: filled
+    commands:
+      validate: scripts/validate.sh
+    criterion: >-
+      scripts/validate.sh is the whole declared suite here — manifests, frontmatter, structure,
+      references, payload syntax, and the tests under tests/ — and it exits 0
+
+  # The kit shipped its MVP long ago; what is in and out is decided per release rather than once.
+  # The command set is in both READMEs, what is deliberately absent is named beside it, and every
+  # release records what changed in CHANGELOG.md.
+  mvp_bounds:
+    status: not_applicable
+    reason: >-
+      the kit is past its MVP: scope is decided release by release, and each release's in-list and
+      out-list are the CHANGELOG entry and the command tables in the two READMEs
+
+  scenarios:
+    status: not_applicable
+    reason: >-
+      there is no product data to walk a scenario over — the kit's behaviour is the pipelines in
+      plugins/agent-kit/skills/, which are prose procedures a session executes, and each one is
+      written as the walk-through it would otherwise need
+
+  deferred_seams:
+    status: not_applicable
+    reason: >-
+      deferred work here is a stage list per design document — docs/design/knowledge-and-gates.md
+      section 9 is the current one — and the kit ships each stage as a usable release rather than
+      holding seams open in an unreleased MVP
+
+collections:
+  actors:
+    status: not_applicable
+    reason: >-
+      one actor, the owner typing a command in their own repository; there is no access model to
+      enumerate and nothing the kit does on anyone else's behalf
+
+  entities:
+    status: not_applicable
+    reason: >-
+      no domain model. What the kit persists belongs to the project it runs in — the manifest, this
+      contract, the plans under docs/plans/, the screen map — and each is documented where it lives
+
+  actions:
+    status: not_applicable
+    reason: >-
+      the actor × action matrix collapses to the command tables in the two READMEs, and each
+      command's procedure is its own SKILL.md rather than an entry in a knowledge document
+
+  screens:
+    status: not_applicable
+    reason: the kit has no interface of its own; it is skills, agents, hooks, and scripts
+
+  integrations:
+    status: filled
+    sources:
+      - plugins/agent-kit/README.md
+    criterion: >-
+      every Claude Code capability and companion plugin a pipeline depends on — the bundled
+      commands an agent may and may not call, the code-review and pr-review-toolkit plugins, a
+      language server — and what the pipeline does when it is absent

@@ -52,15 +52,19 @@ the marketplace.
 | `/agent-kit:docs` | Reconcile living documentation where it genuinely diverged |
 | `/agent-kit:screens` | Map every screen and transition, and keep the map true as the app grows |
 | `/agent-kit:riff [theme]` | Strategic brainstorm; builds nothing — on a screen theme, the screens the app is missing |
+| `/agent-kit:blueprint --check` | Audit the project's knowledge contract: slots without a verdict, prose that moved under a binding, verification commands that no longer run |
 
 `ship --manual` swaps the autonomous contract for a consultative one with checkpoints, when you want
 to co-develop rather than delegate.
 
-Six commands, and the list is meant to stay short. A command earns its place by being a pipeline you
-could not get by asking in plain words — not by wrapping something Claude Code already does. Nothing
-was dropped to get there: root-cause debugging, a review round on an open PR, and proposing screens
-onto the map are all still here, reached through `fix` and `riff` rather than through commands of
-their own.
+Seven commands, and the list is meant to stay short. A command earns its place by being a pipeline
+you could not get by asking in plain words — not by wrapping something Claude Code already does.
+Nothing was dropped to get there: root-cause debugging, a review round on an open PR, and proposing
+screens onto the map are all still here, reached through `fix` and `riff` rather than through
+commands of their own.
+
+`blueprint` is the newest and the smallest: today it only audits what the project claims to know,
+which is the half of it that costs seconds and asks nothing.
 
 ## What it does not reinvent
 
