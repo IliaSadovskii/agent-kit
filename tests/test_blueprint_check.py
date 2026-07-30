@@ -166,6 +166,18 @@ class SectionResolverTest(unittest.TestCase):
         text = "# Real\n\n```\n# Fake\n```\n\n~~~\n## Also fake\n~~~\n"
         self.assertEqual([title for _, title, _ in headings(text)], ["Real"])
 
+    def test_a_fence_is_closed_only_by_one_at_least_as_long(self):
+        """A document showing how to write a code fence nests ``` inside ````.
+
+        Matching on the first three characters closes the outer fence at the inner one, and the
+        example's own `#` lines become headings — which silently truncates the section they land
+        in, and hashes something no reader would call that section.
+        """
+        text = ("# Doc\n\n## Example\n\n````markdown\n```\n# Not a heading\n```\n````\n\n"
+                "## Real\n\nbody\n")
+        self.assertEqual([title for _, title, _ in headings(text)], ["Doc", "Example", "Real"])
+        self.assertIn("# Not a heading", section_body(text, "Example"))
+
     def test_a_hash_with_no_space_after_it_is_not_a_heading(self):
         self.assertEqual(headings("#nothashtag\n# Real\n"), [(1, "Real", 1)])
 
@@ -817,6 +829,41 @@ class TrustBoundaryTest(CheckMixin, ContractWriterMixin, unittest.TestCase):
             done = self.run_check(root, "--check")
         self.assertEqual(done.returncode, 2, done.stdout)
         self.assertIn("matches nothing in this project", done.stdout)
+
+    def test_a_rev_of_all_digits_survives_being_written_down(self):
+        """End to end, because the two halves of this defect live in different files.
+
+        The reader turns an unquoted all-digit scalar into a number; the check compares it against
+        a hexdigest. A slot whose hash happens to look like a number has to come clean like any
+        other, or it is stale forever and copying the printed hash back in does not help.
+        """
+        # This body's section hash really is all digits with a leading zero — found by search, so
+        # the case is exercised rather than described. Read as a number it loses the zero, and the
+        # slot is stale on every run for ever.
+        body = "\nline 59\n"
+        with tempfile.TemporaryDirectory() as root:
+            doc = os.path.join(root, "handbook.md")
+            with open(doc, "w", encoding="utf-8") as handle:
+                handle.write("# Bound" + body)
+            rev = section_rev("# Bound" + body, "Bound")
+            self.assertEqual(rev, "031657175672", "the fixture body no longer hashes to digits")
+            path = os.path.join(root, CONTRACT_PATH)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            for recorded in (rev, "007891234567", "123456789012"):
+                fresh = recorded == rev
+                with self.subTest(rev=recorded, fresh=fresh):
+                    # Written directly rather than through the helper: `123456789012` is the case
+                    # where the reader legitimately returns a number, and the helper's own
+                    # round-trip assertion would stop the test before the check ever ran.
+                    with open(path, "w", encoding="utf-8") as handle:
+                        handle.write(contract_text(slots={"architecture_stance": {
+                            "status": "filled", "source": "handbook.md#Bound", "rev": recorded,
+                        }}))
+                    done = self.run_check(root, "--check")
+                    self.assertEqual(done.returncode, 0 if fresh else 1, done.stdout)
+                    if not fresh:
+                        # The hash it prints has to be the one that would make it clean.
+                        self.assertIn(f"→ {rev})", done.stdout)
 
     def test_a_contract_that_breaks_the_checker_is_structural_not_findings(self):
         """Exit 1 means "here are findings, act on them". A traceback must never land there.

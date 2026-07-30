@@ -47,7 +47,10 @@ COMMAND_TIMEOUT = 300
 # A closing run of `#` is only a closing sequence when a space precedes it, so a heading may end in
 # one: `## Why C#` is titled "Why C#", and a slot bound to it must resolve.
 _HEADING = re.compile(r"^(#{1,6})\s+(.*?)(?:\s+#+)?\s*$")
-_FENCE = re.compile(r"^\s*(```|~~~)")
+# The whole run, not the first three characters: a document that shows how to write a code fence
+# nests a ``` inside a ````, and a closer shorter than its opener does not close it. Reading it as
+# one would end the fence early and turn the example's own `#` lines into headings.
+_FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
 
 
 class SectionError(Exception):
@@ -72,9 +75,10 @@ def headings(text):
     for index, line in enumerate(text.splitlines()):
         marker = _FENCE.match(line)
         if marker:
+            closer = marker.group(1)
             if fence is None:
-                fence = marker.group(1)
-            elif line.strip().startswith(fence):
+                fence = closer
+            elif closer[0] == fence[0] and len(closer) >= len(fence):
                 fence = None
             continue
         if fence is not None:

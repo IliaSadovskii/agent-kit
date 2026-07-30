@@ -15,8 +15,12 @@ import re
 __all__ = ["KitYamlError", "load", "load_path"]
 
 _KEY = re.compile(r"^(?P<key>[A-Za-z0-9_.\-]+|\"[^\"]*\"|'[^']*'):(?:\s+(?P<rest>.*))?$")
-_INT = re.compile(r"^[+-]?[0-9]+$")
-_FLOAT = re.compile(r"^[+-]?(?:[0-9]+\.[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$")
+# No leading zeros, which is JSON's number grammar and the reading a person expects: `007` is a
+# string. It also matters mechanically — a section hash is twelve hex characters, and roughly one
+# in sixteen hundred is all digits with a leading zero. Read as a number it comes back short, so
+# the slot it belongs to could never match its own hash again.
+_INT = re.compile(r"^[+-]?(?:0|[1-9][0-9]*)$")
+_FLOAT = re.compile(r"^[+-]?(?:(?:0|[1-9][0-9]*)\.[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$")
 _BLOCK = re.compile(r"^(?P<style>[|>])(?P<chomp>[+-]?)$")
 
 
@@ -197,7 +201,14 @@ class _Reader:
                     break
                 if content_indent is None:
                     content_indent = line_indent
-                body.append(raw[content_indent:] if line_indent >= content_indent else raw.strip())
+                # A line indented less than the block's own content but more than the key that
+                # owns it is a slip, and swallowing it is the worst possible answer: a `status:`
+                # line one space short of its neighbours would disappear into the prose above it
+                # and the slot would keep the verdict the owner thought they had changed.
+                if line_indent < content_indent:
+                    raise KitYamlError("this line is indented less than the block scalar it "
+                                       "would belong to", self._i + 1)
+                body.append(raw[content_indent:])
             else:
                 body.append("")
             self._i += 1
@@ -226,7 +237,7 @@ def _scalar(text, number):
     if text.startswith('"'):
         if len(text) < 2 or not text.endswith('"'):
             raise KitYamlError("unterminated double-quoted scalar", number)
-        return _unescape(text[1:-1])
+        return _unescape(text[1:-1], number)
     if text.startswith("'"):
         if len(text) < 2 or not text.endswith("'"):
             raise KitYamlError("unterminated single-quoted scalar", number)
@@ -235,6 +246,12 @@ def _scalar(text, number):
         return [] if text == "[]" else {}
     if text[0] in "[{":
         raise KitYamlError("flow collections are outside the subset (only `[]` and `{}`)", number)
+    # `|` and `>` are indicators, never the first character of a plain scalar — so reaching here
+    # means a block scalar header the subset does not cover, `|2` and its explicit indentation
+    # indicator being the likely one. Reading it as the two-character string `"|2"` is a guess.
+    if text[0] in "|>":
+        raise KitYamlError(f"block scalar header {text!r} is outside the subset "
+                           "(only `|`, `>`, `|-`, `>-`)", number)
     if text[0] in "&*!":
         raise KitYamlError(f"{'anchors' if text[0] == '&' else 'aliases' if text[0] == '*' else 'tags'}"
                            " are outside the subset", number)
@@ -252,11 +269,16 @@ def _scalar(text, number):
 _ESCAPES = {"n": "\n", "t": "\t", "r": "\r", '"': '"', "\\": "\\", "/": "/", "0": "\0"}
 
 
-def _unescape(text):
+def _unescape(text, number):
     out, i = [], 0
     while i < len(text):
         if text[i] == "\\" and i + 1 < len(text):
-            out.append(_ESCAPES.get(text[i + 1], text[i + 1]))
+            if text[i + 1] not in _ESCAPES:
+                # Dropping the backslash would turn `"C:\Users"` into `C:Users` without a word.
+                # A path with a backslash in it belongs in single quotes or in a plain scalar.
+                raise KitYamlError(f"unknown escape {text[i:i + 2]!r} in a double-quoted scalar",
+                                   number)
+            out.append(_ESCAPES[text[i + 1]])
             i += 2
         else:
             out.append(text[i])

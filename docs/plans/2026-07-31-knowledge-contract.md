@@ -102,7 +102,7 @@ Upstream: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/02-knowledge-contrac
   the section of `docs/developing.md` that `architecture_stance` binds to fails the build until the
   `rev` is updated. That is the contract doing its job on the repository that ships it; the failure
   renders the whole check report, including the new hash to paste in.
-- step Test — done. `scripts/validate.sh` green: 108 tests, plus manifests, frontmatter, references,
+- step Test — done. `scripts/validate.sh` green: 114 tests, plus manifests, frontmatter, references,
   payload syntax, the new stdlib-only import check, and `claude plugin validate --strict`. The
   runnable surface is the check itself, exercised against this repository's real documents: clean
   exits 0; editing the bound section reports it stale with both hashes; editing a different section
@@ -162,3 +162,24 @@ Upstream: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/02-knowledge-contrac
   repository they do not control, and not to paste a failing command's output anywhere without
   reading it — that tail is where a token would be.
 - step Security — done.
+- pr — PR #13, draft against `claude/command-cleanup`, CI (`validate`) green on the first run.
+- note — the `code-review` plugin's own eligibility check refuses to review a draft, and the kit's
+  pull-request rule *requires* a stacked sprint feature to be a draft. Left alone, those two rules
+  cancel each other and every stacked feature silently loses its PR-step review. The fan was run
+  deliberately instead. Worth the owner's attention: this affects all five features still queued
+  behind this one, not just this run.
+- pr — that pass found five real defects, all fixed, all now covered by tests that fail without the
+  fix. Four are one class — the reader returning a silently wrong value, which is the single
+  outcome its own contract exists to prevent: a `rev` of all digits with a leading zero came back
+  as a number, so a slot whose hash happened to look like one was stale for ever and copying the
+  printed hash back in did not help (found independently by two reviewers, and *my own* comment
+  claimed the earlier `str()` cast had covered it); a line dedented one space out of a block scalar
+  was swallowed into the prose above it, so a `status: filled` edit vanished and the check reported
+  the contract clean; `|2` was read as the two-character string `"|2"`; an unknown escape in a
+  double-quoted scalar dropped its backslash, turning `"C:\Users"` into `C:Users`. The fifth is in
+  the section resolver: a fence was matched on three characters, so a document that shows how to
+  nest code fences closed the outer one early and read the example's own `#` line as a heading,
+  truncating the section and hashing something nobody would call that section.
+- note — the first end-to-end test written for the leading-zero `rev` passed against the bug,
+  because the hash it happened to use was not all digits. The body in it now is one whose section
+  hash really is `031657175672`, found by search, so the case is exercised rather than described.

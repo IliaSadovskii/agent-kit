@@ -106,6 +106,18 @@ class SubsetTest(unittest.TestCase):
         self.assertEqual(kit_yaml.load("text: |\n  # not a comment\n  key: not a key\n"),
                          {"text": "# not a comment\nkey: not a key\n"})
 
+    def test_a_number_with_a_leading_zero_is_a_string(self):
+        """JSON's number grammar, and the reading a person expects: `007` is not seven.
+
+        It is also mechanical. A section hash is twelve hex characters, and about one in sixteen
+        hundred is all digits with a leading zero. Read as a number it comes back short — and a
+        slot whose `rev` cannot survive being written down could never come clean again.
+        """
+        self.assertEqual(kit_yaml.load("rev: 007891234567\n"), {"rev": "007891234567"})
+        self.assertEqual(kit_yaml.load("rev: 123456789012\n"), {"rev": 123456789012})
+        self.assertEqual(kit_yaml.load("a: 0\nb: 12\nc: -3\nd: 0.5\n"),
+                         {"a": 0, "b": 12, "c": -3, "d": 0.5})
+
     def test_keep_chomping_is_refused_by_name(self):
         """`|+` would be read as clip, which is a wrong value rather than a missing one."""
         with self.assertRaises(kit_yaml.KitYamlError) as caught:
@@ -137,6 +149,25 @@ class OutsideTheSubsetTest(unittest.TestCase):
         self.assertIn(fragment, error.message)
         self.assertIn(f"line {line}", str(error))
         return error
+
+    def test_a_line_dedented_out_of_a_block_scalar(self):
+        """The silent version of this is the worst outcome the reader has.
+
+        One space short of its neighbours, a `status:` line is swallowed into the prose above it:
+        the slot keeps the verdict the owner thought they had just changed, and `--check` reports
+        the contract clean.
+        """
+        self.refuses("mvp_bounds:\n  status: not_applicable\n  reason: |\n    Some explanation.\n"
+                     "   status: filled\n", 5, "indented less than the block scalar")
+
+    def test_a_block_scalar_header_the_subset_does_not_cover(self):
+        """`|2` is a legal explicit indentation indicator — and reading it as the string `"|2"`
+        is exactly the guess the reader exists not to make."""
+        self.refuses("foo: |2\n  text\n", 1, "block scalar header")
+
+    def test_an_unknown_escape_in_a_double_quoted_scalar(self):
+        r"""Dropping the backslash turns `"C:\Users"` into `C:Users` without a word."""
+        self.refuses('k: "C:\\Users\\name"\n', 1, "unknown escape")
 
     def test_anchor(self):
         self.refuses("version: 1\nbase: &defaults\n  a: 1\n", 2, "anchors")

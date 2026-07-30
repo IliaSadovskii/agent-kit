@@ -167,7 +167,8 @@ The repository's own `verification` slot names `scripts/validate.sh`, which is t
 test command. If `validate.sh` ran `--check`, `--check` would run `validate.sh`, and the build would
 recurse until something ran out.
 
-So CI covers the machinery through fixtures whose commands are `true` and `false`, and covers *this
+So CI covers the machinery through fixtures whose commands are trivial — `true` for a pass, and
+`echo boom >&2; exit 3` for a failure worth reading — and covers *this
 repository's* contract by importing the check module and asserting the structural half — every slot
 has a terminal verdict, every source resolves, every `rev` matches — without running any command.
 The full command, verification included, is run by hand and its output recorded in the run log. No
