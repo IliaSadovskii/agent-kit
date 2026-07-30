@@ -50,6 +50,13 @@ Don't add features, refactors, or abstractions beyond what the task requires. A 
 surrounding cleanup. Don't design for hypothetical future requirements, and don't add error handling
 for scenarios that cannot happen — validate at system boundaries, trust internal code.
 
+Change only what the request needs. Don't reformat, reword comments, or improve code you happened to
+open on the way, and match the style around you even where you would have written it differently —
+style drift is what makes a diff unreadable for the person who has to review it. Clean up the orphans
+your own change created: an import, a variable, a function that nothing calls now because of what you
+did. Code that was already dead stays — name it and let the owner decide. The test for a finished
+diff is that every changed line traces back to the request.
+
 Run what the change puts at risk, and report exactly what did and did not run. Don't stack extra
 self-checks on top of that: re-reading your own work, or asking a subagent to confirm it, costs
 tokens without improving the result. Independent review of finished work is a different thing, and

@@ -15,6 +15,16 @@ this kit's own, and the "relentless" framing of the original was deliberately no
 adopted: it conflicts with this kit's rule against manufacturing questions the
 project's documents already answer.
 
+The paragraph on surgical changes in `engine.md` — don't improve the code you happened
+to open, match the surrounding style, clean up the orphans your own change created but
+leave pre-existing dead code alone, and the test that every changed line traces back to
+the request — is adapted from the **Karpathy-Inspired Claude Code Guidelines**
+(https://github.com/multica-ai/andrej-karpathy-skills), used under the MIT License. Only
+that principle was taken: the collection's other three overlap with rules the kit already
+had, and its "if something is unclear, stop and ask" bias is incompatible with this kit's
+autonomous contract, where ambiguity after the design gate becomes a documented assumption
+rather than a question.
+
 The codebase-exploration and competing-architecture steps of `brainstorming` follow
 the approach of Anthropic's `feature-dev` plugin
 (https://github.com/anthropics/claude-plugins-official). No text was copied: the kit

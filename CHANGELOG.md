@@ -3,6 +3,23 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.15.0
+
+The always-on governance gains the one rule it was missing: keep the diff surgical.
+
+- **Only what the request needs changes.** No reformatting, no reworded comments, no improving the
+  code you happened to open on the way, and the surrounding style is matched even where you would
+  have written it differently — style drift is what makes a diff unreadable for whoever reviews it.
+- **Orphans are split from dead code.** An import, variable, or function that nothing calls *because
+  of this change* is cleaned up; code that was already dead is named and left for the owner. Until
+  now the baseline said only that the best change often removes code, which pulled the other way.
+- **A finished diff has a test.** Every changed line traces back to the request — the author-side
+  counterpart to the `reviewer` agent's scope check, which until now was the only place this was
+  looked for, and only after the code was written.
+
+Adapted from the Karpathy-Inspired Claude Code Guidelines; see the plugin's `NOTICE.md` for what was
+taken and what was deliberately not.
+
 ## 0.14.0
 
 The playbook stops interviewing the owner about architecture and starts showing them what it
