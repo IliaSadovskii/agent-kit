@@ -36,6 +36,12 @@ one, `blueprint`, is the first half of a knowledge layer the other commands will
   command in the `verification` slot actually runs and returns zero — that one slot is proven by
   running it, never by reading it. Three exit codes: clean, findings, structural failure. No grader
   and no questions, which is what lets a later version put it in front of every build command.
+- **A contract's commands are repository content, and the kit treats them as such.** They are
+  printed before they run, a binding that resolves outside the project is a structural failure, and
+  a command the kit's own never-rules cover — merging a PR, force-pushing, pushing the default
+  branch — is refused without running. Those rules used to live inside the `PreToolUse` hook, which
+  fires on tool calls and never sees a subprocess a script starts; they are now one decision the
+  hook and the check share, so a file in a repository cannot route around them.
 - **Staleness is per section, not per file.** A slot binds to `path#heading` and the hash covers
   that section only, so editing a document elsewhere does not light up every slot bound to it — a
   signal that is always on is a signal nobody reads. A renamed heading reads as a missing section

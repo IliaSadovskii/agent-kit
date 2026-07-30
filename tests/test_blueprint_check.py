@@ -476,7 +476,7 @@ class ExitCodeTest(CheckMixin, ContractWriterMixin, unittest.TestCase):
         done = self.run_check(self.fixture("missing-glob"), "--check")
         self.assertEqual(done.returncode, 2, done.stdout + done.stderr)
         self.assertReports(done.stdout, "✗ collections/integrations",
-                           "source matches nothing: docs/integrations/*.md")
+                           "source matches nothing in this project: docs/integrations/*.md")
 
     def test_a_contract_outside_the_yaml_subset_is_structural(self):
         done = self.run_check(self.fixture("unparsable"), "--check")
@@ -729,6 +729,111 @@ class OwnContractTest(unittest.TestCase):
         self.assertEqual(self.report.slot_counts.get("open_question"), 1)
         self.assertIn("1 open_question", render(self.report))
         self.assertEqual(self.report.exit_code, 0)
+
+
+# ------------------------------------------------------------------------------------------
+# The trust boundary: a contract is a file in the repository, so it can arrive in a pull request
+
+
+class TrustBoundaryTest(CheckMixin, ContractWriterMixin, unittest.TestCase):
+    """What a contract written by someone other than the owner is allowed to make happen.
+
+    The `verification` slot runs shell commands by design — that is how its readiness is proven.
+    These are the limits around that design, not a retreat from it.
+    """
+
+    def test_a_command_the_kit_refuses_to_run_is_not_run(self):
+        """A subprocess is invisible to the PreToolUse hook, so the never-rules move in here.
+
+        The hook turns "the kit never merges pull requests" into a confirmation. Nobody is there
+        to confirm inside a check, so a contract that names one of those commands gets a
+        structural failure and the command does not run.
+        """
+        for command in ("gh pr merge --admin 7",
+                        "make test && git push --force origin main",
+                        "git push origin HEAD:main"):
+            with self.subTest(command=command), tempfile.TemporaryDirectory() as root:
+                self.write_contract(root, slots={"verification": {
+                    "status": "filled",
+                    "commands": {"test": command},
+                }})
+                done = self.run_check(root, "--check")
+                self.assertEqual(done.returncode, 2, done.stdout)
+                self.assertIn("refused without running it", done.stdout)
+
+    def test_an_ordinary_command_still_runs(self):
+        """The refusal is the kit's own never-rules, not a filter on shell metacharacters.
+
+        A project's real command is a shell string — `make test && make lint` — and the settled
+        design is that this slot is proven by running it.
+        """
+        with tempfile.TemporaryDirectory() as root:
+            self.write_contract(root, slots={"verification": {
+                "status": "filled",
+                "commands": {"test": "true && echo fine | cat"},
+            }})
+            done = self.run_check(root, "--check")
+        self.assertEqual(done.returncode, 0, done.stdout)
+
+    def test_a_command_is_announced_before_it_runs(self):
+        """What a command did must never reach the reader ahead of what the command was."""
+        with tempfile.TemporaryDirectory() as root:
+            self.write_contract(root, slots={"verification": {
+                "status": "filled",
+                "commands": {"test": "echo ran"},
+            }})
+            done = self.run_check(root, "--check")
+        self.assertIn("running      test: echo ran", done.stdout)
+        self.assertLess(done.stdout.index("running      test"), done.stdout.index("verification"))
+
+    def test_a_binding_cannot_reach_outside_the_project(self):
+        """`os.path.join` hands the whole result to an absolute path, and `..` walks up."""
+        with tempfile.TemporaryDirectory() as outer:
+            root = os.path.join(outer, "project")
+            os.makedirs(root)
+            secret = os.path.join(outer, "private.md")
+            with open(secret, "w", encoding="utf-8") as handle:
+                handle.write("# Credentials\n\nhunter2\n")
+            for source in (f"{secret}#Credentials", "../private.md#Credentials"):
+                with self.subTest(source=source):
+                    self.write_contract(root, slots={"architecture_stance": {
+                        "status": "filled", "source": source, "rev": "deadbeefcafe",
+                    }})
+                    done = self.run_check(root, "--check")
+                    self.assertEqual(done.returncode, 2, done.stdout)
+                    self.assertIn("points outside the project", done.stdout)
+                    # Not even the hash of a section it should not have read.
+                    self.assertNotIn("record rev:", done.stdout)
+
+    def test_a_glob_cannot_reach_outside_the_project(self):
+        with tempfile.TemporaryDirectory() as outer:
+            root = os.path.join(outer, "project")
+            os.makedirs(root)
+            with open(os.path.join(outer, "elsewhere.md"), "w", encoding="utf-8") as handle:
+                handle.write("# Anything\n")
+            self.write_contract(root, collections={"integrations": {
+                "status": "filled", "sources": ["../*.md"],
+            }})
+            done = self.run_check(root, "--check")
+        self.assertEqual(done.returncode, 2, done.stdout)
+        self.assertIn("matches nothing in this project", done.stdout)
+
+    def test_a_contract_that_breaks_the_checker_is_structural_not_findings(self):
+        """Exit 1 means "here are findings, act on them". A traceback must never land there.
+
+        `status` given a nested map used to reach `counts.get(dict)` and raise TypeError, which
+        exits 1 — the code a gate reads as advisory. The guard is broad on purpose: the point is
+        the exception nobody enumerated.
+        """
+        path = os.path.join("project", CONTRACT_PATH)
+        with tempfile.TemporaryDirectory() as root:
+            full = os.path.join(root, path)
+            os.makedirs(os.path.dirname(full))
+            with open(full, "w", encoding="utf-8") as handle:
+                handle.write("version: 1\nslots:\n  north_star:\n    status:\n      nested: yes\n")
+            report = check(os.path.join(root, "project"))
+        self.assertEqual(report.exit_code, 2)
+        self.assertIn("could not be checked", render(report))
 
 
 if __name__ == "__main__":

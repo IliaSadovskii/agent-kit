@@ -136,6 +136,31 @@ Output follows the design's sample: a summary line per category, a line per veri
 that ran, then one block per finding, then a `stale` line. Nothing else — no progress, no banner, no
 audit trail of what was fine. It never calls a grader and it never writes anything.
 
+## The trust boundary around the verification slot
+
+`verification` is proven by running it — settled, and the point where this contract meets the step
+gate two stages from now. What the brief did not consider is that the contract is a file *in the
+repository*, so its commands can arrive in a pull request from someone else.
+
+Running the project's own commands is not a new capability: every pipeline here already runs the
+project's declared suite. What is new is that these run from inside a script, and a `PreToolUse`
+hook fires on tool calls, not on a subprocess a script starts — so the kit's never-rules, which
+`guard.sh` turns into a confirmation everywhere else, would not be applied. Three limits close that:
+
+- the decision in `guard.py` becomes an importable `refusal()`, and the check refuses — without
+  running it — any command the hook would have asked about. The hook asks; a caller with nobody to
+  ask refuses;
+- every command is printed before it runs, so what a command did never reaches the reader ahead of
+  what the command was;
+- a `source` or a `sources` glob that resolves outside the project root is a structural failure.
+  Bindings name documents in this repository, and a contract is not a way to read `~/.ssh` or to
+  ask whether a path exists.
+
+What remains is deliberate and belongs in the pull request rather than in a guard: on a repository
+the owner does not control, `--check` runs that repository's commands. Stage 6, which puts this in
+front of every build command, is where a policy about untrusted repositories belongs; inventing one
+here would be inventing a stage this feature is not.
+
 ## Why CI does not run `--check` on this repository
 
 The repository's own `verification` slot names `scripts/validate.sh`, which is the entire declared

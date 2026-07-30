@@ -100,7 +100,7 @@ Upstream: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/02-knowledge-contrac
   the section of `docs/developing.md` that `architecture_stance` binds to fails the build until the
   `rev` is updated. That is the contract doing its job on the repository that ships it; the failure
   renders the whole check report, including the new hash to paste in.
-- step Test — done. `scripts/validate.sh` green: 91 tests, plus manifests, frontmatter, references,
+- step Test — done. `scripts/validate.sh` green: 108 tests, plus manifests, frontmatter, references,
   payload syntax, the new stdlib-only import check, and `claude plugin validate --strict`. The
   runnable surface is the check itself, exercised against this repository's real documents: clean
   exits 0; editing the bound section reports it stale with both hashes; editing a different section
@@ -134,3 +134,29 @@ Upstream: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/02-knowledge-contrac
   will read as structural; recorded rather than changed, since inventing a fourth code to
   distinguish a typo from a broken contract buys nothing yet.
 - step Review — done.
+- security — `/security-review` over the branch diff, with an adversarial pass in a fresh context.
+  One high finding, and it is the one the brief's settled decision creates: `--check` executes shell
+  commands taken verbatim from a file that lives in the repository being checked, and a contract can
+  arrive in a pull request. Running the project's own commands is not new — every pipeline here runs
+  the project's declared suite — but running them from inside a script is: a `PreToolUse` hook fires
+  on tool calls, not on a subprocess, so `guard.sh`'s never-rules were not being applied to them.
+  A contract naming `gh pr merge --admin` or `git push --force origin main` would have routed around
+  the one mechanism the kit enforces mechanically.
+- security — fixed by moving the decision rather than duplicating it: `guard.py`'s rules become an
+  importable `refusal()`, the hook asks as before, and the check refuses without running. Every
+  command is printed before it runs. A `source` or glob resolving outside the project root is now a
+  structural failure — it was a working existence-and-hash oracle over any absolute path. A contract
+  that breaks the checker in a way nobody enumerated now exits 2 rather than 1 through a traceback,
+  which matters because 1 is the code that means "findings, act on them". `tests/test_guard.py` is
+  new: the hook had no tests, and restructuring load-bearing code without them is how a hook stops
+  firing quietly. Writing the path-confinement test also turned up a real defect of its own — an
+  all-digit `rev` parsed as an integer and could never equal its own hexdigest, so roughly one slot
+  in two hundred could never come clean.
+- security, deliberately not changed — on a repository the owner does not control, `--check` still
+  runs that repository's declared commands. That is the settled decision, and the policy about
+  untrusted repositories belongs to stage 6, which is what puts this in front of every build
+  command; inventing one here would be inventing a stage this feature is not. Recorded in the spec
+  and in the skill, which now tells the reader to read the `verification` block first on a
+  repository they do not control, and not to paste a failing command's output anywhere without
+  reading it — that tail is where a token would be.
+- step Security — done.

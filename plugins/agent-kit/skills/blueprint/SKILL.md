@@ -49,6 +49,25 @@ Three exit codes, and they are the point — a later version puts this in front 
 The script never calls a grader, never asks a question, and writes nothing. Grading entries against
 their criteria, and the interview that fills the slots in the first place, arrive in later versions.
 
+## The verification slot runs
+
+It is the one slot proven by running rather than reading, so `--check` executes what the contract
+declares. Two things follow, and they are worth saying out loud rather than leaving in the script.
+
+**The contract is a file in the repository, so its commands are code from the repository.** They
+can arrive in a pull request like anything else. The script announces each command before it runs
+it, and refuses outright — without running it — any command the kit's own never-rules cover, since
+a subprocess is invisible to the hook that normally turns those into a confirmation. On a
+repository the owner does not control, read the `verification` block before running the check at
+all. The commands themselves are the project's, and running the project's own commands is what
+every pipeline here already does; what is new is only that the list lives in a file someone else
+may have edited.
+
+**A failing command's output goes into the report.** The last few lines of it are what makes the
+failure readable, and they are also where a connection string or a token would be. Read them before
+they go anywhere else: the always-on rule that secrets never enter commits, logs, plans, or PR
+descriptions applies to a tail you pasted as much as to one you typed.
+
 ## Reporting it
 
 Findings are the owner's decisions, so hand them over rather than acting on them. Two exceptions are

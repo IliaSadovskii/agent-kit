@@ -25,6 +25,7 @@ import re
 import subprocess
 import sys
 
+import guard
 import kit_yaml
 
 CONTRACT_PATH = os.path.join(".agent-kit", "knowledge", "contract.yml")
@@ -51,6 +52,18 @@ _FENCE = re.compile(r"^\s*(```|~~~)")
 
 class SectionError(Exception):
     """A binding that cannot be resolved: the heading is missing, or it is not unique."""
+
+
+def inside(root, path):
+    """Resolve `path` under `root`, or None when it points outside the project.
+
+    A contract can arrive in a pull request, and a binding is a path out of it. `os.path.join`
+    hands the whole result to an absolute path, `..` walks up, and a symlink does it without
+    either — so the answer is the resolved path compared against the resolved root, not the string.
+    """
+    resolved = os.path.realpath(os.path.join(root, path))
+    base = os.path.realpath(root)
+    return resolved if os.path.commonpath([resolved, base]) == base else None
 
 
 def headings(text):
@@ -161,7 +174,11 @@ def _check_binding(report, root, where, entry):
     if not heading:
         report.fault(where, f"source {source!r} names no section — the form is path#heading")
         return
-    full = os.path.join(root, path)
+    full = inside(root, path)
+    if full is None:
+        report.fault(where, "source points outside the project; a binding names a document in "
+                            "this repository")
+        return
     if not os.path.isfile(full):
         report.fault(where, f"source file is gone: {path}")
         return
@@ -176,7 +193,9 @@ def _check_binding(report, root, where, entry):
     except SectionError as exc:
         report.fault(where, f"{path}: {exc} — a renamed heading reads as a missing section")
         return
-    recorded = entry.get("rev")
+    # `str`, because roughly one hash in two hundred is all digits and reads back as an int —
+    # which would never equal its own hexdigest, and the slot could never come clean.
+    recorded = str(entry.get("rev") or "")
     if not recorded:
         report.finding(where, f"bound to {source} but never verified — record rev: {actual}")
     elif recorded != actual:
@@ -192,6 +211,17 @@ def _run_commands(report, root, where, commands):
             report.commands.append((name, command, False))
             report.fault(where, f"{name}: {command!r} is not a command")
             continue
+        # The contract is a file in the repository, so its commands are repository-supplied code,
+        # and a subprocess started here is invisible to the PreToolUse hook that turns the kit's
+        # never-rules into a confirmation. The hook asks; this has nobody to ask, so it refuses.
+        refused = guard.refusal(command)
+        if refused:
+            report.commands.append((name, command, False))
+            report.fault(where, f"{name}: refused without running it — {refused}")
+            continue
+        # Announced before it runs, not after: what a command did should never reach the reader
+        # ahead of what the command was.
+        print(f"running      {name}: {command}", flush=True)
         try:
             done = subprocess.run(command, shell=True, cwd=root, capture_output=True, text=True,
                                   timeout=COMMAND_TIMEOUT)
@@ -217,24 +247,38 @@ def _check_verification(report, root, where, entry, run_commands):
 
 
 def check(root, run_commands=True):
-    """Run the contract check against `root`. Returns a Report; raises nothing for a bad contract."""
+    """Run the contract check against `root`. Returns a Report; raises nothing for a bad contract.
+
+    The three codes are what a later stage's gate is built on, and a traceback would exit 1 — the
+    code that means "findings, report them" rather than the one that means "this cannot be read".
+    So a contract that breaks the checker in a way nobody enumerated is still structural, by
+    construction rather than by having thought of the exception.
+    """
     report = Report()
+    try:
+        _walk(report, root, run_commands)
+    except Exception as exc:                          # noqa: BLE001 - see the docstring
+        report.fault(CONTRACT_PATH, f"the contract could not be checked: {exc!r}")
+    return report
+
+
+def _walk(report, root, run_commands):
     path = os.path.join(root, CONTRACT_PATH)
     if not os.path.isfile(path):
         report.fault(CONTRACT_PATH, "no knowledge contract here — a project starts from the "
                                     f"template at {TEMPLATE_PATH}")
-        return report
+        return
     try:
         contract = kit_yaml.load_path(path)
     except kit_yaml.KitYamlError as exc:
         report.fault(CONTRACT_PATH, f"{exc} — the kit reads a YAML subset and will not guess")
-        return report
+        return
     except (OSError, UnicodeDecodeError) as exc:
         report.fault(CONTRACT_PATH, str(exc))
-        return report
+        return
     if not isinstance(contract, dict):
         report.fault(CONTRACT_PATH, "the contract is not a mapping")
-        return report
+        return
 
     for kind, expected, counts in (("slots", SINGULAR_SLOTS, report.slot_counts),
                                    ("collections", COLLECTION_SLOTS, report.collection_counts)):
@@ -267,7 +311,6 @@ def check(root, run_commands=True):
             else:
                 report.finding(where, "filled, but nothing says where the answer is — bind it with "
                                       "source: path#heading")
-    return report
 
 
 def _check_sources(report, root, where, entry):
@@ -278,8 +321,10 @@ def _check_sources(report, root, where, entry):
                               "its entries live in")
         return
     for pattern in sources:
-        if not glob.glob(os.path.join(root, str(pattern)), recursive=True):
-            report.fault(where, f"source matches nothing: {pattern}")
+        matches = [m for m in glob.glob(os.path.join(root, str(pattern)), recursive=True)
+                   if inside(root, m)]
+        if not matches:
+            report.fault(where, f"source matches nothing in this project: {pattern}")
 
 
 def _summary(counts):
