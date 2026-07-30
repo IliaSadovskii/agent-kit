@@ -7,7 +7,8 @@ this is the reader the kit's scripts share instead.
 
 The subset is defined by what those files actually use — nested maps by indentation, lists of
 scalars and lists of maps, plain and quoted scalars, `null` / `true` / `false` / numbers, comments,
-block scalars, and the empty flow collections `[]` and `{}`. Anything outside it raises KitYamlError
+literal and folded block scalars (`|`, `>`, `|-`, `>-`), and the empty flow collections `[]` and
+`{}`. Anything outside it raises KitYamlError
 naming the construct and the line, so a caller can say what it does not understand instead of
 guessing at a value.
 """
@@ -139,7 +140,8 @@ class _Reader:
     def _value_after_key(self, rest, indent, number):
         block = _BLOCK.match(rest) if rest else None
         if block:
-            return self._read_block_scalar(indent, block.group("style"), block.group("chomp"))
+            return self._read_block_scalar(indent, block.group("style"), block.group("chomp"),
+                                           number)
         if rest:
             return _scalar(rest, number)
         following = self._peek()
@@ -164,8 +166,8 @@ class _Reader:
                 continue
             block = _BLOCK.match(rest)
             if block:
-                items.append(
-                    self._read_block_scalar(indent, block.group("style"), block.group("chomp")))
+                items.append(self._read_block_scalar(indent, block.group("style"),
+                                                     block.group("chomp"), line.number))
                 continue
             if _KEY.match(rest):
                 # `- key: value` opens a map whose first key is on the dash's own line; the rest of
@@ -176,8 +178,10 @@ class _Reader:
                 continue
             items.append(_scalar(rest, line.number))
 
-    def _read_block_scalar(self, indent, style, chomp):
+    def _read_block_scalar(self, indent, style, chomp, number):
         """Consume the raw lines of a `|` or `>` scalar; comments and blanks inside it are text."""
+        if chomp == "+":
+            raise KitYamlError("keep chomping (`|+`, `>+`) is outside the subset", number)
         if self._pending is not None:
             raise KitYamlError("a block scalar inside a list item's first key is outside the "
                                "subset", self._pending.number)

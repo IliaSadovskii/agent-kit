@@ -1,0 +1,55 @@
+# Two structural faults and one finding. Structural wins: the run exits 2, and both faults and
+# the finding are printed, so one run shows everything wrong.
+
+version: 1
+
+slots:
+  # A finding, which the exit code must not report — the structural half outranks it.
+  north_star:
+    status: empty
+
+  # The source file was deleted or moved.
+  architecture_stance:
+    status: filled
+    source: docs/gone.md#Boundaries
+    rev: 797d598271bf
+    criterion: the rules that decide where a change belongs
+
+  verification:
+    status: open_question
+
+  # A source that names a file and no section at all.
+  mvp_bounds:
+    status: filled
+    source: docs/handbook.md
+    rev: 797d598271bf
+    criterion: an explicit in-list and an explicit out-list
+
+  scenarios:
+    status: not_applicable
+    reason: a fixture has no product data to walk a scenario over
+
+  deferred_seams:
+    status: not_applicable
+    reason: nothing is postponed in a fixture
+
+collections:
+  actors:
+    status: not_applicable
+    reason: one actor, the test that runs this
+
+  entities:
+    status: not_applicable
+    reason: no domain model here
+
+  actions:
+    status: not_applicable
+    reason: no actions here
+
+  screens:
+    status: not_applicable
+    reason: no interface
+
+  integrations:
+    status: not_applicable
+    reason: nothing outside this tree

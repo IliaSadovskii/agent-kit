@@ -1,0 +1,48 @@
+# A collection bound to a glob that matches nothing. Structural, exit 2.
+
+version: 1
+
+slots:
+  north_star:
+    status: open_question
+
+  architecture_stance:
+    status: open_question
+
+  verification:
+    status: open_question
+
+  mvp_bounds:
+    status: open_question
+
+  scenarios:
+    status: not_applicable
+    reason: a fixture has no product data to walk a scenario over
+
+  deferred_seams:
+    status: not_applicable
+    reason: nothing is postponed in a fixture
+
+collections:
+  actors:
+    status: not_applicable
+    reason: one actor, the test that runs this
+
+  entities:
+    status: not_applicable
+    reason: no domain model here
+
+  actions:
+    status: not_applicable
+    reason: no actions here
+
+  screens:
+    status: not_applicable
+    reason: no interface
+
+  integrations:
+    status: filled
+    sources:
+      - docs/handbook.md
+      - docs/integrations/*.md
+    criterion: everything outside this tree that it depends on

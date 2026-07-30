@@ -1,0 +1,57 @@
+# A contract with nothing wrong with it: every slot terminal, the binding fresh, the one
+# verification command trivial. `--check` here must exit 0 and print only the two summary lines.
+
+version: 1
+
+slots:
+  north_star:
+    status: filled
+    source: docs/handbook.md#Verification
+    rev: 9b1c94ed5b31
+    criterion: a reader outside the project can say what it is for
+
+  architecture_stance:
+    status: filled
+    source: docs/handbook.md#Boundaries
+    rev: 797d598271bf
+    criterion: the rules that decide where a change belongs
+
+  verification:
+    status: filled
+    commands:
+      ok: "true"
+    criterion: every command runs from the project root and exits 0
+
+  mvp_bounds:
+    status: open_question
+    criterion: an explicit in-list and an explicit out-list
+
+  scenarios:
+    status: not_applicable
+    reason: a fixture has no product data to walk a scenario over
+
+  deferred_seams:
+    status: not_applicable
+    reason: nothing is postponed in a fixture
+
+collections:
+  actors:
+    status: not_applicable
+    reason: one actor, the test that runs this
+
+  entities:
+    status: not_applicable
+    reason: no domain model here
+
+  actions:
+    status: open_question
+
+  screens:
+    status: not_applicable
+    reason: no interface
+
+  integrations:
+    status: filled
+    sources:
+      - docs/*.md
+    criterion: everything outside this tree that it depends on

@@ -1,0 +1,11 @@
+# Outside the reader's subset: an anchor on line 7. The check must say so by name and line
+# instead of guessing at a value. Structural, exit 2.
+
+version: 1
+
+slots:
+  defaults: &common
+    status: filled
+
+  north_star:
+    status: filled

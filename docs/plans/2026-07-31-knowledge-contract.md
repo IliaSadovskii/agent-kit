@@ -75,3 +75,33 @@ Upstream: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/02-knowledge-contrac
 - assumption — CI does not run `--check` against this repository's own contract: that contract names
   `scripts/validate.sh`, so the build would recurse. The structural half is covered in CI through the
   module API, the command half by hand. Reasoning in the spec.
+- decision — `docs/developing.md` is edited on this branch rather than in a separate docs PR, for
+  the reason 01 recorded and this feature inherits: it documents a rule that exists only here, and
+  five more stacked features are about to touch the same files. The stdlib-only rule went in with
+  the check that enforces it rather than waiting for the Docs step, because a rule whose enforcement
+  ships in a different commit is a rule nobody can date.
+- step Build — done. Two commits: the reader and the check, then the command and this repository's
+  own contract.
+- test — nothing to provision. The repository declares one command, `scripts/validate.sh`, and the
+  new test layer runs inside it (`python3 tests/test_*.py`); `python3` was already this build's only
+  interpreter, so `.github/workflows/ci.yml` needs no change and there is no `cloud-setup.sh` here
+  to extend.
+- test — the `tester` agent wrote `tests/test_kit_yaml.py` (42) and `tests/test_blueprint_check.py`
+  (48) with nine fixture contract trees, proved each behaviour can fail with 41 source mutations,
+  and returned red on two real defects, both fixed here:
+  a `verification` command that is not a string — the shape a half-filled template produces —
+  crashed with a `TypeError` and exited 1 where the contract says 2; and a heading ending in `#`
+  (`## Why C#`) could not be bound at all, because the closing-sequence pattern ate the character.
+- deviation — `|+` block scalars are now refused by name instead of being read as clip. The reader's
+  own contract is that anything outside the subset is reported rather than guessed at, and returning
+  a silently wrong value is the one outcome it exists to prevent. One test the tester left
+  deliberately agnostic was rewritten to assert the refusal.
+- note — a test asserts this repository's own contract is structurally sound *and fresh*, so editing
+  the section of `docs/developing.md` that `architecture_stance` binds to fails the build until the
+  `rev` is updated. That is the contract doing its job on the repository that ships it; the failure
+  renders the whole check report, including the new hash to paste in.
+- step Test — done. `scripts/validate.sh` green: 90 tests, plus manifests, frontmatter, references,
+  payload syntax, the new stdlib-only import check, and `claude plugin validate --strict`. The
+  runnable surface is the check itself, exercised against this repository's real documents: clean
+  exits 0; editing the bound section reports it stale with both hashes; editing a different section
+  of the same file stays clean; renaming the bound heading is reported as a missing section, exit 2.

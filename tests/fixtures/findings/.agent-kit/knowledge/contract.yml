@@ -1,0 +1,57 @@
+# Every kind of finding at once, and no structural fault: one run must report all eight rather
+# than the first, and exit 1.
+
+version: 1
+
+slots:
+  # A forbidden state.
+  north_star:
+    status: empty
+
+  # Bound, resolves, but never verified — no rev to compare against.
+  architecture_stance:
+    status: filled
+    source: docs/handbook.md#Boundaries
+    criterion: the rules that decide where a change belongs
+
+  # The one slot whose readiness is mechanical, filled and naming nothing to run.
+  verification:
+    status: filled
+    criterion: every command runs from the project root and exits 0
+
+  # The other forbidden state.
+  mvp_bounds:
+    status: conflicts
+
+  # Terminal, but the reason is what keeps it from being a shrug.
+  scenarios:
+    status: not_applicable
+
+  # deferred_seams is omitted entirely: a slot this kit version expects and does not find is
+  # reported exactly like an empty one.
+
+  # A slot this kit version does not know.
+  moonshot:
+    status: filled
+
+collections:
+  actors:
+    status: open_question
+
+  # Filled, and nothing says which documents the entries live in.
+  entities:
+    status: filled
+    criterion: every entity names its states
+
+  # Not one of the three verdicts.
+  actions:
+    status: todo
+
+  screens:
+    status: not_applicable
+    reason: no interface
+
+  integrations:
+    status: filled
+    sources:
+      - docs/handbook.md

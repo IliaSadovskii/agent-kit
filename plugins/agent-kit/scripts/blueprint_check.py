@@ -43,7 +43,9 @@ FORBIDDEN = ("empty", "conflicts")
 
 COMMAND_TIMEOUT = 300
 
-_HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*$")
+# A closing run of `#` is only a closing sequence when a space precedes it, so a heading may end in
+# one: `## Why C#` is titled "Why C#", and a slot bound to it must resolve.
+_HEADING = re.compile(r"^(#{1,6})\s+(.*?)(?:\s+#+)?\s*$")
 _FENCE = re.compile(r"^\s*(```|~~~)")
 
 
@@ -174,6 +176,13 @@ def _check_binding(report, root, where, entry):
 
 def _run_commands(report, root, where, commands):
     for name, command in commands.items():
+        # The template ships `commands:` as comments, so a half-filled slot — a name with nothing
+        # after the colon — is the likeliest shape this ever meets. That is a structural failure to
+        # report, not a traceback.
+        if not isinstance(command, str) or not command.strip():
+            report.commands.append((name, command, False))
+            report.fault(where, f"{name}: {command!r} is not a command")
+            continue
         try:
             done = subprocess.run(command, shell=True, cwd=root, capture_output=True, text=True,
                                   timeout=COMMAND_TIMEOUT)
