@@ -1,6 +1,6 @@
 ---
 name: riff
-description: Standalone product thinking before any feature is chosen — generate ideas widely across the product, argue them out, and roadmap the survivors. Builds nothing, writes no code.
+description: Standalone product thinking before any feature is chosen — generate ideas widely across the product, argue them out, and roadmap the survivors. A screen theme runs the same pass over the screen map instead, proposing the screens the app is missing. Builds nothing, writes no code.
 argument-hint: "[theme]"
 disable-model-invocation: true
 ---
@@ -12,6 +12,14 @@ scope of `ideate`; inside `ship` the same skill runs narrowed to one already-cho
 
 Theme: `$ARGUMENTS`. If none was given, ask in one message what to riff on rather than guessing —
 "the whole product" produces shallow ideas.
+
+**A screen theme runs `screens-riff` instead**, which asks the same question of the screen map and
+answers in the same picture: what the app is missing, as `idea` cards next to what already exists,
+with the turned-down ones kept as `rejected` memory. A theme is a screen theme when it carries a
+standalone `S<digits>` token — `S7`, alone or inside a sentence, so `S7Adapter` and `TLS7` are not
+one — or when it names screens, the map, or the screens of a flow. This command is interactive, so
+a theme that could honestly go either way is asked about in the same one message above rather than
+guessed at.
 
 If `.agent-kit/project/manifest.yml` is missing or registers no idea and roadmap, there is no north
 star to judge ideas against. Say so and offer `/agent-kit:ship`, which runs the bootstrap interview

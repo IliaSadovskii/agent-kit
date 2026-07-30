@@ -1,19 +1,32 @@
 ---
 name: fix
-description: The light path for a genuinely small, local, low-risk change — a bug fix, a copy tweak, a small refactor, a dependency bump. Understand, change, test, review, PR.
-argument-hint: "[task]"
+description: Something is wrong — your words, a PR review, or an observed failure. The light path from a small change to a PR, with the review round and root-cause debugging reached through the same command. Understand, change, test, review, PR.
+argument-hint: "[task] [--pr <n>]"
 disable-model-invocation: true
 ---
 
 # Fix
 
-The light path for a genuinely small, local, low-risk change. Choosing `fix` over `ship` is the
-user's call; there is no automatic heuristic.
+Something is wrong: your words, a PR review, or an observed failure. This is the light path — no
+design gate, no written plan. Choosing `fix` over `ship` is the user's call; there is no automatic
+heuristic.
 
-There is no design gate and no mode switch here: the user who typed the task is presumed nearby.
-Ask when a real ambiguity would change what you build; don't pause for routine choices.
+There is no mode switch here either: the user who typed the task is presumed nearby. Ask when a real
+ambiguity would change what you build; don't pause for routine choices.
 
 Task: `$ARGUMENTS`
+
+**A pull request came back.** `--pr <n>`, or a PR URL in the task, is a review round rather than a
+new change: run the `address` skill, which owns that run end to end — collect the threads and CI,
+sort them into in-scope, design changes, and out of scope, fix, verify, push, and answer every
+thread. The steps below do not apply; `address` has its own.
+
+**The cause is not known yet.** A task that names only a symptom — what someone saw, not what to
+change — runs the `debug` skill first: reproduce, isolate, and root-cause it before touching
+anything. Judge that from the task text; there is no flag for it. `debug` either stops with a
+diagnosis the owner has to decide on, or fixes the root cause with a regression test and continues
+through the tail below from **Test**. A task that already names the change is this path's own, and
+starts at step 1.
 
 1. **Understand** — read the request and the surrounding code until the change is clear, and confirm
    the scope really is small and local.
