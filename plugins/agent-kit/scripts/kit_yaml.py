@@ -12,9 +12,10 @@ say what it does not understand instead of guessing at a value.
 """
 import re
 
-__all__ = ["KitYamlError", "load", "load_path"]
+__all__ = ["KitYamlError", "dump", "load", "load_path"]
 
 _KEY = re.compile(r"^(?P<key>[A-Za-z0-9_.\-]+|\"[^\"]*\"|'[^']*'):(?:\s+(?P<rest>.*))?$")
+_PLAIN_KEY = re.compile(r"^[A-Za-z0-9_.\-]+$")
 # No leading zeros, which is JSON's number grammar and the reading a person expects: `007` is a
 # string. It also matters mechanically — a section hash is twelve hex characters, and roughly one
 # in sixteen hundred is all digits with a leading zero. Read as a number it comes back short, so
@@ -294,3 +295,109 @@ def load(text):
 def load_path(path):
     with open(path, encoding="utf-8") as handle:
         return load(handle.read())
+
+
+# ----------------------------------------------------------------------------------------------
+# The writer. Only machine-owned files are written this way: the knowledge index is derived and
+# regenerable, so it has no comments to preserve. A file a person maintains — the contract, the
+# manifest — is edited in place instead, because no dumper keeps the prose around the values.
+
+
+def _quoted(text, quote):
+    """`text` in single or double quotes, escaped as the reader unescapes it."""
+    if quote == "'":
+        return "'" + text.replace("'", "''") + "'"
+    escaped = text.replace("\\", "\\\\").replace('"', '\\"')
+    for raw, code in (("\n", "\\n"), ("\t", "\\t"), ("\r", "\\r"), ("\0", "\\0")):
+        escaped = escaped.replace(raw, code)
+    return '"' + escaped + '"'
+
+
+def _render_scalar(value, where):
+    """One line's worth of value. Plain where that reads back unchanged, quoted where it would not.
+
+    Plain is tried first because these files are read by people. The candidates are ordered by how
+    much they cost the reader, and `dump` proves the choice by parsing the result — so a value that
+    would come back as something else is a loud error rather than a quiet corruption.
+    """
+    if value is None:
+        return ""
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        rendered = repr(value)
+        if not _FLOAT.match(rendered):
+            raise KitYamlError(f"{where}: {value!r} has no plain form in the subset", 0)
+        return rendered
+    if isinstance(value, str):
+        if value and "\n" not in value and value == value.strip():
+            try:
+                if _strip_comment(value).rstrip() == value and _scalar(value, 0) == value:
+                    return value
+            except KitYamlError:
+                pass
+        # A `#` after a `"` inside a double-quoted scalar reads as a comment, because the reader
+        # cannot tell the escaped quote from a closing one. Single quotes have no escapes to be
+        # confused by, so they are tried before double.
+        if "\n" not in value and "\r" not in value and "\t" not in value:
+            return _quoted(value, "'")
+        return _quoted(value, '"')
+    raise KitYamlError(f"{where}: {type(value).__name__} is outside the subset", 0)
+
+
+def _render_key(key, where):
+    if not isinstance(key, str):
+        raise KitYamlError(f"{where}: a key must be a string, not {type(key).__name__}", 0)
+    return key if _PLAIN_KEY.match(key) else _quoted(key, '"')
+
+
+def _render_map(mapping, indent, lines, where):
+    pad = " " * indent
+    for key, value in mapping.items():
+        rendered = _render_key(key, where)
+        _render_value(f"{pad}{rendered}:", value, indent, lines, f"{where}/{key}")
+
+
+def _render_seq(items, indent, lines, where):
+    pad = " " * indent
+    for position, item in enumerate(items):
+        _render_value(f"{pad}-", item, indent, lines, f"{where}[{position}]")
+
+
+def _render_value(opening, value, indent, lines, where):
+    """Emit `opening` — a key or a dash — followed by `value`, inline or as an indented block."""
+    if isinstance(value, dict):
+        if not value:
+            lines.append(f"{opening} {{}}")
+            return
+        lines.append(opening)
+        _render_map(value, indent + 2, lines, where)
+    elif isinstance(value, list):
+        if not value:
+            lines.append(f"{opening} []")
+            return
+        lines.append(opening)
+        _render_seq(value, indent + 2, lines, where)
+    else:
+        lines.append(f"{opening} {_render_scalar(value, where)}".rstrip())
+
+
+def dump(data):
+    """Render a mapping in the subset `load` reads, and prove it by reading the result back.
+
+    The proof is the point. A writer that renders a value the reader then takes for something else
+    is the exact failure the whole contract exists to prevent — a hash that comes back as a number,
+    a `#` eaten as a comment — and it is invisible until a check reports a file it wrote as wrong.
+    """
+    if not isinstance(data, dict):
+        raise KitYamlError("a kit document is a mapping at the top level", 0)
+    lines = []
+    _render_map(data, 0, lines, "")
+    text = "".join(line + "\n" for line in lines)
+    if load(text) != data:
+        raise KitYamlError("this structure does not survive a round trip through the subset", 0)
+    return text

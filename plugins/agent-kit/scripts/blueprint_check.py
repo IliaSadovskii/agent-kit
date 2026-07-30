@@ -19,14 +19,15 @@ Importable as well as runnable: `check(root, run_commands=False)` is the structu
 which is how this repository's own contract is covered by a build that the contract itself names.
 """
 import glob
-import hashlib
 import os
-import re
 import subprocess
 import sys
 
 import guard
+import kit_knowledge
 import kit_yaml
+from kit_knowledge import (COLLECTION_SLOTS, SectionError, headings,  # noqa: F401 - re-exported
+                           inside, section_body, section_rev)
 
 CONTRACT_PATH = os.path.join(".agent-kit", "knowledge", "contract.yml")
 TEMPLATE_PATH = os.path.normpath(
@@ -37,89 +38,11 @@ TEMPLATE_PATH = os.path.normpath(
 # empty one: a slot a later kit version added shows up as needing a verdict, never as absent.
 SINGULAR_SLOTS = ("north_star", "architecture_stance", "verification", "mvp_bounds", "scenarios",
                   "deferred_seams")
-COLLECTION_SLOTS = ("actors", "entities", "actions", "screens", "integrations")
 
 TERMINAL = ("filled", "not_applicable", "open_question")
 FORBIDDEN = ("empty", "conflicts")
 
 COMMAND_TIMEOUT = 300
-
-# A closing run of `#` is only a closing sequence when a space precedes it, so a heading may end in
-# one: `## Why C#` is titled "Why C#", and a slot bound to it must resolve.
-_HEADING = re.compile(r"^(#{1,6})\s+(.*?)(?:\s+#+)?\s*$")
-# The whole run, not the first three characters: a document that shows how to write a code fence
-# nests a ``` inside a ````, and a closer shorter than its opener does not close it. Reading it as
-# one would end the fence early and turn the example's own `#` lines into headings.
-_FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
-
-
-class SectionError(Exception):
-    """A binding that cannot be resolved: the heading is missing, or it is not unique."""
-
-
-def inside(root, path):
-    """Resolve `path` under `root`, or None when it points outside the project.
-
-    A contract can arrive in a pull request, and a binding is a path out of it. `os.path.join`
-    hands the whole result to an absolute path, `..` walks up, and a symlink does it without
-    either — so the answer is the resolved path compared against the resolved root, not the string.
-    """
-    resolved = os.path.realpath(os.path.join(root, path))
-    base = os.path.realpath(root)
-    return resolved if os.path.commonpath([resolved, base]) == base else None
-
-
-def headings(text):
-    """Every ATX heading as (level, title, line index), ignoring anything inside a code fence."""
-    found, fence = [], None
-    for index, line in enumerate(text.splitlines()):
-        marker = _FENCE.match(line)
-        if marker:
-            closer = marker.group(1)
-            if fence is None:
-                fence = closer
-            elif closer[0] == fence[0] and len(closer) >= len(fence):
-                fence = None
-            continue
-        if fence is not None:
-            continue
-        match = _HEADING.match(line)
-        if match:
-            found.append((len(match.group(1)), match.group(2).strip(), index))
-    return found
-
-
-def section_body(text, heading):
-    """The text between `heading` and the next heading of the same level or shallower.
-
-    Line endings are normalized, so a CRLF checkout does not make every binding stale; nothing else
-    is. Whitespace inside the section is part of it — the hash is meant to notice edits, and an edit
-    that only moved whitespace is still an edit the owner made.
-
-    Each line keeps its terminator, which is what the file has. Joining without one would make a
-    section holding a single blank line and a section holding nothing the same text, and an edit
-    between the two would be the one edit the hash could not see.
-    """
-    all_headings = headings(text)
-    matches = [h for h in all_headings if h[1] == heading]
-    if not matches:
-        raise SectionError(f"no heading {heading!r}")
-    if len(matches) > 1:
-        lines = ", ".join(f"line {h[2] + 1}" for h in matches)
-        raise SectionError(f"heading {heading!r} is not unique ({lines})")
-    level, _, start = matches[0]
-    end = len(text.splitlines())
-    for other_level, _, other_start in all_headings:
-        if other_start > start and other_level <= level:
-            end = other_start
-            break
-    body = text.splitlines()[start + 1:end]
-    return "\n".join(body) + "\n" if body else ""
-
-
-def section_rev(text, heading):
-    body = section_body(text, heading)
-    return hashlib.sha256(body.encode("utf-8")).hexdigest()[:12]
 
 
 class Report:
@@ -130,6 +53,9 @@ class Report:
         self.slot_counts = {}
         self.collection_counts = {}
         self.commands = []      # (name, command, ok)
+        self.entry_counts = {}  # collection -> entries the contract records
+        self.drift = []         # (where, kind, message) — a binding that no longer resolves
+        self.stale_documents = {}   # path -> entries whose section changed since it was parsed
 
     def finding(self, where, message):
         self.findings.append((where, message))
@@ -141,7 +67,7 @@ class Report:
     def exit_code(self):
         if self.structural:
             return 2
-        return 1 if self.findings or self.stale else 0
+        return 1 if self.findings or self.stale or self.drift or self.stale_documents else 0
 
 
 def _count(counts, status):
@@ -316,6 +242,46 @@ def _walk(report, root, run_commands):
                 report.finding(where, "filled, but nothing says where the answer is — bind it with "
                                       "source: path#heading")
 
+    _check_entries(report, root, contract)
+
+
+def _check_entries(report, root, contract):
+    """The collections' instances: every binding resolves, every parse is current, keys agree.
+
+    No grader runs here, and none may: stage 6 puts this in front of every build command, so it has
+    to stay in the seconds. Re-parsing is `blueprint --index`, a separate mode with a separate cost.
+    """
+    try:
+        index = kit_knowledge.load_index(root)
+    except kit_yaml.KitYamlError as exc:
+        report.fault(kit_knowledge.INDEX_PATH,
+                     f"{exc} — the index is derived; rebuild it with `blueprint --index`")
+        return
+    except (OSError, UnicodeDecodeError) as exc:
+        report.fault(kit_knowledge.INDEX_PATH, str(exc))
+        return
+
+    state = kit_knowledge.entry_state(root, contract, index)
+    for item in state:
+        where = f"{item['collection']}/{item['key']}"
+        report.entry_counts[item["collection"]] = report.entry_counts.get(
+            item["collection"], 0) + 1
+        if item["error"] is not None:
+            if item["error"].structural:
+                report.fault(where, str(item["error"]))
+            else:
+                report.drift.append((where, item["kind"], str(item["error"])))
+            continue
+        if item["stale"]:
+            path = item["resolved"]["path"]
+            report.stale_documents[path] = report.stale_documents.get(path, 0) + 1
+            continue
+        for gap in item["gaps"]:
+            report.finding(where, f"the prose does not answer: {gap}")
+
+    for where, message in kit_knowledge.cross_check(index, kit_knowledge.screen_ids(root)):
+        report.finding(where, message)
+
 
 def _check_sources(report, root, where, entry):
     """A collection binds to globs at this stage; its entries and anchors are stage 2's work."""
@@ -338,20 +304,44 @@ def _summary(counts):
     return " · ".join(parts) or "none recorded"
 
 
+def _entry_findings(report, collection):
+    """How many of the reported problems belong to one collection's entries."""
+    prefix = collection + "/"
+    return (sum(1 for where, _ in report.findings if where.startswith(prefix))
+            + sum(1 for where, _, _ in report.drift if where.startswith(prefix)))
+
+
 def render(report):
     lines = [
         f"slots        {_summary(report.slot_counts)}",
         f"collections  {_summary(report.collection_counts)}",
     ]
+    for collection in COLLECTION_SLOTS:
+        total = report.entry_counts.get(collection)
+        if not total:
+            continue
+        found = _entry_findings(report, collection)
+        summary = f"{total} entries"
+        if found:
+            summary += f" · {found} finding{'s' if found != 1 else ''}"
+        lines.append(f"{collection:<12} {summary}")
     for name, command, ok in report.commands:
         lines.append(f"verification {name}: {command} → {'ok' if ok else 'FAILED'}")
     for where, message in report.structural:
         lines += ["", f"✗ {where}", f"  {message}"]
     for where, message in report.findings:
         lines += ["", f"⚠ {where}", f"  {message}"]
+    # Drift is reported apart from the rest because the fix differs: a removed anchor is
+    # re-proposed through the placement flow, a renamed heading is repointed in the contract.
+    for where, kind, message in report.drift:
+        lines += ["", f"{kind} drift  {where}", f"  {message}"]
     for where, source, recorded, actual in report.stale:
         lines += ["", f"stale        {where}", f"  {source} changed since it was recorded "
                                                f"({recorded} → {actual})"]
+    for path in sorted(report.stale_documents):
+        count = report.stale_documents[path]
+        lines += ["", f"stale        {path} changed since last parse "
+                      f"({count} entr{'ies' if count != 1 else 'y'}) — `blueprint --index`"]
     return "\n".join(lines)
 
 

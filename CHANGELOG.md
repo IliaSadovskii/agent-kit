@@ -52,6 +52,35 @@ one, `blueprint`, is the first half of a knowledge layer the other commands will
   to fail an import of anything the kit does not install. A hook that dies on `ImportError` on
   someone else's machine takes the whole kit with it.
 
+- **A collection is now enumerated, not just pointed at.** `contract.yml` records one entry per
+  instance — `key: {at: path#…}` — and the kit binds each to a piece of your own prose. The list is
+  proposed by a grader and written down rather than re-derived every run, because a heading-level
+  rule does not survive real documents where entries sit at different depths or inside lists, and
+  because a list you can review is a list you can correct.
+- **Anchors survive a rename.** `<!-- kit: developer.create_offer -->` on its own line inside your
+  document is invisible when rendered and does not care what the heading above it is called. The
+  kit places them and you never do: it finds the boundaries, shows the list, and writes them in one
+  commit on a single yes — the only moment the kit touches your documents. An anchor you delete is
+  reported and re-proposed, never silently re-added. `path#heading` stays supported, and its drift
+  is reported separately, because the fix differs.
+- **`/agent-kit:blueprint --index` reads the prose and records what it says.** One grader call per
+  document, carrying only the sections whose hash moved: the first parse of a document is one call,
+  editing one section of it later is one call for that section, and a run with nothing changed makes
+  none at all. What comes back — the actor, the trigger, which entities change to which status,
+  which screens are involved, and what the section leaves unanswered — lands in
+  `.agent-kit/knowledge/index.yml`, which is committed so a clone, a CI run and a headless run
+  inherit the cache instead of paying for it again.
+- **The contract now finds disagreements between documents.** `--check` compares the keys: a status
+  an action sets against that entity's states, an action against the rights its actor is given, a
+  screen an action names against the screen map — which stays the authority, and is referenced
+  rather than duplicated — and an entity the product writes against the actions that create and
+  close it. Anything referenced but never described is one finding, reported once. This is the class
+  of problem reading with your eyes does not catch, and it costs no grader call.
+- **`--check` still answers in seconds.** It never parses prose; a stale entry is reported, not
+  re-read. The two modes are separate for exactly that reason — a later version puts the check in
+  front of every build command, and a check that could cost forty model calls would be routed
+  around within a week.
+
 ## 0.16.0
 
 A pipeline can no longer end its turn with steps left, and a run that stopped early is resumed

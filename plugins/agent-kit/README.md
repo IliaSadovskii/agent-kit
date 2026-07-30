@@ -16,7 +16,7 @@ Plugin skills are namespaced, so every command below is `/agent-kit:<name>`.
 | `/agent-kit:docs` | Reconcile living documentation |
 | `/agent-kit:screens` | Map every screen and transition, and keep the map true |
 | `/agent-kit:riff [theme]` | Interactive strategy, builds nothing — on a screen theme, the screens the app is missing |
-| `/agent-kit:blueprint --check` | Audit the knowledge contract: slots with no verdict, stale bindings, verification commands that fail |
+| `/agent-kit:blueprint --check \| --index` | Audit the knowledge contract — slots with no verdict, stale bindings, keys that disagree — and re-derive the index behind it |
 
 The kit also ships two subagents, `agent-kit:reviewer` and `agent-kit:tester`, which the pipelines
 invoke on finished work.
@@ -40,7 +40,7 @@ the plugin (replaced by every update)
   templates/project/      what bootstrap copies into a project
   templates/screens/      the screen map viewer, copied by /agent-kit:screens
   hooks/, scripts/        session start, cloud dependency setup, the guard hook, and the
-                          knowledge check behind /agent-kit:blueprint
+                          knowledge check and index behind /agent-kit:blueprint
 
 the project (never touched by an update)
   .agent-kit/project/manifest.yml     automation state and the paths to your documents

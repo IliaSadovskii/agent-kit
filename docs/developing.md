@@ -13,7 +13,7 @@ plugins/agent-kit/                the plugin
   templates/project/              what bootstrap copies into a project
   templates/screens/              the screen map viewer, copied by /agent-kit:screens
   hooks/hooks.json, scripts/      session start, cloud dependency setup, the guard hooks, and
-                                  the knowledge check behind /agent-kit:blueprint
+                                  the knowledge check and index behind /agent-kit:blueprint
 scripts/                          validate.sh, release.sh
 tests/                            plain executable checks over the payload's scripts
 migrations/<version>.md           notes for a release that needs a manual step

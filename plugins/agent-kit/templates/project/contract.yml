@@ -96,9 +96,34 @@ slots:
     criterion:
 
 # --------------------------------------------------------------------------------------------
-# Collections — one entry per instance. At this kit version a collection carries a verdict and the
-# documents its entries live in; per-entry anchors, extraction and cross-checks arrive in a later
-# version, and they will read these same globs.
+# Collections — one entry per instance.
+#
+#   sources:  the documents the entries live in, as globs
+#   entries:  one line per instance, `key: {at: path#…}`. The list is proposed by the kit and
+#             recorded here so it is reviewable and hand-fixable, not re-derived on every run.
+#
+# An entry binds like a slot does, with one addition — a fragment beginning `kit:` names an anchor:
+#
+#   entries:
+#     developer.create_offer:
+#       at: docs/user-stories/DEVELOPER.md#kit:developer.create_offer
+#     agency.create_offer:
+#       at: docs/OFFERS.md#Оффер от агентства     ← a heading, and it drifts when the heading moves
+#
+# An anchor is an HTML comment on its own line inside your prose — invisible when rendered, and it
+# survives a heading rename, which is why it is the default:
+#
+#     ### Создание оффера застройщиком
+#     <!-- kit: developer.create_offer -->
+#
+# The kit places anchors; you never write one. It finds the boundaries, shows you the list, and
+# writes them in one commit on a single yes. That is the only moment it touches your documents.
+#
+# What each entry actually says is derived by `/agent-kit:blueprint --index` into
+# .agent-kit/knowledge/index.yml — committed, regenerable, and never edited by hand. `--check`
+# then compares the keys against each other: a status an action sets against the entity's states,
+# an action against its actor's rights, a screen against the map, an entity against the actions
+# that create and close it.
 
 collections:
   # Who or what initiates anything: a user role, an operator, an external system, a schedule, or
@@ -106,6 +131,7 @@ collections:
   actors:
     status: empty
     sources: []
+    entries:
     reason:
     criterion:
 
@@ -114,6 +140,7 @@ collections:
   entities:
     status: empty
     sources: []
+    entries:
     reason:
     criterion:
 
@@ -122,6 +149,7 @@ collections:
   actions:
     status: empty
     sources: []
+    entries:
     reason:
     criterion:
 
@@ -130,6 +158,7 @@ collections:
   screens:
     status: empty
     sources: []
+    entries:
     reason:
     criterion:
 
@@ -137,5 +166,6 @@ collections:
   integrations:
     status: empty
     sources: []
+    entries:
     reason:
     criterion:
