@@ -149,7 +149,7 @@ def _run_commands(report, root, where, commands):
         refused = guard.refusal(command)
         if refused:
             report.commands.append((name, command, False))
-            report.fault(where, f"{name}: refused without running it — {refused}")
+            report.fault(where, f"{name}: refused without running it — {refused.reason}")
             continue
         # Announced before it runs, not after: what a command did should never reach the reader
         # ahead of what the command was.

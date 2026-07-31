@@ -1,0 +1,142 @@
+# The pipelines the step gate governs, as the plugin ships them.
+#
+# A step is closed by the gate, never by the agent: the agent calls `scripts/gate.py step settle
+# <Name>`, the gate runs what is declared here, and it writes the verdict into
+# `.agent-kit/runs/<branch>.yml` — a file two PreToolUse hooks keep out of the agent's reach.
+#
+# This file belongs to the plugin. A later version adds `.agent-kit/project/pipelines.yml`, which a
+# project owns and which overrides what is here; until then this is the only source, and a project
+# that never writes one keeps working forever.
+#
+# Fields, per step:
+#
+#   name             what the skill calls the step. The order of this list is the pipeline's order,
+#                    and a step does not open until every step before it holds a terminal verdict.
+#   requires         the same dependency stated rather than inferred from position. Enforced too.
+#   done_when        every check must pass. `run: <shell command>` (exit 0), `exists: <glob>`,
+#                    `git: tree_clean | commits_on_branch | pushed`. A step with no check settles
+#                    as `attested` and the gate demands `--evidence "<what you did>"` for it.
+#   max_attempts     how many times `settle` may fail before the step is recorded `blocked`.
+#   on_exhausted     `block` stops the run and the blocker is reported; `continue` leaves the run
+#                    open and the step is named in the pull request. `escalate` is in the schema
+#                    and not supported yet — waking the owner needs a push channel.
+#   optional         the step may be skipped with any named reason.
+#   skippable_when   the only reasons `step skip` accepts. Free-text skips used to close any step,
+#                    which is why the constraint did not exist.
+#
+# `approved_by_owner:` and `agent:` are in the schema and declared unsupported: the gate names them
+# and refuses rather than passing them silently.
+#
+# Most steps here are attested rather than verified, and the gate says so on every one. That is the
+# honest state of it: the checks that would make Test and Review mechanical need the project's own
+# commands, which arrive with the project-owned file. `sprint` is deliberately absent — the
+# orchestrator checks the working tree out onto each child's branch as it goes, and a run keyed by
+# branch would be invisible to its own Stop hook for most of a sprint. An intermittent guard reads
+# as assurance and is not.
+
+version: 1
+
+pipelines:
+  # /agent-kit:ship — one feature, from the design gate to a pull request with the docs settled.
+  # The run opens at Design: Task and Ideate can end with the owner declining, and a run opened for
+  # work that never starts is a guard nobody can satisfy.
+  ship:
+    steps:
+      - name: Design
+        done_when: []
+        max_attempts: 1
+        on_exhausted: block
+
+      - name: Plan
+        requires:
+          - Design
+        done_when: []
+        max_attempts: 1
+        on_exhausted: block
+
+      - name: Build
+        requires:
+          - Plan
+        done_when:
+          - git: commits_on_branch
+        max_attempts: 3
+        on_exhausted: block
+
+      - name: Test
+        requires:
+          - Build
+        done_when: []
+        max_attempts: 3
+        on_exhausted: block
+
+      - name: Review
+        requires:
+          - Test
+        done_when: []
+        max_attempts: 2
+        on_exhausted: block
+
+      - name: Security
+        requires:
+          - Review
+        done_when: []
+        max_attempts: 2
+        on_exhausted: block
+
+      # Nothing is committed that is not pushed, and nothing is pushed that is not committed. Both
+      # are what the pull request is made of, so both are mechanical.
+      - name: PR
+        requires:
+          - Security
+        done_when:
+          - git: tree_clean
+          - git: pushed
+        max_attempts: 2
+        on_exhausted: block
+        skippable_when:
+          - no_remote
+
+      # Docs reflection is a no-op by default, and a divergence it cannot close is the owner's to
+      # decide on rather than a reason to hold the whole run open.
+      - name: Docs
+        requires:
+          - PR
+        done_when: []
+        max_attempts: 1
+        on_exhausted: continue
+
+  # /agent-kit:fix — the light path. The run opens at Change: before that the task may still turn
+  # out to be a review round, a diagnosis for the owner, or a handoff to ship, and none of those
+  # runs these steps.
+  fix:
+    steps:
+      - name: Change
+        done_when:
+          - git: commits_on_branch
+        max_attempts: 3
+        on_exhausted: block
+
+      - name: Test
+        requires:
+          - Change
+        done_when: []
+        max_attempts: 3
+        on_exhausted: block
+
+      - name: Review
+        requires:
+          - Test
+        done_when: []
+        max_attempts: 2
+        on_exhausted: block
+
+      - name: PR
+        requires:
+          - Review
+        done_when:
+          - git: tree_clean
+          - git: pushed
+        max_attempts: 2
+        on_exhausted: block
+        skippable_when:
+          - no_remote

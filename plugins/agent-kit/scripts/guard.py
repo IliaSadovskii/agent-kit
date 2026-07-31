@@ -3,22 +3,48 @@
 
 `refusal()` is the decision on its own, importable, because the hook is not the only place a shell
 command gets run on the kit's behalf: `blueprint_check.py` runs the commands a project's knowledge
-contract declares, and a `PreToolUse` hook never sees those — it fires on tool calls, not on a
-subprocess a script starts. One list of never-rules, two callers: the hook asks, and a caller with
-nobody to ask refuses.
+contract declares, and `kit_gate.py` runs the `done_when` commands a pipeline definition declares. A
+`PreToolUse` hook never sees either — it fires on tool calls, not on a subprocess a script starts.
+One list of never-rules, three callers: the hook decides, and a caller with nobody to ask refuses.
+
+The decision comes in two strengths. The never-rules **ask**, because interactively the user
+confirms in one click and in an unattended run nobody answers, which is what the rules promise. A
+write to the step gate's run state is **denied** outright: the agent must never write it — that is
+the whole construction — and a headless sprint child has nobody to answer a question, so a hanging
+child would be worse than a refused write.
 """
 import json
+import os
 import re
 import shlex
 import subprocess
 import sys
 
+ASK = "ask"
+DENY = "deny"
 
-def ask(reason):
+# Blunt on purpose. A shell command that names the run-state directory and is not an invocation of
+# the gate is refused, full stop: reading state is what the Read tool is for, and a precise rule
+# about redirects, `tee`, `sed -i` and `cp` targets would leak.
+RUNS_DIR = os.path.join(".agent-kit", "runs")
+GATE_SCRIPT = "gate.py"
+
+
+class Refusal:
+    """Why the kit will not run a command, and how hard it says so."""
+
+    __slots__ = ("decision", "reason")
+
+    def __init__(self, decision, reason):
+        self.decision = decision
+        self.reason = reason
+
+
+def decide(decision, reason):
     print(json.dumps({
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
-            "permissionDecision": "ask",
+            "permissionDecision": decision,
             "permissionDecisionReason": reason,
         }
     }))
@@ -31,6 +57,11 @@ def git(*args):
         return out.stdout.strip() if out.returncode == 0 else ""
     except Exception:
         return ""
+
+
+def names_run_state(text):
+    """Whether a path or a command mentions the gate's run-state directory, either separator."""
+    return RUNS_DIR in text or RUNS_DIR.replace(os.sep, "/") in text
 
 
 def refusal(command):
@@ -49,16 +80,26 @@ def refusal(command):
         if not words:
             continue
 
+        if any(names_run_state(word) for word in words) \
+                and not any(word.endswith(GATE_SCRIPT) for word in words):
+            return Refusal(DENY, (
+                "agent-kit: `.agent-kit/runs/` is the step gate's run state, and only the gate "
+                "writes it — a step the agent could close by hand is not a gate. Ask the gate "
+                "instead: `step start`, `step settle`, `step skip`. To read state, use the Read "
+                "tool. If a run was abandoned and its state is in your way, the file is yours to "
+                "delete by hand — not the agent's."))
+
         if words[:3] == ["gh", "pr", "merge"]:
-            return ("agent-kit: the kit never merges pull requests — the owner merges. "
-                    "Confirm to override.")
+            return Refusal(ASK, "agent-kit: the kit never merges pull requests — the owner merges. "
+                                "Confirm to override.")
 
         if words[0] != "git" or "push" not in words:
             continue
         rest = words[words.index("push") + 1:]
 
         if any(w == "-f" or w.startswith("--force") for w in rest):
-            return "agent-kit: force push rewrites remote history. Confirm to override."
+            return Refusal(ASK, "agent-kit: force push rewrites remote history. "
+                                "Confirm to override.")
 
         default = (git("symbolic-ref", "--short", "refs/remotes/origin/HEAD").rpartition("/")[2]
                    or "main")
@@ -67,11 +108,12 @@ def refusal(command):
             for spec in refspecs:
                 dest = spec.rpartition(":")[2]
                 if dest == default or dest.endswith("/" + default):
-                    return (f"agent-kit: this push targets the default branch ({default}); "
-                            "the kit works on feature branches. Confirm to override.")
+                    return Refusal(ASK, f"agent-kit: this push targets the default branch "
+                                        f"({default}); the kit works on feature branches. "
+                                        "Confirm to override.")
         elif git("rev-parse", "--abbrev-ref", "HEAD") == default:
-            return (f"agent-kit: pushing from the default branch ({default}); "
-                    "the kit works on feature branches. Confirm to override.")
+            return Refusal(ASK, f"agent-kit: pushing from the default branch ({default}); "
+                                "the kit works on feature branches. Confirm to override.")
     return None
 
 
@@ -80,7 +122,7 @@ if __name__ == "__main__":
         incoming = json.load(sys.stdin).get("tool_input", {}).get("command", "")
     except Exception:
         sys.exit(0)
-    reason = refusal(incoming)
-    if reason:
-        ask(reason)
+    refused = refusal(incoming)
+    if refused:
+        decide(refused.decision, refused.reason)
     sys.exit(0)
