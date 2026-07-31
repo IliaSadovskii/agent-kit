@@ -104,8 +104,10 @@ plugins/agent-kit/
   rules/                          autonomous mode, interactive mode, pull requests
   templates/project/              what bootstrap copies into a project
   templates/screens/              the screen map viewer, copied by /agent-kit:screens
-  hooks/, scripts/                session start, cloud dependency setup, the guard that turns the
-                                  never-rules into explicit confirmations, and the knowledge check
+  pipelines.default.yml           the steps of ship and fix, and what closes each one
+  hooks/, scripts/                session start, cloud dependency setup, the guards that turn the
+                                  never-rules into explicit confirmations and keep run state out of
+                                  the agent's reach, the step gate, and the knowledge check
 ```
 
 Behavior lives in exactly one file. A skill that only points at another file is a bug — the

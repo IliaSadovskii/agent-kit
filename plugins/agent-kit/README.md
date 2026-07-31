@@ -39,13 +39,16 @@ the plugin (replaced by every update)
   rules/                  autonomous mode, interactive mode, pull requests
   templates/project/      what bootstrap copies into a project
   templates/screens/      the screen map viewer, copied by /agent-kit:screens
-  hooks/, scripts/        session start, cloud dependency setup, the guard hook, and the
-                          knowledge check and index behind /agent-kit:blueprint
+  pipelines.default.yml   the steps of ship and fix, and what closes each one
+  hooks/, scripts/        session start, cloud dependency setup, the guards, the step gate, and
+                          the knowledge check and index behind /agent-kit:blueprint
 
 the project (never touched by an update)
   .agent-kit/project/manifest.yml     automation state and the paths to your documents
   .agent-kit/project/instructions.md  your stack, commands, and conventions
   .agent-kit/knowledge/contract.yml   which questions the kit has answers to, and where they live
+  .agent-kit/runs/<branch>.yml        one run's step verdicts — written by the gate alone, and
+                                      gitignored: working state, never repository content
   CLAUDE.md, docs/, source, tests, secrets
 ```
 

@@ -12,8 +12,10 @@ plugins/agent-kit/                the plugin
   rules/                          autonomous mode, interactive mode, pull requests
   templates/project/              what bootstrap copies into a project
   templates/screens/              the screen map viewer, copied by /agent-kit:screens
-  hooks/hooks.json, scripts/      session start, cloud dependency setup, the guard hooks, and
-                                  the knowledge check and index behind /agent-kit:blueprint
+  pipelines.default.yml           the steps of ship and fix, and what closes each one
+  hooks/hooks.json, scripts/      session start, cloud dependency setup, the guard hooks, the
+                                  step gate, and the knowledge check and index behind
+                                  /agent-kit:blueprint
 scripts/                          validate.sh, release.sh
 tests/                            plain executable checks over the payload's scripts
 migrations/<version>.md           notes for a release that needs a manual step
@@ -84,8 +86,19 @@ runner.
 
 `engine.md` reaches the session as SessionStart hook output, which Claude Code caps at 10,000
 characters — past that it is written to a file and replaced with a preview, so the governance
-silently stops being always-on. The validator fails the build before that can ship. When the engine
-needs to grow, move the workflow-scoped part into the skill that uses it instead.
+silently stops being always-on. The same hook now prints the branch's unfinished run state after it,
+so the budget is the cap minus `kit_gate.STATE_CAP`, and the validator fails the build on the sum.
+When the engine needs to grow, move the workflow-scoped part into the skill that uses it instead.
+
+### Mutation testing over the gate
+
+`tests/mutate_gate.py` changes `kit_gate.py` in small mechanical ways and requires
+`tests/test_gate.py` to go red for each one. It exists because the step gate is the one script here
+whose tests passing while the code is wrong would be invisible: nothing downstream re-checks a
+step's verdict, so a gate that passes a step it should have failed reports success in the voice of
+success. A surviving mutant is either a hole in the tests or an entry in that file's `SURVIVORS`
+list with the reason it cannot be killed — and a listed one that starts being killed fails the run
+too, because an allowlist nobody prunes is an allowlist nobody reads.
 
 ## Releasing
 
@@ -127,7 +140,7 @@ Semver, from the perspective of a project using the kit:
   command owns and leave every other byte, or write nothing. Writing into the owner's *documents*
   needs one more thing on top: an explicit yes, asked for that write.
 - A payload script that follows a symlink at a path the kit itself owns —
-  `.agent-kit/knowledge/contract.yml`, `index.yml`, `manifest.yml`. Git checks a symlink out like
+  `.agent-kit/knowledge/contract.yml`, `index.yml`, `manifest.yml`, `.agent-kit/runs/<branch>.yml`. Git checks a symlink out like
   any other file, so one arrives from a pull request pointing wherever its author chose, and a
   command that rewrites the file writes straight through it. A path derived from a project's own
   content is contained (`realpath` under the project root); a path the kit fixed by name is
@@ -137,6 +150,11 @@ Semver, from the perspective of a project using the kit:
   with it. Every `.py` under the payload imports the standard library or a module shipped beside it,
   and `validate.sh` parses each one to hold the line. The shared YAML-subset reader,
   `scripts/kit_yaml.py`, exists for exactly this reason.
+- A step a pipeline closes by writing that it is closed. A step is closed by the step gate: the
+  skill asks, `scripts/gate.py` runs what `pipelines.default.yml` declares, and the verdict lands in
+  `.agent-kit/runs/<branch>.yml`, which a `PreToolUse` hook refuses the agent by tool and by shell.
+  Prose telling an agent to record its own verdict is the failure this replaced — it survived every
+  review for two releases, because a written line and a proven step read identically.
 - A reimplementation of something Claude Code ships. If a step could call `/code-review`,
   `/security-review`, `/verify`, or a built-in agent, it should — the kit's job is the ordering and
   the project context, not another review harness.
