@@ -12,8 +12,11 @@ plugins/agent-kit/                the plugin
   rules/                          autonomous mode, interactive mode, pull requests
   templates/project/              what bootstrap copies into a project
   templates/screens/              the screen map viewer, copied by /agent-kit:screens
-  hooks/hooks.json, scripts/      session start and cloud dependency setup
+  hooks/hooks.json, scripts/      session start and cloud dependency setup;
+                                  scripts/ also holds kit_yaml.py, kit_markdown.py, and
+                                  knowledge_check.py, the knowledge contract's reader and checker
 scripts/                          validate.sh, release.sh
+tests/                            unittest suite for plugins/agent-kit/scripts/, run by validate.sh
 migrations/<version>.md           notes for a release that needs a manual step
 ```
 
@@ -62,8 +65,9 @@ shows the agents, and `/hooks` shows the SessionStart entries. Edits to a skill 
 agreement across `VERSION`, `plugin.json`, and `marketplace.json`; skill and agent frontmatter;
 the command set against the plugin README, and every `/agent-kit:<name>` reference in a Markdown
 file anywhere in the repository against that same set; dangling `${CLAUDE_PLUGIN_ROOT}` references; leftover paths from the
-pre-plugin layout; the `engine.md` size cap; and `claude plugin validate --strict` when the CLI is
-available.
+pre-plugin layout; the `engine.md` size cap; `python3 -m unittest discover -s tests -t .`; this
+repository's own knowledge contract through `knowledge_check.py --skip-verification`; and
+`claude plugin validate --strict` when the CLI is available.
 
 ### The engine size cap
 

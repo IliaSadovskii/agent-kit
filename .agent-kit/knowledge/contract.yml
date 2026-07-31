@@ -22,14 +22,14 @@ slots:
   architecture_stance:
     status: filled
     source: docs/developing.md#Repository layout
-    rev: e84cec1cc3a6
+    rev: c3989efd9d48
     reason: null
     criterion: null
 
   verification:
     status: filled
     source: docs/developing.md#Testing a change
-    rev: ac8c6d4b0265
+    rev: 363e9ee3a40b
     reason: null
     criterion: null
     commands:
