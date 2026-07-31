@@ -125,8 +125,15 @@ def _check_pair(raw, where):
     if kind not in SUPPORTED_CHECKS:
         raise GateError(f"{where}: unknown check kind `{kind}:` "
                         f"(supported: {', '.join(SUPPORTED_CHECKS)})")
-    if not isinstance(value, str) or not value.strip():
+    if value is None or (isinstance(value, str) and not value.strip()):
         raise GateError(f"{where}: `{kind}:` needs a non-empty value")
+    if not isinstance(value, str):
+        # `run: true` and `run: 0` are read as a boolean and a number by any YAML reader, and
+        # "needs a non-empty value" is a baffling thing to be told about a value that is plainly
+        # there. Stage 4 hands this file to the project, so this is the first error a person
+        # editing it will meet.
+        raise GateError(f"{where}: `{kind}: {value}` reads as {type(value).__name__}, not text — "
+                        "quote it if that is the command you meant")
     if kind == "git" and value not in GIT_CHECKS:
         raise GateError(f"{where}: `git: {value}` is not one of {', '.join(GIT_CHECKS)}")
     return kind, value.strip()

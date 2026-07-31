@@ -9,8 +9,12 @@
 The agent asks; the gate answers. It cannot write the answer itself — two `PreToolUse` hooks refuse
 every path into `.agent-kit/runs/**` that is not this script.
 
-Exit codes: 0 the step moved, 1 a check failed or the request was refused, 2 the declaration or the
-state could not be read.
+Exit codes:
+
+    0   the step moved
+    1   the gate says no — a check failed, or this run's own state refuses the request
+    2   the gate cannot answer — the invocation is malformed, or the declaration or the state
+        cannot be read
 """
 import os
 import sys
@@ -79,7 +83,7 @@ def cmd_start(root, name, pipeline):
     index, step = _find(steps, name)
 
     if state["state"] != kit_gate.RUN_OPEN:
-        return fail(f"this run is {state['state']} — no further step opens on it")
+        return fail(f"this run is {state['state']} — no further step opens on it", code=1)
 
     verdict = kit_gate.verdict_of(state, name)
     if verdict in kit_gate.TERMINAL:
@@ -87,10 +91,10 @@ def cmd_start(root, name, pipeline):
                     code=1)
 
     # Order is the failure this whole feature exists for: a step read inline reassigns the role and
-    # the turn ends with a report where a pull request was due.
+    # the turn ends with a report where a pull request was due. `requires:` needs no separate test —
+    # the parser has already established that it names an earlier step, and every earlier step is
+    # covered here.
     blocking = [s.name for s in steps[:index] if not kit_gate.is_terminal(state, s.name)]
-    blocking += [n for n in step.requires
-                 if not kit_gate.is_terminal(state, n) and n not in blocking]
     if blocking:
         return fail(f"{name} does not open yet: {', '.join(blocking)} "
                     f"{'has' if len(blocking) == 1 else 'have'} no terminal verdict. Settle or skip "
@@ -116,7 +120,8 @@ def cmd_settle(root, name, evidence):
     branch = _branch(root)
     state = kit_gate.load_state(root, branch)
     if state is None:
-        return fail(f"there is no run on {branch} — open the step first with `step start {name}`")
+        return fail(f"there is no run on {branch} — open the step first with `step start {name}`",
+                    code=1)
     steps = kit_gate.steps_of(state["pipeline"])
     step = _find(steps, name)[1]
 
@@ -189,7 +194,7 @@ def cmd_skip(root, name, reason):
     branch = _branch(root)
     state = kit_gate.load_state(root, branch)
     if state is None:
-        return fail(f"there is no run on {branch} — there is nothing to skip")
+        return fail(f"there is no run on {branch} — there is nothing to skip", code=1)
     steps = kit_gate.steps_of(state["pipeline"])
     index, step = _find(steps, name)
 

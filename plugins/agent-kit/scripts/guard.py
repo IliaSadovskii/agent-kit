@@ -23,11 +23,13 @@ import sys
 ASK = "ask"
 DENY = "deny"
 
-# Blunt on purpose. A shell command that names the run-state directory and is not an invocation of
-# the gate is refused, full stop: reading state is what the Read tool is for, and a precise rule
-# about redirects, `tee`, `sed -i` and `cp` targets would leak.
+# Blunt on purpose, and without an exemption. A shell command that names the run-state directory is
+# refused, full stop: reading state is what the Read tool is for, and a precise rule about
+# redirects, `tee`, `sed -i` and `cp` targets would leak. The gate needs no exemption because the
+# gate never names the directory — it derives the path from the branch — so an exemption would only
+# ever have covered `gate.py state > .agent-kit/runs/<branch>.yml`, which is the very write this
+# rule exists to refuse.
 RUNS_DIR = os.path.join(".agent-kit", "runs")
-GATE_SCRIPT = "gate.py"
 
 
 class Refusal:
@@ -80,8 +82,7 @@ def refusal(command):
         if not words:
             continue
 
-        if any(names_run_state(word) for word in words) \
-                and not any(word.endswith(GATE_SCRIPT) for word in words):
+        if any(names_run_state(word) for word in words):
             return Refusal(DENY, (
                 "agent-kit: `.agent-kit/runs/` is the step gate's run state, and only the gate "
                 "writes it — a step the agent could close by hand is not a gate. Ask the gate "
