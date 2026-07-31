@@ -8,7 +8,7 @@ description: Track a failure to its root cause — reproduce, isolate, form and 
 Tracking a failure to its root cause. This is a distinct discipline, not a lighter `ship`:
 reproduce, isolate, find the cause, and only then decide what to do about it.
 
-Symptom: `$ARGUMENTS`
+Symptom: `$ARGUMENTS`, or the failure `fix` handed you.
 
 1. **Reproduce** — confirm the failure firsthand. Establish what is broken, what triggers it, and
    what "fixed" will look like. Don't theorize before you can reproduce. If the failure is only

@@ -30,9 +30,15 @@ be a pointer rather than a procedure.
 2. Add `disable-model-invocation: true` if it is a pipeline the user should trigger deliberately,
    and `argument-hint` if it takes arguments. Skills the pipelines call internally
    (`brainstorming`, `writing-plans`, and the rest) leave both off so they stay invokable.
-3. If it is a user-facing command, add a row to `plugins/agent-kit/README.md` — the validator checks
-   that the README and the skill directory agree in both directions.
+3. If it is a user-facing command, add a row to `plugins/agent-kit/README.md` — the validator derives
+   the command set from `disable-model-invocation: true` and checks it against that README in both
+   directions. An internal skill needs no row.
 4. `scripts/validate.sh`.
+
+Renaming or removing a command is the same in reverse, and the validator holds the rest of the
+payload to it: every `/agent-kit:<name>` written in a Markdown file must name a live command. Dated
+records are exempt — `CHANGELOG.md`, `migrations/`, `docs/specs/`, `docs/plans/`, `docs/design/`, and
+`.agent-kit/sprint/` say what a release or a run did or plans, not what to type today.
 
 Supporting files go in the skill's own directory and are referenced as
 `${CLAUDE_PLUGIN_ROOT}/skills/<name>/references/<file>.md`. The validator resolves every such path
@@ -54,8 +60,10 @@ shows the agents, and `/hooks` shows the SessionStart entries. Edits to a skill 
 
 `scripts/validate.sh` covers what a session cannot tell you at a glance: manifest and version
 agreement across `VERSION`, `plugin.json`, and `marketplace.json`; skill and agent frontmatter;
-dangling `${CLAUDE_PLUGIN_ROOT}` references; leftover paths from the pre-plugin layout; the
-`engine.md` size cap; and `claude plugin validate --strict` when the CLI is available.
+the command set against the plugin README, and every `/agent-kit:<name>` reference in the payload
+against that same set; dangling `${CLAUDE_PLUGIN_ROOT}` references; leftover paths from the
+pre-plugin layout; the `engine.md` size cap; and `claude plugin validate --strict` when the CLI is
+available.
 
 ### The engine size cap
 

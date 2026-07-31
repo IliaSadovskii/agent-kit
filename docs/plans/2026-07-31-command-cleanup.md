@@ -112,6 +112,11 @@ each of the three commands. `VERSION`, `plugin.json`, `marketplace.json` are not
   instruction anyone follows today. `README.md` and `plugins/agent-kit/README.md` command tables now
   list exactly `docs`, `fix`, `riff`, `screens`, `ship`, `sprint` — the six skills whose frontmatter
   still carries `disable-model-invocation: true`.
+- step PR — done: [#17](https://github.com/IliaSadovskii/agent-kit/pull/17), opened ready against
+  `main` (feature 1 of 7 — the only one in the stack based on the default branch). Description in
+  Russian per `manifest.language`, with the standing `bootstrapped: false` warning, the run's
+  assumptions table, and the Testing section from the Test step's record. Conversion to draft is the
+  `deliver` stage's last action, not this one's.
 - step Test — done: no test layer beyond `scripts/validate.sh` is earned, per the spec's
   "Not earned here" — documentation-shaped payload, no runnable surface. `scripts/validate.sh` is
   green. The new dead-reference check was proven by reintroducing `/agent-kit:debug` into `README.md`

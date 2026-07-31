@@ -15,7 +15,8 @@ it means without repeating itself.
 - **`screens-riff` is now `riff` on a screen theme.** A standalone `S<digits>` token, or an explicit
   mention of screens or the map, routes `riff` into the screen-proposal pass, taken proposals still
   landing on the map as `idea` cards and turned-down ones as `rejected` memory.
-- Nine commands become six. See `migrations/0.18.0.md` for where each removed command went.
+- Nine commands become six. See [migrations/0.18.0.md](migrations/0.18.0.md) for where each removed
+  command went.
 
 ## 0.17.0
 

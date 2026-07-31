@@ -17,10 +17,14 @@ Ask when a real ambiguity would change what you build; don't pause for routine c
 Task: `$ARGUMENTS`
 
 A `--pr <n>` flag, or a PR URL in the task text, means the wrong thing is a review round on an
-already-open pull request: run the `address` skill against it and stop — its own steps replace
-everything below. Otherwise, when the task names a symptom, a stack trace, or a wrong result with
-no named culprit — something broken whose cause is not yet known — run the `debug` skill first to
-find the cause, then continue through the steps below against what it found.
+already-open pull request: run the `address` skill against it, handing it that number or URL, and
+stop — its own steps replace everything below.
+
+Otherwise, when the task names a symptom, a stack trace, or a wrong result with no named culprit —
+something broken whose cause is not yet known — run the `debug` skill first, handing it the symptom.
+It reproduces, isolates, and corrects the root cause with a regression test, then hands back into
+step 3 below; the understanding and the change are its work, not work to repeat. When it ends in a
+diagnosis rather than a fix, that report is the outcome and the steps below do not run.
 
 1. **Understand** — read the request and the surrounding code until the change is clear, and confirm
    the scope really is small and local.

@@ -14,10 +14,12 @@ Theme: `$ARGUMENTS`. If none was given, ask in one message what to riff on rathe
 "the whole product" produces shallow ideas.
 
 A screen theme — a standalone `S<digits>` token, or an explicit mention of screens or the screen
-map — runs the `screens-riff` skill instead: it studies the screen map, the product documents, and
-the code, then proposes screens the app is missing, landing taken proposals on the map as `idea`
-cards and turned-down ones as `rejected` memory. When the theme could be either a screen question or
-a strategy question, ask rather than guessing.
+map — runs the `screens-riff` skill instead, handing it the theme as its focus: it studies the
+screen map, the product documents, and the code, then proposes screens the app is missing, landing
+taken proposals on the map as `idea` cards and turned-down ones as `rejected` memory. Its own steps
+replace everything below, including the rule about writing nothing — those cards are what it is
+for. When the theme could be either a screen question or a strategy question, ask rather than
+guessing.
 
 If `.agent-kit/project/manifest.yml` is missing or registers no idea and roadmap, there is no north
 star to judge ideas against. Say so and offer `/agent-kit:ship`, which runs the bootstrap interview

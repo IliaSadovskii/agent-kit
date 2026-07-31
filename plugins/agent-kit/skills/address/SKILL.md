@@ -8,7 +8,8 @@ description: Close a review round on an open pull request — read the owner's c
 Close one round of pull-request feedback. `ship` ends at an open PR; this is the loop that runs
 when the owner's review and the CI results come back.
 
-PR: `$ARGUMENTS` — a number or URL, otherwise the PR of the current branch (`gh pr view`).
+PR: `$ARGUMENTS`, or the number or URL `fix --pr` handed you — a number or URL either way, otherwise
+the PR of the current branch (`gh pr view`).
 
 1. **Collect** — the PR's review threads and comments and its CI status (`gh pr view`,
    `gh pr checks`, `gh api` for inline threads). Read the diff alongside the spec and plan under

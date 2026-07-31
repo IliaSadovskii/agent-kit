@@ -9,17 +9,17 @@ The map shows what the app *is*. This pass asks what it should become, and answe
 picture — a proposed screen is read next to the screens it sits between, which is the only way to
 tell whether it belongs there.
 
-Three commands touch the map, and keeping them apart is what makes it trustworthy:
+Three passes touch the map, and keeping them apart is what makes it trustworthy:
 
-| Command | Asks | Writes |
+| Pass | Asks | Writes |
 |---|---|---|
 | `/agent-kit:screens` | what is true today | every card kept true, including an idea that got built; invents nothing |
 | `/agent-kit:riff` on a screen theme | what is missing | `idea` and `rejected` cards, builds nothing |
 | `/agent-kit:riff` | what the product should be | roadmap lines, draws nothing |
 
-This one is visual and product-shaped; `riff` is strategy. If a proposal here turns out to be a
-strategy question rather than a screen, say so in the review and point at `/agent-kit:riff` rather
-than drawing a card for it.
+This pass is visual and product-shaped; `riff`'s own strategy pass is not. If a proposal here turns
+out to be a strategy question rather than a screen, say so in the review and leave it to that pass
+rather than drawing a card for it.
 
 ## Before you start
 
@@ -38,9 +38,9 @@ a brainstorm is worthless for the one thing a map is for. And if the project has
 a library, a CLI, a service — `/agent-kit:screens` will say so too, so do not push the owner toward
 generating an empty map to have something to riff on.
 
-`$ARGUMENTS` is an optional focus: a flow, a screen id, an area of the product. Without one, the
-whole map is the arena — unlike `riff`, this command does not have to ask what to think about,
-because the map already bounds it.
+`$ARGUMENTS`, or the theme `riff` handed you, is an optional focus: a flow, a screen id, an area of
+the product. Without one, the whole map is the arena — unlike `riff`, this pass does not have to ask
+what to think about, because the map already bounds it.
 
 ## What you read before proposing anything
 

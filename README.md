@@ -56,7 +56,7 @@ the marketplace.
 `ship --manual` swaps the autonomous contract for a consultative one with checkpoints, when you want
 to co-develop rather than delegate.
 
-Nine commands, and the list is meant to stay short. A command earns its place by being a pipeline
+Six commands, and the list is meant to stay short. A command earns its place by being a pipeline
 you could not get by asking in plain words — not by wrapping something Claude Code already does.
 
 ## What it does not reinvent
