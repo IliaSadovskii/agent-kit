@@ -54,17 +54,15 @@ SURVIVORS = {
     "_exists_check:1→2": "the failure code of a glob that matched nothing; any non-zero fails",
     "_exists_check:20→21": "how many matching paths are listed in the evidence — a display cap "
                            "with no verdict behind it",
-    "_git_check:1→2": "the failure code of `git: tree_clean`; any non-zero fails",
-    "_git_check:1→2#2": "the failure code of `git: commits_on_branch`, same reason",
-    "_git_check:1→2#3": "the failure code of `git: pushed` with no upstream, same reason",
-    "_git_check:1→2#4": "the failure code of `git: pushed` with commits ahead, same reason",
-    # This one is not a fact about the tests. `unpushed = int(ahead) if ahead.isdigit() else 0`
-    # reads an unanswerable `git rev-list --count <upstream>..HEAD` as "level with the upstream"
-    # and passes the step — reproducible with a dangling remote-tracking ref, where the branch was
-    # never pushed and `git: pushed` says it was. The mutant (`else 1`) is the safer behaviour, so
-    # killing it would mean asserting the fail-open as correct. Reported rather than pinned.
-    "_git_check:0→1#4": "only killable by asserting a fail-open: an unreadable `git rev-list` "
-                        "count in `git: pushed` currently passes the check",
+    # The six failure codes a `git:` check can return, in source order. Each one only has to be
+    # non-zero — `Evidence.passed` is `exit_code == 0`, and the tests assert the check failed and
+    # what it said, which is the part a reader acts on.
+    "_git_check:1→2": "`git: tree_clean` when git did not answer; any non-zero fails the check",
+    "_git_check:1→2#2": "`git: tree_clean` on a dirty tree, same reason",
+    "_git_check:1→2#3": "`git: commits_on_branch` with nothing committed, same reason",
+    "_git_check:1→2#4": "`git: pushed` with no upstream, same reason",
+    "_git_check:1→2#5": "`git: pushed` when git did not answer, same reason",
+    "_git_check:1→2#6": "`git: pushed` with commits ahead of the upstream, same reason",
 }
 
 _SWAPS = {ast.Lt: ast.LtE, ast.LtE: ast.Lt, ast.Gt: ast.GtE, ast.GtE: ast.Gt,

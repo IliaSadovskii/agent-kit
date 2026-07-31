@@ -34,6 +34,7 @@ import io
 import os
 import random
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -655,6 +656,31 @@ class CheckTest(unittest.TestCase, GateMixin):
         self.assertEqual(behind.returncode, 1)
         self.assertIn("1 commit(s) not on", behind.stderr)
 
+    def test_pushed_fails_when_the_upstream_comparison_cannot_be_read(self):
+        """An upstream that resolves and a comparison that does not.
+
+        A half-fetched clone, a pruned object, an interrupted `git gc`: `@{upstream}` still names a
+        branch and `rev-list` cannot count against it. "Level with the upstream" is what the PR
+        step closes on, so an unreadable count has to say it does not know — the branch here has
+        never been pushed anywhere, and the check must not report otherwise.
+        """
+        root = self.make_repo()
+        self.git(root, "config", "remote.origin.url", "/nowhere/origin.git")
+        self.git(root, "config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*")
+        self.git(root, "config", f"branch.{BRANCH}.remote", "origin")
+        self.git(root, "config", f"branch.{BRANCH}.merge", "refs/heads/ghost")
+        dangling = os.path.join(root, ".git", "refs", "remotes", "origin", "ghost")
+        os.makedirs(os.path.dirname(dangling), exist_ok=True)
+        with open(dangling, "w", encoding="utf-8") as handle:
+            handle.write("0" * 40 + "\n")
+        self.assertEqual(self.git(root, "rev-parse", "--abbrev-ref", "--symbolic-full-name",
+                                  "@{upstream}"), "origin/ghost",
+                         "the fixture no longer produces an upstream that resolves")
+
+        evidence = kit_gate.run_check(root, "git", "pushed", {})
+        self.assertFalse(evidence.passed, evidence.output)
+        self.assertIn("git did not answer", evidence.output)
+
     def test_a_git_check_fails_when_git_cannot_answer(self):
         """Silence from git is not evidence of work done.
 
@@ -1017,6 +1043,18 @@ class RunStateTest(unittest.TestCase, GateMixin):
             ("a mapping whose steps are not a list",
              f"version: 1\nbranch: {BRANCH}\npipeline: demo\nsteps: none yet\n",
              "is not a run state file"),
+            # Below here the file is shaped like a run and its entries are not. `.gitignore` does
+            # not cover a path a commit already tracks, so one of these can arrive in a pull
+            # request — and every field of a step entry is read elsewhere without a second thought.
+            ("a step entry that is not a mapping",
+             f"version: 1\nbranch: {BRANCH}\npipeline: demo\nsteps:\n  - Design\n",
+             "a step entry the gate did not write"),
+            ("a step entry with no name",
+             f"version: 1\nbranch: {BRANCH}\npipeline: demo\nsteps:\n  - verdict: attested\n",
+             "a step entry the gate did not write"),
+            ("a verdict the gate never writes",
+             f"version: 1\nbranch: {BRANCH}\npipeline: demo\nsteps:\n  - name: Design\n"
+             "    verdict: excellent\n", "a step entry the gate did not write"),
         ]
         for label, text, fragment in cases:
             with self.subTest(case=label):
@@ -1027,6 +1065,23 @@ class RunStateTest(unittest.TestCase, GateMixin):
                 self.assertRefused(
                     self.gate(root, pipes, "step", "settle", "Design", "--evidence", "x"),
                     fragment, code=2)
+
+    def test_what_the_gate_creates_is_data_and_nothing_else(self):
+        """Two files land in a directory the kit owns, in a working tree a sprint shares.
+
+        Neither is a program and neither is anyone else's to edit, so neither is created executable
+        or writable beyond its owner. The mode is requested at `os.open` time rather than fixed up
+        afterwards, which is the half of it that cannot be raced.
+        """
+        root, pipes = self.project()
+        self.open_run(root, pipes)
+        for relative in (kit_gate.slug(BRANCH) + ".yml", ".gitignore"):
+            with self.subTest(file=relative):
+                path = os.path.join(root, kit_gate.RUNS_DIR, relative)
+                mode = stat.S_IMODE(os.stat(path).st_mode)
+                self.assertFalse(mode & 0o111, f"{relative} is executable: {oct(mode)}")
+                self.assertFalse(mode & 0o022,
+                                 f"{relative} is writable by group or other: {oct(mode)}")
 
     def test_the_gate_reads_the_project_directory_the_hooks_hand_it(self):
         """`CLAUDE_PROJECT_DIR` is what a hook or a skill passes; cwd is only the fallback."""
