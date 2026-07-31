@@ -67,7 +67,7 @@ each of the three commands. `VERSION`, `plugin.json`, `marketplace.json` are not
 ## Run log
 
 **Branch:** claude/command-cleanup
-**Steps:** PR, Review
+**Steps:** CI, Docs
 
 - step Gate — done: technical setup present (`.agent-kit/project/manifest.yml`, `language: ru`,
   `coding_standards: docs/developing.md`); no project interview run and no `instructions.md`
@@ -148,3 +148,10 @@ each of the three commands. `VERSION`, `plugin.json`, `marketplace.json` are not
   `## 0.18.0` changelog intro reads as this feature's rather than the release's, which the release
   commit rewrites; and commit `6be72b3` used the branch slug as its conventional-commit scope with
   no `!` for a breaking change, left alone rather than rewriting pushed history.
+- step CI — done: `gh pr checks 17` — `validate` pass (11s).
+- step Docs — done: `docs-reflection` scope is `docs/developing.md`, already brought current in the
+  Review step's fix round against this feature's validator change; `README.md` and
+  `plugins/agent-kit/README.md` command tables were updated at Build. No screen map
+  (`manifest.sources.screens` is null — this repository has no screens of its own). Nothing else
+  diverged. PR #17 converted to draft, this being a stacked feature in a sprint batch — the deliver
+  stage's last action.
