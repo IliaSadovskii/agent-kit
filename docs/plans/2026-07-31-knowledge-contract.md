@@ -121,7 +121,7 @@ feature adds a command and a template and asks nothing of an owner who already i
 ## Run log
 
 **Branch:** claude/knowledge-contract
-**Steps:** PR, Review
+**Steps:** CI, Docs
 
 - step Gate — done: technical setup present (`.agent-kit/project/manifest.yml`, `language: ru`,
   `coding_standards: docs/developing.md`); no project interview run and no `instructions.md`
@@ -254,3 +254,17 @@ feature adds a command and a template and asks nothing of an owner who already i
     run against the code it describes and seen to fail first — 11 against the pre-review commit and
     2 against the first fix commit — and deleting the shipped template now fails two tests where it
     previously failed none.
+- step CI — done: `gh pr checks 18` → `validate` pass, both before and after the Docs commit.
+- step Docs — done: `docs-reflection` against the Test step's recorded divergence. `docs/developing.md`
+  "Repository layout" now names `plugins/agent-kit/scripts/`'s `kit_yaml.py`, `kit_markdown.py`,
+  `knowledge_check.py`, and the new top-level `tests/`; "Testing a change" now names the
+  `python3 -m unittest discover -s tests -t .` step and the contract's own
+  `knowledge_check.py --skip-verification` check. Both sections are what this repository's own
+  contract binds `architecture_stance` and `verification` to, so their `rev` was re-hashed in the
+  same commit — `knowledge_check.py --skip-verification` reported the exact new hash for each,
+  used verbatim. `migrations/0.18.0.md` needs no entry for this feature, confirmed already in the
+  Test step. Committed on the feature branch (a stacked sprint feature, not a fresh branch off
+  `main`), pushed to [#18](https://github.com/IliaSadovskii/agent-kit/pull/18), CI re-checked green
+  after the push. PR description gained a `## Docs` section naming the change. PR converted to
+  **draft** as this stage's last action — it is a stacked feature in a sprint and cannot land code
+  on its own.
