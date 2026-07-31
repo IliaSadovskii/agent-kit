@@ -61,7 +61,7 @@ owner-only work becomes recorded manual actions, and only an insurmountable bloc
 
   | Stage | Steps | Leaves behind |
   |---|---|---|
-  | `design` | Design, Plan | spec and plan committed, Run log opened |
+  | `design` | Gate, Design, Plan | spec and plan committed, Run log opened with what orientation found |
   | `build` | Build, Test | code and tests committed, declared suite green |
   | `review` | PR, Review | pull request open, findings fixed and pushed |
   | `deliver` | CI, Docs | pipeline green or reported, docs resolved |
@@ -80,6 +80,13 @@ Either mode appends autonomous decisions and owner-only work to the plan's Run l
 the PR step assembles its Assumptions and Manual actions from that section, not from memory.
 
 ## Before you start
+
+**Under `--stage`, only the `design` stage does this.** It also owns the Gate, and it writes what it
+concluded into the Run log — the language, the test command, the source paths that matter, whether
+the playbook was current. Later stages read the spec, the plan, that Run log, and the batch's
+`orientation.md` when a `sprint` wrote one; they do not re-read the manifest, re-derive the project's
+conventions, or re-run the freshness check. Orientation paid four times is most of what splitting a
+feature into stages was meant to save.
 
 Read `.agent-kit/project/manifest.yml` (language, bootstrap state, source paths), then
 `.agent-kit/project/instructions.md`, `README.md`, and whichever `manifest.sources.*` documents the
