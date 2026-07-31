@@ -139,7 +139,7 @@ Preflight once: start the watchdog, then check the tree.
 
 ```bash
 setsid nohup "${CLAUDE_PLUGIN_ROOT}"/scripts/sprint-watchdog.sh \
-  .agent-kit/sprint/<sprint> > /dev/null 2>&1 < /dev/null &
+  "$PWD"/.agent-kit/sprint/<sprint> > /dev/null 2>&1 < /dev/null &
 ```
 
 Detached, it outlives this session. Nothing else in the kit does: every recovery path below — resume

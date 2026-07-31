@@ -15,14 +15,20 @@
 set -u
 
 SPRINT="${1:?usage: sprint-watchdog.sh <sprint directory>}"
+# Resolve it: the repository root is derived by stripping the sprint path off, which a relative
+# argument would silently defeat — the resume would then run from inside the sprint directory.
+SPRINT="$(cd "$SPRINT" && pwd)" || exit 1
+REPO="${SPRINT%/.agent-kit/sprint/*}"
+[ "$REPO" != "$SPRINT" ] || { printf 'not a sprint directory: %s\n' "$SPRINT" >&2; exit 1; }
 QUEUE="$SPRINT/queue.yml"
 HEARTBEAT="$SPRINT/heartbeat"
 LOG="$SPRINT/watchdog.log"
 
-INTERVAL=300              # look every five minutes
-STALE=1500                # heartbeat older than this means nobody is recording transitions
-WORKING=1200              # a child's log untouched this long is a hung process, not a run
-MAX_LIFETIME=$((48 * 3600))
+# Overridable so the loop can be exercised without waiting five minutes per tick.
+INTERVAL="${WATCHDOG_INTERVAL:-300}"   # look every five minutes
+STALE="${WATCHDOG_STALE:-1500}"        # heartbeat older than this: nobody is recording transitions
+WORKING="${WATCHDOG_WORKING:-1200}"    # a child's log untouched this long is hung, not running
+MAX_LIFETIME="${WATCHDOG_LIFETIME:-$((48 * 3600))}"
 
 started=$(date +%s)
 echo $$ > "$SPRINT/watchdog.pid"
@@ -73,7 +79,7 @@ while sleep "$INTERVAL"; do
   fi
 
   log "no live run and heartbeat is ${age}s old — resuming the sprint"
-  (cd "${SPRINT%/.agent-kit/sprint/*}" && claude -p "/agent-kit:sprint" \
+  (cd "$REPO" && claude -p "/agent-kit:sprint" \
      --permission-mode bypassPermissions) >> "$SPRINT/resume.log" 2>&1
   log "resume attempt ended with exit $?"
 done
