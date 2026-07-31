@@ -54,6 +54,24 @@ owner-only work becomes recorded manual actions, and only an insurmountable bloc
   exploration actually changed: mechanics it left open that you have now settled, and deviations you
   took. Bound the exploration the same way — read the documents and sections the sketch names, not
   whole files around them.
+- `--stage <design|build|review|deliver>` — run one stage of the pipeline and stop, so a long feature
+  is carried by several short sessions instead of one that ends four times larger than it began.
+  Only meaningful with `--brief`, because the handoff between stages has to be on disk rather than in
+  someone's head. The stages and what each leaves behind:
+
+  | Stage | Steps | Leaves behind |
+  |---|---|---|
+  | `design` | Design, Plan | spec and plan committed, Run log opened |
+  | `build` | Build, Test | code and tests committed, declared suite green |
+  | `review` | PR, Review | pull request open, findings fixed and pushed |
+  | `deliver` | CI, Docs | pipeline green or reported, docs resolved |
+
+  Each stage begins by reading the plan's Run log to learn where the last one stopped, and refuses to
+  start if its predecessor left no settled steps there — a stage that cannot see what came before
+  would rebuild it. Everything a later stage needs is the spec, the plan, the Run log and the commits;
+  if you find yourself wanting something that lives only in the previous session's context, write it
+  into the Run log, which is what it is for. Without this flag one session runs the whole pipeline,
+  which is right when a person is watching.
 - Remaining free text is the chosen task and skips roadmap task selection. A screen id in it — `S7`,
   alone or inside a sentence — is a task about a screen the project's map already knows; see "Screen
   references" below.
@@ -104,19 +122,18 @@ say so once at the start and continue.
   find-references and go-to-definition find an existing helper far more reliably than searching for
   the name you would have picked.
 - **Test** — see below.
-- **Review** — see below.
-- **Security** — see below.
 - **PR** — push the branch and open a pull request following `.github/pull_request_template.md` and
-  `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md`. Never merge. Then check CI — `gh pr checks`, or
-  the closest the session has: a red pipeline is part of this step, not the owner's problem. Fix
-  in-scope failures, rerun the verification the fix put at risk, and push again; if CI cannot be
-  observed from the session, say so in the PR. If the project has the official `code-review` plugin
-  enabled, run `/code-review:code-review` on the open PR now — the plugin command carries the
-  plugin's name, it needs a pull request to exist, which is why it lands here rather than in Review,
-  and unlike the bundled `/code-review` an agent may invoke it.
-  Treat what it returns as a review round: fix in scope, rerun what the fixes put at risk, push. If
-  no PR mechanism exists after every safe fallback, report that as the terminal blocker once the
-  branch is pushed.
+  `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md`, **ready rather than draft**, and never merge. It
+  opens here, before the review, for one reason: the `code-review` plugin needs a pull request to
+  exist and declines a draft, so a PR opened after the reviews cannot be reviewed by it at all. An
+  early PR also starts CI while the review wave runs. If a stacked feature must end up as a draft —
+  `sprint` requires it, since such a PR cannot land code — it is converted after the reviews, not
+  before. If no PR mechanism exists after every safe fallback, report that as the terminal blocker
+  once the branch is pushed, and run the review wave on the branch diff instead.
+- **Review** — one wave over the frozen diff. See below.
+- **CI** — check the pipeline (`gh pr checks`, or the closest the session has). A red build is part
+  of this step, not the owner's problem: fix in-scope failures, rerun the verification the fix put at
+  risk, and push. If CI cannot be observed from the session, say so in the PR.
 - **Docs** — run `docs-reflection`. No-op by default. If living docs genuinely diverged, open a
   separate docs-only PR from the default branch; otherwise mark docs as current in the feature PR.
   The project's screen map is the one exception: when this feature changed what the app shows, the
@@ -142,11 +159,14 @@ log, when the plan is written, with the branch and the steps still ahead of you:
 
 ```markdown
 **Branch:** claude/<branch>
-**Steps:** Build, Test, Review, Security, PR, Docs
+**Steps:** Build, Test, PR, Review, CI, Docs
 ```
 
+Under `--stage` the list is that stage's steps only, and the stages before it are already settled in
+the same Run log by the sessions that ran them — read it before doing anything else.
+
 Then settle each step as it ends, one line each — `- step Review — done`,
-`- step Security — skipped: no runnable surface`, `- step PR — blocked: no remote configured`. A
+`- step CI — skipped: no pipeline configured`, `- step PR — blocked: no remote configured`. A
 `Stop` hook reads this against the branch you are on and refuses to end the turn while a step has
 no line, because a long context loses its ordering to whatever instruction is freshest: a review
 prompt read inline can reassign the role, and the turn ends with a report where a pull request was
@@ -249,64 +269,53 @@ proven is not.
 
 ## Review
 
-Claude Code's bundled `/code-review` is a better bug-finder than anything this kit can write: a fan
-of independent agents, then a separate pass that scores each finding for confidence and drops the
-weak ones. It is also the one tool here an agent cannot start — only a person typing it can. Do not
-write it into this step as though you could, and do not stop the run to ask the owner to type it:
-after design approval they may be away, and a pipeline that waits for a human never finishes.
+**One wave over a frozen diff, then one round of fixes.** Commit and push everything first, so every
+pass judges the same code, and launch them together rather than one after another. Run them serially
+and you pay for three rounds of fix-and-reverify over a diff that barely changes between them — which
+is exactly what this step used to do.
 
-So check first whether the project has the official `code-review` plugin enabled, because it decides
-how wide this step needs to be. That plugin is a fan of five independent reviewers plus a
-confidence-scoring pass — around a dozen agents on its own — and the PR step runs it once the pull
-request exists. Correctness reviewed once, well, beats correctness reviewed three times.
+The wave has three distinct questions in it, and no pass answers another's:
 
-**With the `code-review` plugin available** — delegate to `agent-kit:reviewer` for the question
-nothing else can answer: is this the feature that was approved, against the spec, the plan, the
-project instructions, and the registered coding standards. Leave the bug hunt to the PR step. Do not
-add the `pr-review-toolkit` specialists by default here; reach for them only when the change earns a
-lens the generic fan will underweight — error handling and fallbacks
-(`pr-review-toolkit:silent-failure-hunter`), whether the new tests would catch a regression
-(`pr-review-toolkit:pr-test-analyzer`), or types that permit invalid states
-(`pr-review-toolkit:type-design-analyzer`).
+- **Is this the feature that was approved?** `agent-kit:reviewer`, against the spec, the plan, the
+  project instructions, and the registered coding standards. Nothing else can answer it, because
+  nothing else reads the spec. Work built correctly but to the wrong design is invisible to every
+  other pass here.
+- **Where are the bugs?** The official `code-review` plugin if the project has it enabled — five
+  independent reviewers plus a pass that scores each finding for confidence and drops the weak ones.
+  Invoke `/code-review:code-review` on the pull request the previous step opened. Claude Code's
+  bundled `/code-review` is stronger still but only a person typing it can start it, so do not write
+  it into this step and do not stop the run to ask for it — offer it in the PR description as the
+  owner's one-keystroke second opinion. Without the plugin, `agent-kit:reviewer` carries this
+  question too.
+- **What breaks under hostile input?** `/security-review` over the diff; the `claude-security`
+  plugin instead if the project has it enabled and the feature touches authentication, payments,
+  file handling, or untrusted input; failing both, an adversarial pass in a fresh subagent covering
+  injection, authorization, secrets and data exposure, unsafe deserialization, file and process
+  handling, and dependency and configuration risk.
 
-**Without it** — `agent-kit:reviewer` carries both questions, correctness included, and the
-`pr-review-toolkit` specialists are worth spawning concurrently if that plugin is there, because
-nothing downstream will look again.
+Add a `pr-review-toolkit` specialist only when the change earns a lens the generic fan underweights:
+error handling and fallbacks (`silent-failure-hunter`), whether the new tests would catch a
+regression (`pr-test-analyzer`), types that permit invalid states (`type-design-analyzer`). Plugin
+agents carry their plugin's name, which is why the scoped names above are what you delegate to.
 
-Either way this is one wave, not two. Plugin agents carry their plugin's name, which is why the
-scoped names above are what you delegate to.
+**Scale the wave to what the diff actually touches.** A change with no executable surface — prose,
+documentation, configuration a machine never runs — earns the conformance question and nothing else:
+settle the security pass as a named skip with that reason rather than spending a dozen agents proving
+that markdown has no injection flaws. A change to parsing, authorization, money, or process handling
+earns the whole wave and possibly a specialist.
 
-Fix critical and major findings, then rerun the verification the fixes put at risk. A reviewer asked
-to find gaps will find some even when the work is sound: fix what affects correctness or the approved
+Then **one round of fixes**: collect every finding, deduplicate across passes — several reviewers
+reporting one thing is one finding, not three — fix what affects correctness or the approved
 requirements, and record the rest as deliberately deferred rather than building defensive scaffolding
-around it. When several reviewers report the same thing, that is one finding, not three.
+around it. Rerun what the fixes put at risk plus the project's declared suite, once, at the end.
 
 On a diff large enough that a human would find it a slog to read, follow with `/simplify`, which an
-agent *can* invoke: four agents cover reuse of existing helpers, simplification, efficiency, and
-level of abstraction, and apply the fixes. It does not hunt for bugs, so it adds no second opinion on
-correctness — it makes the result readable. Skip it on a small change, and rerun the suite after it,
-since it edits the code.
+agent *can* invoke: four agents cover reuse, simplification, efficiency, and level of abstraction,
+and apply the fixes. It hunts no bugs — it makes the result readable. Skip it on a small change, and
+rerun the suite after it, since it edits code.
 
-The bundled review is not lost, it is deferred: the PR description offers `/code-review` on this
-branch as a one-keystroke second opinion for the owner, and the PR step runs the `code-review`
-plugin's model-invocable equivalent on the open pull request.
-
-Count the agents this step spawns before you spawn them. With the plugin present the whole feature
-should come to roughly one reviewer here, a dozen in the PR step, and `/simplify` only if the diff
-earned it. If you find yourself planning more than that, you are buying agreement rather than
-information.
-
-## Security
-
-A distinct pass, not a corner of the code review. Use the strongest capability the session actually
-has, in this order:
-
-1. `/security-review` — the bundled pass over the branch diff. Always available; start here.
-2. The `claude-security` plugin, if the project has it enabled: a deeper multi-agent scan whose
-   findings are challenged by an independent verifier panel before they are reported. Worth it when
-   the feature touches authentication, payments, file handling, or untrusted input.
-3. If neither is available, run an adversarial security pass in a fresh subagent context covering
-   injection, authentication and authorization, secrets and data exposure, unsafe deserialization,
-   file and process handling, and dependency and configuration risk.
+Count the agents before you spawn them. With the plugin present a whole feature is roughly one
+reviewer, one security pass, the plugin's own fan, and `/simplify` only if the diff earned it. More
+than that and you are buying agreement rather than information.
 
 Fix every critical and high finding. Document consciously deferred ones in the PR.

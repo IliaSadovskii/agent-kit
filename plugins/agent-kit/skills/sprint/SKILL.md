@@ -71,13 +71,16 @@ before opening a new brief.
    unattended deviation is cheap to fix where code is private and brutal where it is not, and the
    brief mirrors that asymmetry — which governs *which* questions get asked, not how few.
 
-   An unattended run is also cheap in a way an interactive one is not: nobody is waiting.
-   Verification too slow to sit through is affordable here — mutation testing over the changed code
-   (the one mechanical proof that the new tests *can* fail), property-based tests where there is
-   parsing, arithmetic, or an invariant, a full end-to-end pass over the touched surface instead of
-   a smoke. Name in each sketch which heavy layer the feature earns, if any — resilience testing
-   only where the product genuinely has failure modes to survive — and the run session owes it as
-   part of the verification plan.
+   An unattended run buys patience, not budget. Nobody is waiting, so verification too slow to sit
+   through is available here — mutation testing over the changed code, the one mechanical proof that
+   the new tests *can* fail; property-based tests where there is parsing, arithmetic or an invariant;
+   a full end-to-end pass over the touched surface instead of a smoke. But the token budget is shared
+   with every other feature in the batch and with the window it has to run in, so slow is not free.
+   Name **at most one** heavy layer per sketch, and only where the feature earns it: the mechanical
+   proof for logic that is easy to get subtly wrong, properties for real invariants, resilience
+   testing only where the product genuinely has failure modes to survive. A sketch that asks for
+   three heavy layers is asking the batch to pay for certainty it did not need — and the run session
+   owes whichever one was named as part of its verification plan.
 4. **Write the sprint to disk.**
 
    ```text
@@ -147,17 +150,28 @@ Then loop until no feature is runnable:
 4. **Mark it `running`** in `queue.yml`, then launch the child in the background and wait for it:
 
    ```bash
-   claude -p "/agent-kit:ship --brief <absolute path to spec.md>" \
-     --session-id "$(python3 -c 'import uuid; print(uuid.uuid4())')" \
-     > .agent-kit/sprint/<sprint>/<id>/run.log 2>&1
+   for stage in design build review deliver; do
+     claude -p "/agent-kit:ship --brief <absolute path to spec.md> --stage $stage" \
+       --session-id "$(python3 -c 'import uuid; print(uuid.uuid4())')" \
+       >> .agent-kit/sprint/<sprint>/<id>/run.log 2>&1
+   done
    ```
 
-   Record that id in `queue.yml` as `session` before launching. A child that stops mid-pipeline can
-   then be picked up where it stood instead of rebuilt from nothing, and without it the only way
-   back into its context is guessing which transcript was its.
+   **Four sessions per feature, not one.** A session re-reads its whole context on every step, so
+   cost grows with the square of a run's length: one session that ends four times larger than it
+   began costs about twice what the same work costs split across four that each start small. The
+   handoff is the spec, the plan, its Run log and the commits — all on disk already, because the
+   pipeline was built to survive losing its context. Four is where the gain flattens; more splits buy
+   little and each one loses working knowledge at the seam.
+
+   Record each stage's id in `queue.yml` as `session` before launching it, replacing the previous
+   stage's. A stage that stops mid-way can then be picked up where it stood instead of rebuilt from
+   nothing, and without it the only way back into its context is guessing which transcript was its.
+   Check the stage's steps are settled before starting the next one — a `build` that never finished
+   testing must not be reviewed.
 
    One child at a time, by design: parallel features in one repository conflict, and sequencing is
-   what lets dependent features stack. A feature takes hours — run the child in the background and
+   what lets dependent features stack. A stage takes tens of minutes — run it in the background and
    check on it periodically rather than holding a foreground call against a timeout.
 5. **On exit, check the pipeline actually finished, then record the outcome.** Exit code 0 proves the
    process ended, not that the run reached its end — a step read inline can take over the child's
@@ -188,8 +202,12 @@ Then loop until no feature is runnable:
    feature instead of stopping.
 
    A feature PR based on another feature's branch cannot deliver anything on its own: its merge
-   button moves code into that branch, not into `main`. As you record it, make it a draft
-   (`gh pr ready --undo`) and check that its body opens with the line
+   button moves code into that branch, not into `main`. Make it a draft **here, as you record it** —
+   `gh pr ready --undo` — and not a moment earlier. The `code-review` plugin declines to review a
+   draft, so a PR drafted at the moment it opens silently loses the strongest review in the pipeline,
+   and the child is left rebuilding that fan by hand out of generic agents. Ship opens the pull
+   request ready, the review wave runs on it, and the orchestrator converts it once the feature is
+   finished. Check too that its body opens with the line
    `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md` requires — the child should have written it, and
    the orchestrator is the backstop. It stays the place the feature is read, reviewed, and checked
    by CI; it stops being a way to land code.
