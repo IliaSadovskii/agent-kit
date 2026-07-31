@@ -39,6 +39,10 @@ a feature's cost rather than construction, and `tester` alone is a fifth of it.
   never enters the orchestrator's context, asks for at most one heavy verification layer per
   sketch and says why slow is not free, and waits for the named reset hour after a rate-limit exit instead of polling a
   closed window.
+- **Stages hand off through a file, not an assumption.** `handoff.yml` beside the spec carries the
+  branch, the base the reviewer must diff against, the plan's path, the last finished stage and the
+  suite result. It is a record, not a gate — nothing in it proves a stage did what it claims — but a
+  later session is never left deriving facts it cannot see.
 - **The proof loop is ranked, not exhaustive.** `tester` proved every assertion could fail by
   editing, running, checking and reverting — a fifth of a feature's whole cost, and it rebuilt a
   throwaway mutation harness in `/tmp` on every run. It now proves the behaviours that carry real

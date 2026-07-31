@@ -88,6 +88,7 @@ before opening a new brief.
      queue.yml
      orientation.md
      01-<feature-slug>/spec.md
+     01-<feature-slug>/handoff.yml     # written by the run, not the brief
      02-<feature-slug>/spec.md
    ```
 
@@ -157,11 +158,17 @@ Then loop until no feature is runnable:
    about a finished feature is its status, its PR number and one line of note, all of which live in
    `queue.yml`. Ask the subagent for `upstream.md` on disk and a three-line summary back, nothing
    more.
-4. **Mark it `running`** in `queue.yml`, then launch the child in the background and wait for it:
+4. **Write the feature's `handoff.yml`** beside its spec before the first stage — `branch` and `base`
+   from `queue.yml`, everything else empty. It is how a stage learns which branch to create or switch
+   to and what its reviewer must diff against; a stage handed only a spec path can derive neither, and
+   would work on whatever branch the orchestrator happened to leave checked out. Each stage updates
+   the file as it finishes.
+
+   **Mark the feature `running`** in `queue.yml`, then launch the child in the background and wait:
 
    ```bash
    sid=$(python3 -c 'import uuid; print(uuid.uuid4())')   # record it in queue.yml first
-   claude -p "/agent-kit:ship --brief <absolute path to spec.md> --stage <stage> on branch <branch>" \
+   claude -p "/agent-kit:ship --brief <absolute path to spec.md> --stage <stage>" \
      --session-id "$sid" --permission-mode <permission_mode from queue.yml> \
      --model <the stage's tier> --effort <the stage's effort> \
      >> .agent-kit/sprint/<sprint>/<id>/run.log 2>&1
@@ -225,8 +232,9 @@ Then loop until no feature is runnable:
    context, and a pull request assembled from outside it is not the one the pipeline would have
    written — it is a guess wearing the pipeline's name.
 
-   Then find the feature's PR (`gh pr list --head <branch>`), and mark
-   `done` with `pr` filled. A rate-limit exit is not a failure: the child's output names the hour the
+   Once `deliver` is finished, find the feature's PR (`gh pr list --head <branch>`, or `pr` in
+   `handoff.yml`) and mark the feature `done` with `pr` filled — a stage ending on a blocked step
+   makes the feature `blocked`, not `done`. A rate-limit exit is not a failure: the child's output names the hour the
    limit resets, so read it from the tail of `run.log` and wait until then before relaunching the
    same stage. Sleep in chunks a tool call can survive rather than one long one, checking the clock
    between them. Retrying immediately neither works nor costs nothing — it burns a session start per

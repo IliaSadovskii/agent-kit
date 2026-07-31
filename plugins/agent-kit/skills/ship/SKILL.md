@@ -73,14 +73,26 @@ owner-only work becomes recorded manual actions, and only an insurmountable bloc
   | `review` | PR, Review | pull request open, findings fixed and pushed |
   | `deliver` | CI, Docs | pipeline green or reported, docs resolved, a stacked PR converted to draft |
 
-  **`design` creates the branch**, from whatever is checked out, named by the sketch or by the
-  caller — never work on the branch you were handed, which under a sprint is the *previous feature's*
-  branch and would put this feature's commits into that feature's pull request. Record it as
-  `**Branch:**` in the Run log. Every stage after `design` starts with `git switch` to that branch
-  before anything else: it finds the plan by it (`docs/plans/*.md` whose Run log names the current
-  branch, the same way the `Stop` hook does), and both the hook and the plan lookup are keyed to it.
-  If the predecessor left no settled steps in that Run log, stop and report rather than rebuilding
-  its work.
+  **The handoff between stages is a file, not an assumption.** `handoff.yml` sits beside the spec —
+  the one path every stage is given — and carries the facts a fresh session cannot derive:
+
+  ```yaml
+  branch: claude/knowledge-contract     # written before design starts; design creates it
+  base: claude/command-cleanup          # what this feature builds on; main for an independent one
+  plan: docs/plans/2026-07-31-knowledge-contract.md
+  stage: build                          # the last stage that finished
+  suite: "scripts/validate.sh → 0, 114 checks"
+  pr: null
+  ```
+
+  Each stage reads it first, `git switch`es to `branch` before anything else, and updates it as the
+  last thing it does. `design` creates the branch named there — never work on the branch you were
+  handed, which under a sprint is the *previous feature's* and would put this feature's commits into
+  that feature's pull request. `base` is what `agent-kit:reviewer` must diff against. If the file
+  names no finished stage before yours, stop and report rather than rebuilding its work.
+
+  This is a record, not a gate: nothing here proves a stage did what it claims. It exists so a later
+  stage is never left guessing, which is a different problem from a stage overstating itself.
 
   `design` is the exception to the Run log's "steps still ahead" template, because its own steps are
   finished by the time the plan exists: it writes `**Steps:** Gate, Design, Plan` and settles all
@@ -186,7 +198,9 @@ say so once at the start and continue.
   something kills the session. Your mandate here is the build, not the product: formatting, lint, a
   flake, the workflow's own configuration are yours to fix, and a failure that needs the feature's
   code changed is a blocker to report — this stage runs on the cheapest tier, holds no build context,
-  and nothing reviews what it writes. If CI cannot be observed from the session, say so in the PR.
+  and nothing reviews what it writes. Report it by settling the step as
+  `- step CI — blocked: <why>` and saying so in the pull request; a caller reading the Run log sees a
+  blocked step and records the feature as blocked rather than done. If CI cannot be observed from the session, say so in the PR.
 - **Docs** — run `docs-reflection` against the divergences the Build and Test steps recorded in the
   Run log. A docs-only PR cut from the default branch is the interactive default; inside a sprint the
   update stays on the feature branch, because a branch off `main` describes a repository that does not
@@ -195,8 +209,7 @@ say so once at the start and continue.
   unguarded. Under `--stage` this session did not write the implementation, and `docs-reflection` is
   right that a fresh context cannot see what drifted while the code was being written — the Run log
   is how that knowledge crosses the boundary, which is why the earlier stage owes those lines.
-  No-op by default. If living docs genuinely diverged, open a
-  separate docs-only PR from the default branch; otherwise mark docs as current in the feature PR.
+  No-op by default; when nothing diverged, mark docs as current in the feature PR.
   The project's screen map is the one exception: when this feature changed what the app shows, the
   map is updated on the feature branch and pushed to this PR, because a card marked `implemented`
   points at code that only exists here. That push lands after the CI step declared the pipeline green, so
@@ -225,10 +238,10 @@ log, when the plan is written, with the branch and the steps still ahead of you:
 **Steps:** Build, Test, PR, Review, CI, Docs
 ```
 
-Under `--stage` this line is **rewritten** by each stage to that stage's own steps, and the settled
-lines below it stay where they are — except a stage's own lines from an attempt that died, which it
-clears as it restarts. Leave them and the guard is satisfied by work the new attempt never did.
-See — see the `--stage` argument for why appending a second header
+Under `--stage` this line is **rewritten** by each stage to that stage's own steps, and earlier
+stages' settled lines stay where they are. The one exception: a stage **relaunched from scratch**
+clears its own lines from the attempt that died, or the guard is satisfied by work the new attempt
+never did. A stage picked up with `--resume` is the same attempt continuing and clears nothing. See see the `--stage` argument for why appending a second header
 instead would switch the guard off for every stage after the first.
 
 Then settle each step as it ends, one line each — `- step Review — done`,
@@ -316,8 +329,11 @@ The bar is not "the tests pass" — it is that someone can merge this without re
    `manifest.sources.ci` is one the kit generated or the owner approved, add the new layer there
    too; a CI the project brought with it is not yours to edit — record the gap in the Run log as a
    manual action.
-2. **Delegate to the `agent-kit:tester` agent**, which writes across the chosen layers and proves
-   each new behavior can fail. Carry its report of deliberately skipped layers into the Run log.
+2. **Delegate to the `agent-kit:tester` agent**, which writes across the chosen layers and proves the
+   behaviours carrying real risk can fail — not every assertion, which costs more than the feature it
+   covers. Carry into the Run log both its report of deliberately skipped layers and its list of which
+   behaviours it proved and which it did not, so the pull request's Testing section can say which is
+   which.
 3. **Run the project's full declared suite** — tests, type checker, and lint. Static analysis is a
    test layer, not a formality: a type error is a failing test. Fix product defects; never weaken a
    valid assertion for green output. A test that passes on a rerun with no change is a defect too —

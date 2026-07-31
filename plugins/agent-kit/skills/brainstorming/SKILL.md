@@ -113,7 +113,9 @@ where unexamined assumptions cost the most. The design itself can be three sente
    pushes back on any part, including a line they would rather settle now than leave to the build.
    Architecture, components, data flow, and error handling live in the diagram and the decision
    lines, not in paragraphs.
-9. **Write the spec** to `docs/specs/YYYY-MM-DD-<topic>-design.md` and commit it, including the
+9. **Write the spec** — unless the run is under `ship --brief`, where an approved sketch is already
+   the spec and is copied into place by the caller; adding a second document there is the defect this
+   exception exists to prevent. Otherwise to `docs/specs/YYYY-MM-DD-<topic>-design.md` and commit it, including the
    verification plan and the resolved decisions from all three sections — what was left open and
    its default is part of the record, not a loose end. Diagrams go in as Mermaid —
    GitHub renders them. Prose in the user's language; code, paths, and identifiers in English.

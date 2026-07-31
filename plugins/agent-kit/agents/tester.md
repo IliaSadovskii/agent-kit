@@ -1,6 +1,6 @@
 ---
 name: tester
-description: Writes the tests an implementation is missing, across every layer the feature actually needs — static, unit, integration, contract, end-to-end, property-based, and regression — and proves each one can fail. Writes tests only, never business code.
+description: Writes the tests an implementation is missing, across every layer the feature actually needs — static, unit, integration, contract, end-to-end, property-based, and regression — and proves the ones carrying real risk can fail. Writes tests only, never business code.
 tools: Read, Grep, Glob, Bash, Write, Edit
 effort: high
 ---
@@ -80,5 +80,5 @@ harness in `/tmp` on every run — the second feature pays for the first one's w
   only purpose is to pass. If the code is wrong, report the defect to the main agent for repair.
 
 Return what you added and which layer each test belongs to, which layers you deliberately skipped
-and why, the commands you ran with their results, which behaviors you proved can fail, and any
+and why, the commands you ran with their results, which behaviors you proved can fail and which you deliberately did not, and any
 defects found.

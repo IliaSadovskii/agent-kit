@@ -13,7 +13,8 @@ where the feature is read and reviewed.
 **Open it ready, convert it to a draft at the end of the run** (`gh pr ready --undo`). Draft is how
 such a pull request is finally parked, not how it starts: the `code-review` plugin declines to
 review a draft, so opening one as a draft silently costs the feature its strongest review. Convert
-it yourself as the last thing the run does — including when the run ends on a blocker, because a
+it yourself as the last thing the run does — under `--stage` that is the `deliver` stage, not the
+stage that opened it — including when the run ends on a blocker, because a
 stacked pull request left ready is one merge click away from moving code sideways.
 
 The description is written to be scanned. The owner decides in the first five lines whether this
