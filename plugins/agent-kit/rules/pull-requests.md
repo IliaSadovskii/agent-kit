@@ -5,10 +5,17 @@ project language (`.agent-kit/project/manifest.yml` → `language`) — the sect
 canonical, so translate them along with the body. Never merge; the owner merges.
 
 A pull request based on another feature's branch rather than the default branch — a stacked feature
-inside a sprint — cannot land code at all: merging it moves the code into that branch. Open it as a
-draft, and give the body a first line saying which sprint it belongs to, what it is based on, and
-that it reaches the default branch through that sprint's integration pull request. Everything below
-is unchanged — this is still where the feature is read and reviewed.
+inside a sprint — cannot land code at all: merging it moves the code into that branch. Give the body
+a first line saying which sprint it belongs to, what it is based on, and that it reaches the default
+branch through that sprint's integration pull request. Everything below is unchanged — this is still
+where the feature is read and reviewed.
+
+**Open it ready, convert it to a draft at the end of the run** (`gh pr ready --undo`). Draft is how
+such a pull request is finally parked, not how it starts: the `code-review` plugin declines to
+review a draft, so opening one as a draft silently costs the feature its strongest review. Convert
+it yourself as the last thing the run does — under `--stage` that is the `deliver` stage, not the
+stage that opened it — including when the run ends on a blocker, because a
+stacked pull request left ready is one merge click away from moving code sideways.
 
 The description is written to be scanned. The owner decides in the first five lines whether this
 is mergeable without reading the diff; everything below either helps that decision or collapses out

@@ -31,7 +31,8 @@ Task: `$ARGUMENTS`
 5. **PR** — push the branch and open a pull request per `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md`.
 
 Relative to `ship` this skips ideation, the design gate, the written plan, the `tester` agent, and
-the deep security pass. Everything else holds.
+the wider review wave. Everything else holds — including `/security-review`, which step 4 runs when
+the change earns it.
 
 If the task turns out to need a design, a new domain model, or contract changes, stop and offer to
 switch to `ship` rather than forcing it through the light path. The user decides.

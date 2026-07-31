@@ -82,8 +82,8 @@ Nothing to do by hand.
 
 - **`pr-review-toolkit`** supplies specialist review agents the Review step delegates to:
   `pr-review-toolkit:silent-failure-hunter`, `:pr-test-analyzer`, `:type-design-analyzer`.
-- **`code-review`** supplies `/code-review:code-review`, a multi-agent confidence-scored pass the PR
-  step runs on the open pull request. Same architecture as the bundled command, reachable by an agent.
+- **`code-review`** supplies `/code-review:code-review`, a multi-agent confidence-scored pass the
+  Review step runs on the pull request the step before it opened. Same architecture as the bundled command, reachable by an agent.
 
 If they are missing anyway — an organization policy that blocks the official marketplace, or a Claude
 Code old enough not to ship it — nothing breaks. Every step that uses them says "when enabled", and
@@ -108,8 +108,8 @@ this project's conventions, framework, and seams, and there is no generic versio
 The canonical sequence lives in the `ship` skill. Before the design gate the agent may ask one
 question at a time. After explicit design approval it must not pause for normal ambiguity,
 recoverable tool failures, routine permission choices, or owner-only deployment work. It chooses
-safe defaults, records assumptions and manual actions, runs the independent reviews, and continues
-to the PR. Only a genuinely insurmountable blocker may end the run early.
+safe defaults, records assumptions and manual actions, opens the pull request, and runs the review
+wave over it. Only a genuinely insurmountable blocker may end the run early.
 
 Start long runs in [auto mode](https://code.claude.com/docs/en/permission-modes)
 (`claude --permission-mode auto`, or Shift+Tab until the status bar shows it) so routine permission

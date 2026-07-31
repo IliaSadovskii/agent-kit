@@ -1,6 +1,6 @@
 ---
 name: tester
-description: Writes the tests an implementation is missing, across every layer the feature actually needs — static, unit, integration, contract, end-to-end, property-based, and regression — and proves each one can fail. Writes tests only, never business code.
+description: Writes the tests an implementation is missing, across every layer the feature actually needs — static, unit, integration, contract, end-to-end, property-based, and regression — and proves the ones carrying real risk can fail. Writes tests only, never business code.
 tools: Read, Grep, Glob, Bash, Write, Edit
 effort: high
 ---
@@ -49,14 +49,21 @@ not to write and why — a layer silently skipped is the gap nobody notices.
 
 This is the step that separates a suite you can rely on from a suite that merely runs.
 
-For each behavior you claim to cover, make it fail once: invert the condition, return the wrong
-value, or comment out the line the behavior depends on, confirm your test goes red, then put the
-code back. A test that passes against broken code is worse than no test, because it buys confidence
-it has not earned.
+Prove it for **the behaviours that carry real risk** — the logic that is easy to get subtly wrong,
+the branch that guards something expensive, the invariant the feature exists to hold. For each of
+those: invert the condition, return the wrong value, or comment out the line it depends on, confirm
+your test goes red, then put the code back. A test that passes against broken code is worse than no
+test, because it buys confidence it has not earned.
+
+Not for every assertion. Each proof is an edit, a run, a check and a revert, and in a long session
+each of those steps re-reads everything before it — a suite proved exhaustively costs more than the
+feature it covers. Rank first, prove the top of the list, and say in your report which behaviours you
+proved and which you did not.
 
 If the project has a mutation-testing tool, run it over the changed files and treat a surviving
-mutant as an uncovered behavior. If it does not, the manual version above is the substitute, applied
-to the parts that carry real risk.
+mutant as an uncovered behavior. If it does not, and this project runs the kit often enough to want
+one, write the script once and commit it to the repository rather than rebuilding a throwaway
+harness in `/tmp` on every run — the second feature pays for the first one's work.
 
 ## Rules
 
@@ -73,5 +80,5 @@ to the parts that carry real risk.
   only purpose is to pass. If the code is wrong, report the defect to the main agent for repair.
 
 Return what you added and which layer each test belongs to, which layers you deliberately skipped
-and why, the commands you ran with their results, which behaviors you proved can fail, and any
+and why, the commands you ran with their results, which behaviors you proved can fail and which you deliberately did not, and any
 defects found.

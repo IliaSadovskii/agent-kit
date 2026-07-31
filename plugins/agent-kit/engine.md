@@ -62,6 +62,18 @@ self-checks on top of that: re-reading your own work, or asking a subagent to co
 tokens without improving the result. Independent review of finished work is a different thing, and
 the pipelines schedule it explicitly.
 
+## Working in a long context
+
+Everything you read stays in context and is re-read on every step after it, so a file costs its size
+multiplied by the steps left in the run — not its size. Read the part you need: a Read with an
+offset, a grep with context, or `sed -n` on a known range beats opening a thousand-line file to check
+one function. Pipe long command output through `tail` or a filter, and never print the same output
+twice: a passing suite needs its last lines, not all of them.
+
+Your own steps cost the same way, because each one carries everything accumulated before it. Ten
+small edits to one file are more expensive than one edit that makes all ten changes, and a script
+you write once and run beats ten inline snippets. Batch the work; don't narrate it step by step.
+
 ## Reaching for what already exists
 
 Before writing a helper, a utility, or anything that feels like plumbing, spend the tool calls to

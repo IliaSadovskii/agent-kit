@@ -3,6 +3,65 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.17.0
+
+A run costs its context multiplied by its steps. Measured over four headless `ship` runs — 207M
+tokens of context re-reading for four features, 40% of it inside the subagents they spawned — and cut
+where the measurement pointed. The measurement also corrected two assumptions: verification is 70% of
+a feature's cost rather than construction, and `tester` alone is a fifth of it.
+
+- **A feature is carried by four short sessions, not one long one.** `ship --stage
+  <design|build|review|deliver>` runs one stage and stops; `sprint` launches them in turn. The
+  handoff is the spec, the plan, its Run log and the commits, which the pipeline already kept on
+  disk for exactly this. Splitting divides the part of the cost that grows with a session's length
+  while the handoff each stage re-reads at its start stays — which is why the saving lands near half
+  rather than the quarter the growth term alone would suggest.
+- **One review wave over a frozen diff.** `reviewer`, the `code-review` plugin's fan and the
+  security pass ran serially, each with its own fix-and-reverify round over a diff that barely
+  changed between them. They now run together, findings are deduplicated across passes, and there
+  is one round of fixes and one verification. Security stops being a separate step and becomes the
+  wave's third question.
+- **The pull request opens before the review, ready rather than draft.** The `code-review` plugin
+  needs a pull request and declines drafts, so a stacked feature's PR — drafted the moment it opened
+  — silently lost the strongest review in the pipeline, and children were rebuilding that fan by
+  hand out of generic agents. The `deliver` stage converts it to a draft as the last thing it does,
+  including when the run ends on a blocker; `sprint` checks that it did.
+- **The wave is scaled to the diff.** A change with no executable surface earns the conformance
+  question and a named skip, not a dozen agents proving that markdown has no injection flaws.
+- **Stages name a model tier.** Design and review on the strong model at high effort, build and
+  deliver on the mid tier at lower effort. What makes a cheaper build safe is the review wave
+  immediately after it, on the strong model over the same diff.
+- **`ship --brief` stops rewriting the sketch.** It is copied to `docs/specs/` as the feature's spec
+  and gains only what exploration changed; the plan becomes a task list whose lasting job is hosting the
+  Run log. Children had been producing two to three times the sketch's volume restating it.
+- **`sprint` writes `orientation.md` once per batch** instead of every child working out the
+  repository for itself, delegates each `upstream.md` to a subagent so a finished feature's Run log
+  never enters the orchestrator's context, asks for at most one heavy verification layer per
+  sketch and says why slow is not free, and waits for the named reset hour after a rate-limit exit instead of polling a
+  closed window.
+- **Stages hand off through a file, not an assumption.** `handoff.yml` beside the spec carries the
+  branch, the base the reviewer must diff against, the plan's path, the last finished stage and the
+  suite result. It is a record, not a gate — nothing in it proves a stage did what it claims — but a
+  later session is never left deriving facts it cannot see.
+- **A sprint survives losing the session that drives it.** Every recovery path in the kit — resume
+  the stage, wait for the reset hour, retry once — assumed an orchestrator was alive to run it, and
+  the one failure none of them covered was that orchestrator dying. `sprint` now starts a detached
+  watchdog at preflight that resumes the run when no child is producing output and the heartbeat has
+  gone stale, and exits when the queue says `done`. Liveness is measured by work rather than by
+  process existence: a rate-limited `claude -p` can sit in the process table indefinitely, and a
+  watchdog that matches it concludes a run is in flight and skips every tick — in silence, if it only
+  logs when it acts. It logs every tick now.
+- **The proof loop is ranked, not exhaustive.** `tester` proved every assertion could fail by
+  editing, running, checking and reverting — a fifth of a feature's whole cost, and it rebuilt a
+  throwaway mutation harness in `/tmp` on every run. It now proves the behaviours that carry real
+  risk, says which it did not, and is told to commit a mutation script once rather than write one
+  each time.
+- **The review wave reconciles findings before fixing them.** Deduplication removes findings that say
+  the same thing; a structural finding makes line-level findings inside the code it condemns
+  pointless, and the fix round used to pay for both.
+- **`engine.md` gains the arithmetic**: read the part you need, cap long command output, batch
+  edits. It applies to every session the kit governs, not only to pipelines.
+
 ## 0.16.0
 
 A pipeline can no longer end its turn with steps left, and a run that stopped early is resumed

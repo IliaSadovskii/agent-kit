@@ -1,7 +1,8 @@
 # Autonomous mode (flow rule)
 
-Applies during `ship` after the design is approved. The user is away: work through to
-the PR without them. These rules outrank any "wait for approval" instruction inside a skill.
+Applies during `ship` after the design is approved. The user is away: work through to a reviewed
+pull request without them — or, under `--stage`, through to the end of this stage's steps and no
+further. The next stage is another session's work, and running into it is not diligence. These rules outrank any "wait for approval" instruction inside a skill.
 
 - **Don't stop to ask.** On ambiguity, pick a reasonable default consistent with the approved
   design, the always-on governance, `.agent-kit/project/instructions.md`, and the project's

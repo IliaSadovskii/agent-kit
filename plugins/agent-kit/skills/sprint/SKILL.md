@@ -71,21 +71,34 @@ before opening a new brief.
    unattended deviation is cheap to fix where code is private and brutal where it is not, and the
    brief mirrors that asymmetry — which governs *which* questions get asked, not how few.
 
-   An unattended run is also cheap in a way an interactive one is not: nobody is waiting.
-   Verification too slow to sit through is affordable here — mutation testing over the changed code
-   (the one mechanical proof that the new tests *can* fail), property-based tests where there is
-   parsing, arithmetic, or an invariant, a full end-to-end pass over the touched surface instead of
-   a smoke. Name in each sketch which heavy layer the feature earns, if any — resilience testing
-   only where the product genuinely has failure modes to survive — and the run session owes it as
-   part of the verification plan.
+   An unattended run buys patience, not budget. Nobody is waiting, so verification too slow to sit
+   through is available here — mutation testing over the changed code, the one mechanical proof that
+   the new tests *can* fail; property-based tests where there is parsing, arithmetic or an invariant;
+   a full end-to-end pass over the touched surface instead of a smoke. But the token budget is shared
+   with every other feature in the batch and with the window it has to run in, so slow is not free.
+   Name **at most one** heavy layer per sketch, and only where the feature earns it: the mechanical
+   proof for logic that is easy to get subtly wrong, properties for real invariants, resilience
+   testing only where the product genuinely has failure modes to survive. A sketch that asks for
+   three heavy layers is asking the batch to pay for certainty it did not need — and the run session
+   owes whichever one was named as part of its verification plan.
 4. **Write the sprint to disk.**
 
    ```text
    .agent-kit/sprint/<YYYY-MM-DD>-<slug>/
      queue.yml
+     orientation.md
      01-<feature-slug>/spec.md
+     01-<feature-slug>/handoff.yml     # written by the run, not the brief
      02-<feature-slug>/spec.md
    ```
+
+   `orientation.md` is what every child would otherwise work out for itself. You have just read the
+   code, the documents and the history to compose this batch; write down once what all of the
+   features need to know — the repository's shape, its test command and conventions, the handful of
+   files the batch will keep touching, and the paragraph of any long document that actually applies —
+   and put it beside `queue.yml`, where `ship --brief` looks for it without being told. Six
+   children each reading the same thousand-line design document to find one section is six times the
+   cost of reading it once, and each of them then carries it for the rest of its run.
 
    Each `spec.md` is the approved design: goal, scope in and out, settled decisions, the *left to
    the run* list with the default named for each item, and **done means** — the observable acceptance criteria the run
@@ -96,6 +109,7 @@ before opening a new brief.
    ```yaml
    sprint: 2026-07-28-auth
    status: briefed          # briefed | running | integrating | done
+   permission_mode: bypassPermissions   # recorded at the brief; children inherit it
    integration:
      branch: sprint/2026-07-28-auth-integration
      carries: []            # the feature ids the open integration PR delivers
@@ -108,7 +122,7 @@ before opening a new brief.
        base: main           # or the branch of the feature it depends on
        depends_on: null     # or a feature id
        status: pending      # pending | running | done | blocked
-       session: null        # the uuid the child ran under, so it can be resumed
+       sessions: {}         # stage name -> the uuid it ran under, so any stage can be resumed
        pr: null
        note: null
    ```
@@ -121,7 +135,21 @@ before opening a new brief.
 
 ## The run
 
-Preflight once: the working tree must be clean — a dirty tree is a blocker to report, not to work
+Preflight once: start the watchdog, then check the tree.
+
+```bash
+setsid nohup "${CLAUDE_PLUGIN_ROOT}"/scripts/sprint-watchdog.sh \
+  "$PWD"/.agent-kit/sprint/<sprint> > /dev/null 2>&1 < /dev/null &
+```
+
+Detached, it outlives this session. Nothing else in the kit does: every recovery path below — resume
+the stage, wait for the reset hour, retry once — assumes an orchestrator is alive to run it, and the
+one failure that path cannot cover is the orchestrator itself dying. The watchdog resumes the sprint
+when no child is producing output and the heartbeat has gone stale, and exits when the queue says
+`done`. **Touch `heartbeat` in the sprint directory at every queue transition**; that file going
+stale is what tells the watchdog nobody is driving any more.
+
+The working tree must be clean — a dirty tree is a blocker to report, not to work
 around. Run the branch sweep over earlier sprints' branches while the tree is still untouched. The
 session must be in an auto permission mode; each child is launched with the same permission mode the
 orchestrator session runs under, or it will hang on its first prompt with nobody there to answer it.
@@ -135,31 +163,82 @@ Then loop until no feature is runnable:
    launch: the parent's deviations and assumptions, pulled from its Run log or PR body, in a few
    lines. The sketch was written against the parent as imagined during the brief; `upstream.md`
    is the diff against reality, and `ship --brief` reads it with the spec.
-4. **Mark it `running`** in `queue.yml`, then launch the child in the background and wait for it:
+
+   **Delegate the writing of it**, to a single subagent given the parent's plan and PR number. Read
+   those yourself and you pull a finished feature's whole Run log into the orchestrator's context,
+   where it is then re-read on every remaining step of the batch — six features on, you are still
+   carrying the first one's review findings. This is the one place the orchestrator would otherwise
+   grow without limit, and it is why it does not need restarting between features: what it must know
+   about a finished feature is its status, its PR number and one line of note, all of which live in
+   `queue.yml`. Ask the subagent for `upstream.md` on disk and a three-line summary back, nothing
+   more.
+4. **Write the feature's `handoff.yml`** beside its spec before the first stage — `branch` and `base`
+   from `queue.yml`, everything else empty. It is how a stage learns which branch to create or switch
+   to and what its reviewer must diff against; a stage handed only a spec path can derive neither, and
+   would work on whatever branch the orchestrator happened to leave checked out. Each stage updates
+   the file as it finishes.
+
+   **Mark the feature `running`** in `queue.yml`, then launch the child in the background and wait:
 
    ```bash
-   claude -p "/agent-kit:ship --brief <absolute path to spec.md>" \
-     --session-id "$(python3 -c 'import uuid; print(uuid.uuid4())')" \
-     > .agent-kit/sprint/<sprint>/<id>/run.log 2>&1
+   sid=$(python3 -c 'import uuid; print(uuid.uuid4())')   # record it in queue.yml first
+   claude -p "/agent-kit:ship --brief <absolute path to spec.md> --stage <stage>" \
+     --session-id "$sid" --permission-mode <permission_mode from queue.yml> \
+     --model <the stage's tier> --effort <the stage's effort> \
+     >> .agent-kit/sprint/<sprint>/<id>/run.log 2>&1
    ```
 
-   Record that id in `queue.yml` as `session` before launching. A child that stops mid-pipeline can
-   then be picked up where it stood instead of rebuilt from nothing, and without it the only way
-   back into its context is guessing which transcript was its.
+   **Match the model to the stage.** Judgment and mechanics do not need the same machine, and a batch
+   that runs every stage on the strongest one pays a multiple for work that never needed it:
+
+   | Stage | Model | Effort | Why |
+   |---|---|---|---|
+   | `design` | `opus` | high | choosing an approach is the decision everything downstream inherits |
+   | `build` | `sonnet` | medium | carrying out an approved plan against a written spec |
+   | `review` | `opus` | high | judging finished work, and the only pass that reads the spec |
+   | `deliver` | `sonnet` | low | watching CI, reconciling docs, mechanical to the end |
+
+   Name a tier, not a version — these aliases resolve to the current generation, and a pinned id goes
+   stale in a repository nobody revisits. This is a dial, not a law: a batch whose features are mostly
+   intricate logic can put `build` on the strong tier and still save on the rest, and a sketch may say
+   so. What makes the cheaper build stage safe is that the review wave immediately after it reads the
+   same diff with fresh eyes on the strong tier — degrade *that* and nothing catches anything.
+
+   **Four sessions per feature, not one** — `design`, `build`, `review`, `deliver`, in that order,
+   each launched exactly like the command above with its own session id, model and effort. Not a
+   shell loop: you check between them, and a stage whose steps are not settled in the plan's Run log
+   stops the feature rather than handing a half-built branch to the next stage.
+
+   Why it is worth four launches: a session re-reads its whole context on every step, so a run costs
+   roughly its step count times its average context. Splitting divides the part that grows — the
+   accumulated conversation — by the number of stages, while the part that does not, the handoff each
+   stage re-reads at its start, stays. That floor is why the saving lands near half rather than the
+   quarter the growth term alone would suggest, and why a fifth or sixth split buys little: the floor
+   is most of what is left by then, and every extra seam loses working knowledge. The handoff itself
+   is the spec, the plan, its Run log and the commits — on disk already, because the pipeline was
+   built to survive losing its context.
+
+   Record each stage's session id in `queue.yml` under that stage's name rather than replacing the
+   last one. A feature that fails at `deliver` must be resumable from `deliver` rather than rebuilt
+   from `design`, and a `build` that died is still worth resuming after `review` has started.
 
    One child at a time, by design: parallel features in one repository conflict, and sequencing is
-   what lets dependent features stack. A feature takes hours — run the child in the background and
+   what lets dependent features stack. A stage takes tens of minutes — run it in the background and
    check on it periodically rather than holding a foreground call against a timeout.
 5. **On exit, check the pipeline actually finished, then record the outcome.** Exit code 0 proves the
    process ended, not that the run reached its end — a step read inline can take over the child's
-   role, and the turn ends with that step's report. So read the plan's Run log: `done` needs every
-   declared step settled and a PR that exists. If steps are unsettled, nothing is lost and this is
+   role, and the turn ends with that step's report. So read the plan's Run log: a **stage** is finished
+   when the steps it declared there are settled, and a pull request only has to exist after `review` —
+   `design` and `build` legitimately end without one. The feature is `done` when `deliver` is. If steps are unsettled, nothing is lost and this is
    not the retry below — resume the child's own session, which costs seconds where a relaunch costs
-   hours:
+   hours. Resume it **promptly**: a session picked up after its prompt cache has lapsed re-caches its
+   whole context in one step, which was measured at a quarter of a million tokens of cache write per
+   event. Waiting to batch resumes costs more than the resume.
 
    ```bash
-   claude -p --resume <session from queue.yml> \
-     "Continue the pipeline from your first unsettled step in the plan's Run log." \
+   claude -p --resume <that stage's id from the feature's sessions map> \
+     --model <that stage's tier> --effort <that stage's effort> \
+     "Continue from your first unsettled step in the plan's Run log, and stop at the end of your stage." \
      >> .agent-kit/sprint/<sprint>/<id>/run.log 2>&1
    ```
 
@@ -167,18 +246,27 @@ Then loop until no feature is runnable:
    context, and a pull request assembled from outside it is not the one the pipeline would have
    written — it is a guess wearing the pipeline's name.
 
-   Then find the feature's PR (`gh pr list --head <branch>`), and mark
-   `done` with `pr` filled. A rate-limit exit is not a failure: wait for the reset and relaunch
-   the same feature. A real failure gets **one informed retry** before it costs anything: reset
-   the branch state, relaunch the same feature once with the tail of its `run.log` alongside the
-   spec — a transient failure should not take a stack down. Only after the retry mark it
+   Once `deliver` is finished, find the feature's PR (`gh pr list --head <branch>`, or `pr` in
+   `handoff.yml`) and mark the feature `done` with `pr` filled — a stage ending on a blocked step
+   makes the feature `blocked`, not `done`. A rate-limit exit is not a failure: the child's output names the hour the
+   limit resets, so read it from the tail of `run.log` and wait until then before relaunching the
+   same stage. Sleep in chunks a tool call can survive rather than one long one, checking the clock
+   between them. Retrying immediately neither works nor costs nothing — it burns a session start per
+   attempt, and a queue that polls a closed window all night has nothing to show for it. A real failure gets **one informed retry** before it costs anything:
+   relaunch **that stage** once with the tail of its `run.log` alongside the spec — the feature, never.
+   Rebuilding a finished `design` and `build` because `deliver` failed costs hours and moves the code
+   under a review that already passed. Resetting branch state is only ever in scope for `build`. Only after the retry mark it
    `blocked` with a one-line `note` naming the reason; a `blocked` feature blocks its dependents —
    mark them too, with `note: blocked by <id>` — and the loop moves on to the next runnable
    feature instead of stopping.
 
    A feature PR based on another feature's branch cannot deliver anything on its own: its merge
-   button moves code into that branch, not into `main`. As you record it, make it a draft
-   (`gh pr ready --undo`) and check that its body opens with the line
+   button moves code into that branch, not into `main`. The `deliver` stage converts it to a draft
+   itself as the last thing it does; check here that it did, and do it yourself if the stage was
+   blocked before reaching that point (`gh pr ready --undo`). The order matters in both directions:
+   the `code-review` plugin declines to review a draft, so a pull request drafted when it opens
+   silently loses the strongest review in the pipeline — and one left ready is a merge click away
+   from moving code sideways. Check too that its body opens with the line
    `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md` requires — the child should have written it, and
    the orchestrator is the backstop. It stays the place the feature is read, reviewed, and checked
    by CI; it stops being a way to land code.
@@ -264,8 +352,12 @@ resuming the sprint for blocked features. Keep it to one screen; the details liv
 
 Invoked with an unfinished queue, continue the run rather than re-briefing: `pending` features run
 as normal. A feature marked `running` with no live child process means the last session died
-mid-feature — inspect its branch and run log, then either mark it `blocked` or relaunch it from its
-spec. The specs were approved once; a resume never re-opens them.
+mid-feature — read the plan's Run log to see which stage it died in, and pick up from **that stage**,
+not from `design`. Its session id is in the feature's `sessions` map, so a stage that stopped
+mid-way is resumed rather than rerun; a stage whose steps are all settled is simply skipped, and the
+next one is launched. Rebuilding a finished `design` and `build` because `deliver` failed costs hours
+and changes the code under a review that already passed. The specs were approved once; a resume never
+re-opens them.
 
 `--integrate` is not a resume: on a queue whose features are already `done` it builds the next
 batch's integration PR from the ids given, sweeps branches, and stops. It is also how a sprint is
