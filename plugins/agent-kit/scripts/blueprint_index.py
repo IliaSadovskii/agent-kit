@@ -132,6 +132,11 @@ def do_anchors(root, path):
         heading = proposal.get("heading")
         if collection not in kit_knowledge.COLLECTION_SLOTS:
             raise IndexRunError(f"{collection!r} is not a collection this kit version knows")
+        # An anchor is `<!-- kit: <key> -->` on one line, and the resolver reads the key as a run
+        # of non-space. A key with whitespace in it would be written and then never found again.
+        if key.split() != [key] or "--" in key:
+            raise IndexRunError(f"{key!r} cannot be an anchor key — it goes inside "
+                                "`<!-- kit: … -->`, so no whitespace and no `--`")
         if not key or not heading or not document:
             raise IndexRunError(f"{proposal!r}: a proposal needs collection, key, path "
                                 "and heading")

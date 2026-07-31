@@ -1499,13 +1499,47 @@ class SourceConfinementTest(ProjectMixin, unittest.TestCase):
         state = kk.entry_state(self.root, self.contract(self.root), {"version": 1})
         self.assertIsNone(state[0]["error"], "a declared document is read exactly as before")
 
-    def test_a_collection_that_declares_no_sources_is_not_confined(self):
-        """`--check` already reports a filled collection with no sources; do not report it twice."""
+    def test_a_collection_that_declares_no_sources_confines_everything(self):
+        """Leaving `sources` empty must not be the way around the confinement.
+
+        `--check` reports a *filled* collection that names no sources — but entries are read
+        whatever the collection's status is, and every collection ships `status: empty` with
+        `sources: []`. Trusting that report would leave the out-of-the-box shape wide open.
+        """
         text = contract_text({"actions": {"a.b": ".env#Database"}}).replace(
             "    sources:\n      - docs/*.md\n", "    sources: []\n")
         self.write(self.root, CONTRACT_PATH, text)
         state = kk.entry_state(self.root, kit_yaml.load(text), {"version": 1})
-        self.assertIsNone(state[0]["error"])
+        error = state[0]["error"]
+        self.assertIsNotNone(error)
+        self.assertTrue(error.structural)
+        self.assertIn("declares no `sources`", str(error))
+
+    def test_a_key_the_reader_would_take_back_differently_is_refused(self):
+        """The reader strips a key's quotes and does not unescape, so the writer must not escape.
+
+        `kit_yaml.key` proves its own round trip for exactly this: a key holding a backslash or a
+        tab would be written as an escape sequence and read back as the sequence, leaving the entry
+        it identifies permanently unbound with nothing in the report pointing at why.
+        """
+        for name in ("weird\\key", "tab\there", 'quote"inside'):
+            with self.subTest(name=name):
+                with self.assertRaises(kit_yaml.KitYamlError):
+                    kit_yaml.key(name)
+
+    def test_an_anchor_key_with_whitespace_is_refused_before_anything_is_written(self):
+        """An anchor is one line and its key is a run of non-space; a key with a space is lost."""
+        self.write(self.root, os.path.join("docs", "C.md"), "# Doc\n\n## Heading\n\nbody\n")
+        self.write_contract(self.root, {"actions": {}} and {}, sources=("docs/*.md",))
+        path = os.path.join(self.root, "proposal.json")
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump([{"collection": "actions", "key": "two words", "path": "docs/C.md",
+                        "heading": "Heading"}], handle)
+        done = subprocess.run([sys.executable, INDEX_SCRIPT, "--anchors", path], cwd=self.root,
+                              capture_output=True, text=True)
+        self.assertEqual(done.returncode, 2)
+        self.assertIn("cannot be an anchor key", done.stderr)
+        self.assertNotIn("<!-- kit:", self.read(self.root, os.path.join("docs", "C.md")))
 
 
 if __name__ == "__main__":

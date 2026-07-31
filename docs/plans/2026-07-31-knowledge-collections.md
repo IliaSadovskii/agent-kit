@@ -216,3 +216,31 @@ the documents that changed.
   `SourceConfinementTest`), including one asserting the secret never reaches `--plan`'s output at
   all; both fixes' mutations were killed. `scripts/validate.sh` green: 99 + 78 + 63 + 11.
 - step Security — done.
+- pr — PR #14, draft against `claude/knowledge-contract`, CI (`validate`) green on the first run.
+- note — the `code-review` plugin refuses a draft, and the kit's pull-request rule *requires* a
+  stacked sprint feature to be a draft. 02 hit this and so did this run: left alone, those two rules
+  cancel the PR-step review for every stacked feature. The fan was run manually on the open draft
+  instead, five independent passes plus the confidence filter, and its outcome is posted on the PR.
+  This is now the second consecutive feature to lose the automatic review in silence.
+- pr — the fan found six things, two of them code. The serious one is a hole in **this run's own
+  security fix**: the confinement of an entry to its collection's `sources` was skipped when the
+  collection declared none, on the reasoning that `--check` already reports a filled collection with
+  no sources. It does — but entries are read whatever the collection's *status* is, and every
+  collection ships `status: empty` with `sources: []`, so the out-of-the-box shape was the way
+  around the check. A contract with `status: empty` and one entry bound to `.env` still leaked the
+  section into `--plan`'s output. Every collection is now confined, including one that declares
+  nothing.
+- pr — the second: `kit_yaml.key()` escaped a non-plain mapping key the way a *value* is escaped,
+  but the reader takes a key back by stripping its quotes and never unescapes — so a key holding a
+  backslash or a tab was written as the escape sequence and read back as the sequence, leaving the
+  entry permanently unbound with nothing in the report pointing at why. `key()` now proves its own
+  round trip and refuses what the subset cannot hold, and `--anchors` refuses a key that could not
+  survive `<!-- kit: … -->` before it writes anything.
+- pr — four prose findings, all fixed: the rubric claimed every fact in its table is read by a
+  cross-check when five are not (they are now marked); `_body`'s docstring said line endings are
+  normalized and then that every line keeps its own terminator; `set_entries` promised to leave
+  every other byte alone without naming the trailing newline it adds; and the skill said a broken
+  binding is repaired through `--check`'s drift section, when only some of them are drift and the
+  rest are structural.
+- pr — three new checks cover the fixes and all three mutations were killed. `scripts/validate.sh`
+  green again: 101 + 78 + 63 + 11.

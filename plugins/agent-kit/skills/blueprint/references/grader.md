@@ -60,25 +60,26 @@ missing.
 
 ## The facts, per collection
 
-Only these keys are read by the cross-checks. Extra keys are kept in the index and ignored, so
-volunteering something is harmless — but a fact the checks need under a name of your own invention
-is a fact nothing will ever compare.
+These are the keys the index records. The ones marked ✓ are compared against each other by the
+cross-checks, so a fact the checks need under a name of your own invention is a fact nothing will
+ever compare; the rest are recorded for a reader and for later stages. Extra keys are kept and
+ignored, so volunteering something is harmless.
 
 | Collection | Key | Shape | Meaning |
 |---|---|---|---|
 | `actors` | `kind` | string | `role`, `operator`, `system`, `schedule`, or `product` |
-| | `actions` | list of keys | the action keys this actor may perform |
-| `entities` | `states` | list | every status in this entity's lifecycle |
-| | `created_by` | list of action keys | what brings it into existence |
-| | `closed_by` | list of action keys | what ends it — completion, cancellation, expiry |
+| | `actions` ✓ | list of keys | the action keys this actor may perform |
+| `entities` | `states` ✓ | list | every status in this entity's lifecycle |
+| | `created_by` ✓ | list of action keys | what brings it into existence |
+| | `closed_by` ✓ | list of action keys | what ends it — completion, cancellation, expiry |
 | | `relations` | list | the other entities it is tied to |
-| `actions` | `actor` | one actor key | who initiates it. Every action has one, even if it is the product itself |
+| `actions` | `actor` ✓ | one actor key | who initiates it. Every action has one, even if it is the product itself |
 | | `trigger` | string | what has to happen first |
-| | `entities_written` | list of entity keys | what this action changes |
-| | `statuses_set` | list of `entity.state` | the qualified form, always: `offer.pending`, never `pending` |
-| | `reads` | list of entity keys | what it needs but does not change |
-| | `screens` | list of screen ids | `S12` — the ids on the project's screen map |
-| `screens` | `screen` | screen id | the id on the map this entry describes |
+| | `entities_written` ✓ | list of entity keys | what this action changes |
+| | `statuses_set` ✓ | list of `entity.state` | the qualified form, always: `offer.pending`, never `pending` |
+| | `reads` ✓ | list of entity keys | what it needs but does not change |
+| | `screens` ✓ | list of screen ids | `S12` — the ids on the project's screen map |
+| `screens` | `screen` ✓ | screen id | the id on the map this entry describes |
 | `integrations` | `direction` | string | `inbound`, `outbound`, or `both` |
 | | `absent` | string | what the product does when it is not there |
 

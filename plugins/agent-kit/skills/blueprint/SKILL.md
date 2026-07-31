@@ -72,7 +72,9 @@ point of the cache.
 
 An empty plan means the index is current *for every entry that resolves*. Read stderr before saying
 so: an entry whose binding no longer resolves cannot be parsed, and the script lists each one there
-by name. Report those instead — the repair is `--check`'s drift section, not a grader call.
+by name. Report those instead — none of them is repaired by a grader call. Run `--check` to see
+which kind each is: a removed anchor or a renamed heading is drift, and a document that is gone, an
+anchor in two places, or a binding outside the collection's `sources` is a structural failure.
 
 **2. Grade each group, one subagent call per group.**
 

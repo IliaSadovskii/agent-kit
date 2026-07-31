@@ -149,13 +149,13 @@ def anchors(text):
 def _body(text, all_headings, level, start):
     """The text between the heading at line `start` and the next heading of `level` or shallower.
 
-    Line endings are normalized, so a CRLF checkout does not make every binding stale; nothing else
-    is. Whitespace inside the section is part of it — the hash is meant to notice edits, and an edit
-    that only moved whitespace is still an edit the owner made.
+    Line endings are normalized to `\n`, so a CRLF checkout does not make every binding stale;
+    nothing else is. Whitespace inside the section is part of it — the hash is meant to notice
+    edits, and an edit that only moved whitespace is still an edit the owner made.
 
-    Each line keeps its terminator, which is what the file has. Joining without one would make a
-    section holding a single blank line and a section holding nothing the same text, and an edit
-    between the two would be the one edit the hash could not see.
+    A non-empty body ends with a terminator and an empty one is the empty string. Joining without
+    that trailing newline would make a section holding a single blank line and a section holding
+    nothing the same text, and an edit between the two would be the one edit the hash could not see.
 
     An anchor line is dropped: it is the kit's own marker, not the owner's prose. Counting it would
     make the placement flow invalidate every entry it had just bound, so adopting anchors would cost
@@ -373,8 +373,14 @@ def entry_state(root, contract, index):
     # section it names — a contract arriving in a pull request could point an entry at a `.env` the
     # developer has locally and read it out through the grader. Declaring the file in `sources`
     # instead puts it in one reviewable line rather than scattered across twenty-three bindings.
-    declared = {name: documents_matching(root, patterns)
-                for name, patterns in collection_sources(contract).items() if patterns}
+    #
+    # Every collection is confined, including one that declares nothing: entries are read whatever
+    # the collection's status is, so leaving `sources` empty would otherwise be the way around this.
+    # Not named `sources`: `validate.sh` reads every `sources.<key>` in the payload as a manifest
+    # key the template has to ship, and a local of that name would trip it.
+    per_collection = collection_sources(contract)
+    declared = {name: documents_matching(root, per_collection.get(name) or [])
+                for name in COLLECTION_SLOTS}
     for collection, bound in entry_bindings(contract).items():
         recorded_entries = index.get(collection) if isinstance(index.get(collection), dict) else {}
         for key, at in bound.items():
@@ -398,11 +404,14 @@ def entry_state(root, contract, index):
                 # simply gone is named as such, and only a file that exists and is inside is asked
                 # whether the collection declared it — before anything opens it.
                 locate_document(root, path)
-                covered = declared.get(collection)
-                if covered is not None and os.path.normpath(path) not in covered:
-                    raise SectionError(f"{path} is not one of the documents this collection's "
-                                       "`sources` name — an entry lives in a document the "
-                                       "collection declares", structural=True)
+                covered = declared.get(collection) or []
+                if os.path.normpath(path) not in covered:
+                    raise SectionError(
+                        f"{path} is not one of the documents this collection's `sources` name — "
+                        "an entry lives in a document the collection declares"
+                        if covered else
+                        f"this collection declares no `sources`, so nothing binds {path} to it — "
+                        "name the documents its entries live in", structural=True)
                 if path not in documents:
                     documents[path] = read_document(root, path)
                 item["resolved"] = resolve(root, at, documents[path])
@@ -799,7 +808,8 @@ def set_entries(text, collection, entries):
     The contract is a file a person maintains: statuses, reasons and criteria are their verdicts,
     and the comments around them are the reason the file is readable. No dumper preserves either,
     so this is a surgical edit rather than a rewrite — it replaces one block and touches nothing
-    else in the file.
+    else in the file. The one exception is a final line with no terminator, which gains one: without
+    it the inserted block would be glued onto that line and the contract would stop parsing.
     """
     lines = text.splitlines(keepends=True)
     if lines and not lines[-1].endswith("\n"):

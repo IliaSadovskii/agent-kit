@@ -387,8 +387,18 @@ def _render_value(opening, value, indent, lines, where):
 
 
 def key(name):
-    """One mapping key, quoted only where a plain one would not read back as itself."""
-    return _render_key(name, "")
+    """One mapping key, quoted only where a plain one would not read back as itself.
+
+    Proved by re-reading, because the reader takes a key back differently from a value: it strips
+    the surrounding quotes and stops there, with no unescaping. A key holding a backslash or a tab
+    would come back as the escape sequence rather than the character — silently, and the entry it
+    identifies would be permanently unbound. A key the subset cannot hold is an error with a name.
+    """
+    rendered = _render_key(name, "")
+    if load(f"{rendered}: 0") != {name: 0}:
+        raise KitYamlError(f"{name!r} has no form the reader takes back as itself; a key is plain "
+                           "text without a backslash, a tab, or a quote", 0)
+    return rendered
 
 
 def scalar(value):
