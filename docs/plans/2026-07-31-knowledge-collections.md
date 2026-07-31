@@ -244,6 +244,8 @@ the documents that changed.
   rest are structural.
 - pr — three new checks cover the fixes and all three mutations were killed. `scripts/validate.sh`
   green again: 101 + 78 + 63 + 11.
+- step PR — done. PR #14, draft (a stacked feature cannot land code), CI green on the first run and
+  again after each round of fixes. The manual fan's outcome is posted on the pull request.
 - docs — `docs-reflection` found one divergence. `docs/developing.md`'s "A file the project owns"
   rule said the plugin never writes into a project's own files after bootstrap, and this feature
   writes two: the `entries:` block of the knowledge contract, and an anchor inside the owner's own
