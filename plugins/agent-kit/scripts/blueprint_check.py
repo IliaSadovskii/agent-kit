@@ -2,15 +2,17 @@
 """The mechanical half of the knowledge contract: `/agent-kit:blueprint --check`.
 
 Reads `.agent-kit/knowledge/contract.yml` and answers in seconds, with no grader and no model in
-the loop: does every slot carry a terminal verdict, does every source still resolve, does every
-bound section still hash to what was recorded, and do the project's verification commands actually
-run and return zero.
+the loop: does every slot carry a terminal verdict, does every source and every collection entry
+still resolve, does every bound section still hash to what was recorded, do the derived index's keys
+agree with each other, and do the project's verification commands actually run and return zero.
 
 Three exit codes, because a later stage puts this in front of every build command:
 
     0  clean
-    1  findings      — a slot in a forbidden state, an unresolved binding, a stale section
-    2  structural    — the contract cannot be read, a source is gone, a verification command failed
+    1  findings      — a slot in a forbidden state, a stale section, an entry whose binding drifted,
+                       a gap the prose leaves open, a cross-check that fired
+    2  structural    — the contract cannot be read, a source is gone, an anchor resolves to two
+                       places, a verification command failed
 
 Structural wins over findings; both are reported in full first, so one run shows everything that is
 wrong rather than the first thing that is.
@@ -279,12 +281,20 @@ def _check_entries(report, root, contract):
         for gap in item["gaps"]:
             report.finding(where, f"the prose does not answer: {gap}")
 
+    # A map the manifest names and does not have silently disables the screen cross-check, and a
+    # report that lost a check looks exactly like a report that passed it.
+    named = kit_knowledge.named_screen_map(root)
+    if named and named != kit_knowledge.screen_map_path(root):
+        report.finding("collections/screens",
+                       f"the manifest names {named} as the screen map and it is not there — the "
+                       "screen cross-check cannot run until that path is repaired")
+
     for where, message in kit_knowledge.cross_check(index, kit_knowledge.screen_ids(root)):
         report.finding(where, message)
 
 
 def _check_sources(report, root, where, entry):
-    """A collection binds to globs at this stage; its entries and anchors are stage 2's work."""
+    """A collection's `sources` globs say which documents its entries live in, and must match."""
     sources = entry.get("sources")
     if not isinstance(sources, list) or not sources:
         report.finding(where, "filled, but names no sources — a collection binds to the documents "

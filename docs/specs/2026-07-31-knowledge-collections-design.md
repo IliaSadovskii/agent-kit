@@ -116,9 +116,13 @@ entities:
       - no transition is named out of `accepted`
 ```
 
-`rev` is the hash of the same section text stage 1 hashes, so one function answers "is this stale"
-for a slot and for an entry. The parse cache is this file and nothing else: an entry whose `rev`
-matches the document is not re-parsed, and there is no second cache to fall out of step with it.
+`rev` is the hash of the section body, computed by the one function that answers "is this stale" for
+a slot and for an entry alike — with anchor lines dropped from the body, so placing an anchor does
+not invalidate the entry it just bound. That is a change to stage 1's hash for any slot whose
+section contains an anchor, and there are none today.
+
+The parse cache is this file and nothing else: an entry whose `rev` still matches the document is
+not re-parsed, and there is no second cache to fall out of step with it.
 
 `index.yml` is committed. It is derived, but derived by dozens of grader calls, and a clone, a CI
 run and every headless sprint child should inherit the cache rather than pay for it again.
@@ -161,7 +165,10 @@ a document is one call; editing one section later is one call carrying that one 
 stays per-section, so a rewritten paragraph never re-parses fifty entries. One code path, both
 properties.
 
-`--apply` merges the results and drops index entries the contract no longer lists. Each entry
+`--apply` merges the results and drops index entries the contract no longer lists. An entry whose
+binding broke while the grader was running is skipped by name and the rest of the batch is kept — a
+batch is dozens of calls, and losing all of them to one renamed heading costs the owner far more
+than the entry is worth. Each entry
 records the `rev` the plan handed the grader — the hash of the text that was actually read, not the
 file's hash at apply time. A document edited while the grader was running therefore comes back stale
 on the next check, instead of being recorded as parsed at a hash whose text nobody has seen.
@@ -178,14 +185,15 @@ Mechanical, over the index's keys plus `screens.data.js`. Reported as findings, 
 |---|---|
 | set completeness | an entry references an instance no entry describes |
 | statuses | an action sets `entity.state` and that state is not in the entity's `states` |
-| rights | an action names an actor who does not list it, or an actor lists an action that has no entry |
-| screens | an action references a screen id absent from the map, or a live screen on the map is reached by no action |
+| rights | an action names an actor who does not list it, an action names no actor at all, or an actor has no action attributed to it |
+| screens | an action references a screen id absent from the map; a live screen on the map is reached by no action, or by no action that names an actor; an entry in the `screens` collection describes an id the map does not have |
 | lifecycle | an entity that some action writes has no creating action or no closing action |
 
 Set completeness runs first and the others skip a key it already reported: a document that never
 described `deal` should produce one finding, not four. The screen map stays the authority for
 screens — actions reference ids and the check validates the reference, with no duplication. A
-`rejected` screen on the map is not expected to be reachable.
+`rejected` screen is the owner's own decision not to have it, and an `idea` is not yet a promise;
+neither is expected to be reachable.
 
 ## `--check`, unchanged in cost
 
@@ -207,8 +215,14 @@ stale        docs/OFFERS.md changed since last parse (3 entries)
 ```
 
 Exit codes are stage 1's. Cross-check findings, `gaps`, and an entry whose binding no longer
-resolves are `1`; the contract being unreadable, a source document being gone, or a duplicate anchor
-are `2`.
+resolves are `1`; the contract being unreadable, a source document being gone, a duplicate anchor,
+and an entry whose `at` is missing or malformed are `2` — the last of those is the contract itself
+being wrong rather than the prose having moved.
+
+`gaps` are reported for an entry the index is current for, and suppressed for a stale one: a gap
+derived from a paragraph that has since been rewritten is a question about text nobody can read any
+more. The cross-checks still run over a stale entry's facts, because a key comparison is worth
+having early and the stale line beside it says how old it is.
 
 **An entry whose binding does not resolve is a finding, not a structural failure**, and this is the
 one place the expansion departs from stage 1's instinct. A slot is the project's answer to a

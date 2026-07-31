@@ -12,7 +12,7 @@ say what it does not understand instead of guessing at a value.
 """
 import re
 
-__all__ = ["KitYamlError", "dump", "load", "load_path"]
+__all__ = ["KitYamlError", "dump", "key", "load", "load_path", "scalar"]
 
 _KEY = re.compile(r"^(?P<key>[A-Za-z0-9_.\-]+|\"[^\"]*\"|'[^']*'):(?:\s+(?P<rest>.*))?$")
 _PLAIN_KEY = re.compile(r"^[A-Za-z0-9_.\-]+$")
@@ -384,6 +384,22 @@ def _render_value(opening, value, indent, lines, where):
         _render_seq(value, indent + 2, lines, where)
     else:
         lines.append(f"{opening} {_render_scalar(value, where)}".rstrip())
+
+
+def key(name):
+    """One mapping key, quoted only where a plain one would not read back as itself."""
+    return _render_key(name, "")
+
+
+def scalar(value):
+    """One value, quoted only where a plain one would not read back as itself.
+
+    Exported because the index is not the only file the kit writes: the contract's `entries:` block
+    is edited in place, line by line, and a second quoting rule written beside this one would be a
+    second set of bugs. `_strip_comment`'s reading of `#` after a tab is the kind of detail the
+    duplicate got wrong.
+    """
+    return _render_scalar(value, "")
 
 
 def dump(data):

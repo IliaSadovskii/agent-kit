@@ -67,8 +67,12 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/blueprint_index.py" --plan
 ```
 
 JSON on stdout: one group per document, each carrying only the sections whose hash no longer
-matches the index, with their text. An empty list means the index is current — say so in one line
-and stop. **Nothing below runs when the plan is empty**; that is the whole point of the cache.
+matches the index, with their text. **Nothing below runs when the plan is empty**; that is the whole
+point of the cache.
+
+An empty plan means the index is current *for every entry that resolves*. Read stderr before saying
+so: an entry whose binding no longer resolves cannot be parsed, and the script lists each one there
+by name. Report those instead — the repair is `--check`'s drift section, not a grader call.
 
 **2. Grade each group, one subagent call per group.**
 
@@ -94,8 +98,10 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/blueprint_index.py" --apply results.json
 ```
 
 The script writes `.agent-kit/knowledge/index.yml` and drops entries the contract no longer lists.
-It refuses a result with no `rev`, by name, rather than guessing one from the current file. Then
-run `--check` and report what the cross-checks found.
+It refuses a result with no `rev`, by name, rather than guessing one from the current file. An entry
+whose binding broke while the grader was running is skipped by name on stderr and the rest of the
+batch is kept, so one renamed heading never costs a whole run's calls. Then run `--check` and report
+what the cross-checks found.
 
 Commit the index. It is derived, but derived by dozens of grader calls, and a clone, a CI run and a
 headless run should inherit the cache rather than pay for it again.

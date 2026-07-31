@@ -1237,5 +1237,173 @@ class IndexCliTest(ProjectMixin, unittest.TestCase):
         self.assertIn("no knowledge contract", done.stderr)
 
 
+
+# ------------------------------------------------------------------------------------------
+# The review round: what the design reviewer found, and what each fix has to keep true
+
+
+class BrokenBindingTest(ProjectMixin, unittest.TestCase):
+    """A binding that stopped resolving must never cost more than the entry it belongs to.
+
+    Two separate ways it used to: `--plan` dropped such an entry without a word, so a contract
+    whose every binding had broken planned nothing and read as "the index is current"; and
+    `--apply` raised on the first one, throwing away every other result in the batch — dozens of
+    grader calls, measured at roughly 40k tokens a document.
+    """
+
+    def setUp(self):
+        self.root = self.make_project()
+        self.write(self.root, os.path.join("docs", "A.md"), DOC_A)
+        self.write(self.root, os.path.join("docs", "B.md"), DOC_B)
+        self.write_contract(self.root, ENTRIES)
+
+    def run_index(self, *args):
+        done = subprocess.run([sys.executable, INDEX_SCRIPT, *args], cwd=self.root,
+                              capture_output=True, text=True)
+        self.assertNotIn("Traceback", done.stderr, f"the run crashed:\n{done.stderr}")
+        return done
+
+    def break_one_anchor(self):
+        """Remove the anchor `entities/offer` binds to, leaving the document in place."""
+        self.write(self.root, os.path.join("docs", "B.md"),
+                   DOC_B.replace("<!-- kit: offer -->\n", ""))
+
+    def test_plan_names_every_entry_it_could_not_plan(self):
+        self.break_one_anchor()
+        done = self.run_index("--plan")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("skipped entities/offer", done.stderr)
+        self.assertIn("no anchor", done.stderr)
+        self.assertEqual([entry["key"] for group in json.loads(done.stdout)
+                          for entry in group["entries"]],
+                         ["developer.create_offer", "broker.accept_offer"])
+
+    def test_a_plan_that_is_empty_only_because_everything_broke_says_so(self):
+        """An empty plan reads as "the index is current"; it must not be able to mean this."""
+        for name, text in (("A.md", DOC_A), ("B.md", DOC_B)):
+            self.write(self.root, os.path.join("docs", name),
+                       "\n".join(line for line in text.splitlines()
+                                 if not line.startswith("<!-- kit:")) + "\n")
+        done = self.run_index("--plan")
+        self.assertEqual(json.loads(done.stdout), [])
+        for key in ("developer.create_offer", "broker.accept_offer", "offer"):
+            self.assertIn(f"skipped {'entities' if key == 'offer' else 'actions'}/{key}",
+                          done.stderr)
+
+    def test_apply_keeps_the_batch_when_one_binding_broke_while_the_grader_ran(self):
+        plan = json.loads(self.run_index("--plan").stdout)
+        results = [{"collection": entry["collection"], "key": entry["key"], "rev": entry["rev"],
+                    "facts": {"seen": True}, "gaps": []}
+                   for group in plan for entry in group["entries"]]
+        self.break_one_anchor()
+        path = os.path.join(self.root, "results.json")
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(results, handle)
+        done = self.run_index("--apply", path)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("skipped entities/offer", done.stderr)
+        index = kk.load_index(self.root)
+        self.assertEqual(sorted(index["actions"]), ["broker.accept_offer",
+                                                    "developer.create_offer"])
+        self.assertNotIn("offer", index.get("entities", {}),
+                         "the entry could not be resolved, so nothing about it was recorded")
+
+    def test_apply_reports_the_skip_through_the_module_api_too(self):
+        skipped = []
+        self.break_one_anchor()
+        kk.apply_results(self.root, self.contract(self.root), kk.load_index(self.root),
+                         [{"collection": "entities", "key": "offer", "rev": "a" * 12,
+                           "facts": {}, "gaps": []}], skipped)
+        self.assertEqual(len(skipped), 1)
+        self.assertEqual(skipped[0][0], "entities/offer")
+        self.assertIn("no anchor", skipped[0][1])
+
+
+class ScreenReachabilityTest(unittest.TestCase):
+    """The design's sentence is "reached by some actor and launches some action" — both halves."""
+
+    def messages(self, index, screens):
+        return [f"{where}: {message}" for where, message in kk.cross_check(index, screens)]
+
+    def test_a_live_screen_reached_only_by_an_actorless_action_is_reported(self):
+        index = index_of(
+            actors={"developer": {"kind": "role", "actions": ["developer.create_offer"]}},
+            actions={"developer.create_offer": {"actor": "developer", "screens": ["S1"]},
+                     "unknown.publish": {"screens": ["S2"]}},
+        )
+        found = self.messages(index, {"S1": "implemented", "S2": "implemented"})
+        self.assertIn("screens/S2: on the map, but no action launched from it names an actor — "
+                      "nothing says who reaches it", found)
+        self.assertNotIn("screens/S1: on the map, and no action is launched from it", found)
+
+    def test_a_screens_entry_naming_an_id_the_map_does_not_have_is_reported(self):
+        index = index_of(actions={"developer.create_offer": {"actor": "developer",
+                                                             "screens": ["S1"]}},
+                         screens={"home": {"screen": "S9"}})
+        self.assertIn("screens/home: describes S9, which is not on the screen map",
+                      self.messages(index, {"S1": "implemented"}))
+
+    def test_a_screens_entry_naming_no_id_at_all_is_reported(self):
+        index = index_of(actions={"developer.create_offer": {"actor": "developer",
+                                                             "screens": ["S1"]}},
+                         screens={"home": {"purpose": "the first thing you see"}})
+        self.assertIn("screens/home: names no screen id — an entry here describes one card on the "
+                      "map, and the map is the authority",
+                      self.messages(index, {"S1": "implemented"}))
+
+    def test_a_screens_entry_that_matches_the_map_is_silent(self):
+        index = index_of(actions={"developer.create_offer": {"actor": "developer",
+                                                             "screens": ["S1"]}},
+                         screens={"home": {"screen": "S1"}})
+        self.assertEqual([m for m in self.messages(index, {"S1": "implemented"})
+                          if m.startswith("screens/")], [])
+
+
+class NamedScreenMapTest(ProjectMixin, unittest.TestCase):
+    """A map the manifest names and does not have used to disable the check in silence."""
+
+    def test_the_named_path_is_reported_even_when_it_is_gone(self):
+        root = self.make_project()
+        self.write(root, kk.MANIFEST_PATH, "sources:\n  screens: product/map.js\n")
+        self.assertEqual(kk.named_screen_map(root), "product/map.js")
+        self.assertIsNone(kk.screen_map_path(root),
+                          "nothing else on disk, so there is no map to fall back to")
+
+    def test_a_project_that_names_no_map_names_none(self):
+        root = self.make_project()
+        self.write(root, kk.MANIFEST_PATH, "sources:\n  screens:\n")
+        self.assertIsNone(kk.named_screen_map(root))
+
+
+class EntryQuotingTest(unittest.TestCase):
+    """`set_entries` writes into a file the owner maintains, so it uses the writer's own rule.
+
+    The duplicate it replaced called a value plain whenever it held no ` #`, while the reader cuts
+    a comment after a tab too — so a heading with a tab before a `#` was written unquoted and read
+    back truncated, silently corrupting the contract.
+    """
+
+    CONTRACT = ("version: 1\n\ncollections:\n  actions:\n    status: filled\n"
+                "    sources:\n      - docs/*.md\n    criterion: who and what\n")
+
+    def round_trip(self, at):
+        text = set_entries(self.CONTRACT, "actions", {"a.b": at})
+        return kit_yaml.load(text)["collections"]["actions"]["entries"]["a.b"]["at"]
+
+    def test_a_binding_survives_whatever_is_in_the_heading(self):
+        for at in ("docs/A.md#Plain heading",
+                   "docs/A.md#Оффер от агентства",
+                   "docs/A.md#Heading\t#tail",
+                   "docs/A.md#Heading # tail",
+                   "docs/A.md#kit:developer.create_offer",
+                   "docs/A.md#It's mine"):
+            with self.subTest(at=at):
+                self.assertEqual(self.round_trip(at), at)
+
+    def test_a_key_outside_the_plain_grammar_is_quoted(self):
+        text = set_entries(self.CONTRACT, "actions", {"оффер от агентства": "docs/A.md#X"})
+        self.assertEqual(list(kit_yaml.load(text)["collections"]["actions"]["entries"]),
+                         ["оффер от агентства"])
+
 if __name__ == "__main__":
     unittest.main()

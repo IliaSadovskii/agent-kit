@@ -61,7 +61,7 @@ one, `blueprint`, is the first half of a knowledge layer the other commands will
   document is invisible when rendered and does not care what the heading above it is called. The
   kit places them and you never do: it finds the boundaries, shows the list, and writes them in one
   commit on a single yes — the only moment the kit touches your documents. An anchor you delete is
-  reported and re-proposed, never silently re-added. `path#heading` stays supported, and its drift
+  reported as drift and re-proposed through that same flow, with its own yes. `path#heading` stays supported, and its drift
   is reported separately, because the fix differs.
 - **`/agent-kit:blueprint --index` reads the prose and records what it says.** One grader call per
   document, carrying only the sections whose hash moved: the first parse of a document is one call,

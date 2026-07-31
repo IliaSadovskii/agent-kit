@@ -67,35 +67,50 @@ def do_plan(root):
     print(json.dumps(groups, ensure_ascii=False, indent=2))
     print(f"{len(groups)} grader call(s) for {entries} entr{'ies' if entries != 1 else 'y'}",
           file=sys.stderr)
+    # An entry whose binding no longer resolves cannot be planned, and an empty plan is read as
+    # "the index is current". Saying nothing here would let a contract whose every binding broke
+    # report itself as up to date.
+    for item in kit_knowledge.entry_state(root, contract, index):
+        if item["error"] is not None:
+            print(f"  skipped {item['collection']}/{item['key']}: {item['error']} — `--check` "
+                  "reports it; it is not parsed until the binding is repaired", file=sys.stderr)
     return 0
 
 
 def do_apply(root, path):
-    """Merge grader results into the index. The rev is recomputed here, from the file on disk."""
+    """Merge grader results into the index, each recording the rev the grader was handed."""
     contract = read_contract(root)
     results = read_json(path)
     if isinstance(results, dict):
         results = results.get("entries") or results.get("results") or []
     if not isinstance(results, list):
-        raise IndexRunError(f"{path}: expected a list of {{collection, key, facts, gaps}}")
+        raise IndexRunError(f"{path}: expected a list of "
+                            "{collection, key, rev, facts, gaps}")
+    skipped = []
     try:
         index = kit_knowledge.load_index(root)
-        merged = kit_knowledge.apply_results(root, contract, index, results)
+        merged = kit_knowledge.apply_results(root, contract, index, results, skipped)
     except (kit_yaml.KitYamlError, ValueError) as exc:
         raise IndexRunError(str(exc))
     written = kit_knowledge.write_index(root, merged)
     total = sum(len(block) for name, block in merged.items() if isinstance(block, dict))
-    print(f"{os.path.relpath(written, root)}: {len(results)} entr"
-          f"{'ies' if len(results) != 1 else 'y'} parsed, {total} in the index")
+    kept = len(results) - len(skipped)
+    print(f"{os.path.relpath(written, root)}: {kept} entr"
+          f"{'ies' if kept != 1 else 'y'} parsed, {total} in the index")
+    for where, reason in skipped:
+        print(f"  skipped {where}: {reason} — the binding broke while the grader ran; the rest of "
+              "the batch was kept", file=sys.stderr)
     return 0
 
 
 def do_anchors(root, path):
-    """Write the proposed anchors, and record the entries they bind. Never a partial write.
+    """Write the proposed anchors, and record the entries they bind.
 
-    Every proposal is validated and applied in memory first. A run that fails halfway would leave
-    anchors in the owner's documents that the contract does not know about, which is the one state
-    this flow must not be able to produce.
+    Every proposal is validated and applied in memory first, so a proposal the kit will not accept
+    — a heading that is not there, a second anchor for a key, a path outside the project — costs
+    nothing on disk. What is left is the write itself: several files, and a failure partway through
+    can still leave a document written and the contract not. That is a disk error, not a bad
+    proposal, and the repair is to run the same command again — it is idempotent.
     """
     contract_path = os.path.join(root, CONTRACT_PATH)
     read_contract(root)
@@ -168,6 +183,11 @@ def main(argv):
         if len(args) == 2 and args[0] == "--anchors":
             return do_anchors(root, args[1])
     except IndexRunError as exc:
+        print(f"✗ {exc}", file=sys.stderr)
+        return 2
+    except (OSError, UnicodeDecodeError) as exc:
+        # 2, not the 1 a traceback would exit with. Stage 6 gates a build on these codes, and 1
+        # means "findings, act on them" — the wrong answer for a file that could not be written.
         print(f"✗ {exc}", file=sys.stderr)
         return 2
     print(USAGE, file=sys.stderr)

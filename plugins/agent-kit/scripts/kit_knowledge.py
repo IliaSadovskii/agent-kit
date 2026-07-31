@@ -13,7 +13,6 @@ A binding is stage 1's `path#…` grammar with one addition: a fragment beginnin
 anchor — `<!-- kit: <key> -->` on its own line — and anything else is a heading's literal text. The
 anchor survives a heading rename, which is the whole reason it exists.
 """
-import glob
 import hashlib
 import os
 import re
@@ -25,17 +24,6 @@ MANIFEST_PATH = os.path.join(".agent-kit", "project", "manifest.yml")
 DEFAULT_SCREEN_MAP = os.path.join("docs", "screens", "screens.data.js")
 
 COLLECTION_SLOTS = ("actors", "entities", "actions", "screens", "integrations")
-
-# The facts a grader fills, per collection. The cross-checks are key comparisons, so the keys have
-# to be fixed; anything else a grader volunteers is kept in the index and ignored, because a check
-# that silently depends on a key nobody declared should not exist.
-FACTS = {
-    "actors": ("kind", "actions"),
-    "entities": ("states", "created_by", "closed_by", "relations"),
-    "actions": ("actor", "trigger", "entities_written", "statuses_set", "reads", "screens"),
-    "screens": ("screen",),
-    "integrations": ("direction", "absent"),
-}
 
 # Which fact names an instance of which other collection, and how the value reads: a single key,
 # a list of keys, or a list of `entity.state` pairs whose first half is the key.
@@ -379,11 +367,17 @@ def plan(root, contract, index):
     return [{"document": path, "entries": groups[path]} for path in sorted(groups)]
 
 
-def apply_results(root, contract, index, results):
+def apply_results(root, contract, index, results, skipped=None):
     """Merge grader results into the index, and drop entries the contract no longer lists.
 
     Each result is {collection, key, rev, facts, gaps}, where `rev` is copied verbatim from the plan
     that produced it — the hash of the text the grader actually read.
+
+    A result the caller should not have sent — an entry the contract does not record, a missing
+    `rev` — raises. A result whose *binding* broke between the plan and here does not: it is
+    appended to `skipped` as (where, reason) and the rest of the batch is kept. A batch is dozens of
+    grader calls, and throwing all of them away because one heading was renamed meanwhile costs the
+    owner far more than the one entry is worth.
 
     That is why it is not recomputed here. A document edited while the grader was running would then
     be recorded as parsed at its *new* hash while the facts describe the old text, and nothing would
@@ -408,7 +402,11 @@ def apply_results(root, contract, index, results):
                 merged.setdefault(collection, {})[key] = recorded
             continue
         if item["error"]:
-            raise ValueError(f"{collection}/{key}: {item['error']}")
+            if skipped is not None:
+                skipped.append((f"{collection}/{key}", str(item["error"])))
+            if isinstance(recorded, dict):
+                merged.setdefault(collection, {})[key] = recorded
+            continue
         graded = str(result.get("rev") or "")
         if not _REV.match(graded):
             raise ValueError(f"{collection}/{key}: no `rev` on the result — copy it from the plan "
@@ -465,17 +463,31 @@ def refresh(root, contract, grader):
 # The screen map — the authority for screens, read rather than duplicated
 
 
-def screen_map_path(root):
-    """Where this project's map is: the manifest's `sources.screens`, or the conventional path."""
+def named_screen_map(root):
+    """The path `manifest.sources.screens` names, whether or not it is there — or None."""
     manifest = os.path.join(root, MANIFEST_PATH)
-    if os.path.isfile(manifest):
-        try:
-            recorded = (kit_yaml.load_path(manifest) or {}).get("sources") or {}
-        except (kit_yaml.KitYamlError, OSError, UnicodeDecodeError):
-            recorded = {}
-        named = recorded.get("screens") if isinstance(recorded, dict) else None
-        if named and inside(root, str(named)) and os.path.isfile(inside(root, str(named))):
-            return str(named)
+    if not os.path.isfile(manifest):
+        return None
+    try:
+        recorded = (kit_yaml.load_path(manifest) or {}).get("sources") or {}
+    except (kit_yaml.KitYamlError, OSError, UnicodeDecodeError):
+        return None
+    named = recorded.get("screens") if isinstance(recorded, dict) else None
+    return str(named) if named else None
+
+
+def screen_map_path(root):
+    """Where this project's map is: the manifest's `sources.screens`, or the conventional path.
+
+    A named path that is not there falls through to the convention, and the caller is expected to
+    say so — `named_screen_map` is what lets it. Silently losing the screen cross-check because the
+    map was renamed is worse than having no map at all: the report looks the same either way.
+    """
+    named = named_screen_map(root)
+    if named:
+        full = inside(root, named)
+        if full and os.path.isfile(full):
+            return named
     if os.path.isfile(os.path.join(root, DEFAULT_SCREEN_MAP)):
         return DEFAULT_SCREEN_MAP
     return None
@@ -613,26 +625,47 @@ def _check_rights(index, present):
 
 
 def _check_screens(index, present, screens):
-    """A screen an action names is on the map, and a screen on the map is reached by some action."""
+    """The map is the authority; every reference to it resolves, and every live screen is reached.
+
+    The design's sentence is "a screen on the map is reached by some actor and launches some
+    action", and both halves are here: an action names the screen, and that action names an actor.
+    A screen nobody can get to is a screen nobody can use.
+    """
     findings = []
     if screens is None:
         return findings
-    reached = set()
+    reached = {}
     for key in sorted(present["actions"]):
+        actor = (_listed(_facts(index, "actions", key), "actor", "one") or [None])[0]
         for screen in _listed(_facts(index, "actions", key), "screens", "many"):
-            reached.add(screen)
+            reached.setdefault(screen, set()).add(actor)
             if screen not in screens:
                 findings.append((f"actions/{key}",
                                  f"launches from {screen}, which is not on the screen map"))
+    # An entry in the `screens` collection describes one card on the map, so its id has to be one.
+    for key in sorted(present["screens"]):
+        named = (_listed(_facts(index, "screens", key), "screen", "one") or [None])[0]
+        if named is None:
+            findings.append((f"screens/{key}", "names no screen id — an entry here describes one "
+                                               "card on the map, and the map is the authority"))
+        elif named not in screens:
+            findings.append((f"screens/{key}",
+                             f"describes {named}, which is not on the screen map"))
     if not present["actions"]:
         return findings
-    for screen in sorted(set(screens) - reached):
+    for screen in sorted(screens):
         # A rejected screen is the owner's own decision not to have it; an idea is not yet a
         # promise. Neither is expected to be reachable.
         if screens[screen] in ("rejected", "idea"):
             continue
-        findings.append((f"screens/{screen}",
-                         "on the map, and no action is launched from it"))
+        actors = reached.get(screen)
+        if actors is None:
+            findings.append((f"screens/{screen}",
+                             "on the map, and no action is launched from it"))
+        elif actors == {None}:
+            findings.append((f"screens/{screen}",
+                             "on the map, but no action launched from it names an actor — nothing "
+                             "says who reaches it"))
     return findings
 
 
@@ -716,23 +749,10 @@ def set_entries(text, collection, entries):
         body_end -= drop_to - existing
     rendered = ["    entries:\n"] if entries else []
     for key, at in entries.items():
-        rendered.append(f"      {_entry_key(key)}:\n")
-        rendered.append(f"        at: {_entry_value(at)}\n")
+        rendered.append(f"      {kit_yaml.key(key)}:\n")
+        rendered.append(f"        at: {kit_yaml.scalar(str(at))}\n")
     lines[body_end:body_end] = rendered
     return "".join(lines)
-
-
-def _entry_key(key):
-    return key if re.match(r"^[A-Za-z0-9_.\-]+$", str(key)) else '"{}"'.format(
-        str(key).replace('"', '\\"'))
-
-
-def _entry_value(at):
-    """A binding as the reader takes it back — quoted only where a plain scalar would not do."""
-    text = str(at)
-    plain = text and text == text.strip() and not text.startswith(("#", "'", '"', "-", "[", "{",
-                                                                   "&", "*", "!", "|", ">"))
-    return text if plain and " #" not in text else "'{}'".format(text.replace("'", "''"))
 
 
 def _significant(line):
@@ -763,15 +783,3 @@ def _block_bounds(lines, start, indent):
             break
         end = number + 1
     return start, end
-
-
-def documents_matching(root, patterns):
-    """The documents a collection's `sources` globs name, relative to the project root."""
-    found = []
-    for pattern in patterns or []:
-        for match in sorted(glob.glob(os.path.join(root, str(pattern)), recursive=True)):
-            if inside(root, match) and os.path.isfile(match):
-                relative = os.path.relpath(match, root)
-                if relative not in found:
-                    found.append(relative)
-    return found

@@ -48,8 +48,8 @@ Upstream: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/03-knowledge-collect
 7. **The skill, the rubric, the template, the READMEs, the changelog.** Verify:
    `scripts/validate.sh` green — it holds the frontmatter pairing, both README tables and the
    `${CLAUDE_PLUGIN_ROOT}` reference to the new rubric.
-8. **The realest measurement.** Two documents parsed through the heading path against a scratch copy,
-   cost recorded, cross-checks run, the numbers and the labelled extrapolation into the PR. Verify:
+8. **The realest measurement.** Two documents parsed through the heading path against a scratch
+   copy, cost recorded, cross-checks run, numbers and labelled extrapolation into the PR. Verify:
    `git -C /projects/realest status --porcelain` is empty.
 
 ## Run log
@@ -86,9 +86,9 @@ Upstream: `.agent-kit/sprint/2026-07-31-knowledge-and-gates/03-knowledge-collect
   marker, not the owner's prose. Proven by test rather than argued.
 - test — delegated to `agent-kit:tester`: 79 checks in a new `tests/test_kit_knowledge.py`, 17 more
   on the writer in `tests/test_kit_yaml.py`, 21 more in `tests/test_blueprint_check.py`, and seven
-  fixture projects — one per cross-check, differing only in `index.yml`. It ran its own mutation
-  harness over the payload: 40 deliberate breakages, 39 killed, 1 equivalent mutant (dead code,
-  since removed).
+  fixture projects — one per cross-check, each differing from the clean one only in what it has to.
+  It ran its own mutation harness over the payload: 40 deliberate breakages, 39 killed, 1 equivalent
+  mutant (dead code, since removed).
 - test — it found three real defects, all fixed here. (1) `apply_results` recorded the *current*
   file's hash while the facts described the text the grader had been given, so a document edited
   mid-run was filed as parsed and never re-read — the exact opposite of what its own docstring
@@ -142,3 +142,56 @@ totals came out within 0.6% of each other. If that holds, the corpus cost scales
   `actions/agency.clone_lot names actors/agency, which no entry describes`, and it is the check
   working. Worth knowing before stage 6 puts this in front of a build: on a **partially** adopted
   contract the map-coverage check is the noisiest of the five.
+
+**Extrapolation — an extrapolation, not a measurement.** The brief counts 17 markdown documents
+under realest's `docs/`. At the per-call cost measured above, and on the finding that the cost is
+per call rather than per entry, a first full parse is on the order of **675k tokens and ~45 minutes
+serially** (17 × ~39.7k tokens, 17 × ~154 s), or a few minutes with calls running concurrently.
+Every number in that sentence is derived from two data points, and the per-entry marginal cost is
+too small at this size to be measured from them at all — a corpus with thirty entries in one
+document would test that and this one did not. What is measured, and what the design's open
+question 1 actually asked, is the shape: it is documents that cost money, and `--plan` already
+groups by document, so the cache is against the right unit. Every run after the first pays only for
+the documents that changed.
+
+- step Review — done. Delegated to `agent-kit:reviewer` for the question nothing else answers — is
+  this the feature that was approved. The `code-review` plugin is enabled here, so the bug hunt is
+  left to the PR step rather than duplicated. The first attempt died on a session limit partway
+  through; rerun with a tighter reading order.
+- review — verdict: yes, this is the approved feature. All seven settled decisions honoured, both
+  scope lists correct, `validate.sh` green, realest untouched. No critical findings; four major and
+  fifteen minor.
+- review — the four major, all fixed. (1) `--index --plan` dropped an entry whose binding no longer
+  resolved without a word, and the skill tells the agent an empty plan means the index is current —
+  so a contract whose every binding had broken reported itself up to date. `--plan` now names each
+  skipped entry and its reason on stderr, and the skill says to read it. (2) The brief's screens
+  cross-check is *"reached by some actor and launches some action"* and only the action half was
+  built; the `screens` collection was inert besides, its `screen` fact read by nothing. Both halves
+  are now checked, and a `screens` entry naming an id the map does not have — or naming none — is a
+  finding. (3) `--apply` raised on the first entry whose binding had broken since the plan, throwing
+  away every other result in the batch: at the measured ~40k tokens a document, that is the most
+  expensive failure in the feature. It now skips that entry by name and keeps the rest. (4) The
+  extrapolation the brief asks for was implied rather than stated; it is above, labelled.
+- review — twelve minor findings fixed, most of them prose that had drifted from the code: three
+  stale docstrings (`do_apply` still promised the pre-review `rev` behaviour, `_check_sources`
+  still called entries "stage 2's work", the module docstring's exit-code table predated
+  cross-checks and drift), `do_anchors` claiming an atomicity the write loop does not have, the
+  changelog claiming the code re-proposes a deleted anchor when that is the skill's procedure, and
+  the spec missing the `idea` skip, the two extra `rights` findings, the exit-2 case for a
+  malformed `at`, and the suppression of `gaps` on a stale entry. In code: `blueprint_index` now
+  exits 2 rather than 1 on an `OSError` — stage 6 gates on those codes and 1 means "findings";
+  `--check` reports a screen map the manifest names and does not have, instead of silently losing
+  the check; and `set_entries` now quotes through `kit_yaml.scalar`/`key` rather than a weaker
+  duplicate that wrote a heading containing a tab before a `#` unquoted, which the reader then
+  truncated. Dead code removed: `documents_matching`, and the `FACTS` table that duplicated the
+  rubric's and was read by nothing.
+- review — deliberately not changed: `set_entries` appends the `entries:` block after `reason:` and
+  `criterion:` while the template's comment shows it after `sources:` (cosmetic, and the reader does
+  not care about key order); the `# noqa: F401` on the re-export in `blueprint_check` marks intent
+  for a reader even though this repository runs no linter; and the realest-flavoured examples in the
+  template comments and the rubric (`docs/OFFERS.md#Оффер от агентства`, `broker`, `lot`) stay —
+  they are the examples the brief and the design approved, and they name no project.
+- review — the fixes are covered by twelve new checks in `tests/test_kit_knowledge.py`
+  (`BrokenBindingTest`, `ScreenReachabilityTest`, `NamedScreenMapTest`, `EntryQuotingTest`), and
+  five targeted mutations over the changed lines were all killed. `scripts/validate.sh` green
+  again: 91 + 78 + 63 + 11 checks.
