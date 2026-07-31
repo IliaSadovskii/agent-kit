@@ -147,15 +147,42 @@ Then loop until no feature is runnable:
    launch: the parent's deviations and assumptions, pulled from its Run log or PR body, in a few
    lines. The sketch was written against the parent as imagined during the brief; `upstream.md`
    is the diff against reality, and `ship --brief` reads it with the spec.
+
+   **Delegate the writing of it**, to a single subagent given the parent's plan and PR number. Read
+   those yourself and you pull a finished feature's whole Run log into the orchestrator's context,
+   where it is then re-read on every remaining step of the batch — six features on, you are still
+   carrying the first one's review findings. This is the one place the orchestrator would otherwise
+   grow without limit, and it is why it does not need restarting between features: what it must know
+   about a finished feature is its status, its PR number and one line of note, all of which live in
+   `queue.yml`. Ask the subagent for `upstream.md` on disk and a three-line summary back, nothing
+   more.
 4. **Mark it `running`** in `queue.yml`, then launch the child in the background and wait for it:
 
    ```bash
    for stage in design build review deliver; do
      claude -p "/agent-kit:ship --brief <absolute path to spec.md> --stage $stage" \
        --session-id "$(python3 -c 'import uuid; print(uuid.uuid4())')" \
+       --model "<per the table below>" --effort "<per the table below>" \
        >> .agent-kit/sprint/<sprint>/<id>/run.log 2>&1
    done
    ```
+
+   **Match the model to the stage.** Judgment and mechanics do not need the same machine, and a batch
+   that runs every stage on the strongest one pays a multiple for work that never needed it:
+
+   | Stage | Model | Effort | Why |
+   |---|---|---|---|
+   | `design` | strongest (`opus`) | high | choosing an approach is the decision everything downstream inherits |
+   | `build` | mid (`sonnet`) | medium | carrying out an approved plan against a written spec |
+   | `review` | strongest (`opus`) | high | judging finished work, and the only pass that reads the spec |
+   | `deliver` | mid (`sonnet`) | low | watching CI, reconciling docs, mechanical to the end |
+
+   Name a tier, not a version — `opus` and `sonnet` resolve to the current generation, and a pinned
+   id goes stale in a repository nobody revisits. This is a dial, not a law: a batch whose features
+   are mostly intricate logic can put `build` on the strong model and still save on the rest, and a
+   sketch may say so. What makes the cheaper build stage safe is that the review wave immediately
+   after it reads the same diff with fresh eyes on the strong model — degrade *that* and nothing
+   catches anything.
 
    **Four sessions per feature, not one.** A session re-reads its whole context on every step, so
    cost grows with the square of a run's length: one session that ends four times larger than it
