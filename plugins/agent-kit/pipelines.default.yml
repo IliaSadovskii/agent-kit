@@ -12,7 +12,10 @@
 #
 #   name             what the skill calls the step. The order of this list is the pipeline's order,
 #                    and a step does not open until every step before it holds a terminal verdict.
-#   requires         the same dependency stated rather than inferred from position. Enforced too.
+#   requires         the same dependency stated rather than inferred from position. Checked when
+#                    this file is read — it must name a step that comes earlier — which is what
+#                    catches a typo or a forward reference. It is not a second gate at run time:
+#                    every earlier step already has to hold a terminal verdict.
 #   done_when        every check must pass. `run: <shell command>` (exit 0), `exists: <glob>`,
 #                    `git: tree_clean | commits_on_branch | pushed`. A step with no check settles
 #                    as `attested` and the gate demands `--evidence "<what you did>"` for it.
@@ -97,7 +100,9 @@ pipelines:
           - no_remote
 
       # Docs reflection is a no-op by default, and a divergence it cannot close is the owner's to
-      # decide on rather than a reason to hold the whole run open.
+      # decide on rather than a reason to hold the whole run open. `continue` has nothing to do
+      # while this step has no check — a step that cannot fail cannot exhaust its attempts — and it
+      # is here because it is the answer the moment one is added.
       - name: Docs
         requires:
           - PR

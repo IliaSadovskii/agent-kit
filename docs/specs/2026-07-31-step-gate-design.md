@@ -18,8 +18,8 @@ This closes both holes named in section 1 of the design: a step that settles its
 |---|---|
 | `plugins/agent-kit/pipelines.default.yml` | the plugin's default pipeline definitions — ordered steps, `requires`, `done_when`, `max_attempts`, `on_exhausted`, `optional`, `skippable_when` |
 | `plugins/agent-kit/scripts/kit_gate.py` | the model: pipeline definitions, run state, checks, step transitions. Imported by the CLI and by the hooks |
-| `plugins/agent-kit/scripts/gate.py` | the CLI the agent calls: `step start`, `step settle`, `step skip`, `state` |
-| `plugins/agent-kit/scripts/write-guard.py` / `.sh` | new `PreToolUse: Write\|Edit` hook refusing writes to `.agent-kit/runs/**` |
+| `plugins/agent-kit/scripts/gate.py` | the CLI the agent calls: `step start`, `step settle`, `step skip`, `state`, `run reset` |
+| `plugins/agent-kit/scripts/write-guard.py` / `.sh` | new `PreToolUse: Write\|Edit\|MultiEdit\|NotebookEdit` hook refusing writes to `.agent-kit/runs/**` |
 | `plugins/agent-kit/scripts/guard.py` | the Bash guard, extended with the same refusal |
 | `plugins/agent-kit/scripts/stop-guard.py` | rewritten onto run state |
 | `plugins/agent-kit/scripts/session-start.sh` | appends the branch's unfinished run state after `engine.md` |
@@ -81,7 +81,9 @@ the exact action the sprint contract forbids the orchestrator to take.
 Keying run state by branch alone moves that defect into the new mechanism unchanged. So the run
 records the **session that opened it**:
 
-- `gate.py` reads `AGENT_KIT_SESSION_ID`, else `CLAUDE_CODE_SESSION_ID`, at the moment the run opens.
+- `gate.py` reads `CLAUDE_CODE_SESSION_ID`, else `AGENT_KIT_SESSION_ID`, at the moment the run opens.
+  The harness's own variable comes first because the agent can set the other one, and a bogus owner
+  would silence the `Stop` hook for the rest of the run in a single command.
 - The `Stop` hook payload carries `session_id`. It holds the turn only when the run's `session` is
   unset **or** equal to the stopping session's id.
 
@@ -110,9 +112,11 @@ pipelines:
         skippable_when: [no_remote]
 ```
 
-Order is enforced twice on purpose: a step does not open until **every step before it in the list**
-holds a terminal verdict, and `requires:` names the same predecessor explicitly so that a project
-editing this file in stage 4 can read the dependency without inferring it from position.
+A step does not open until **every step before it in the list** holds a terminal verdict. `requires:`
+names the same predecessor explicitly, so that a project editing this file in stage 4 can read the
+dependency without inferring it from position, and it is checked when the file is read — it must
+name an earlier step, which catches a typo or a forward reference. It is not a second gate at run
+time: it could never fire, because the order rule already covers every earlier step.
 
 ### Check kinds
 
@@ -257,6 +261,72 @@ end to end in this run.
 - No runnable app surface: the kit is skills, hooks and scripts. `scripts/validate.sh` is the whole
   declared suite and stays green.
 
+## What the security pass changed
+
+The gate executes shell from a YAML file and writes a file inside the project, so the review was
+where most of the design's real edges turned up. Every finding below was reproduced before it was
+fixed.
+
+- **The atomic write's temporary file was not a kit-owned path.** `state_path()` refuses a symlink
+  at `.agent-kit/runs` and at `<slug>.yml`; `<slug>.yml.kit-new` was neither, and `os.replace` then
+  moved the link onto the checked path. A pull request could ship that link and the run's first
+  `step start` would write through it. Both it and the directory's own `.gitignore` are now opened
+  with `O_NOFOLLOW` — and `.gitignore` with `O_EXCL` and `lexists`, because a *dangling* link reads
+  as absent and the write creates its target.
+- **`KIT_PIPELINES` is a seam the agent can also reach.** A forged definition with `done_when: []`
+  settles a real step without running anything. The seam stays, because the tests need a pipeline
+  that fails on purpose — but every write now stamps the override into the run, and the `Stop` hook
+  holds a run whose steps were closed against definitions that were not the plugin's.
+- **The run's owner is read from the harness first.** `CLAUDE_CODE_SESSION_ID` before
+  `AGENT_KIT_SESSION_ID`, because the agent can set the latter and one bogus owner would silence the
+  `Stop` hook for the rest of the run. Under a sprint the two are the same value, so the fix costs
+  the child nothing.
+- **The run-state rule was a substring test.** `.agent-kit//runs/x.yml`, `.agent-kit/./runs/x.yml`,
+  a leading `D=.agent-kit/runs` environment assignment, `cd .agent-kit && cd runs`, and
+  `rm -rf .agent-kit` all walked around it. Words are normalised before matching, the run-state test
+  moved ahead of the environment-assignment strip, and stepping into or deleting the kit's own
+  corner is refused by name. The `Write`/`Edit` hook resolves the path against the session's
+  directory through `realpath` first.
+- **`refusal()`'s splitter missed separators.** A newline, a bare `&`, and a leading `(` all put the
+  real command at `words[1]`, where nothing looked — so `run: "echo hi\ngh pr merge 5"` in a
+  definition file would have executed. The splitter now covers them.
+- **A committed run-state file was trusted.** `.gitignore` does not apply to a path a commit already
+  tracks, so one can arrive in a pull request with every step `verified`. `load_state` now refuses a
+  state file git tracks, and validates each step entry rather than reaching into it.
+- **`git` failing read as `git` approving.** `_git` returned `""` for both "no output" and "no
+  answer", and the two checks that prove anything — `tree_clean` and `pushed` — read emptiness as
+  success. An index.lock made the PR step pass. `_git` now returns `None` when git did not answer,
+  and both checks fail on it and say so.
+- **Evidence was replayed into the next session's context verbatim.** `SessionStart` output is the
+  most trusted voice in a fresh window; a multi-line evidence string could open a heading of its own
+  and read as the kit's own governance. It is collapsed to one line, cut to 120 characters, and
+  wrapped as a quoted record.
+- **The dumper could deadlock a run.** `kit_yaml.dump` raises on a value that will not round-trip —
+  `closed the owner's #1 complaint` is one — and `write_state` did not catch it, so the attempt was
+  never recorded, `max_attempts` was never reached, and the `Stop` hook held for ever. That is the
+  deadlock the design forbids. `_render_scalar` now falls back to double quotes instead of failing,
+  and `write_state` reports what it cannot write as a gate error.
+- **`exists:` globs followed symlinks out of the project.** Matches are kept only when their
+  `realpath` is inside the root, and the pattern itself is judged when the definition is read rather
+  than mid-run.
+
+Two things are deliberately *not* fixed. The Bash rule cannot be complete — a shell has more
+spellings than any text rule can model — and the refusal now says so: it makes closing a step by
+hand a decision rather than a slip, and it is not a sandbox. And a `run:` check inherits the
+session's environment; scrubbing it would break every project command that needs it.
+
+## `run reset`
+
+`gate.py run reset --reason "<why>"` discards a branch's run. It closes nothing — every step of the
+next attempt has to be proven from nothing — and it grants no power the design did not already have,
+because no state file already means no run.
+
+It exists because two real paths had no way out. `sprint`'s "one informed retry" resets the branch
+and relaunches the feature under a new session id, onto a branch still carrying the previous
+attempt's state: the new child would be unowned by the `Stop` hook and refused at its first
+`step start`. And a run abandoned mid-pipeline nudges every turn for ever, with the only remedy
+being a human deleting the file — which a headless orchestrator does not have.
+
 ## Autonomous defaults recorded here
 
 - State file naming: slug plus the full branch inside the file, verified on read.
@@ -267,4 +337,10 @@ end to end in this run.
 - A `run:` check gets a 1,800-second timeout. `limits.wall_clock` is stage 4; without any bound a
   hung command would hang the gate, and a headless overnight run has nobody to notice.
 - `KIT_PIPELINES` overrides the definition file's location. It exists so the tests can drive the gate
-  against fixture pipelines; the plugin never sets it.
+  against fixture pipelines; the plugin never sets it, and a run that used one is held by `Stop`.
+- The mutation pass is wired into `scripts/validate.sh` behind `KIT_MUTATE=1`, and CI sets it. It
+  costs about seven minutes against fifteen seconds for everything else in that file, and a
+  pre-release check nobody waits for is a check nobody runs.
+- The fixture pipelines live as strings inside `tests/test_gate.py` rather than under
+  `tests/fixtures/gate-*/`: two of them declare a check that fails on purpose, and a definition read
+  a screen away from the assertion about it is one nobody re-reads.

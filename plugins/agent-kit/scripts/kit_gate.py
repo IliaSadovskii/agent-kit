@@ -134,9 +134,22 @@ def _check_pair(raw, where):
         # editing it will meet.
         raise GateError(f"{where}: `{kind}: {value}` reads as {type(value).__name__}, not text — "
                         "quote it if that is the command you meant")
+    if kind == "exists":
+        _reject_escaping_glob(value.strip(), where)
     if kind == "git" and value not in GIT_CHECKS:
         raise GateError(f"{where}: `git: {value}` is not one of {', '.join(GIT_CHECKS)}")
     return kind, value.strip()
+
+
+def _reject_escaping_glob(pattern, where):
+    """An `exists:` pattern names a path inside the project. Checked when the file is read.
+
+    Stage 4 hands the definition file to the project, and a glob that cannot be run is a mistake
+    the owner should hear about at the first `step start` rather than three steps later as an
+    exit 2 in the middle of a run.
+    """
+    if os.path.isabs(pattern) or ".." in pattern.replace(os.sep, "/").split("/"):
+        raise GateError(f"{where}: `exists: {pattern}` must be a path inside the project")
 
 
 def _parse_step(raw, where, known):
@@ -206,17 +219,25 @@ def parse_pipelines(document, where):
     return parsed
 
 
-def pipelines_path():
-    """Where the definitions live.
+def default_pipelines_path():
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, DEFAULT_PIPELINES)
+
+
+def pipelines_override():
+    """The definition file in force instead of the plugin's own, or None.
 
     `KIT_PIPELINES` is the tests' seam — it lets a fixture project declare a pipeline with a check
-    that fails on purpose, which the shipped file has no business containing. The plugin never sets
-    it; the default is the file beside this script's own directory.
+    that fails on purpose, which the shipped file has no business containing. An environment
+    variable is also something the agent under the gate can set, and a forged definition with
+    `done_when: []` would settle a real step without running anything. So the override is not
+    secret, it is *recorded*: every write stamps it into the run, and the `Stop` hook refuses to
+    release a run whose steps were closed against definitions that were not the plugin's.
     """
-    override = os.environ.get("KIT_PIPELINES")
-    if override:
-        return override
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, DEFAULT_PIPELINES)
+    return os.environ.get("KIT_PIPELINES") or None
+
+
+def pipelines_path():
+    return pipelines_override() or default_pipelines_path()
 
 
 def load_pipelines(path=None):
@@ -290,8 +311,23 @@ def load_state(root, branch):
         raise GateError(f"run state is not readable as the kit's YAML subset: {exc}")
     if not isinstance(document, dict) or not isinstance(document.get("steps"), list):
         raise GateError(f"{os.path.relpath(path, root)} is not a run state file")
+    for entry in document["steps"]:
+        # Every field below is read without a second thought elsewhere. A state file is working
+        # state, but `.gitignore` does not apply to a path a commit already tracks, so one can
+        # arrive in a pull request — and a `steps:` list of strings would reach `entry.get` as an
+        # AttributeError, i.e. a traceback out of a hook.
+        if not isinstance(entry, dict) or not isinstance(entry.get("name"), str) \
+                or entry.get("verdict") not in (OPEN,) + TERMINAL:
+            raise GateError(f"{os.path.relpath(path, root)} has a step entry the gate did not "
+                            f"write: {entry!r}")
     if document.get("branch") != branch:
         return None
+    if _git(root, "ls-files", "--error-unmatch", "--", os.path.relpath(path, root)):
+        # Only the gate writes run state, and the gate never commits it. A tracked one came from
+        # somebody's commit, and every verdict in it is a claim nothing checked.
+        raise GateError(f"{os.path.relpath(path, root)} is tracked by git — run state is written "
+                        "by the gate and committed by nobody, so this file's verdicts prove "
+                        "nothing. Remove it from the index and let the gate write its own")
     return document
 
 
@@ -305,14 +341,20 @@ def _self_ignore(directory):
     it even though its own `*` covers it.
     """
     marker = os.path.join(directory, ".gitignore")
-    if os.path.exists(marker):
+    # `lexists`, not `exists`: a symlink to a file that does not exist yet reads as absent, and the
+    # write would then create whatever it points at. O_EXCL and O_NOFOLLOW make the same statement
+    # to the kernel, which is the half that cannot be raced.
+    if os.path.lexists(marker):
         return
     try:
-        with open(marker, "w", encoding="utf-8") as handle:
-            handle.write("# The step gate's run state: working state, never repository content.\n"
-                         "*\n")
+        handle = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
     except OSError:
         # Not being able to write it costs a dirty tree, not the run. The check will say so.
+        return
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8") as out:
+            out.write("# The step gate's run state: working state, never repository content.\n*\n")
+    except OSError:
         pass
 
 
@@ -323,13 +365,27 @@ def write_state(root, state):
     indistinguishable from a corrupt one — which every hook reads as "there is no run".
     """
     path = state_path(root, state["branch"])
-    text = kit_yaml.dump(state)
+    override = pipelines_override()
+    if override:
+        state["overridden_definitions"] = override
+    try:
+        text = kit_yaml.dump(state)
+    except kit_yaml.KitYamlError as exc:
+        # A value the writer cannot render is a step that can never be settled, and the Stop hook
+        # would then hold the turn for ever — the exact deadlock the design forbids. Say so as a
+        # gate error the caller reports, rather than as a traceback out of the command.
+        raise GateError(f"this run's state cannot be written as the kit's YAML subset: {exc}")
     directory = os.path.dirname(path)
     os.makedirs(directory, exist_ok=True)
     _self_ignore(directory)
     temporary = path + ".kit-new"
     try:
-        with open(temporary, "w", encoding="utf-8") as handle:
+        # O_NOFOLLOW, because this sibling of the state file is a path the kit owns by name just as
+        # much as the state file is — and `os.replace` would then move the *link* onto the checked
+        # path, so `kit_owned` on the state file alone never sees it.
+        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW,
+                             0o644)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
             handle.write(text)
         os.replace(temporary, path)
     except OSError as exc:
@@ -338,6 +394,17 @@ def write_state(root, state):
         if os.path.exists(temporary):
             os.remove(temporary)
     return path
+
+
+def discard_state(root, branch):
+    """Remove this branch's run state. The only path that deletes it, and it closes nothing."""
+    path = state_path(root, branch)
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        raise GateError(f"run state cannot be discarded: {exc}")
 
 
 def now():
@@ -355,8 +422,12 @@ def session_id():
     session. Unset is legal and means "held for whoever is here", which is right for a repository
     with one session in it.
     """
-    return (os.environ.get("AGENT_KIT_SESSION_ID")
-            or os.environ.get("CLAUDE_CODE_SESSION_ID") or "").strip() or None
+    # `CLAUDE_CODE_SESSION_ID` first, because the harness sets it and the agent does not. Setting
+    # a bogus owner would otherwise silence the Stop hook for the rest of the run in one command.
+    # `AGENT_KIT_SESSION_ID` is what `sprint` passes as `--session-id`, so under a sprint the two
+    # agree; it stands in only where the harness sets nothing.
+    return (os.environ.get("CLAUDE_CODE_SESSION_ID")
+            or os.environ.get("AGENT_KIT_SESSION_ID") or "").strip() or None
 
 
 def new_state(root, branch, pipeline):
@@ -435,11 +506,19 @@ def _tail(text):
 
 
 def _git(root, *args):
+    """git's stdout, or None when git did not answer.
+
+    None rather than `""`, because the two `git:` checks that prove anything read emptiness as
+    success: an empty `status --porcelain` is a clean tree, and an empty count is nothing left to
+    push. Collapsing "git said nothing" into "git said nothing is wrong" makes an index.lock, a
+    broken repository or an absent git into a passing PR step — a check that fails open is worse
+    than no check, because it reports in the voice of proof.
+    """
     try:
         done = subprocess.run(["git", *args], capture_output=True, text=True, timeout=30, cwd=root)
-        return done.stdout.strip() if done.returncode == 0 else ""
+        return done.stdout.strip() if done.returncode == 0 else None
     except Exception:                                    # noqa: BLE001 - absent git is not a crash
-        return ""
+        return None
 
 
 def _shell(root, command):
@@ -466,9 +545,12 @@ def _run_check(root, command):
 
 
 def _exists_check(root, pattern):
-    if os.path.isabs(pattern) or ".." in pattern.split("/"):
-        raise GateError(f"`exists: {pattern}` must be a path inside the project")
-    matches = sorted(globlib.glob(os.path.join(root, pattern), recursive=True))
+    _reject_escaping_glob(pattern, "exists")
+    # `recursive=True` walks through a symlinked directory, so a link in the repository is a way to
+    # ask whether a file exists in somebody's home. Keep only what really resolves inside.
+    inside = os.path.realpath(root) + os.sep
+    matches = sorted(m for m in globlib.glob(os.path.join(root, pattern), recursive=True)
+                     if os.path.realpath(m).startswith(inside))
     code = 0 if matches else 1
     found = "\n".join(os.path.relpath(m, root) for m in matches[:20]) or "no file matches"
     return Evidence(f"exists: {pattern}", f"glob {pattern}", code, found)
@@ -477,6 +559,10 @@ def _exists_check(root, pattern):
 def _git_check(root, which, state):
     if which == "tree_clean":
         dirty = _git(root, "status", "--porcelain")
+        if dirty is None:
+            return Evidence("git: tree_clean", "git status --porcelain", 1,
+                            "git did not answer — the tree's state is unknown, which is not the "
+                            "same as clean")
         return Evidence("git: tree_clean", "git status --porcelain", 1 if dirty else 0,
                         _tail(dirty) or "the working tree is clean")
 
@@ -491,7 +577,7 @@ def _git_check(root, which, state):
             else ""
         span = f"{resolved}..HEAD" if resolved else "HEAD"
         count = _git(root, "rev-list", "--count", span)
-        made = int(count) if count.isdigit() else 0
+        made = int(count) if count and count.isdigit() else 0
         return Evidence("git: commits_on_branch", f"git rev-list --count {span}",
                         0 if made else 1,
                         f"{made} commit(s) {'since the run opened' if resolved else 'on this branch'}")
@@ -501,7 +587,11 @@ def _git_check(root, which, state):
         return Evidence("git: pushed", "git rev-parse @{upstream}", 1,
                         "this branch has no upstream — it has never been pushed")
     ahead = _git(root, "rev-list", "--count", f"{upstream}..HEAD")
-    unpushed = int(ahead) if ahead.isdigit() else 0
+    if ahead is None or not ahead.isdigit():
+        return Evidence("git: pushed", f"git rev-list --count {upstream}..HEAD", 1,
+                        "git did not answer — whether this branch is pushed is unknown, which is "
+                        "not the same as pushed")
+    unpushed = int(ahead)
     return Evidence("git: pushed", f"git rev-list --count {upstream}..HEAD",
                     1 if unpushed else 0,
                     f"{unpushed} commit(s) not on {upstream}" if unpushed

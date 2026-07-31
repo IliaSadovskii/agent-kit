@@ -27,6 +27,13 @@ def held(event):
     state = kit_gate.load_state(root, branch)
     if state is None or state.get("state") != kit_gate.RUN_OPEN:
         return []
+    if state.get("overridden_definitions"):
+        # A step closed against definitions that were not the plugin's proves nothing about the
+        # pipeline the skill is running. The override exists so the tests can declare a check that
+        # fails on purpose; an environment variable is also something the agent can set, so a run
+        # that used one is held rather than released.
+        return ["<this run's steps were closed against "
+                f"{state['overridden_definitions']}, not the plugin's own definitions>"]
     if not kit_gate.owned_by(state, event.get("session_id")):
         # A sprint orchestrator and its child share one working tree, and the child checks it out
         # onto its own branch. Holding the orchestrator here would demand, every turn, the exact

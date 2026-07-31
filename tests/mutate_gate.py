@@ -40,11 +40,31 @@ SUITE = os.path.join("tests", "test_gate.py")
 # behavioural edge at ±1, and a test written to find one would be a test written against the
 # constant it is reading.
 SURVIVORS = {
-    "_shell:1800→1801": "CHECK_TIMEOUT's default argument; ±1 second is not observable in any run "
-                        "short enough to be a test",
-    "<module>:1800→1801": "CHECK_TIMEOUT itself, same reason",
-    "<module>:1000→1001": "OUTPUT_TAIL: one character more of a kept output tail changes no verdict",
+    "<module>:1800→1801": "CHECK_TIMEOUT: ±1 second is not observable in any run short enough to "
+                          "be a test",
     "<module>:2000→2001": "STATE_CAP: one character of headroom under a 10,000-character hook cap",
+    "branch_of:5→6": "the `git symbolic-ref` timeout; a second either way answers the same",
+    "_git:30→31": "the timeout on a `git` read, same reason",
+    "now:0→1": "`replace(microsecond=0)`: a timestamp's sub-second precision decides no verdict",
+    "_tail:Gt→GtE": "`len(text) > OUTPUT_TAIL` vs `>=`; at exactly the boundary `text[-N:]` is the "
+                    "whole string, so the two branches return the same value",
+    "_shell:124→125": "the synthetic exit code for a timed-out check; any non-zero fails it, and "
+                      "reaching this branch costs CHECK_TIMEOUT seconds",
+    "_shell:126→127": "the synthetic exit code for an OSError starting the shell; diagnostic only",
+    "_exists_check:1→2": "the failure code of a glob that matched nothing; any non-zero fails",
+    "_exists_check:20→21": "how many matching paths are listed in the evidence — a display cap "
+                           "with no verdict behind it",
+    "_git_check:1→2": "the failure code of `git: tree_clean`; any non-zero fails",
+    "_git_check:1→2#2": "the failure code of `git: commits_on_branch`, same reason",
+    "_git_check:1→2#3": "the failure code of `git: pushed` with no upstream, same reason",
+    "_git_check:1→2#4": "the failure code of `git: pushed` with commits ahead, same reason",
+    # This one is not a fact about the tests. `unpushed = int(ahead) if ahead.isdigit() else 0`
+    # reads an unanswerable `git rev-list --count <upstream>..HEAD` as "level with the upstream"
+    # and passes the step — reproducible with a dangling remote-tracking ref, where the branch was
+    # never pushed and `git: pushed` says it was. The mutant (`else 1`) is the safer behaviour, so
+    # killing it would mean asserting the fail-open as correct. Reported rather than pinned.
+    "_git_check:0→1#4": "only killable by asserting a fail-open: an unreadable `git rev-list` "
+                        "count in `git: pushed` currently passes the check",
 }
 
 _SWAPS = {ast.Lt: ast.LtE, ast.LtE: ast.Lt, ast.Gt: ast.GtE, ast.GtE: ast.Gt,

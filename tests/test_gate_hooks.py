@@ -143,8 +143,9 @@ class BashGuardTest(unittest.TestCase, HookMixin):
         specific = answer["hookSpecificOutput"]
         self.assertEqual(specific["hookEventName"], "PreToolUse")
         self.assertEqual(specific["permissionDecision"], "deny")
-        self.assertIn("the file is yours to delete by hand", specific["permissionDecisionReason"],
-                      "the refusal has to name the one escape hatch a human has")
+        self.assertIn("run reset", specific["permissionDecisionReason"],
+                      "the refusal has to name the sanctioned way out of an abandoned run — "
+                      "otherwise the only way past it is a spelling the rule failed to model")
 
     def test_the_never_rules_still_ask_rather_than_deny(self):
         """Two strengths on purpose: a human confirms a merge in one click; nobody writes state."""

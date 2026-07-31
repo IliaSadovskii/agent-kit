@@ -60,6 +60,10 @@ satisfy. The steps are `Change`, `Test`, `Review`, `PR`. A step with no mechanic
 `attested` and the gate demands `--evidence "<what you did>"`; `PR` is skippable only with
 `--reason no_remote`.
 
+When `debug` fixed the root cause and hands you the tail from **Test**, the change is already
+committed — so open and settle `Change` first rather than reaching past it. `Change` is neither
+optional nor skippable, and the gate refuses a step whose predecessor holds no verdict.
+
 Relative to `ship` this skips ideation, the design gate, the written plan, the `tester` agent, and
 the deep security pass. Everything else holds.
 

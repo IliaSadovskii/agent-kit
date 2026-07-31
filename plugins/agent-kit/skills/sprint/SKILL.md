@@ -161,11 +161,13 @@ Then loop until no feature is runnable:
 5. **On exit, check the pipeline actually finished, then record the outcome.** Exit code 0 proves the
    process ended, not that the run reached its end — a step read inline can take over the child's
    role, and the turn ends with that step's report. So read the child's run state,
-   `.agent-kit/runs/<branch slug>.yml`, with the branch's `/` and anything else outside
-   `[A-Za-z0-9._-]` replaced by `-`. `done` needs `state: finished` and a PR that exists; any step
-   whose `verdict` is `open` is unsettled, and `blocked` means the run stopped on that step. Read the
-   file, never write it — only the gate writes run state, and both `PreToolUse` hooks will refuse
-   you. If steps are unsettled, nothing is lost and this is not the retry below — resume the child's
+   `.agent-kit/runs/<branch slug>.yml` — the slug is the branch with each run of characters outside
+   `[A-Za-z0-9._-]` collapsed to a single `-` and any leading or trailing `-` dropped. `done` needs
+   `state: finished` and a PR that exists. Read `state:` first and the steps second: a step the
+   child never reached is absent from `steps:` altogether rather than sitting there as `open`, so
+   the step list alone would make a run that stopped after `Test` look complete. `blocked` on a step
+   means the run stopped there. Read the file, never write it — only the gate writes run state, and
+   both `PreToolUse` hooks will refuse you. If steps are unsettled, nothing is lost and this is not the retry below — resume the child's
    own session, which costs seconds where a relaunch costs hours:
 
    ```bash
@@ -183,7 +185,17 @@ Then loop until no feature is runnable:
    `done` with `pr` filled. A rate-limit exit is not a failure: wait for the reset and relaunch
    the same feature. A real failure gets **one informed retry** before it costs anything: reset
    the branch state, relaunch the same feature once with the tail of its `run.log` alongside the
-   spec — a transient failure should not take a stack down. Only after the retry mark it
+   spec — a transient failure should not take a stack down. Resetting the branch means resetting the
+   run too: the failed attempt's state is still on that branch, naming a session that no longer
+   exists and holding terminal verdicts for code the reset threw away, so the relaunched child would
+   run ungated and be refused at its first `step start`. Discard it before relaunching —
+
+   ```bash
+   python3 "$CLAUDE_PLUGIN_ROOT/scripts/gate.py" run reset --reason "retrying <id> after a failure"
+   ```
+
+   — which is the one command the run-state guard allows, because discarding a run closes nothing:
+   every step of the new attempt has to be proven again from nothing. Only after the retry mark it
    `blocked` with a one-line `note` naming the reason; a `blocked` feature blocks its dependents —
    mark them too, with `note: blocked by <id>` — and the loop moves on to the next runnable
    feature instead of stopping.

@@ -53,6 +53,11 @@ SHIPPED_PIPELINES = os.path.join(PLUGIN, "pipelines.default.yml")
 
 BRANCH = "claude/gate-run"
 
+# Two session ids, because a run belongs to the one that opened it: a sprint orchestrator and its
+# headless child share a working tree, and the child checks it out onto its own branch.
+SESSION = "44608e54-ff5f-41b5-9ef6-0ae14aeb96ef"
+OTHER_SESSION = "0f0d9b21-1111-2222-3333-444444444444"
+
 # A failure has to be reproducible from the report alone, so the seeds are fixed and printed.
 SEEDS = (1, 2026073, 17, 424242, 99991, 5, 20260731, 8675309)
 
@@ -326,6 +331,20 @@ class DefinitionTest(unittest.TestCase, GateMixin):
         self.assertEqual(parsed["demo"][3].skippable_when, ["no_remote"])
         self.assertTrue(parsed["demo"][2].optional)
 
+    def test_a_step_that_declares_nothing_gets_the_documented_defaults(self):
+        """What a definition leaves out is what a project writing its own will leave out most.
+
+        One attempt and `block` are the safe end of both: a step that may be retried has to say so,
+        and a run that cannot close a step stops rather than carrying on past it.
+        """
+        step = self.parse("version: 1\npipelines:\n  p:\n    steps:\n      - name: A\n")["p"][0]
+        self.assertEqual(step.max_attempts, 1)
+        self.assertEqual(step.on_exhausted, "block")
+        self.assertEqual(step.checks, [])
+        self.assertEqual(step.requires, [])
+        self.assertFalse(step.optional)
+        self.assertEqual(step.skippable_when, [])
+
     def test_the_unsupported_check_kinds_are_named_rather_than_passed(self):
         """Silently ignoring `approved_by_owner:` would close a step nobody approved."""
         self.assertStructural(one_check("approved_by_owner: the owner said yes"),
@@ -351,6 +370,10 @@ class DefinitionTest(unittest.TestCase, GateMixin):
              "two steps are called"),
             ("version: 1\npipelines:\n  p:\n    steps:\n      - name: A\n        requires:\n"
              "          - Z\n", "names a step that does not come before"),
+            # A list of the right shape carrying the wrong thing: the entry is judged, not just the
+            # container, or a `requires: [7]` would be reported as a missing step instead.
+            ("version: 1\npipelines:\n  p:\n    steps:\n      - name: A\n        requires:\n"
+             "          - 7\n", "`requires` is a list of step names"),
             ("version: 1\npipelines:\n  p:\n    steps:\n      - name: A\n        done_when: nope\n",
              "`done_when` is a list of checks"),
             ("version: 1\npipelines:\n  p:\n    steps:\n      - name: A\n        max_attempts: 0\n",
@@ -359,6 +382,11 @@ class DefinitionTest(unittest.TestCase, GateMixin):
              "`optional` is true or false"),
             ("version: 1\npipelines:\n  p:\n    steps:\n      - name: A\n"
              "        skippable_when: no_remote\n", "`skippable_when` is a list"),
+            # A condition made of spaces is a condition `step skip --reason ""` could never name,
+            # and it would sit in the definition looking like one that works.
+            ("version: 1\npipelines:\n  p:\n    steps:\n      - name: A\n"
+             "        skippable_when:\n          - '   '\n",
+             "`skippable_when` is a list of named conditions"),
             ("version: 1\npipelines:\n  p:\n    steps: []\n", "`steps` is a non-empty list"),
             ("version: 1\npipelines: {}\n", "no pipelines are declared"),
             ("version: 1\npipelines:\n  p:\n    steps:\n      - name: A\n        done_when:\n"
@@ -486,6 +514,21 @@ class CheckTest(unittest.TestCase, GateMixin):
         self.assertLessEqual(len(record["output"]), 1000)
         self.assertLessEqual(len(record["output"]), kit_gate.OUTPUT_TAIL)
 
+    def test_a_failing_run_check_keeps_what_the_command_said_on_stderr(self):
+        """A command that fails says why on stderr far more often than on stdout — a compiler, a
+        test runner, `git` itself. Evidence that kept only stdout would record that something went
+        wrong and not one word about what, and the next attempt would be a guess."""
+        root = self.make_repo()
+        pipes = self.write_pipelines(
+            one_check("run: sh -c \"echo DIAGNOSTIC_ON_STDERR >&2; exit 4\""))
+        done = self.settle(root, pipes)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("DIAGNOSTIC_ON_STDERR", done.stderr,
+                      "the gate reported a failure without saying what the command said")
+        record = self.step(root, "Only")["history"][-1]
+        self.assertEqual(record["exit"], 4)
+        self.assertIn("DIAGNOSTIC_ON_STDERR", record["output"])
+
     def test_a_run_check_the_never_rules_cover_is_refused_without_running(self):
         """Stage 4 hands the definition file to the project; a smuggled never-rule must not run."""
         root = self.make_repo()
@@ -514,14 +557,31 @@ class CheckTest(unittest.TestCase, GateMixin):
         self.assertEqual(missing.returncode, 1)
         self.assertIn("no file matches", missing.stderr)
 
+    def test_exists_reads_a_recursive_glob(self):
+        """`**` is how a definition names a file whose directory it cannot know — a plan under
+        `docs/plans/<year>/`, a test anywhere under `tests/`. Read without the recursive flag it
+        quietly means one level down, and a step closes or hangs on where a file happens to sit."""
+        root = self.make_repo()
+        self.write(root, "docs/deep/nested/notes.md", "# Notes\n")
+        pipes = self.write_pipelines(one_check("exists: docs/**/*.md"))
+        self.assertOk(self.settle(root, pipes))
+        self.assertIn("docs/deep/nested/notes.md",
+                      str(self.step(root, "Only")["evidence"][0]["output"]))
+
     def test_exists_refuses_a_path_that_leaves_the_project(self):
-        """A definition is repository content; a glob out of the tree would answer about elsewhere."""
+        """A definition is repository content; a glob out of the tree would answer about elsewhere.
+
+        Refused when the definition is *read*, not when the check runs: stage 4 hands this file to
+        the project, and a glob nobody can run should be heard about at the first `step start`
+        rather than three steps later, mid-run, as an exit 2 from a step that looked fine.
+        """
         for pattern in ("/etc/*", "../*.md", "docs/../../*.md"):
             with self.subTest(pattern=pattern):
                 root = self.make_repo()
                 pipes = self.write_pipelines(one_check(f"exists: {pattern}"))
-                self.assertRefused(self.settle(root, pipes), "must be a path inside the project",
-                                   code=2)
+                self.assertRefused(
+                    self.gate(root, pipes, "step", "start", "Only", "--pipeline", "probe"),
+                    "must be a path inside the project", code=2)
 
     def test_tree_clean_reads_the_working_tree(self):
         root = self.make_repo()
@@ -595,6 +655,27 @@ class CheckTest(unittest.TestCase, GateMixin):
         self.assertEqual(behind.returncode, 1)
         self.assertIn("1 commit(s) not on", behind.stderr)
 
+    def test_a_git_check_fails_when_git_cannot_answer(self):
+        """Silence from git is not evidence of work done.
+
+        Every `git:` check reads a command's stdout and gets "" when the command failed — no
+        repository, a broken ref, a rebase mid-flight. A count that cannot be read has to fail the
+        step: reading it as "one commit" would close Build on a run that produced nothing, and the
+        gate's whole job is to be the thing that does not do that.
+        """
+        nowhere = tempfile.mkdtemp(prefix="kit-not-a-repo-")
+        self.addCleanup(shutil.rmtree, nowhere, True)
+        self.assertNotEqual(subprocess.run(["git", "rev-parse", "HEAD"], cwd=nowhere,
+                                           capture_output=True).returncode, 0,
+                            "the fixture directory turned out to be inside a git repository")
+
+        made = kit_gate.run_check(nowhere, "git", "commits_on_branch", {"opened_at_commit": ""})
+        self.assertFalse(made.passed, made.output)
+        self.assertIn("0 commit(s)", made.output)
+
+        pushed = kit_gate.run_check(nowhere, "git", "pushed", {})
+        self.assertFalse(pushed.passed, pushed.output)
+
     def has_branch(self, root, name):
         done = subprocess.run(["git", "rev-parse", "--verify", "--quiet", name], cwd=root,
                               capture_output=True, text=True)
@@ -647,7 +728,9 @@ class StartTest(unittest.TestCase, GateMixin):
         self.assertIn("--evidence", opened.stdout)
         self.assertOk(self.gate(root, pipes, "step", "settle", "Design", "--evidence", "designed"))
         build = self.assertOk(self.gate(root, pipes, "step", "start", "Build"))
-        self.assertIn("run: exit 0", build.stdout)
+        # The criteria are a numbered list the agent answers item by item, so it starts where a
+        # person counting would start.
+        self.assertIn("1. run: exit 0", build.stdout)
         self.assertIn("attempt limit 2", build.stdout)
 
     def test_one_run_is_one_pipeline(self):
@@ -829,6 +912,10 @@ class RunStateTest(unittest.TestCase, GateMixin):
         root, pipes = self.project()
         self.open_run(root, pipes)
         document = self.document(root)
+        # `version` is the file's own format marker, and the one field a later release reads before
+        # it trusts anything else in here. A run written under the wrong number is a run a future
+        # gate has to guess about.
+        self.assertEqual(document["version"], 1)
         self.assertEqual(document["branch"], BRANCH)
         self.assertEqual(document["pipeline"], "demo")
         self.assertEqual(document["state"], kit_gate.RUN_OPEN)
@@ -914,12 +1001,32 @@ class RunStateTest(unittest.TestCase, GateMixin):
         self.assertFalse(os.path.exists(os.path.join(elsewhere, "stolen.yml")))
 
     def test_unreadable_state_is_named_rather_than_guessed_at(self):
-        root, pipes = self.project()
-        self.open_run(root, pipes)
-        with open(self.state_file(root), "w", encoding="utf-8") as handle:
-            handle.write("steps:\n  - name: Design\n     verdict: attested\n")
-        self.assertRefused(self.gate(root, pipes, "step", "settle", "Design", "--evidence", "x"),
-                           "run state", code=2)
+        """A file at this path that is not a run is said out loud, never handed back as one.
+
+        Everything downstream — the CLI, the Stop hook, the summary — reads `steps` the moment it
+        has a state document. A mapping that merely parses would be taken for a run and then crash
+        somewhere with no name on it, which is the one thing the gate's exit codes exist to avoid:
+        2 means this file cannot be read, and the agent is told rather than left guessing.
+        """
+        cases = [
+            ("a document outside the kit's YAML subset",
+             "steps:\n  - name: Design\n     verdict: attested\n",
+             "not readable as the kit's YAML subset"),
+            ("a mapping for this branch with no steps at all",
+             f"version: 1\nbranch: {BRANCH}\npipeline: demo\n", "is not a run state file"),
+            ("a mapping whose steps are not a list",
+             f"version: 1\nbranch: {BRANCH}\npipeline: demo\nsteps: none yet\n",
+             "is not a run state file"),
+        ]
+        for label, text, fragment in cases:
+            with self.subTest(case=label):
+                root, pipes = self.project()
+                self.open_run(root, pipes)
+                with open(self.state_file(root), "w", encoding="utf-8") as handle:
+                    handle.write(text)
+                self.assertRefused(
+                    self.gate(root, pipes, "step", "settle", "Design", "--evidence", "x"),
+                    fragment, code=2)
 
     def test_the_gate_reads_the_project_directory_the_hooks_hand_it(self):
         """`CLAUDE_PROJECT_DIR` is what a hook or a skill passes; cwd is only the fallback."""
@@ -929,6 +1036,40 @@ class RunStateTest(unittest.TestCase, GateMixin):
         self.addCleanup(shutil.rmtree, elsewhere, True)
         done = self.assertOk(self.gate(root, pipes, "state", cwd=elsewhere))
         self.assertIn(BRANCH, done.stdout)
+
+
+class RunOwnerTest(unittest.TestCase):
+    """Whose run this is — the rule that keeps a sprint orchestrator out of its own child's pipeline.
+
+    `owned_by` is three clauses and every one of them is load-bearing in a different direction, so
+    the whole truth table is here rather than one happy row. The Stop hook is the only caller, and
+    it can fail in both directions: holding a session that has nothing to do with the run demands,
+    every turn, the exact action the sprint contract forbids; letting go of a session that does own
+    it silently drops the only guard on step order.
+    """
+
+    def owned(self, owner, session):
+        return kit_gate.owned_by({"session": owner}, session)
+
+    def test_a_run_with_no_owner_holds_any_session(self):
+        """Unset is legal and means "held for whoever is here", which is a repository with one
+        session in it — every project that is not mid-sprint behaves as it did before the gate."""
+        self.assertTrue(self.owned(None, SESSION))
+        self.assertTrue(self.owned(None, None))
+        self.assertTrue(self.owned("", SESSION))
+        self.assertTrue(kit_gate.owned_by({}, SESSION), "a state file with no `session:` at all")
+
+    def test_an_owned_run_holds_its_owner_and_nobody_else(self):
+        self.assertTrue(self.owned(SESSION, SESSION))
+        self.assertFalse(self.owned(SESSION, OTHER_SESSION),
+                         "the orchestrator would be held for its child's run")
+
+    def test_an_owned_run_still_holds_a_session_that_cannot_name_itself(self):
+        """A hook event without a `session_id` is unattributable, and the safe reading of an
+        unattributable session is that it might be the owner: a guard that lets go on a missing
+        field is a guard that any missing field turns off."""
+        self.assertTrue(self.owned(SESSION, None))
+        self.assertTrue(self.owned(SESSION, ""))
 
 
 # ----------------------------------------------------------------------------------------------

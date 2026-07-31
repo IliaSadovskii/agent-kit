@@ -5,6 +5,7 @@
     gate.py step settle <Name> [--evidence "…"]    runs done_when and WRITES the verdict
     gate.py step skip   <Name> --reason <named>    only a condition the definition names
     gate.py state                                  the branch's run, or nothing at all
+    gate.py run reset   --reason "<why>"           discard this branch's run entirely
 
 The agent asks; the gate answers. It cannot write the answer itself — two `PreToolUse` hooks refuse
 every path into `.agent-kit/runs/**` that is not this script.
@@ -22,6 +23,10 @@ import sys
 import kit_gate
 
 USAGE = __doc__.strip()
+
+# Evidence is free text the agent wrote. The summary quotes it so a resumed session knows what was
+# claimed, and keeps it short so it cannot become a document.
+EVIDENCE_IN_SUMMARY = 120
 
 
 def fail(message, code=2):
@@ -229,6 +234,34 @@ def cmd_skip(root, name, reason):
     return 0
 
 
+def cmd_reset(root, reason):
+    """Discard this branch's run. Not a way to close a step — a way to stop having one.
+
+    A run that was abandoned, or whose branch was reset under it, otherwise nudges every turn for
+    ever and refuses to reopen its terminal verdicts. Deleting the file by hand is refused, and
+    rightly: `sprint`'s own retry path relaunches a feature on a branch that still carries the
+    previous attempt's state, and it has no human to ask.
+
+    This grants nothing the design did not already allow. No state file means no run, exactly as in
+    a repository that never ran a pipeline; what it cannot do is mark anything done. Every step of
+    a reset run has to be proven again from nothing.
+    """
+    if not (reason or "").strip():
+        return fail("`run reset` needs `--reason \"<why>\"` — discarding a run is a decision, and "
+                    "it is the only record of it", code=1)
+    branch = _branch(root)
+    state = kit_gate.load_state(root, branch)
+    if state is None:
+        return fail(f"there is no run on {branch} to discard", code=1)
+    settled = [f"{s['name']}={s.get('verdict')}" for s in state["steps"]
+               if s.get("verdict") in kit_gate.TERMINAL]
+    kit_gate.discard_state(root, branch)
+    print(f"run on {branch} discarded: {reason.strip()}")
+    print("verdicts thrown away: " + (", ".join(settled) or "none"))
+    print("every step has to be proven again from nothing — say so in the Run log.")
+    return 0
+
+
 def summary(root):
     """The run's own account of where it stands, or "" when there is no run on this branch."""
     branch = kit_gate.branch_of(root)
@@ -251,7 +284,7 @@ def summary(root):
         verdict = entry.get("verdict") or kit_gate.OPEN
         detail = entry.get("reason") or (entry.get("evidence")
                                          if isinstance(entry.get("evidence"), str) else "")
-        lines.append(f"- {step.name} — {verdict}" + (f": {detail}" if detail else ""))
+        lines.append(f"- {step.name} — {verdict}" + (f": {_quote(detail)}" if detail else ""))
         if open_step is None and verdict not in kit_gate.TERMINAL:
             open_step = (step, entry)
 
@@ -266,6 +299,20 @@ def summary(root):
     if len(text) > kit_gate.STATE_CAP:
         text = text[:kit_gate.STATE_CAP - 40].rstrip() + "\n… (state truncated)\n"
     return text
+
+
+def _quote(text):
+    """One line of somebody's free text, marked as a record rather than as a sentence to obey.
+
+    This lands in the next session's context through the SessionStart hook, on every start, resume,
+    clear and compact of the branch — which makes it the most durable writing surface in the run,
+    in the most trusted voice in the window. A multi-line evidence string could otherwise open with
+    a blank line and a heading of its own and read as the kit's own governance.
+    """
+    flat = " ".join(str(text).split())
+    if len(flat) > EVIDENCE_IN_SUMMARY:
+        flat = flat[:EVIDENCE_IN_SUMMARY - 1].rstrip() + "…"
+    return f"[recorded by the agent: {flat}]"
 
 
 def cmd_state(root):
@@ -308,6 +355,8 @@ def main(argv):
         root = _root()
         if positional[0] == "state":
             return cmd_state(root)
+        if positional[:2] == ["run", "reset"]:
+            return cmd_reset(root, options.get("reason"))
         if positional[0] != "step" or len(positional) < 3:
             print(USAGE, file=sys.stderr)
             return 2

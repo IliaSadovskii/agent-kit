@@ -31,6 +31,16 @@ DENY = "deny"
 # rule exists to refuse.
 RUNS_DIR = os.path.join(".agent-kit", "runs")
 
+RUN_STATE_REASON = (
+    "agent-kit: `.agent-kit/runs/` is the step gate's run state, and only the gate writes it — a "
+    "step the agent could close by hand is not a gate. Ask the gate instead: `step start`, "
+    "`step settle`, `step skip`. To read state, use the Read tool. If this run was abandoned and "
+    "its state is in the way, `gate.py run reset --reason \"<why>\"` discards it — every step then "
+    "has to be proven again from nothing, which is the point.\n\n"
+    "This rule is deliberately blunt, and it is a cost, not a cage: a shell has more spellings than "
+    "any text rule can model. It is here so that closing a step by hand takes a decision rather "
+    "than a slip.")
+
 
 class Refusal:
     """Why the kit will not run a command, and how hard it says so."""
@@ -62,8 +72,26 @@ def git(*args):
 
 
 def names_run_state(text):
-    """Whether a path or a command mentions the gate's run-state directory, either separator."""
-    return RUNS_DIR in text or RUNS_DIR.replace(os.sep, "/") in text
+    """Whether a word names the gate's run-state directory, however it is spelled.
+
+    Normalised first, because `.agent-kit//runs/x.yml` and `.agent-kit/./runs/x.yml` are the same
+    file to the kernel and a different string to a substring test — which is how a blunt rule ends
+    up not covering the blunt case.
+    """
+    if not isinstance(text, str) or not text:
+        return False
+    normalised = os.path.normpath(text.replace("\\", "/"))
+    return any(marker in candidate
+               for candidate in (text, normalised)
+               for marker in (RUNS_DIR, RUNS_DIR.replace(os.sep, "/")))
+
+
+def names_kit_corner(text):
+    """Whether a word names `.agent-kit` itself — the directory the run state lives in."""
+    if not isinstance(text, str) or not text:
+        return False
+    parts = os.path.normpath(text.replace("\\", "/")).split("/")
+    return ".agent-kit" in parts
 
 
 def refusal(command):
@@ -72,23 +100,38 @@ def refusal(command):
     Judge each pipeline segment on its own words, so `git push` inside a quoted string or an
     unrelated command never triggers.
     """
-    for segment in re.split(r"\|\||&&|;|\|", command):
+    # Newlines and a bare `&` separate commands as surely as `&&` does, and a leading `(` or `{`
+    # opens a group whose first word is still the command. Missing any of them puts the real
+    # command at `words[1]`, where nothing below looks — `echo hi\ngit push --force` used to pass.
+    for segment in re.split(r"\|\||&&|[;&\n]|\|", command):
         try:
             words = shlex.split(segment)
         except ValueError:
             words = segment.split()
+        if words:
+            words[0] = words[0].lstrip("({")
+            if not words[0]:
+                words.pop(0)
+
+        # Before the environment-assignment strip below, not after: `D=.agent-kit/runs` is exactly
+        # the word this rule exists to catch, and stripping it first threw it away unexamined.
+        if any(names_run_state(word) for word in words):
+            return Refusal(DENY, RUN_STATE_REASON)
+
+        # `cd .agent-kit && cd runs && printf … > x.yml` names the directory in no single word.
+        # Nothing a pipeline legitimately does starts by stepping into the kit's own corner, and
+        # nothing legitimately deletes or moves it — which is the other way to silence the gate,
+        # since no state file means no run.
+        if words and words[0] in ("cd", "pushd") and any(names_kit_corner(w) for w in words[1:]):
+            return Refusal(DENY, RUN_STATE_REASON)
+        if words and words[0] in ("rm", "rmdir", "mv", "shred") \
+                and any(names_kit_corner(w) for w in words[1:]):
+            return Refusal(DENY, RUN_STATE_REASON)
+
         while words and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", words[0]):
             words.pop(0)
         if not words:
             continue
-
-        if any(names_run_state(word) for word in words):
-            return Refusal(DENY, (
-                "agent-kit: `.agent-kit/runs/` is the step gate's run state, and only the gate "
-                "writes it — a step the agent could close by hand is not a gate. Ask the gate "
-                "instead: `step start`, `step settle`, `step skip`. To read state, use the Read "
-                "tool. If a run was abandoned and its state is in your way, the file is yours to "
-                "delete by hand — not the agent's."))
 
         if words[:3] == ["gh", "pr", "merge"]:
             return Refusal(ASK, "agent-kit: the kit never merges pull requests — the owner merges. "

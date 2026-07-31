@@ -10,6 +10,7 @@ refused, and the decision is `deny` — a headless run has nobody to answer an `
 child is worse than a refused write.
 """
 import json
+import os
 import sys
 
 import guard
@@ -27,13 +28,33 @@ def target(tool_input):
     return ""
 
 
+def refuses(path, cwd):
+    """Whether this write lands in the gate's run state, however the path is spelled.
+
+    Resolved against the session's directory and through `realpath`, so `.agent-kit//runs/x.yml`,
+    `./.agent-kit/runs/x.yml`, a path relative to somewhere else, and a symlinked parent all come
+    down to the same answer. The raw text is judged too, because a path that names the directory
+    but does not exist yet has nothing for `realpath` to resolve.
+    """
+    if not path:
+        return False
+    if guard.names_run_state(path):
+        return True
+    try:
+        resolved = os.path.realpath(os.path.join(cwd or os.getcwd(), path))
+    except (OSError, ValueError):
+        return False
+    return guard.names_run_state(resolved)
+
+
 if __name__ == "__main__":
     try:
         event = json.load(sys.stdin)
         path = target(event.get("tool_input") or {})
+        where = event.get("cwd") or os.getcwd()
     except Exception:                                    # noqa: BLE001 - a wedged hook is worse
         sys.exit(0)
-    if path and guard.names_run_state(path):
+    if refuses(path, where):
         guard.decide(guard.DENY, (
             f"agent-kit: {path} is the step gate's run state, and only the gate writes it — a step "
             "the agent could close by hand is not a gate. Ask the gate instead: `step start`, "

@@ -343,8 +343,19 @@ def _render_scalar(value, where):
         # A `#` after a `"` inside a double-quoted scalar reads as a comment, because the reader
         # cannot tell the escaped quote from a closing one. Single quotes have no escapes to be
         # confused by, so they are tried before double.
+        #
+        # Single quotes are tried, not trusted: `it's a # problem` doubles the apostrophe, and the
+        # reader closes the scalar on the second one, so the `#` after it opens a comment and the
+        # rest of the value disappears. `dump`'s round-trip proof would then refuse the whole
+        # document — and for the step gate that is a step which can never be settled and a turn the
+        # Stop hook holds for ever. Fall back rather than fail.
         if "\n" not in value and "\r" not in value and "\t" not in value:
-            return _quoted(value, "'")
+            single = _quoted(value, "'")
+            try:
+                if _scalar(_strip_comment(single).rstrip(), 0) == value:
+                    return single
+            except KitYamlError:
+                pass
         return _quoted(value, '"')
     raise KitYamlError(f"{where}: {type(value).__name__} is outside the subset", 0)
 
