@@ -196,3 +196,9 @@ feature adds a command and a template and asks nothing of an owner who already i
   the `deliver` stage's Docs step; this stage did not touch `docs/developing.md`, so the
   `architecture_stance` and `verification` slot revs recorded in task 5 are still current, which is
   why `scripts/validate.sh`'s new contract-check step passes clean rather than stale.
+
+- step PR — done: [#18](https://github.com/IliaSadovskii/agent-kit/pull/18), opened **ready** (not
+  draft) against `claude/command-cleanup`, description in Russian per `manifest.language`, first
+  line naming the sprint and the base. The draft conversion belongs to the `deliver` stage, not this
+  one. Carries the bootstrap warning the Gate recorded, the Assumptions table, and `None.` for
+  manual actions.
