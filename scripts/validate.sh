@@ -218,7 +218,7 @@ step "internal references resolve"
 while IFS= read -r ref; do
   target="$PLUGIN/${ref}"
   [ -e "$target" ] || fail "dangling reference: \${CLAUDE_PLUGIN_ROOT}/$ref"
-done < <(grep -rhoE '\$\{CLAUDE_PLUGIN_ROOT\}/[A-Za-z0-9_./-]+' "$PLUGIN" \
+done < <(grep -rhoE --exclude-dir=__pycache__ '\$\{CLAUDE_PLUGIN_ROOT\}/[A-Za-z0-9_./-]+' "$PLUGIN" \
            | sed 's|${CLAUDE_PLUGIN_ROOT}/||' | sed 's|[.,)]*$||' | sort -u)
 
 # Skills take document paths only from the project manifest, so every `sources.<key>` the payload

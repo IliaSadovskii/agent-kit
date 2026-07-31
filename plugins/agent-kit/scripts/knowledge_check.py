@@ -33,6 +33,12 @@ TERMINAL_STATUSES = ("filled", "not_applicable", "open_question")
 VERIFICATION_TIMEOUT = 300
 
 
+def _template_path():
+    """The shipped template, as a path the reader can actually open."""
+    plugin_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(plugin_root, "templates", "project", "contract.yml")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default=".", help="project root (default: .)")
@@ -52,7 +58,7 @@ def main(argv=None):
         print("✗ contract")
         print("  no contract at {}".format(contract_path))
         print("  start one by copying the kit's template:")
-        print("    ${CLAUDE_PLUGIN_ROOT}/templates/project/contract.yml")
+        print("    {}".format(_template_path()))
         print("    → .agent-kit/knowledge/contract.yml")
         return 2
     except (OSError, UnicodeDecodeError) as exc:
@@ -91,11 +97,7 @@ def main(argv=None):
         _check_item(name, item, root, findings, structural)
 
     verification = slots.get("verification")
-    if (
-        isinstance(verification, dict)
-        and verification.get("status") in TERMINAL_STATUSES
-        and not args.skip_verification
-    ):
+    if isinstance(verification, dict) and not args.skip_verification:
         _check_verification(verification, root, structural)
 
     _report(slots, collections, findings, structural)
@@ -119,7 +121,12 @@ def _check_item(name, item, root, findings, structural):
         findings.append((name, "status is not_applicable with no reason recorded"))
 
     source = item.get("source")
-    if status == "filled" and not source and not item.get("commands"):
+    # `sources` is the collections' plural form of the same binding — stage 1
+    # carries their globs without resolving them, but a collection backed by
+    # globs is still backed by something.
+    if status == "filled" and not any(
+        item.get(key) for key in ("source", "sources", "commands")
+    ):
         findings.append(
             (name, "status is filled but nothing backs it — no source and no commands")
         )
@@ -154,7 +161,13 @@ def _check_item(name, item, root, findings, structural):
         return
 
     current_rev = kit_markdown.rev(body)
+    # str(): a rev is 12 hex digits, and roughly one in 275 of those is all
+    # decimal digits, which any YAML reader hands back as a number. Comparing
+    # that to the hash string is always unequal, and the slot is stranded
+    # stale with a message showing two identical-looking values.
     stored_rev = item.get("rev")
+    if stored_rev is not None and not isinstance(stored_rev, str):
+        stored_rev = str(stored_rev)
     if not stored_rev:
         # The current hash is printed so a fresh binding can be completed by
         # copying it; there is no --resolve until stage 5.

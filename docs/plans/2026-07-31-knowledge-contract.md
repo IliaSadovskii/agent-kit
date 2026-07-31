@@ -65,7 +65,9 @@ as needing a verdict and exits `1`; the reader in task 1 parses it.
 - `verification` — `filled`, bound to `docs/developing.md#Testing a change`,
   `commands: [scripts/validate.sh]`;
 - `architecture_stance` — `filled`, bound to `docs/developing.md#Repository layout`;
-- `deferred_seams` — `filled`, bound to `docs/design/knowledge-and-gates.md#9. Order of work`;
+- `deferred_seams` — planned as `filled` bound to
+  `docs/design/knowledge-and-gates.md#9. Order of work`; the Review step turned it into an
+  `open_question` (see the Run log);
 - `north_star` — `open_question` with the reason from the spec's Run expansion;
 - `mvp_bounds`, `scenarios` and all five collections — `not_applicable`, each with a reason that
   says why a plugin has no such thing. Nothing is invented to fill a slot.
@@ -202,3 +204,53 @@ feature adds a command and a template and asks nothing of an owner who already i
   line naming the sprint and the base. The draft conversion belongs to the `deliver` stage, not this
   one. Carries the bootstrap warning the Gate recorded, the Assumptions table, and `None.` for
   manual actions.
+- step Review — done: one wave over the frozen diff, then one fix round.
+  - **Wave.** `agent-kit:reviewer` against the spec, the plan, `docs/developing.md`, the batch
+    orientation and `upstream.md`, diffed against `claude/command-cleanup` and told the
+    `code-review` plugin was running alongside it — 5 major, 8 minor, 1 low. The `code-review`
+    plugin on [#18](https://github.com/IliaSadovskii/agent-kit/pull/18): five reviewers plus
+    confidence scoring, 3 findings above its bar, posted as a PR comment. `/security-review`: two
+    candidates raised, **both refuted** on verification and none reported — running the project's
+    own declared test command is this feature's approved purpose and the same trust boundary as
+    running `make` from a checkout, and CI never executes contract commands because
+    `scripts/validate.sh` passes `--skip-verification`; the `source` traversal grants strictly less
+    than the contract already offers by design. That pass still earned its place: it is where the
+    `UnicodeDecodeError` crash was found.
+  - **Reconciled.** Three findings said the same thing about stale command-count prose and merged.
+    Collection `sources` resolution was raised twice as a defect; it is stage 2's work by the spec,
+    so the docstring that overclaimed it was corrected rather than the behaviour.
+  - **Fixed.** Parser and resolver correctness: all-digit `rev` values (both the leading-zero read
+    and, after the second reviewer pass, the far likelier plain all-digit case, now coerced at the
+    comparison so no reader change can strand a slot); one-pass unescaping that names an
+    out-of-subset escape instead of guessing; fence closing by character and length, so a nested
+    example no longer splits a section. Structural failures that were tracebacks or exit 1 now exit
+    2 — `slots` that is not a mapping, and a source file or contract that is not UTF-8. A project
+    with no contract is told which template to copy, by resolved path; a bound slot with no `rev` is
+    told the current one, which is the only way to complete a fresh binding before `--resolve`
+    exists. `blueprint/SKILL.md` pointed at a source-tree path that does not exist in an installed
+    project — now `${CLAUDE_PLUGIN_ROOT}/templates/project/contract.yml`. Stale prose in `README.md`,
+    `CHANGELOG.md` and the contract's own header comment. Coverage: the template test now runs
+    against the shipped file (the byte-copy fixture is deleted), and the round-trip test asserts its
+    four files exist rather than filtering to whichever survive.
+  - **Deviation taken.** `deferred_seams` moves from `filled` to `open_question`. Section 9 of the
+    design is the stage order of one batch, not this repository's deferred seams with the decision
+    that keeps each cheap later, and stages 3–7 edit that document — the slot would report stale on
+    work that never touched what it claims to describe. The spec is emphatic that nothing is
+    invented to make a slot look full, so the honest verdict is the open question. `--check` still
+    exits 0.
+  - **Second reviewer pass** over the fix diff, because the fix round changed structure: it found
+    the `_INT_RE` fix closed only a tenth of its bug, a false positive the new "filled but nothing
+    backs it" check raised against collections' plural `sources`, and that gating
+    `verification.commands` on a terminal status was scope creep — the spec and plan both run them
+    unconditionally, and the gate silently changed a failing command under an unsettled slot from
+    exit 2 to exit 1. All three closed; the gate was reverted rather than half-applied.
+  - **Deliberately deferred, not fixed.** Collection `sources` globs are not resolved (stage 2).
+    `source` paths are not contained to the project root — refuted as a vulnerability, worth
+    hardening whenever stage 6 puts `--check` in front of other commands. `manifest.sources.*` and
+    the contract's slots are two registries with no cross-check between them (stage 2). `validate.sh`
+    runs `python3` without the `command -v` guard its `node` and `shellcheck` steps have — deliberate,
+    since the kit's hooks require `python3` and a named skip would hide a real breakage.
+  - **Suite after the fixes:** `scripts/validate.sh` → exit 0, 58 Python tests. Every new test was
+    run against the code it describes and seen to fail first — 11 against the pre-review commit and
+    2 against the first fix commit — and deleting the shipped template now fails two tests where it
+    previously failed none.

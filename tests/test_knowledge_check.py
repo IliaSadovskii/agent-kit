@@ -192,22 +192,52 @@ class KnowledgeCheckTests(unittest.TestCase):
         ) as root:
             self.assertEqual(run_root(root, ["--skip-verification"])[0], 0)
 
-    def test_commands_of_an_unsettled_slot_do_not_run(self):
-        marker = os.path.join(tempfile.gettempdir(), "kit_unsettled_marker")
-        if os.path.exists(marker):
-            os.remove(marker)
+    def test_all_digit_rev_still_matches_its_section(self):
+        # A rev of 12 decimal digits is what any YAML reader hands back as a
+        # number; compared to the hash string it would never match, and the
+        # slot would be stranded stale showing two identical-looking values.
+        body = "# Testing\n\nbody 179\n"
+        digits = "634861681669"
+        self.assertEqual(
+            knowledge_check.kit_markdown.rev(
+                knowledge_check.kit_markdown.section(body, "Testing")[2]
+            ),
+            digits,
+            "the fixture body no longer hashes to an all-decimal-digit rev",
+        )
+
         contract = (
             "version: 1\n"
             "slots:\n"
-            "  verification:\n"
-            "    status: empty\n"
-            "    commands:\n"
-            '      - "touch {}"\n'.format(marker)
+            "  architecture_stance:\n"
+            "    status: filled\n"
+            "    source: docs/GUIDE.md#Testing\n"
+            "    rev: {}\n".format(digits)
+        )
+        with project(contract=contract, files={"docs/GUIDE.md": body}) as root:
+            code, output = run_root(root, ["--skip-verification"])
+        self.assertEqual(code, 0, output)
+
+    def test_collection_filled_with_globs_is_not_a_finding(self):
+        # Collections carry `sources` globs in stage 1 — plural, unresolved,
+        # but still something backing the verdict.
+        contract = (
+            "version: 1\n"
+            "collections:\n"
+            "  actors:\n"
+            "    status: filled\n"
+            "    sources:\n"
+            "      - docs/actors/*.md\n"
         )
         with project(contract=contract) as root:
-            code, _output = run_root(root)
-        self.assertEqual(code, 1)
-        self.assertFalse(os.path.exists(marker))
+            code, output = run_root(root, ["--skip-verification"])
+        self.assertEqual(code, 0, output)
+
+    def test_contract_that_is_not_utf8_is_structural(self):
+        with project(contract=b"\xff\xfeversion: 1\n") as root:
+            code, output = run_root(root, ["--skip-verification"])
+        self.assertEqual(code, 2)
+        self.assertIn("cannot read", output)
 
     def test_repository_contract_is_clean(self):
         out = io.StringIO()

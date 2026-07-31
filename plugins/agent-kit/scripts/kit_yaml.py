@@ -172,11 +172,9 @@ def _unescape_double(text, path, line_no):
             out.append(ch)
             i += 1
             continue
+        # A trailing lone backslash cannot reach here: the scalar regex only
+        # accepts a backslash paired with a following character.
         i += 1
-        if i >= len(text):
-            raise KitYamlError(
-                "double-quoted scalar ends with a lone backslash", path, line_no
-            )
         escape = text[i]
         if escape not in _ESCAPES:
             raise KitYamlError(
