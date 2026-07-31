@@ -67,7 +67,7 @@ each of the three commands. `VERSION`, `plugin.json`, `marketplace.json` are not
 ## Run log
 
 **Branch:** claude/command-cleanup
-**Steps:** Build, Test
+**Steps:** PR, Review
 
 - step Gate — done: technical setup present (`.agent-kit/project/manifest.yml`, `language: ru`,
   `coding_standards: docs/developing.md`); no project interview run and no `instructions.md`
