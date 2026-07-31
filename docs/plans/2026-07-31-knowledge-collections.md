@@ -195,3 +195,24 @@ the documents that changed.
   (`BrokenBindingTest`, `ScreenReachabilityTest`, `NamedScreenMapTest`, `EntryQuotingTest`), and
   five targeted mutations over the changed lines were all killed. `scripts/validate.sh` green
   again: 91 + 78 + 63 + 11 checks.
+- security — `/security-review` over the branch, then read against the layer's own threat model:
+  the contract, the index, the manifest and every document are content of a repository the developer
+  may not control. Two findings, both real, both fixed.
+- security — (1) **arbitrary file write.** `write_index` joined `.agent-kit/knowledge/index.yml`
+  onto the root and opened it for writing. Git checks a symlink out like any other file, so a pull
+  request could leave one there and `--index` would write the derived index straight through it —
+  creating or truncating a file in the developer's home directory. The kit's own paths now go
+  through `kit_owned()`, which refuses a symlink outright and re-checks containment; `contract.yml`
+  and the manifest go through it too, since this feature made the first of them writable.
+  (2) **an entry could read anything in the repository.** `at` was containment-checked and nothing
+  more, and `--plan` prints the section it names as the grader's payload — so a contract arriving in
+  a pull request could bind an entry to a `.env` the developer has locally and read it out through
+  the model. An entry must now live in a document its own collection's `sources` name.
+- security — the second fix does not make a hostile contract safe, and the spec says so: whoever
+  writes the entries writes the `sources`. What it does is move the hostile line into the one block
+  a reviewer reads. The skill's trust-boundary section now covers bindings as well as commands, and
+  tells the reader to look at `sources` before running anything on a repository they do not control.
+- security — eight new checks in `tests/test_kit_knowledge.py` (`KitOwnedPathTest`,
+  `SourceConfinementTest`), including one asserting the secret never reaches `--plan`'s output at
+  all; both fixes' mutations were killed. `scripts/validate.sh` green: 99 + 78 + 63 + 11.
+- step Security — done.

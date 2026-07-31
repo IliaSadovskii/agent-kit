@@ -13,6 +13,7 @@ A binding is stage 1's `path#…` grammar with one addition: a fragment beginnin
 anchor — `<!-- kit: <key> -->` on its own line — and anything else is a heading's literal text. The
 anchor survives a heading rename, which is the whole reason it exists.
 """
+import glob
 import hashlib
 import os
 import re
@@ -82,6 +83,27 @@ def inside(root, path):
     resolved = os.path.realpath(os.path.join(root, path))
     base = os.path.realpath(root)
     return resolved if os.path.commonpath([resolved, base]) == base else None
+
+
+def kit_owned(root, relative):
+    """The absolute path of a file the kit itself reads and writes. Raises SectionError.
+
+    `inside()` keeps a *binding* from leaving the project, and these are not bindings — they are
+    fixed names, and a symlink at one of them is never something a project needs. Git checks
+    symlinks out, so `.agent-kit/knowledge/index.yml` can arrive in a pull request pointing at a
+    file in the developer's home directory, and the next `--index` would write the derived index
+    straight through it. A link that stays inside the project is refused for the same reason: the
+    kit owns these paths, and following one is never the behaviour anybody wanted.
+    """
+    path = os.path.join(root, relative)
+    if os.path.islink(path):
+        raise SectionError(f"{relative} is a symlink — the kit's own files are files, and "
+                           "following one would read or write somewhere nobody asked for",
+                           structural=True)
+    full = inside(root, relative)
+    if full is None:
+        raise SectionError(f"{relative} resolves outside the project", structural=True)
+    return full
 
 
 def _unfenced(text):
@@ -215,14 +237,20 @@ def split_binding(at):
     return path, "heading", fragment
 
 
-def read_document(root, path):
-    """The text of a document a binding names. Raises SectionError with the reason it cannot be."""
+def locate_document(root, path):
+    """The absolute path of a document a binding names, or SectionError saying why there is none."""
     full = inside(root, path)
     if full is None:
         raise SectionError("binding points outside the project; it names a document in this "
                            "repository", structural=True)
     if not os.path.isfile(full):
         raise SectionError(f"source file is gone: {path}", structural=True)
+    return full
+
+
+def read_document(root, path):
+    """The text of a document a binding names. Raises SectionError with the reason it cannot be."""
+    full = locate_document(root, path)
     try:
         with open(full, encoding="utf-8") as handle:
             return handle.read()
@@ -245,6 +273,31 @@ def resolve(root, at, text=None):
                 break
     return {"path": path, "kind": kind, "target": target,
             "line": None if line is None else line + 1, "body": body, "rev": rev_of(body)}
+
+
+def collection_sources(contract):
+    """{collection: [glob, …]} — the documents each collection says its entries live in."""
+    found = {}
+    collections = contract.get("collections") or {}
+    if not isinstance(collections, dict):
+        return found
+    for name in COLLECTION_SLOTS:
+        slot = collections.get(name)
+        if isinstance(slot, dict) and isinstance(slot.get("sources"), list):
+            found[name] = [str(pattern) for pattern in slot["sources"] if str(pattern).strip()]
+    return found
+
+
+def documents_matching(root, patterns):
+    """The documents a collection's `sources` globs name, relative to the project root."""
+    found = []
+    for pattern in patterns or []:
+        for match in sorted(glob.glob(os.path.join(root, str(pattern)), recursive=True)):
+            if inside(root, match) and os.path.isfile(match):
+                relative = os.path.relpath(match, root)
+                if relative not in found:
+                    found.append(relative)
+    return found
 
 
 def entry_bindings(contract):
@@ -276,7 +329,7 @@ def entry_bindings(contract):
 
 def load_index(root):
     """The committed index, or an empty one. A malformed index raises KitYamlError to its caller."""
-    path = os.path.join(root, INDEX_PATH)
+    path = kit_owned(root, INDEX_PATH)
     if not os.path.isfile(path):
         return {"version": 1}
     index = kit_yaml.load_path(path)
@@ -286,7 +339,7 @@ def load_index(root):
 
 
 def write_index(root, index):
-    path = os.path.join(root, INDEX_PATH)
+    path = kit_owned(root, INDEX_PATH)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as handle:
         handle.write(INDEX_HEADER)
@@ -315,6 +368,13 @@ def entry_state(root, contract, index):
     """
     state = []
     documents = {}
+    # A collection declares the documents its entries live in, and an entry has to live in one of
+    # them. Without that, `at` is a free path into the repository and `--plan` prints whatever
+    # section it names — a contract arriving in a pull request could point an entry at a `.env` the
+    # developer has locally and read it out through the grader. Declaring the file in `sources`
+    # instead puts it in one reviewable line rather than scattered across twenty-three bindings.
+    declared = {name: documents_matching(root, patterns)
+                for name, patterns in collection_sources(contract).items() if patterns}
     for collection, bound in entry_bindings(contract).items():
         recorded_entries = index.get(collection) if isinstance(index.get(collection), dict) else {}
         for key, at in bound.items():
@@ -334,6 +394,15 @@ def entry_state(root, contract, index):
             try:
                 path, kind, _ = split_binding(at)
                 item["kind"] = kind
+                # Ordered so the more specific answer wins: a document outside the project or
+                # simply gone is named as such, and only a file that exists and is inside is asked
+                # whether the collection declared it — before anything opens it.
+                locate_document(root, path)
+                covered = declared.get(collection)
+                if covered is not None and os.path.normpath(path) not in covered:
+                    raise SectionError(f"{path} is not one of the documents this collection's "
+                                       "`sources` name — an entry lives in a document the "
+                                       "collection declares", structural=True)
                 if path not in documents:
                     documents[path] = read_document(root, path)
                 item["resolved"] = resolve(root, at, documents[path])
@@ -465,7 +534,10 @@ def refresh(root, contract, grader):
 
 def named_screen_map(root):
     """The path `manifest.sources.screens` names, whether or not it is there — or None."""
-    manifest = os.path.join(root, MANIFEST_PATH)
+    try:
+        manifest = kit_owned(root, MANIFEST_PATH)
+    except SectionError:
+        return None
     if not os.path.isfile(manifest):
         return None
     try:

@@ -1405,5 +1405,108 @@ class EntryQuotingTest(unittest.TestCase):
         self.assertEqual(list(kit_yaml.load(text)["collections"]["actions"]["entries"]),
                          ["оффер от агентства"])
 
+
+# ------------------------------------------------------------------------------------------
+# The trust boundary: a contract, an index and a manifest are files in someone else's repository
+
+
+class KitOwnedPathTest(ProjectMixin, unittest.TestCase):
+    """The kit's own files are files. Git checks symlinks out, and a pull request can add one.
+
+    `.agent-kit/knowledge/index.yml` is rewritten by `--index`. Left as a symlink, that write goes
+    wherever the link points — a file in the developer's home directory, created or truncated by a
+    command they ran to audit somebody's documentation.
+    """
+
+    def test_a_symlinked_index_is_refused_rather_than_written_through(self):
+        root = self.make_project()
+        outside = os.path.join(root, os.pardir, "outside.yml")
+        os.makedirs(os.path.join(root, ".agent-kit", "knowledge"))
+        os.symlink(outside, os.path.join(root, INDEX_PATH))
+        with self.assertRaises(SectionError) as caught:
+            kk.load_index(root)
+        self.assertTrue(caught.exception.structural)
+        self.assertIn("symlink", str(caught.exception))
+        with self.assertRaises(SectionError):
+            kk.write_index(root, {"version": 1})
+        self.assertFalse(os.path.exists(os.path.realpath(outside)),
+                         "the write must not have followed the link")
+
+    def test_a_symlinked_index_pointing_inside_the_project_is_refused_too(self):
+        """The kit owns this path; following a link is never the behaviour anyone wanted."""
+        root = self.make_project()
+        target = self.write(root, os.path.join("docs", "notes.md"), "# Notes\n")
+        os.makedirs(os.path.join(root, ".agent-kit", "knowledge"))
+        os.symlink(target, os.path.join(root, INDEX_PATH))
+        with self.assertRaises(SectionError):
+            kk.write_index(root, {"version": 1})
+        self.assertEqual(self.read(root, os.path.join("docs", "notes.md")), "# Notes\n")
+
+    def test_a_symlinked_manifest_does_not_take_the_screen_map_from_outside(self):
+        root = self.make_project()
+        os.makedirs(os.path.join(root, ".agent-kit", "project"))
+        os.symlink(os.path.join(root, os.pardir, "elsewhere.yml"),
+                   os.path.join(root, kk.MANIFEST_PATH))
+        self.assertIsNone(kk.named_screen_map(root))
+
+    def test_an_ordinary_project_is_unaffected(self):
+        root = self.make_project()
+        kk.write_index(root, {"version": 1, "actions": {}})
+        self.assertEqual(kk.load_index(root), {"version": 1, "actions": {}})
+
+
+class SourceConfinementTest(ProjectMixin, unittest.TestCase):
+    """An entry lives in a document its own collection declares.
+
+    Without it, `at` is a free path into the repository: a contract arriving in a pull request can
+    bind an entry to a `.env` the developer happens to have, and `--plan` prints that section's
+    text as the grader's payload. Confining entries to `sources` does not make a hostile contract
+    safe — the attacker writes `sources` too — but it moves the hostile line into the one block a
+    reader reviews, instead of hiding it among twenty-three bindings.
+    """
+
+    SECRET = "# Database\nDATABASE_URL=postgres://app:hunter2@prod/db\n"
+
+    def setUp(self):
+        self.root = self.make_project()
+        self.write(self.root, os.path.join("docs", "A.md"), DOC_A)
+        self.write(self.root, ".env", self.SECRET)
+
+    def test_a_binding_outside_the_declared_sources_is_refused_before_it_is_read(self):
+        self.write_contract(self.root, {"actions": {"a.b": ".env#Database"}},
+                            sources=("docs/*.md",))
+        state = kk.entry_state(self.root, self.contract(self.root), {"version": 1})
+        self.assertEqual(len(state), 1)
+        error = state[0]["error"]
+        self.assertIsNotNone(error)
+        self.assertTrue(error.structural)
+        self.assertIn("is not one of the documents this collection's `sources` name", str(error))
+
+    def test_the_refused_section_never_reaches_the_plan(self):
+        self.write_contract(self.root, {"actions": {"a.b": ".env#Database"}},
+                            sources=("docs/*.md",))
+        done = subprocess.run([sys.executable, INDEX_SCRIPT, "--plan"], cwd=self.root,
+                              capture_output=True, text=True)
+        self.assertNotIn("hunter2", done.stdout + done.stderr,
+                         "the grader payload must not carry a file the collection never declared")
+        self.assertEqual(json.loads(done.stdout), [])
+
+    def test_a_binding_the_sources_do_cover_resolves_as_before(self):
+        self.write_contract(self.root, ENTRIES["actions"] and
+                            {"actions": {"developer.create_offer":
+                                         "docs/A.md#kit:developer.create_offer"}},
+                            sources=("docs/*.md",))
+        state = kk.entry_state(self.root, self.contract(self.root), {"version": 1})
+        self.assertIsNone(state[0]["error"], "a declared document is read exactly as before")
+
+    def test_a_collection_that_declares_no_sources_is_not_confined(self):
+        """`--check` already reports a filled collection with no sources; do not report it twice."""
+        text = contract_text({"actions": {"a.b": ".env#Database"}}).replace(
+            "    sources:\n      - docs/*.md\n", "    sources: []\n")
+        self.write(self.root, CONTRACT_PATH, text)
+        state = kk.entry_state(self.root, kit_yaml.load(text), {"version": 1})
+        self.assertIsNone(state[0]["error"])
+
+
 if __name__ == "__main__":
     unittest.main()

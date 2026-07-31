@@ -195,7 +195,11 @@ def check(root, run_commands=True):
 
 
 def _walk(report, root, run_commands):
-    path = os.path.join(root, CONTRACT_PATH)
+    try:
+        path = kit_knowledge.kit_owned(root, CONTRACT_PATH)
+    except SectionError as exc:
+        report.fault(CONTRACT_PATH, str(exc))
+        return
     if not os.path.isfile(path):
         report.fault(CONTRACT_PATH, "no knowledge contract here — a project starts from the "
                                     f"template at {TEMPLATE_PATH}")
@@ -258,6 +262,9 @@ def _check_entries(report, root, contract):
     except kit_yaml.KitYamlError as exc:
         report.fault(kit_knowledge.INDEX_PATH,
                      f"{exc} — the index is derived; rebuild it with `blueprint --index`")
+        return
+    except SectionError as exc:
+        report.fault(kit_knowledge.INDEX_PATH, str(exc))
         return
     except (OSError, UnicodeDecodeError) as exc:
         report.fault(kit_knowledge.INDEX_PATH, str(exc))

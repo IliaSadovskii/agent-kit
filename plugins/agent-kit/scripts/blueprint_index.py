@@ -30,7 +30,10 @@ class IndexRunError(Exception):
 
 
 def read_contract(root):
-    path = os.path.join(root, CONTRACT_PATH)
+    try:
+        path = kit_knowledge.kit_owned(root, CONTRACT_PATH)
+    except kit_knowledge.SectionError as exc:
+        raise IndexRunError(str(exc))
     if not os.path.isfile(path):
         raise IndexRunError(f"no knowledge contract at {CONTRACT_PATH}")
     try:
@@ -60,7 +63,7 @@ def do_plan(root):
     contract = read_contract(root)
     try:
         index = kit_knowledge.load_index(root)
-    except kit_yaml.KitYamlError as exc:
+    except (kit_yaml.KitYamlError, kit_knowledge.SectionError) as exc:
         raise IndexRunError(f"{kit_knowledge.INDEX_PATH}: {exc}")
     groups = kit_knowledge.plan(root, contract, index)
     entries = sum(len(group["entries"]) for group in groups)
@@ -90,7 +93,7 @@ def do_apply(root, path):
     try:
         index = kit_knowledge.load_index(root)
         merged = kit_knowledge.apply_results(root, contract, index, results, skipped)
-    except (kit_yaml.KitYamlError, ValueError) as exc:
+    except (kit_yaml.KitYamlError, kit_knowledge.SectionError, ValueError) as exc:
         raise IndexRunError(str(exc))
     written = kit_knowledge.write_index(root, merged)
     total = sum(len(block) for name, block in merged.items() if isinstance(block, dict))
@@ -112,8 +115,8 @@ def do_anchors(root, path):
     can still leave a document written and the contract not. That is a disk error, not a bad
     proposal, and the repair is to run the same command again — it is idempotent.
     """
-    contract_path = os.path.join(root, CONTRACT_PATH)
     read_contract(root)
+    contract_path = kit_knowledge.kit_owned(root, CONTRACT_PATH)
     proposals = read_json(path)
     if not isinstance(proposals, list) or not proposals:
         raise IndexRunError(f"{path}: expected a non-empty list of "

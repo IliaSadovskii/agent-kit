@@ -152,7 +152,17 @@ repointed.
 It is the one slot proven by running rather than reading, so `--check` executes what the contract
 declares. Two things follow, and they are worth saying out loud rather than leaving in the script.
 
-**The contract is a file in the repository, so its commands are code from the repository.** They
+**The contract is a file in the repository, and so is everything it points at.** A binding names a
+document, and the kit reads that document and — for `--index` — sends the section to a grader. Two
+rules keep that inside what the owner declared: an entry must live in a document its own
+collection's `sources` name, and the kit's own files (`contract.yml`, `index.yml`, the manifest) are
+refused if they are symlinks, because git checks a symlink out like any other file and `--index`
+rewrites the index. Neither makes a hostile contract safe — whoever writes the entries writes the
+`sources` too — they make the hostile line visible in the one block a reviewer reads. On a
+repository the owner does not control, read the `sources` and the `verification` block before
+running anything.
+
+**Its commands are code from the repository too.** They
 can arrive in a pull request like anything else. The script announces each command before it runs
 it, and refuses outright — without running it — any command the kit's own never-rules cover, since
 a subprocess is invisible to the hook that normally turns those into a confirmation. On a

@@ -253,6 +253,26 @@ is replaced and every other byte of the file — including the owner's comments,
 preserves — is left alone. Statuses, reasons and criteria are never touched; those are the owner's
 verdicts and stage 1 promised the kit would not write them.
 
+## The trust boundary
+
+A contract, an index and a manifest are files in a repository, and a repository can arrive in a pull
+request. Stage 1 drew the line for the `verification` slot's commands — the kit's never-rules moved
+into the check because a subprocess is invisible to the hook that normally asks. Entries widen the
+surface, so two rules come with them:
+
+- **An entry lives in a document its own collection's `sources` name.** Without it, `at` is a free
+  path into the repository and `--plan` prints the section it names as the grader's payload. A
+  hostile contract could bind an entry to a `.env` the developer happens to have locally and read it
+  out through the model.
+- **The kit's own files are files, not symlinks.** Git checks a symlink out like anything else, and
+  `--index` *rewrites* `index.yml`. A link there sends that write wherever it points.
+
+Neither makes a hostile contract safe: whoever writes the entries writes the `sources` too. What
+they do is move the hostile line into the one block a reviewer reads, and stop a file the contract
+never mentioned from being written through. The ordering matters as much as the rules — a document
+outside the project or simply gone is named as such, and only a file that exists and is inside is
+asked whether the collection declared it, before anything opens it.
+
 ## What this repository does with it
 
 Nothing, deliberately. agent-kit is a plugin without a product domain model, so its own collections
