@@ -121,30 +121,56 @@ reflection is resolved — or when an insurmountable blocker has been reported w
 in a recoverable state. When the owner's review comes back later, `/agent-kit:fix --pr <n>` closes
 that round; it is not part of this run.
 
+## The step gate
+
+**A step is closed by the gate, never by you.** You ask; the gate runs the criteria the pipeline
+declares and writes the verdict into `.agent-kit/runs/<branch>.yml`, which you cannot write — two
+`PreToolUse` hooks refuse every path into it, by tool and by shell. This exists because a long
+context loses its ordering to whatever instruction is freshest: a review prompt read inline can
+reassign the role, and the turn ends with a report where a pull request was due.
+
+```
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gate.py" step start  <Name> [--pipeline ship]
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gate.py" step settle <Name> [--evidence "<what you did>"]
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gate.py" step skip   <Name> --reason <named condition>
+```
+
+Open the run at **Design**, with `--pipeline ship` — before that the owner can still decline, and a
+run opened for work that never starts is a guard nobody can satisfy. Then `step start` each step as
+you reach it and `step settle` it the moment it actually ends, never in a batch at the end. `start`
+refuses a step whose predecessors have no verdict, and prints the list of what will close this one.
+
+`settle` is the loop. All checks pass and the step is `verified`. Something fails and the gate exits
+non-zero naming the check, its exit code and the tail of its output — fix it and settle again. When
+the attempts run out the step is recorded `blocked` with every attempt kept, and the run is over:
+report the blocker rather than working around it.
+
+A step with no mechanical check settles as `attested`, and the gate demands
+`--evidence "<what you did>"` for it — an empty attestation is refused. Design, Plan, Test, Review,
+Security and Docs are attested today; the gate is honest about the difference rather than calling
+them proven.
+
+`skip` takes only a condition the pipeline definition names — `--reason no_remote` on PR is the one
+that ships. The free-text skip that used to close any step is gone.
+
 ## The run log
 
 The plan ends with a `## Run log` section, and it is the run's working memory. The moment you adopt
 an assumption, deviate from the approved design, skip a verification layer, or meet something only
 the owner can do, append one line there and commit it with the task — never hold it for the PR
 step. A run this long outlives its own context: what is not in the run log or the code does not
-survive, and it is also how a resumed session finds out where the last one stood.
+survive.
 
-It also carries the run's own position in the pipeline, and that part is not optional. Open the Run
-log, when the plan is written, with the branch and the steps still ahead of you:
+Open it, when the plan is written, with the branch:
 
 ```markdown
 **Branch:** claude/<branch>
-**Steps:** Build, Test, Review, Security, PR, Docs
 ```
 
-Then settle each step as it ends, one line each — `- step Review — done`,
-`- step Security — skipped: no runnable surface`, `- step PR — blocked: no remote configured`. A
-`Stop` hook reads this against the branch you are on and refuses to end the turn while a step has
-no line, because a long context loses its ordering to whatever instruction is freshest: a review
-prompt read inline can reassign the role, and the turn ends with a report where a pull request was
-due. So settle a step the moment it actually ends rather than in a batch at the end, and when you
-stop on a blocker, write it against the step it blocked. Every outcome settles a step; only silence
-does not.
+Then write one line per step after the gate returns, carrying the verdict the gate gave you —
+`- step Test — verified: make test → 0`, `- step Review — attested: reviewer agent, no blocking
+findings`, `- step PR — skipped: no_remote`. Nothing parses these lines any more; run state is not
+in git, so they are the only record of the steps the pull request will carry.
 
 ## The two gates
 

@@ -43,6 +43,23 @@ starts at step 1.
    input handling, authentication, secrets, or file and process use — otherwise skip it and say so.
 5. **PR** — push the branch and open a pull request per `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md`.
 
+Steps 2 to 5 are closed by the **step gate**, not by you: you ask, it runs the criteria the `fix`
+pipeline declares and writes the verdict into `.agent-kit/runs/<branch>.yml`, a file two
+`PreToolUse` hooks keep out of your reach.
+
+```
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gate.py" step start  <Name> [--pipeline fix]
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gate.py" step settle <Name> [--evidence "<what you did>"]
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/gate.py" step skip   <Name> --reason <named condition>
+```
+
+Open the run at **Change**, with `--pipeline fix`, and not before: up to that point the task may
+still turn out to be a review round, a diagnosis the owner has to decide on, or a handoff to `ship`,
+and none of those run these steps. A run opened for a path that never runs is a guard nobody can
+satisfy. The steps are `Change`, `Test`, `Review`, `PR`. A step with no mechanical check settles as
+`attested` and the gate demands `--evidence "<what you did>"`; `PR` is skippable only with
+`--reason no_remote`.
+
 Relative to `ship` this skips ideation, the design gate, the written plan, the `tester` agent, and
 the deep security pass. Everything else holds.
 

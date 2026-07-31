@@ -4,5 +4,10 @@
 # Sprint working state — never repository content
 .agent-kit/sprint/
 
+# Step gate run state — written by the gate alone, keyed to a branch, never repository content.
+# The gate also drops a `.gitignore` inside the directory it creates, so a project that has not
+# been told about this release still has a clean tree; this line is the visible record here.
+.agent-kit/runs/
+
 # Python bytecode
 __pycache__/

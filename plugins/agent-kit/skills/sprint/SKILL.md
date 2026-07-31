@@ -138,8 +138,9 @@ Then loop until no feature is runnable:
 4. **Mark it `running`** in `queue.yml`, then launch the child in the background and wait for it:
 
    ```bash
-   claude -p "/agent-kit:ship --brief <absolute path to spec.md>" \
-     --session-id "$(python3 -c 'import uuid; print(uuid.uuid4())')" \
+   sid="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+   AGENT_KIT_SESSION_ID="$sid" \
+     claude -p "/agent-kit:ship --brief <absolute path to spec.md>" --session-id "$sid" \
      > .agent-kit/sprint/<sprint>/<id>/run.log 2>&1
    ```
 
@@ -147,19 +148,30 @@ Then loop until no feature is runnable:
    then be picked up where it stood instead of rebuilt from nothing, and without it the only way
    back into its context is guessing which transcript was its.
 
+   The environment variable is the same id, and it is what keeps this session out of the child's
+   pipeline. You and the child share one working tree, and the child checks it out onto its own
+   branch — so the child's run state sits on the branch you are standing on. The step gate records
+   the session that opened a run and its `Stop` hook holds only that session; without the variable
+   the child's unfinished steps would be read as yours, on every turn, demanding the exact action
+   the contract below forbids you to take.
+
    One child at a time, by design: parallel features in one repository conflict, and sequencing is
    what lets dependent features stack. A feature takes hours — run the child in the background and
    check on it periodically rather than holding a foreground call against a timeout.
 5. **On exit, check the pipeline actually finished, then record the outcome.** Exit code 0 proves the
    process ended, not that the run reached its end — a step read inline can take over the child's
-   role, and the turn ends with that step's report. So read the plan's Run log: `done` needs every
-   declared step settled and a PR that exists. If steps are unsettled, nothing is lost and this is
-   not the retry below — resume the child's own session, which costs seconds where a relaunch costs
-   hours:
+   role, and the turn ends with that step's report. So read the child's run state,
+   `.agent-kit/runs/<branch slug>.yml`, with the branch's `/` and anything else outside
+   `[A-Za-z0-9._-]` replaced by `-`. `done` needs `state: finished` and a PR that exists; any step
+   whose `verdict` is `open` is unsettled, and `blocked` means the run stopped on that step. Read the
+   file, never write it — only the gate writes run state, and both `PreToolUse` hooks will refuse
+   you. If steps are unsettled, nothing is lost and this is not the retry below — resume the child's
+   own session, which costs seconds where a relaunch costs hours:
 
    ```bash
-   claude -p --resume <session from queue.yml> \
-     "Continue the pipeline from your first unsettled step in the plan's Run log." \
+   AGENT_KIT_SESSION_ID="<session from queue.yml>" \
+     claude -p --resume <session from queue.yml> \
+     "Continue the pipeline from your first unsettled step. Ask the gate where you stand." \
      >> .agent-kit/sprint/<sprint>/<id>/run.log 2>&1
    ```
 
