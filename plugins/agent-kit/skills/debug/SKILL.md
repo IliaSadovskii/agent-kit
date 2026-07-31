@@ -1,8 +1,6 @@
 ---
 name: debug
-description: Track a failure to its root cause — reproduce, isolate, form and test hypotheses, then either fix the cause with a regression test or report the diagnosis. Use when something is broken and the cause is unknown.
-argument-hint: "[symptom]"
-disable-model-invocation: true
+description: Track a failure to its root cause — reproduce, isolate, form and test hypotheses, then either fix the cause with a regression test or report the diagnosis. Invoked by fix when a symptom's cause is not yet known.
 ---
 
 # Debug

@@ -1,8 +1,6 @@
 ---
 name: screens-riff
-description: Product thinking about the screens themselves — study the existing screen map, the product documents, and the code, then propose the screens the app is missing. Taken proposals land on the map as idea cards next to what already exists; turned-down ones stay as rejected memory, so the same idea is not proposed twice. Use when the owner asks what the app should grow next, what a flow is missing, or what to do with the screen map now that it exists.
-argument-hint: "[focus]"
-disable-model-invocation: true
+description: Product thinking about the screens themselves — study the existing screen map, the product documents, and the code, then propose the screens the app is missing. Taken proposals land on the map as idea cards next to what already exists; turned-down ones stay as rejected memory, so the same idea is not proposed twice. Invoked by riff on a screen theme.
 ---
 
 # Screens riff
@@ -16,7 +14,7 @@ Three commands touch the map, and keeping them apart is what makes it trustworth
 | Command | Asks | Writes |
 |---|---|---|
 | `/agent-kit:screens` | what is true today | every card kept true, including an idea that got built; invents nothing |
-| `/agent-kit:screens-riff` | what is missing | `idea` and `rejected` cards, builds nothing |
+| `/agent-kit:riff` on a screen theme | what is missing | `idea` and `rejected` cards, builds nothing |
 | `/agent-kit:riff` | what the product should be | roadmap lines, draws nothing |
 
 This one is visual and product-shaped; `riff` is strategy. If a proposal here turns out to be a

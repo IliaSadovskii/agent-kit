@@ -1,8 +1,6 @@
 ---
 name: address
-description: Close a review round on an open pull request — read the owner's comments and the CI status, fix what is in scope, rerun the verification the fixes put at risk, push, and answer every thread. Use after ship or fix opened a PR and feedback came back.
-argument-hint: "[pr-number]"
-disable-model-invocation: true
+description: Close a review round on an open pull request — read the owner's comments and the CI status, fix what is in scope, rerun the verification the fixes put at risk, push, and answer every thread. Invoked by fix --pr <n> after ship or fix opened a PR and feedback came back; its execution contract is unchanged, only the entry point moved.
 ---
 
 # Address

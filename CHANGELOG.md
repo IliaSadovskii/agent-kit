@@ -3,6 +3,20 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.18.0
+
+Three commands fold into the ones that already covered their ground, so the command list says what
+it means without repeating itself.
+
+- **`debug` and `address` are now `fix`.** `fix`'s frame widens to "something is wrong — your
+  words, a PR review, or an observed failure": a task whose cause is unknown runs `debug`'s
+  root-cause discipline first, and `fix --pr <n>` (or a PR URL) closes a review round the way
+  `address` used to. Both keep their execution contracts unchanged — only the entry point moved.
+- **`screens-riff` is now `riff` on a screen theme.** A standalone `S<digits>` token, or an explicit
+  mention of screens or the map, routes `riff` into the screen-proposal pass, taken proposals still
+  landing on the map as `idea` cards and turned-down ones as `rejected` memory.
+- Nine commands become six. See `migrations/0.18.0.md` for where each removed command went.
+
 ## 0.17.0
 
 A run costs its context multiplied by its steps. Measured over four headless `ship` runs — 207M

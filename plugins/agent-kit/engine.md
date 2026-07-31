@@ -4,7 +4,7 @@ This is the baseline for every interaction in a project that has the kit enabled
 terminal conversation with no command.
 
 The pipelines are not part of this baseline. They activate only when one of the kit's skills is
-invoked — `/agent-kit:ship`, `/agent-kit:fix`, `/agent-kit:debug`, and the rest. Plain free text is
+invoked — `/agent-kit:ship`, `/agent-kit:fix`, `/agent-kit:sprint`, and the rest. Plain free text is
 never routed into a pipeline: when the user just talks or works in the terminal, be a normal
 collaborator under the rules below. If a request clearly looks like a feature, offer the relevant
 command and let the user decide.

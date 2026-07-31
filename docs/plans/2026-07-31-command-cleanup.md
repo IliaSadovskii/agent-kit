@@ -67,7 +67,7 @@ each of the three commands. `VERSION`, `plugin.json`, `marketplace.json` are not
 ## Run log
 
 **Branch:** claude/command-cleanup
-**Steps:** Gate, Design, Plan
+**Steps:** Build, Test
 
 - step Gate — done: technical setup present (`.agent-kit/project/manifest.yml`, `language: ru`,
   `coding_standards: docs/developing.md`); no project interview run and no `instructions.md`
@@ -102,3 +102,20 @@ each of the three commands. `VERSION`, `plugin.json`, `marketplace.json` are not
 - **Do not bump `VERSION`, `plugin.json` or `marketplace.json`.** `scripts/release.sh` owns those and
   the validator checks they agree with the `## <VERSION>` changelog heading; a bump inside a feature
   branch breaks the validator for every other branch in the stack.
+
+- step Build — done: tasks 1–7 all applied as scoped. One mechanic settled beyond the sketch and the
+  design-stage expansion: the validator's dead-reference check walks `*.md` files only (a shell
+  script's `pgrep -f '/agent-kit:s'` pattern is not a documentation reference and matched the naive
+  regex), and excludes `.agent-kit/sprint/` and `docs/design/` alongside the sketch's four
+  exclusions — both hold dated sprint sketches/reports and this batch's forward-looking design doc
+  (which names `/agent-kit:blueprint`, a command that does not exist yet), neither of which is an
+  instruction anyone follows today. `README.md` and `plugins/agent-kit/README.md` command tables now
+  list exactly `docs`, `fix`, `riff`, `screens`, `ship`, `sprint` — the six skills whose frontmatter
+  still carries `disable-model-invocation: true`.
+- step Test — done: no test layer beyond `scripts/validate.sh` is earned, per the spec's
+  "Not earned here" — documentation-shaped payload, no runnable surface. `scripts/validate.sh` is
+  green. The new dead-reference check was proven by reintroducing `/agent-kit:debug` into `README.md`
+  (validator failed with `README.md references /agent-kit:debug, which is not a live command`) and
+  reverting it (validator green again). The done-means grep
+  `grep -rn "agent-kit:\(debug\|address\|screens-riff\)"` returns hits only in `CHANGELOG.md`,
+  `migrations/`, `docs/specs/`, and `docs/plans/`.

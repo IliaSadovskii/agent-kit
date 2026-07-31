@@ -133,6 +133,7 @@ def frontmatter(path):
 
 skills_dir = os.path.join(repo, plugin, "skills")
 skill_names = set()
+command_names = set()
 for name in sorted(os.listdir(skills_dir)):
     path = os.path.join(skills_dir, name, "SKILL.md")
     if not os.path.isfile(path):
@@ -143,6 +144,8 @@ for name in sorted(os.listdir(skills_dir)):
         errors.append(f"skills/{name}/SKILL.md: no YAML frontmatter")
         continue
     skill_names.add(name)
+    if fields.get("disable-model-invocation") == "true":
+        command_names.add(name)
     if fields.get("name") != name:
         errors.append(f"skills/{name}/SKILL.md: frontmatter name {fields.get('name')!r} != directory name")
     desc = fields.get("description", "")
@@ -174,12 +177,33 @@ readme = open(os.path.join(repo, plugin, "README.md"), encoding="utf-8").read()
 documented = set(re.findall(r"/agent-kit:([a-z-]+)", readme))
 for missing in sorted(documented - skill_names):
     errors.append(f"{plugin}/README.md documents /agent-kit:{missing}, which is not a skill")
-for undocumented in sorted(skill_names - documented):
-    # Skills the pipelines call internally do not need a README row.
-    if undocumented in {"brainstorming", "writing-plans", "ideate", "idea-interview",
-                        "docs-reflection", "stack-playbook"}:
-        continue
+for undocumented in sorted(command_names - documented):
     errors.append(f"skill {undocumented!r} is not documented in {plugin}/README.md")
+
+# Every /agent-kit:<name> reference in prose must name a live command. Dated records of what a
+# release, a run, or a batch plans or did are not instructions anyone follows, so they are excluded.
+excluded_dirs = (
+    os.path.join(repo, "migrations"),
+    os.path.join(repo, "docs", "specs"),
+    os.path.join(repo, "docs", "plans"),
+    os.path.join(repo, "docs", "design"),
+    os.path.join(repo, ".agent-kit", "sprint"),
+)
+for dirpath, dirnames, filenames in os.walk(repo):
+    dirnames[:] = [d for d in dirnames if d not in (".git", "node_modules")]
+    if any(dirpath == d or dirpath.startswith(d + os.sep) for d in excluded_dirs):
+        continue
+    for fname in filenames:
+        if not fname.endswith(".md"):
+            continue
+        fpath = os.path.join(dirpath, fname)
+        if os.path.relpath(fpath, repo) == "CHANGELOG.md":
+            continue
+        text = open(fpath, encoding="utf-8").read()
+        for name in re.findall(r"/agent-kit:([a-z-]+)", text):
+            if name not in command_names:
+                rel = os.path.relpath(fpath, repo)
+                errors.append(f"{rel} references /agent-kit:{name}, which is not a live command")
 
 for e in errors:
     print(f"ERROR: {e}", file=sys.stderr)
