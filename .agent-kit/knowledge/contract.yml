@@ -22,7 +22,7 @@ slots:
   architecture_stance:
     status: filled
     source: docs/developing.md#What must never end up in the plugin
-    rev: 2f280be7ed4b
+    rev: c7879d4ef356
     criterion: >-
       the boundary the payload may not cross, decided rather than described — no project-specific
       content, no file the project owns, no third-party import, no reimplementation of something

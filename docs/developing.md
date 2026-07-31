@@ -120,6 +120,18 @@ Semver, from the perspective of a project using the kit:
   is never refreshed means every improvement to it stops at the projects that already ran the
   command. It carries the exception in its own header, and the data file beside it stays
   project-owned. Anything else copied into a project keeps the rule.
+- A rewrite of a file a person maintains. A command may *write* into the project — the screen map,
+  the `entries:` block of a knowledge contract, an anchor in the owner's own prose — but never by
+  loading and re-emitting the file: no dumper preserves the comments and the ordering that make it
+  readable, and the owner's verdicts are not the kit's to re-render. Replace the one block the
+  command owns and leave every other byte, or write nothing. Writing into the owner's *documents*
+  needs one more thing on top: an explicit yes, asked for that write.
+- A payload script that follows a symlink at a path the kit itself owns —
+  `.agent-kit/knowledge/contract.yml`, `index.yml`, `manifest.yml`. Git checks a symlink out like
+  any other file, so one arrives from a pull request pointing wherever its author chose, and a
+  command that rewrites the file writes straight through it. A path derived from a project's own
+  content is contained (`realpath` under the project root); a path the kit fixed by name is
+  contained *and* refuses a link.
 - A third-party import in a shipped script. The kit installs nothing, so a script that imports
   PyYAML dies on `ImportError` on someone else's machine — and a hook that dies takes the whole kit
   with it. Every `.py` under the payload imports the standard library or a module shipped beside it,

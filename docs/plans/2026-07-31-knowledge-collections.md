@@ -244,3 +244,24 @@ the documents that changed.
   rest are structural.
 - pr — three new checks cover the fixes and all three mutations were killed. `scripts/validate.sh`
   green again: 101 + 78 + 63 + 11.
+- docs — `docs-reflection` found one divergence. `docs/developing.md`'s "A file the project owns"
+  rule said the plugin never writes into a project's own files after bootstrap, and this feature
+  writes two: the `entries:` block of the knowledge contract, and an anchor inside the owner's own
+  markdown. The rule now names what is allowed and on what terms — replace the one block the command
+  owns and leave every other byte, never load-and-re-emit, and ask before touching a document. A
+  second bullet records the security finding as the rule it traced back to: a payload script never
+  follows a symlink at a path the kit itself owns. Both are the trigger the reflection step names —
+  a finding that will otherwise repeat is a missing rule.
+- docs — that edit landed inside the section this repository's own contract binds, so the build went
+  red until the `rev` was updated: `2f280be7ed4b → c7879d4ef356`. The contract doing its job on the
+  repository that ships it, and the first time in this sprint that it has caught a real edit.
+- docs — the documentation change stays on this branch rather than going to a docs-only PR from
+  `main`, on 01's reasoning, which is stronger here: it describes rules that only exist because of
+  the code in this pull request.
+- docs — deliberately not touched: `docs/design/knowledge-and-gates.md` still opens "proposed, not
+  implemented", which is still true of `main`. Rewriting it here would claim work the default branch
+  does not have; it belongs to whoever merges the sprint's integration pull request.
+- docs — no screen map in this repository (`manifest.sources.screens` is null), so the Docs step's
+  map update does not apply. No roadmap or product idea document either — this project is
+  `bootstrapped: false` by choice.
+- step Docs — done.
