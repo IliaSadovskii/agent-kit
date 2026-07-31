@@ -1,0 +1,11 @@
+version: 1
+
+slots:
+  verification:
+    status: filled
+    source: null
+    rev: null
+    reason: null
+    criterion: null
+    commands:
+      - "python3 -c \"import sys; sys.exit(1)\""

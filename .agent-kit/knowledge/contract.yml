@@ -1,0 +1,83 @@
+# Knowledge contract — this repository's own, filled honestly.
+#
+# The working repo is the agent-kit plugin source, not a bootstrapped agent-kit project: there is
+# no product idea or roadmap, and the product slots below are not_applicable rather than invented.
+# `empty` and `conflicts` are forbidden terminal states; the three allowed are `filled`,
+# `not_applicable` (with a reason), and `open_question`.
+#
+# Check with: python3 plugins/agent-kit/scripts/knowledge_check.py --skip-verification
+# (scripts/validate.sh runs the same check, without --skip-verification, as one of its steps —
+# the flag is what keeps that step from calling itself through the verification slot below.)
+
+version: 1
+
+slots:
+  north_star:
+    status: open_question
+    source: null
+    rev: null
+    reason: "The kit's purpose is the README's intro, which sits under \"# agent-kit\" and has no heading of its own. Binding to that heading would cover the whole file, and section-level staleness rather than file-level staleness is the entire point of this mechanism — every feature that touches the README's command table would report this slot stale. A real binding is stage 2's anchors, once a heading-sized target exists."
+    criterion: null
+
+  architecture_stance:
+    status: filled
+    source: docs/developing.md#Repository layout
+    rev: e84cec1cc3a6
+    reason: null
+    criterion: null
+
+  verification:
+    status: filled
+    source: docs/developing.md#Testing a change
+    rev: ac8c6d4b0265
+    reason: null
+    criterion: null
+    commands:
+      - scripts/validate.sh
+
+  mvp_bounds:
+    status: not_applicable
+    source: null
+    rev: null
+    reason: "A plugin has no MVP with an in-list and an out-list; its scope is decided release by release and recorded in CHANGELOG.md, not bounded once up front."
+    criterion: null
+
+  scenarios:
+    status: not_applicable
+    source: null
+    rev: null
+    reason: "There are no end-user scenarios to walk end to end on concrete data — the kit's behavior is exercised by scripts/validate.sh and the tests it runs, not by a user story."
+    criterion: null
+
+  deferred_seams:
+    status: filled
+    source: docs/design/knowledge-and-gates.md#9. Order of work
+    rev: f6726d4ed42e
+    reason: null
+    criterion: null
+
+collections:
+  actors:
+    status: not_applicable
+    reason: "A plugin has no users interacting with a domain model — only an agent invoking commands — so there is no actor set to enumerate."
+    sources: null
+
+  entities:
+    status: not_applicable
+    reason: "This repository has no domain entities with states and transitions to describe."
+    sources: null
+
+  actions:
+    status: not_applicable
+    reason: "With no actors and no entities, there is no actor x action matrix to fill."
+    sources: null
+
+  screens:
+    status: not_applicable
+    reason: "This repository has no screens of its own to map — manifest.sources.screens is also null for the same reason."
+    sources: null
+
+  integrations:
+    status: not_applicable
+    reason: "The kit does not integrate with an external system in the product sense this slot asks about; it ships as a Claude Code plugin with no service boundaries of its own."
+    sources: null

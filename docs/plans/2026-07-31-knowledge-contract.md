@@ -119,7 +119,7 @@ feature adds a command and a template and asks nothing of an owner who already i
 ## Run log
 
 **Branch:** claude/knowledge-contract
-**Steps:** Gate, Design, Plan
+**Steps:** Build, Test
 
 - step Gate — done: technical setup present (`.agent-kit/project/manifest.yml`, `language: ru`,
   `coding_standards: docs/developing.md`); no project interview run and no `instructions.md`
@@ -164,3 +164,35 @@ feature adds a command and a template and asks nothing of an owner who already i
   section this repository's `architecture_stance` binds to — editing it means updating the slot's
   `rev` in the same commit, or `scripts/validate.sh` fails. That is the mechanism working, not a
   defect.
+
+- step Build — done: tasks 1–6 and 8 built as planned, in order. `kit_yaml.py` and
+  `kit_markdown.py` under `plugins/agent-kit/scripts/`, `knowledge_check.py` (executable) reading
+  them by adding its own directory to `sys.path`, the template contract with every slot `empty`,
+  this repository's own contract (three `filled` slots bound and hashed, `north_star` an
+  `open_question` with the sketch's recorded reason, the rest `not_applicable` with reasons), the
+  `blueprint` skill with `disable-model-invocation: true`, and a row in both READMEs. Removed a
+  stray, untracked `plugins/agent-kit/scripts/__pycache__/` before committing — leftover bytecode
+  from unrelated exploration on this machine, already gitignored, not this feature's output.
+- step Test — done: `tests/test_kit_yaml.py` (scalars, block maps/lists, every forbidden
+  construct named by its own error, and a round trip over every YAML file the kit owns plus every
+  fixture contract), `tests/test_kit_markdown.py` (section boundaries including the
+  deeper-section-then-shallower-heading case, fenced-code headings, missing/ambiguous lookups, and
+  a property layer over 25 fixed seeds proving a section's hash moves for its own text and not for
+  a sibling's — flattened to one heading level so the assertion isolates sibling independence from
+  the separately-tested parent/child swallowing rule), and `tests/test_knowledge_check.py` over the
+  ten fixtures the plan named (clean, empty slot, conflicts slot, edited-bound-section,
+  edited-other-section, renamed heading, missing source file, unparseable contract, failing
+  verification command, and the template contract itself), each checked by hand against
+  `knowledge_check.py` for its expected exit code before the assertion was written. `scripts/validate.sh`
+  gained a step running `python3 -m unittest discover -s tests -t .` (needed a new, empty
+  `tests/__init__.py` — discovery from a top-level dir otherwise refuses an unimportable start
+  directory) plus this repository's own contract through
+  `knowledge_check.py --skip-verification`. Full suite green: `scripts/validate.sh` exit 0, 40
+  Python tests plus the shell-side checks (`claude plugin validate --strict` passed;
+  `shellcheck` not installed on this machine — skipped, as validate.sh itself allows). No runnable
+  app surface in this repository — the "confirm against the running app" layer is a named skip, not
+  an omission, per the design's own "Verification" section. Docs divergence (the two
+  `docs/developing.md` sections, and `migrations/0.18.0.md` needing no entry) is recorded above for
+  the `deliver` stage's Docs step; this stage did not touch `docs/developing.md`, so the
+  `architecture_stance` and `verification` slot revs recorded in task 5 are still current, which is
+  why `scripts/validate.sh`'s new contract-check step passes clean rather than stale.

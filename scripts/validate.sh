@@ -320,6 +320,15 @@ if [ -n "$leaks" ]; then
 fi
 
 # --------------------------------------------------------------------------------------------
+step "python test suite and knowledge contract"
+
+python3 -m unittest discover -s tests -t . || fail "python test suite failed"
+
+# --skip-verification: this repository's own verification.commands names this very script, and
+# without the flag the two would call each other forever.
+python3 "$PLUGIN/scripts/knowledge_check.py" --skip-verification || fail "this repository's own knowledge contract failed --check"
+
+# --------------------------------------------------------------------------------------------
 step "shell syntax"
 
 while IFS= read -r script; do

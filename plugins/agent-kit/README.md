@@ -16,6 +16,7 @@ Plugin skills are namespaced, so every command below is `/agent-kit:<name>`.
 | `/agent-kit:docs` | Reconcile living documentation |
 | `/agent-kit:screens` | Map every screen and transition, and keep the map true |
 | `/agent-kit:riff [theme]` | Interactive strategy, builds nothing. A screen theme proposes screens onto the map |
+| `/agent-kit:blueprint [--check]` | Check the project's knowledge contract — deliberate verdicts, bound sources, staleness |
 
 The kit also ships two subagents, `agent-kit:reviewer` and `agent-kit:tester`, which the pipelines
 invoke on finished work.

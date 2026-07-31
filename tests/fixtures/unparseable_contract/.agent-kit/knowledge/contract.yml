@@ -1,0 +1,6 @@
+version: 1
+
+slots:
+  verification:
+    status: filled
+    commands: [scripts/validate.sh]

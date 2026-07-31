@@ -1,0 +1,9 @@
+version: 1
+
+slots:
+  architecture_stance:
+    status: filled
+    source: docs/GONE.md#Testing
+    rev: 9f9bbf9d5c61
+    reason: null
+    criterion: null

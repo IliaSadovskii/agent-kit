@@ -17,6 +17,16 @@ it means without repeating itself.
   landing on the map as `idea` cards and turned-down ones as `rejected` memory.
 - Nine commands become six. See [migrations/0.18.0.md](migrations/0.18.0.md) for where each removed
   command went.
+- **`/agent-kit:blueprint --check`**, the mechanical half of the knowledge contract: a slot list
+  with a deliberate verdict per slot — `filled`, `not_applicable`, or `open_question`, never `empty`
+  or `conflicts` — each bound to a section of the project's own prose and checked for staleness by
+  hash, plus proof that the project's `verification` commands actually run. No grader, no
+  collections yet — seconds, not an interview. `plugins/agent-kit/templates/project/contract.yml` is
+  the starting point a project copies; this repository's own `.agent-kit/knowledge/contract.yml` is
+  the worked example, `--skip-verification` and all.
+- Two new stdlib-only modules under `plugins/agent-kit/scripts/`, shared by the kit's own scripts:
+  `kit_yaml.py` (a YAML-subset reader) and `kit_markdown.py` (section resolution and hashing). No
+  script the kit ships imports anything outside the standard library.
 
 ## 0.17.0
 

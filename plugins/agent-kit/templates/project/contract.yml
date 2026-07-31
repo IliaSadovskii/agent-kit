@@ -1,0 +1,92 @@
+# Knowledge contract — what this project knows, and how sure it is.
+#
+# Copied from this template by /agent-kit:blueprint (or by hand) as the starting point. Every slot
+# below ships `status: empty`, and `empty` is NOT a terminal state — `--check` reports it as a
+# finding until someone gives it a deliberate verdict. The three terminal states are:
+#
+#   filled          answered, and it passes the slot's own readiness criterion
+#   not_applicable  not relevant to this project, with a reason
+#   open_question   a known unknown, accepted deliberately
+#
+# `conflicts` is also forbidden as a terminal state (sources disagree) and is reported the same way
+# as `empty` — a slot in that state has been looked at, not settled.
+#
+# A slot with a `source` binds to `file#heading` in this project's own documents; `rev` is the hash
+# of that section at the time the binding was made, and `--check` reports the binding stale when the
+# section's text has changed since. The kit never rewrites the owner's documents to fill a slot —
+# only this file records the verdict.
+#
+# Run `/agent-kit:blueprint --check` (or
+# `python3 "${CLAUDE_PLUGIN_ROOT}"/scripts/knowledge_check.py --root .`) to check this file.
+
+version: 1
+
+slots:
+  north_star:
+    status: empty
+    source: null
+    rev: null
+    reason: null
+    criterion: null
+
+  architecture_stance:
+    status: empty
+    source: null
+    rev: null
+    reason: null
+    criterion: null
+
+  verification:
+    status: empty
+    source: null
+    rev: null
+    reason: null
+    criterion: null
+    commands: null
+
+  mvp_bounds:
+    status: empty
+    source: null
+    rev: null
+    reason: null
+    criterion: null
+
+  scenarios:
+    status: empty
+    source: null
+    rev: null
+    reason: null
+    criterion: null
+
+  deferred_seams:
+    status: empty
+    source: null
+    rev: null
+    reason: null
+    criterion: null
+
+collections:
+  actors:
+    status: empty
+    reason: null
+    sources: null
+
+  entities:
+    status: empty
+    reason: null
+    sources: null
+
+  actions:
+    status: empty
+    reason: null
+    sources: null
+
+  screens:
+    status: empty
+    reason: null
+    sources: null
+
+  integrations:
+    status: empty
+    reason: null
+    sources: null

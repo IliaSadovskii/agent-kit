@@ -52,6 +52,7 @@ the marketplace.
 | `/agent-kit:docs` | Reconcile living documentation where it genuinely diverged |
 | `/agent-kit:screens` | Map every screen and transition, and keep the map true as the app grows |
 | `/agent-kit:riff [theme]` | Strategic brainstorm; builds nothing. A screen theme proposes screens straight onto the map |
+| `/agent-kit:blueprint [--check]` | Check the project's knowledge contract — deliberate verdicts, bound sources, staleness |
 
 `ship --manual` swaps the autonomous contract for a consultative one with checkpoints, when you want
 to co-develop rather than delegate.
