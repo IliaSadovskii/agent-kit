@@ -119,7 +119,7 @@ feature adds a command and a template and asks nothing of an owner who already i
 ## Run log
 
 **Branch:** claude/knowledge-contract
-**Steps:** Build, Test
+**Steps:** PR, Review
 
 - step Gate — done: technical setup present (`.agent-kit/project/manifest.yml`, `language: ru`,
   `coding_standards: docs/developing.md`); no project interview run and no `instructions.md`
