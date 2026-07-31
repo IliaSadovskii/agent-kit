@@ -112,11 +112,6 @@ each of the three commands. `VERSION`, `plugin.json`, `marketplace.json` are not
   instruction anyone follows today. `README.md` and `plugins/agent-kit/README.md` command tables now
   list exactly `docs`, `fix`, `riff`, `screens`, `ship`, `sprint` — the six skills whose frontmatter
   still carries `disable-model-invocation: true`.
-- step PR — done: [#17](https://github.com/IliaSadovskii/agent-kit/pull/17), opened ready against
-  `main` (feature 1 of 7 — the only one in the stack based on the default branch). Description in
-  Russian per `manifest.language`, with the standing `bootstrapped: false` warning, the run's
-  assumptions table, and the Testing section from the Test step's record. Conversion to draft is the
-  `deliver` stage's last action, not this one's.
 - step Test — done: no test layer beyond `scripts/validate.sh` is earned, per the spec's
   "Not earned here" — documentation-shaped payload, no runnable surface. `scripts/validate.sh` is
   green. The new dead-reference check was proven by reintroducing `/agent-kit:debug` into `README.md`
@@ -124,3 +119,32 @@ each of the three commands. `VERSION`, `plugin.json`, `marketplace.json` are not
   reverting it (validator green again). The done-means grep
   `grep -rn "agent-kit:\(debug\|address\|screens-riff\)"` returns hits only in `CHANGELOG.md`,
   `migrations/`, `docs/specs/`, and `docs/plans/`.
+- step PR — done: [#17](https://github.com/IliaSadovskii/agent-kit/pull/17), opened ready against
+  `main` (feature 1 of 7 — the only one in the stack based on the default branch). Description in
+  Russian per `manifest.language`, with the standing `bootstrapped: false` warning, the run's
+  assumptions table, and the Testing section from the Test step's record. Conversion to draft is the
+  `deliver` stage's last action, not this one's.
+- step Review — done: one wave over the frozen diff at `6c33d04`, then one round of fixes
+  (`18174c9`). Passes: `agent-kit:reviewer` against the spec, plan, orientation and
+  `docs/developing.md` with base `main`; the `code-review` plugin on PR #17, which posted
+  [its comment](https://github.com/IliaSadovskii/agent-kit/pull/17#issuecomment-5143586316) with two
+  findings above its confidence bar. The security pass is a **named skip**: the diff's only
+  executable surface is `scripts/validate.sh`, a build-time script reading this repository's own
+  tracked files — no untrusted input, no network, no secrets, no runtime surface. The rest is
+  documentation-shaped payload. `/simplify` skipped as well — the diff is small and prose-shaped.
+  Fixed: `fix`/`riff` routing now hands arguments over and names where control resumes (the
+  `$ARGUMENTS` hole in the three now-internal skills, and `debug` handing back into step 3 rather
+  than step 1); `riff`'s "nothing is written" rule no longer reads as a ban on `screens-riff`'s own
+  cards; the stale "Three commands touch the map" header and "Nine commands" README line; and
+  `docs/developing.md`, which described the validator this feature changed. The fix diff went back
+  through `agent-kit:reviewer` once, as the flow requires: no critical or major finding, and the
+  minors it raised — self-references the "Three passes" rename left behind in `screens-riff`, two
+  over-broad sentences in the refreshed `docs/developing.md`, `address` naming only the `--pr` entry
+  of its two, and the strategy pointer that named no next action — are closed in the same round.
+  **Deliberately deferred** — the validator no longer forces a *new internal* skill to declare
+  itself anywhere (the derived command set only guards commands), it walks `*.md` only so
+  `templates/screens/screens.html` and `scripts/sprint-watchdog.sh` keep unguarded command
+  references, and `docs/design/` is exempt from the dead-link check though it is a live design; the
+  `## 0.18.0` changelog intro reads as this feature's rather than the release's, which the release
+  commit rewrites; and commit `6be72b3` used the branch slug as its conventional-commit scope with
+  no `!` for a breaking change, left alone rather than rewriting pushed history.

@@ -1,8 +1,8 @@
 # agent-kit
 
 A Claude Code plugin for autonomous feature development. Enable it and the agent gains a handful of
-commands — ship a feature, fix a bug, debug a failure — each backed by an ordered pipeline instead
-of improvised behavior.
+commands — ship a feature, fix what is wrong, riff on what to build — each backed by an ordered
+pipeline instead of improvised behavior.
 
 The owner stays in the loop where judgement matters (what to build, and the technical design) and
 steps out where it does not: after design approval the agent works through spec, plan,

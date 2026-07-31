@@ -18,8 +18,9 @@ Three passes touch the map, and keeping them apart is what makes it trustworthy:
 | `/agent-kit:riff` | what the product should be | roadmap lines, draws nothing |
 
 This pass is visual and product-shaped; `riff`'s own strategy pass is not. If a proposal here turns
-out to be a strategy question rather than a screen, say so in the review and leave it to that pass
-rather than drawing a card for it.
+out to be a strategy question rather than a screen, say so in the review and point at
+`/agent-kit:riff` on a strategy theme rather than drawing a card for it — routing follows the theme,
+so a non-screen one lands in the strategy pass.
 
 ## Before you start
 
@@ -106,7 +107,7 @@ Record the reason for a rejection in the owner's words. If they gave none, write
 implied and mark it as yours — "Dropped (inferred): …" — so the next run can tell the owner's
 judgment from your reading of it.
 
-This command is interactive by design. There is no autonomous variant of it — the round is the
+This pass is interactive by design. There is no autonomous variant of it — the round is the
 feature.
 
 ## What lands on the map
@@ -128,7 +129,7 @@ sits and a later `/agent-kit:screens` run refreshes it.
   front of whoever opens the map.
 - **An `implemented` or `planned` card is never edited here.** Keeping those true is
   `/agent-kit:screens`'s job. An ideas pass that quietly re-statuses a shipped screen is exactly the
-  confusion these two commands are split to prevent — report the drift instead. An arrow *out of* a
+  confusion these two passes are split to prevent — report the drift instead. An arrow *out of* a
   shipped screen into a new idea is expected and does not touch it: a transition is its own entry.
 - Append within a flow rather than reordering the file, so the diff shows the change rather than
   hiding it in a reshuffle.
@@ -156,8 +157,8 @@ anywhere else:
 - That the map opens by double-clicking the viewer beside it.
 
 **When nothing lands on the map there is no PR** — every idea parked, or none worth putting up —
-and then the command's own output carries the whole review: the improvements that were not
+and then this pass's own output carries the whole review: the improvements that were not
 screen-shaped, the drift, the parked ideas. Say it once, in the session, and write nothing.
 
 Otherwise end by naming what starts the work — `/agent-kit:ship` with the screen the owner wants
-built — and leave it to them. This command builds nothing.
+built — and leave it to them. This pass builds nothing.
