@@ -43,6 +43,14 @@ a feature's cost rather than construction, and `tester` alone is a fifth of it.
   branch, the base the reviewer must diff against, the plan's path, the last finished stage and the
   suite result. It is a record, not a gate — nothing in it proves a stage did what it claims — but a
   later session is never left deriving facts it cannot see.
+- **A sprint survives losing the session that drives it.** Every recovery path in the kit — resume
+  the stage, wait for the reset hour, retry once — assumed an orchestrator was alive to run it, and
+  the one failure none of them covered was that orchestrator dying. `sprint` now starts a detached
+  watchdog at preflight that resumes the run when no child is producing output and the heartbeat has
+  gone stale, and exits when the queue says `done`. Liveness is measured by work rather than by
+  process existence: a rate-limited `claude -p` can sit in the process table indefinitely, and a
+  watchdog that matches it concludes a run is in flight and skips every tick — in silence, if it only
+  logs when it acts. It logs every tick now.
 - **The proof loop is ranked, not exhaustive.** `tester` proved every assertion could fail by
   editing, running, checking and reverting — a fifth of a feature's whole cost, and it rebuilt a
   throwaway mutation harness in `/tmp` on every run. It now proves the behaviours that carry real

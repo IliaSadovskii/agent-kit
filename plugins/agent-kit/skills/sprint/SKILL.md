@@ -135,7 +135,21 @@ before opening a new brief.
 
 ## The run
 
-Preflight once: the working tree must be clean — a dirty tree is a blocker to report, not to work
+Preflight once: start the watchdog, then check the tree.
+
+```bash
+setsid nohup "${CLAUDE_PLUGIN_ROOT}"/scripts/sprint-watchdog.sh \
+  .agent-kit/sprint/<sprint> > /dev/null 2>&1 < /dev/null &
+```
+
+Detached, it outlives this session. Nothing else in the kit does: every recovery path below — resume
+the stage, wait for the reset hour, retry once — assumes an orchestrator is alive to run it, and the
+one failure that path cannot cover is the orchestrator itself dying. The watchdog resumes the sprint
+when no child is producing output and the heartbeat has gone stale, and exits when the queue says
+`done`. **Touch `heartbeat` in the sprint directory at every queue transition**; that file going
+stale is what tells the watchdog nobody is driving any more.
+
+The working tree must be clean — a dirty tree is a blocker to report, not to work
 around. Run the branch sweep over earlier sprints' branches while the tree is still untouched. The
 session must be in an auto permission mode; each child is launched with the same permission mode the
 orchestrator session runs under, or it will hang on its first prompt with nobody there to answer it.
