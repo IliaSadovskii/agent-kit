@@ -439,6 +439,24 @@ for test in "${tests[@]}"; do
 done
 
 # --------------------------------------------------------------------------------------------
+step "mutation testing over the step gate"
+
+# The gate is the one script here whose tests passing while the code is wrong would be invisible:
+# nothing downstream re-checks a step's verdict, so a gate that passes a step it should have failed
+# reports success in the voice of success. `tests/mutate_gate.py` breaks kit_gate.py 117 ways and
+# requires tests/test_gate.py to notice each one.
+#
+# It costs one suite run per mutant — around a quarter of an hour, against fifteen seconds for
+# everything else in this file. Run unconditionally it would turn the pre-release check into
+# something people skip, and a check people skip is worse than one that says it did not run. So it
+# is on in CI, where the wall clock is nobody's afternoon, and off locally unless asked.
+if [ "${KIT_MUTATE:-0}" = "1" ]; then
+  python3 tests/mutate_gate.py || fail "surviving mutants in kit_gate.py"
+else
+  printf 'skipped — set KIT_MUTATE=1 to run it (~15 min; CI runs it on every push)\n'
+fi
+
+# --------------------------------------------------------------------------------------------
 step "no project-specific leakage in the payload"
 
 leaks="$(grep -rniE 'beeplish|english push tutor' "$PLUGIN" 2>/dev/null || true)"

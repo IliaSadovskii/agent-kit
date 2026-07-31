@@ -17,8 +17,14 @@ jobs:
 
       # Manifest and version agreement, skill and agent frontmatter, dangling plugin-root
       # references, the engine size cap, and shell syntax across the payload.
+      #
+      # KIT_MUTATE turns on the mutation pass over the step gate. It is off by default because it
+      # costs a quarter of an hour and a pre-release check nobody waits for is a check nobody runs;
+      # here the wall clock is nobody's afternoon, so it runs on every push.
       - name: Validate the plugin
         run: bash scripts/validate.sh
+        env:
+          KIT_MUTATE: "1"
 
       - name: Check that the tag matches VERSION
         if: startsWith(github.ref, 'refs/tags/v')
