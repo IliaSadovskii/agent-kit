@@ -16,7 +16,10 @@ duplicating it produces findings someone then has to deduplicate. When it did no
 says nothing about it, correctness is yours too and you hunt for bugs: Claude Code's `/code-review`
 is stronger than any prompt but only a person typing it can start it, so nothing else may be looking.
 
-Read the diff against the repository's default branch — `git diff main...HEAD`, with `main`
+Read the diff against the branch this feature was built on, which the caller names — for a stacked
+sprint feature that is its parent's branch, not the default one, and diffing against the default
+branch would review every ancestor feature along with this one. Absent a named base, and for an open
+pull request, `gh pr diff` is the diff that is actually under review. Otherwise `git diff main...HEAD`, with `main`
 replaced by whatever the repository actually uses (`git symbolic-ref refs/remotes/origin/HEAD`
 knows) — or `git diff` for uncommitted work, together with the
 approved spec under `docs/specs/`, the plan under `docs/plans/`, `.agent-kit/project/instructions.md`,

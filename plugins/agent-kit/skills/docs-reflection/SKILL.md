@@ -6,16 +6,19 @@ description: Check whether the living documentation still matches what the code 
 # Docs Reflection
 
 Keep the project's living documentation from going stale, as the final step of a feature after the
-PR is open. Do not delegate this to a subagent: the whole value is knowing what actually diverged
-while you were implementing, which a fresh context cannot see.
+PR is open. The value is knowing what actually diverged while the code was being written, which a
+context that did not write it cannot see — so either run in the session that implemented the feature,
+or read the divergences that session was required to record in the plan's Run log. A staged run does
+the latter by design; what it must not do is guess.
 
 The review always happens; the outcome is usually nothing, because most features do not warrant a
 doc change. Churn is the failure mode — a settled doc stays settled.
 
 ## Steps
 
-1. **Read what already records the divergence** — the PR's Assumptions section and the feature
-   spec. That is where deviations were logged during the run.
+1. **Read what already records the divergence** — the plan's Run log, where the Build and Test steps
+   note documentation they visibly diverged from as they go, plus the PR's Assumptions section and
+   the feature spec. That is where deviations were logged during the run.
 2. **Scan, don't assume a list** — the directory holding `manifest.sources` (default `docs/`) plus
    the root `README.md`. Projects differ, and docs get added after bootstrap.
 3. **Judge each living document** against what the code now does:

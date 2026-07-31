@@ -108,6 +108,7 @@ before opening a new brief.
    ```yaml
    sprint: 2026-07-28-auth
    status: briefed          # briefed | running | integrating | done
+   permission_mode: bypassPermissions   # recorded at the brief; children inherit it
    integration:
      branch: sprint/2026-07-28-auth-integration
      carries: []            # the feature ids the open integration PR delivers
@@ -160,8 +161,8 @@ Then loop until no feature is runnable:
 
    ```bash
    sid=$(python3 -c 'import uuid; print(uuid.uuid4())')   # record it in queue.yml first
-   claude -p "/agent-kit:ship --brief <absolute path to spec.md> --stage <stage>" \
-     --session-id "$sid" --permission-mode <the mode this session runs under> \
+   claude -p "/agent-kit:ship --brief <absolute path to spec.md> --stage <stage> on branch <branch>" \
+     --session-id "$sid" --permission-mode <permission_mode from queue.yml> \
      --model <the stage's tier> --effort <the stage's effort> \
      >> .agent-kit/sprint/<sprint>/<id>/run.log 2>&1
    ```
@@ -205,14 +206,18 @@ Then loop until no feature is runnable:
    check on it periodically rather than holding a foreground call against a timeout.
 5. **On exit, check the pipeline actually finished, then record the outcome.** Exit code 0 proves the
    process ended, not that the run reached its end — a step read inline can take over the child's
-   role, and the turn ends with that step's report. So read the plan's Run log: `done` needs every
-   declared step settled and a PR that exists. If steps are unsettled, nothing is lost and this is
+   role, and the turn ends with that step's report. So read the plan's Run log: a **stage** is finished
+   when the steps it declared there are settled, and a pull request only has to exist after `review` —
+   `design` and `build` legitimately end without one. The feature is `done` when `deliver` is. If steps are unsettled, nothing is lost and this is
    not the retry below — resume the child's own session, which costs seconds where a relaunch costs
-   hours:
+   hours. Resume it **promptly**: a session picked up after its prompt cache has lapsed re-caches its
+   whole context in one step, which was measured at a quarter of a million tokens of cache write per
+   event. Waiting to batch resumes costs more than the resume.
 
    ```bash
-   claude -p --resume <session from queue.yml> \
-     "Continue the pipeline from your first unsettled step in the plan's Run log." \
+   claude -p --resume <that stage's id from the feature's sessions map> \
+     --model <that stage's tier> --effort <that stage's effort> \
+     "Continue from your first unsettled step in the plan's Run log, and stop at the end of your stage." \
      >> .agent-kit/sprint/<sprint>/<id>/run.log 2>&1
    ```
 
@@ -225,9 +230,10 @@ Then loop until no feature is runnable:
    limit resets, so read it from the tail of `run.log` and wait until then before relaunching the
    same stage. Sleep in chunks a tool call can survive rather than one long one, checking the clock
    between them. Retrying immediately neither works nor costs nothing — it burns a session start per
-   attempt, and a queue that polls a closed window all night has nothing to show for it. A real failure gets **one informed retry** before it costs anything: reset
-   the branch state, relaunch the same feature once with the tail of its `run.log` alongside the
-   spec — a transient failure should not take a stack down. Only after the retry mark it
+   attempt, and a queue that polls a closed window all night has nothing to show for it. A real failure gets **one informed retry** before it costs anything:
+   relaunch **that stage** once with the tail of its `run.log` alongside the spec — the feature, never.
+   Rebuilding a finished `design` and `build` because `deliver` failed costs hours and moves the code
+   under a review that already passed. Resetting branch state is only ever in scope for `build`. Only after the retry mark it
    `blocked` with a one-line `note` naming the reason; a `blocked` feature blocks its dependents —
    mark them too, with `note: blocked by <id>` — and the loop moves on to the next runnable
    feature instead of stopping.

@@ -52,7 +52,9 @@ owner-only work becomes recorded manual actions, and only an insurmountable bloc
 
   **Don't rewrite the sketch.** It is an approved design carrying its own scope, settled decisions
   and done-means, and restating those in a fresh document buys nothing while being carried for the
-  rest of the run. Copy the sketch to `docs/specs/` and commit it there as this feature's spec — a
+  rest of the run. `brainstorming` does not write its own spec document under `--brief`; there is
+  already an approved one. Copy the sketch to `docs/specs/<date>-<slug>-design.md` and commit it as
+  this feature's spec — a
   sprint keeps its sketches outside git, and `agent-kit:reviewer`, `docs-reflection` and a later
   review round all look for the spec under `docs/specs/`. Append to that copy only what exploration
   actually changed: mechanics the sketch left open that you have now settled, and deviations you
@@ -69,12 +71,21 @@ owner-only work becomes recorded manual actions, and only an insurmountable bloc
   | `design` | Gate, Design, Plan | spec and plan committed, Run log opened with what orientation found |
   | `build` | Build, Test | code and tests committed, declared suite green |
   | `review` | PR, Review | pull request open, findings fixed and pushed |
-  | `deliver` | CI, Docs | pipeline green or reported, docs resolved |
+  | `deliver` | CI, Docs | pipeline green or reported, docs resolved, a stacked PR converted to draft |
 
-  `design` starts from nothing — it is the stage that creates the plan. Every stage after it begins
-  by finding that plan (`docs/plans/*.md` whose Run log names the current branch, the same way the
-  `Stop` hook finds it) and reading the Run log to learn where the last stage stopped. If the
-  predecessor left no settled steps there, stop and report rather than rebuilding its work.
+  **`design` creates the branch**, from whatever is checked out, named by the sketch or by the
+  caller — never work on the branch you were handed, which under a sprint is the *previous feature's*
+  branch and would put this feature's commits into that feature's pull request. Record it as
+  `**Branch:**` in the Run log. Every stage after `design` starts with `git switch` to that branch
+  before anything else: it finds the plan by it (`docs/plans/*.md` whose Run log names the current
+  branch, the same way the `Stop` hook does), and both the hook and the plan lookup are keyed to it.
+  If the predecessor left no settled steps in that Run log, stop and report rather than rebuilding
+  its work.
+
+  `design` is the exception to the Run log's "steps still ahead" template, because its own steps are
+  finished by the time the plan exists: it writes `**Steps:** Gate, Design, Plan` and settles all
+  three in the same commit. Writing the whole pipeline there instead makes the `Stop` hook demand
+  Build through Docs from the one stage running on the most expensive tier.
 
   **Each stage rewrites the Run log's `**Steps:**` line with its own steps** as it starts, and leaves
   every settled line already in the log untouched. The `Stop` hook reads the first `**Steps:**` it
@@ -99,15 +110,17 @@ the PR step assembles its Assumptions and Manual actions from that section, not 
 
 **Under `--stage`, only the `design` stage does this.** It also owns the Gate, and it writes what it
 concluded into the Run log — the language, the test command, the source paths that matter, whether
-the playbook was current. Later stages read the spec, the plan, that Run log, and the batch's
-`orientation.md` when a `sprint` named one; they do not re-read the manifest, re-derive the project's
-conventions, or re-run the freshness check. Orientation paid four times is most of what splitting a
+the playbook was current, and the outcome of the Gate, including a bootstrap warning the pull request
+still owes the owner three stages later. Later stages read the spec, the plan, that Run log, and the batch's
+`orientation.md` and the sibling `upstream.md` when they exist; they do not re-read the manifest,
+re-derive the project's conventions, or re-run the freshness check. Orientation paid four times is most of what splitting a
 feature into stages was meant to save.
 
-The registered coding standards are the exception, and `build` reads them: its library map and
-architecture stance are what the Build step is told to work inside and what `agent-kit:reviewer`
-judges the diff against a stage later. A stage forbidden to read the standards it will be measured by
-is a false economy.
+The registered coding standards are the exception, and **every stage that writes code reads them** —
+`build`, `review` when it fixes findings, `deliver` when it fixes CI. Their library map and
+architecture stance are what the Build step works inside and what `agent-kit:reviewer` judges the
+diff against. A stage forbidden to read the standards it will be measured by is a false economy, and
+the code `review` and `deliver` write is judged by nobody at all.
 
 Read `.agent-kit/project/manifest.yml` (language, bootstrap state, source paths), then
 `.agent-kit/project/instructions.md`, `README.md`, and whichever `manifest.sources.*` documents the
@@ -150,22 +163,36 @@ say so once at the start and continue.
   find-references and go-to-definition find an existing helper far more reliably than searching for
   the name you would have picked.
 - **Test** — see below.
-- **PR** — push the branch and open a pull request following `.github/pull_request_template.md` and
+- **PR** — push the branch and open a pull request — or reuse the one already open on this branch, a
+  normal outcome after a resumed stage, updating its description and settling the step as
+  `done: reused #<n>` — following `.github/pull_request_template.md` and
   `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md`, **ready rather than draft**, and never merge. It
   opens here, before the review, for one reason: the `code-review` plugin needs a pull request to
   exist and declines a draft, so a PR opened after the reviews cannot be reviewed by it at all. An
   early PR also starts CI while the review wave runs. If a stacked feature must end up as a draft —
-  `sprint` requires it, since such a PR cannot land code — **this run converts it itself, as the very
-  last thing it does**, including when it ends on a blocker. Leaving that to whoever records the
-  feature means a run that died leaves a stacked PR one click from moving code sideways. If no PR
+  `sprint` requires it, since such a PR cannot land code — the conversion is the last thing the run
+  does, which under `--stage` means the `deliver` stage and not this one, including when that stage
+  ends on a blocker. Leaving it to whoever records the feature means a run that died leaves a stacked
+  PR one click from moving code sideways. If no PR
   mechanism exists after every safe fallback, report that as the terminal blocker once the branch is
   pushed, and run the review wave on the branch diff instead.
-- **Review** — one wave over the frozen diff. See below.
+- **Review** — one wave over the frozen diff. See below. The pull request was opened before the
+  findings existed, so finish this step by writing them into its description — the Review section the
+  pull-request rule asks for is written here, not at PR time.
 - **CI** — check the pipeline (`gh pr checks`, or the closest the session has). A red build is part
   of this step, not the owner's problem: fix in-scope failures, rerun the verification the fix put at
-  risk, and push. If CI cannot be observed from the session, say so in the PR.
+  risk, and push. Bound the waiting — a pipeline still pending after a reasonable window settles as
+  `- step CI — reported: still pending after <n>` and says so in the PR, rather than polling until
+  something kills the session. Your mandate here is the build, not the product: formatting, lint, a
+  flake, the workflow's own configuration are yours to fix, and a failure that needs the feature's
+  code changed is a blocker to report — this stage runs on the cheapest tier, holds no build context,
+  and nothing reviews what it writes. If CI cannot be observed from the session, say so in the PR.
 - **Docs** — run `docs-reflection` against the divergences the Build and Test steps recorded in the
-  Run log. Under `--stage` this session did not write the implementation, and `docs-reflection` is
+  Run log. A docs-only PR cut from the default branch is the interactive default; inside a sprint the
+  update stays on the feature branch, because a branch off `main` describes a repository that does not
+  have this feature yet. Either way end the step back on the feature branch — the plan and the `Stop`
+  hook are both keyed to it, and a stage that finishes elsewhere leaves its steps unsettled and
+  unguarded. Under `--stage` this session did not write the implementation, and `docs-reflection` is
   right that a fresh context cannot see what drifted while the code was being written — the Run log
   is how that knowledge crosses the boundary, which is why the earlier stage owes those lines.
   No-op by default. If living docs genuinely diverged, open a
@@ -175,8 +202,10 @@ say so once at the start and continue.
   points at code that only exists here. That push lands after the CI step declared the pipeline green, so
   check the pipeline once more afterwards — the map is a script the project may lint or build.
 
-The pipeline is complete when the feature PR exists with CI green or its state reported, and docs
-reflection is resolved — or when an insurmountable blocker has been reported with the branch left
+**Under `--stage` the run is complete when this stage's steps are settled — the next step is not
+yours**, and the autonomous rule's "work through to a reviewed pull request" means through to the end
+of your stage. Without `--stage`, the pipeline is complete when the feature PR exists with CI green
+or its state reported, and docs reflection is resolved — or when an insurmountable blocker has been reported with the branch left
 in a recoverable state. When the owner's review comes back later, `/agent-kit:address` closes that
 round; it is not part of this run.
 
@@ -197,7 +226,9 @@ log, when the plan is written, with the branch and the steps still ahead of you:
 ```
 
 Under `--stage` this line is **rewritten** by each stage to that stage's own steps, and the settled
-lines below it stay where they are — see the `--stage` argument for why appending a second header
+lines below it stay where they are — except a stage's own lines from an attempt that died, which it
+clears as it restarts. Leave them and the guard is satisfied by work the new attempt never did.
+See — see the `--stage` argument for why appending a second header
 instead would switch the guard off for every stage after the first.
 
 Then settle each step as it ends, one line each — `- step Review — done`,
@@ -320,7 +351,11 @@ fix-and-reverify over a diff that barely changed between them.
 The wave has three distinct questions in it, and no pass answers another's:
 
 - **Is this the feature that was approved?** `agent-kit:reviewer`, against the spec, the plan, the
-  project instructions, and the registered coding standards. Nothing else can answer it, because
+  project instructions, and the registered coding standards. Tell it in the delegation whether the
+  `code-review` plugin is running on this pull request — that is what decides whether correctness is
+  also its job — and give it the base branch to diff against, which for a stacked feature is its
+  parent's branch and not the default one. Left to itself it diffs against the default branch and
+  reviews every ancestor feature along with this one. Nothing else can answer it, because
   nothing else reads the spec. Work built correctly but to the wrong design is invisible to every
   other pass here.
 - **Where are the bugs?** The official `code-review` plugin if the project has it enabled — five
@@ -356,10 +391,22 @@ settle the security pass as a named skip with that reason rather than spending a
 that markdown has no injection flaws. A change to parsing, authorization, money, or process handling
 earns the whole wave and possibly a specialist.
 
-Then **one round of fixes**: collect every finding, deduplicate across passes — several reviewers
-reporting one thing is one finding, not three — fix what affects correctness or the approved
-requirements, and record the rest as deliberately deferred rather than building defensive scaffolding
-around it. Rerun what the fixes put at risk plus the project's declared suite, once, at the end.
+Then **reconcile the findings against each other before fixing anything.** Deduplication removes
+findings that say the same thing; reconciliation removes findings the others have made pointless — a
+reviewer saying the approach is wrong and the module should go takes twenty line-level findings
+inside that module with it, and a security pass saying an input path must be removed cancels the
+request for tests over it. Structural findings win; act on them first and drop what they moot,
+rather than paying for both.
+
+Then **one round of fixes**: from what survives, fix every critical or high security finding, fix what affects
+correctness or the approved requirements, and record the rest as deliberately deferred rather than
+building defensive scaffolding around it. A security finding is not "correctness" and does not fall
+under the approved requirements — it has its own bar, and it survived the merge of the old Security
+step into this wave. Rerun what the fixes put at risk plus the project's declared suite, once, at the end — and when the
+fix round changed structure rather than lines, send the fix diff back through `agent-kit:reviewer`
+once. The code written in this step is the one part of the feature nobody else will look at: the
+argument that a cheaper build stage is safe rests on this wave reading it, and this wave does not
+read itself.
 
 On a diff large enough that a human would find it a slog to read, follow with `/simplify`, which an
 agent *can* invoke: four agents cover reuse, simplification, efficiency, and level of abstraction,

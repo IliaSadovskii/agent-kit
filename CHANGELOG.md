@@ -5,8 +5,10 @@ installed it — see [docs/developing.md](docs/developing.md#versioning).
 
 ## 0.17.0
 
-A run costs its context multiplied by its steps. Measured over four headless `ship` runs — 212M
-tokens of context re-reading for four features — and cut where the measurement pointed.
+A run costs its context multiplied by its steps. Measured over four headless `ship` runs — 207M
+tokens of context re-reading for four features, 40% of it inside the subagents they spawned — and cut
+where the measurement pointed. The measurement also corrected two assumptions: verification is 70% of
+a feature's cost rather than construction, and `tester` alone is a fifth of it.
 
 - **A feature is carried by four short sessions, not one long one.** `ship --stage
   <design|build|review|deliver>` runs one stage and stops; `sprint` launches them in turn. The
@@ -37,6 +39,14 @@ tokens of context re-reading for four features — and cut where the measurement
   never enters the orchestrator's context, asks for at most one heavy verification layer per
   sketch and says why slow is not free, and waits for the named reset hour after a rate-limit exit instead of polling a
   closed window.
+- **The proof loop is ranked, not exhaustive.** `tester` proved every assertion could fail by
+  editing, running, checking and reverting — a fifth of a feature's whole cost, and it rebuilt a
+  throwaway mutation harness in `/tmp` on every run. It now proves the behaviours that carry real
+  risk, says which it did not, and is told to commit a mutation script once rather than write one
+  each time.
+- **The review wave reconciles findings before fixing them.** Deduplication removes findings that say
+  the same thing; a structural finding makes line-level findings inside the code it condemns
+  pointless, and the fix round used to pay for both.
 - **`engine.md` gains the arithmetic**: read the part you need, cap long command output, batch
   edits. It applies to every session the kit governs, not only to pipelines.
 
