@@ -81,6 +81,38 @@ one, `blueprint`, is the first half of a knowledge layer the other commands will
   front of every build command, and a check that could cost forty model calls would be routed
   around within a week.
 
+- **A step is closed by the gate now, not by the agent.** 0.16.0 made a pipeline settle every step
+  on the record; the record was a line in the plan's Run log, and the agent wrote it. `- step Test —
+  done` satisfied the `Stop` hook whether the tests had run or not. The agent now *asks*:
+  `step start` opens a step and prints what will close it, `step settle` runs the criteria and writes
+  the verdict, and the verdict lands in `.agent-kit/runs/<branch>.yml`, which the agent cannot write
+  — a new `PreToolUse` hook refuses the tool call and the existing one refuses the shell command,
+  both with `deny` rather than a question, because a headless run has nobody to answer.
+- **`skipped: <any reason>` is gone.** A skip now names a condition the pipeline definition itself
+  declares — `--reason no_remote` on the PR step — or the step is marked optional. A reason nobody
+  wrote down in advance was not a constraint.
+- **The gate says what it actually proved.** A step whose checks all pass is `verified`, with the
+  command, the exit code and the tail of the output kept as evidence. A step nothing mechanical can
+  prove is `attested`, and it costs a sentence: `settle` without `--evidence` is refused. Today
+  Design, Plan, Test, Review, Security and Docs are attested; each becomes verified the moment a
+  check is written for it in YAML.
+- **A failing step is a loop with a bound, and the bound is on disk.** `settle` names the failing
+  check, its exit code and the tail of its output, and records the attempt. After `max_attempts` the
+  step is `blocked` with every attempt kept, and the run stops. The counter survives compaction,
+  context loss and a session restart, because it was never in the agent's head.
+- **A resumed session is told where it stands.** `SessionStart` prints the branch's unfinished run
+  after the governance: which steps hold which verdict, which step is open, and how the open one has
+  failed so far. It prints nothing at all when there is no run, which leaves an ordinary
+  conversation and any repository that never ran a pipeline untouched.
+- **The `Stop` guard stops mistaking a sprint child's run for its own.** It reads run state rather
+  than markdown, and a run records the session that opened it: an orchestrator sharing one working
+  tree with a headless child — on the child's branch, because the child checked it out — is no
+  longer held every turn for steps the sprint contract forbids it to settle.
+- **The steps of `ship` and `fix` are written down.** `pipelines.default.yml` ships with the plugin
+  and declares them explicitly — order, entry conditions, exit criteria, attempt limits. A later
+  release hands a copy to the project; until then this is the only source, and a project that never
+  writes one keeps working forever.
+
 ## 0.16.0
 
 A pipeline can no longer end its turn with steps left, and a run that stopped early is resumed

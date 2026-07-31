@@ -20,7 +20,7 @@ step "repository layout"
 
 for path in VERSION CHANGELOG.md README.md .claude-plugin/marketplace.json \
             "$PLUGIN/.claude-plugin/plugin.json" "$PLUGIN/engine.md" "$PLUGIN/README.md" \
-            "$PLUGIN/NOTICE.md" "$PLUGIN/hooks/hooks.json" \
+            "$PLUGIN/NOTICE.md" "$PLUGIN/hooks/hooks.json" "$PLUGIN/pipelines.default.yml" \
             "$PLUGIN/templates/project/manifest.yml" \
             "$PLUGIN/templates/project/instructions.md" \
             "$PLUGIN/templates/project/contract.yml"; do
@@ -50,10 +50,16 @@ grep -q 'agent-kit:plugin-owned' "$PLUGIN/templates/screens/screens.html" \
 
 # engine.md is delivered through a SessionStart hook, whose output Claude Code caps at 10,000
 # characters. Past the cap it is written to a file and replaced with a preview, so the governance
-# would silently stop being always-on.
+# would silently stop being always-on. The same hook now prints the branch's unfinished run state
+# after it, so engine.md's budget is the cap minus whatever the gate is allowed to add.
+state_cap="$(python3 -c 'import re,sys
+print(re.search(r"^STATE_CAP = (\d+)", open(sys.argv[1], encoding="utf-8").read(), re.M).group(1))' \
+  "$PLUGIN/scripts/kit_gate.py" 2>/dev/null || echo 0)"
+[ "$state_cap" -gt 0 ] || fail "kit_gate.py declares no STATE_CAP for the gate's share of the hook"
 engine_bytes="$(wc -c < "$PLUGIN/engine.md" 2>/dev/null || echo 0)"
-[ "$engine_bytes" -lt 10000 ] \
-  || fail "engine.md is $engine_bytes bytes; the SessionStart hook output cap is 10000"
+[ "$((engine_bytes + state_cap))" -lt 10000 ] \
+  || fail "engine.md is $engine_bytes bytes and the gate may add $state_cap; the SessionStart hook \
+output cap is 10000"
 
 # --------------------------------------------------------------------------------------------
 step "manifests, frontmatter, and versions"

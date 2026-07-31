@@ -28,10 +28,11 @@ SCRIPT = os.path.join(REPO, "plugins", "agent-kit", "scripts", "guard.py")
 
 
 class NeverRulesTest(unittest.TestCase):
-    def assertRefused(self, command, fragment):
-        reason = guard.refusal(command)
-        self.assertIsNotNone(reason, f"{command!r} was allowed")
-        self.assertIn(fragment, reason)
+    def assertRefused(self, command, fragment, decision=guard.ASK):
+        refused = guard.refusal(command)
+        self.assertIsNotNone(refused, f"{command!r} was allowed")
+        self.assertIn(fragment, refused.reason)
+        self.assertEqual(refused.decision, decision, command)
 
     def test_merging_a_pull_request(self):
         self.assertRefused("gh pr merge 7", "never merges pull requests")
@@ -70,6 +71,47 @@ class NeverRulesTest(unittest.TestCase):
     def test_an_unparsable_segment_is_still_judged(self):
         """`shlex` raises on an unbalanced quote; the words are still there to read."""
         self.assertRefused('gh pr merge "unbalanced', "never merges pull requests")
+
+
+class RunStateRuleTest(unittest.TestCase):
+    """The step gate's construction is that the agent cannot write run state. This is half of it."""
+
+    def assertDenied(self, command):
+        refused = guard.refusal(command)
+        self.assertIsNotNone(refused, f"{command!r} was allowed")
+        self.assertEqual(refused.decision, guard.DENY, command)
+        self.assertIn(".agent-kit/runs/", refused.reason)
+
+    def test_a_shell_command_naming_run_state_is_denied(self):
+        """Blunt on purpose: a precise rule about redirects, `tee` and `cp` targets would leak."""
+        for command in ("echo done > .agent-kit/runs/claude-x.yml",
+                        "sed -i s/open/verified/ .agent-kit/runs/claude-x.yml",
+                        "cp /tmp/forged.yml .agent-kit/runs/claude-x.yml",
+                        "rm -rf .agent-kit/runs",
+                        "cat .agent-kit/runs/claude-x.yml",
+                        "make test && echo x >> .agent-kit/runs/claude-x.yml",
+                        "printf verified | tee /repo/.agent-kit/runs/claude-x.yml"):
+            with self.subTest(command=command):
+                self.assertDenied(command)
+
+    def test_the_decision_is_deny_not_ask(self):
+        """A headless sprint child has nobody to answer an `ask`, and a hanging child is worse."""
+        self.assertEqual(guard.refusal("rm .agent-kit/runs/x.yml").decision, guard.DENY)
+        self.assertEqual(guard.refusal("gh pr merge 7").decision, guard.ASK)
+
+    def test_the_gate_itself_passes(self):
+        for command in ('python3 "/plugins/agent-kit/scripts/gate.py" step settle Test',
+                        "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gate.py step skip PR "
+                        "--reason no_remote",
+                        "python3 /x/scripts/gate.py state"):
+            with self.subTest(command=command):
+                self.assertIsNone(guard.refusal(command), command)
+
+    def test_an_unrelated_command_passes(self):
+        for command in ("ls .agent-kit/project", "cat .agent-kit/knowledge/contract.yml",
+                        "grep -rn runs docs/"):
+            with self.subTest(command=command):
+                self.assertIsNone(guard.refusal(command), command)
 
 
 class HookProtocolTest(unittest.TestCase):
