@@ -83,9 +83,18 @@ before opening a new brief.
    ```text
    .agent-kit/sprint/<YYYY-MM-DD>-<slug>/
      queue.yml
+     orientation.md
      01-<feature-slug>/spec.md
      02-<feature-slug>/spec.md
    ```
+
+   `orientation.md` is what every child would otherwise work out for itself. You have just read the
+   code, the documents and the history to compose this batch; write down once what all of the
+   features need to know — the repository's shape, its test command and conventions, the handful of
+   files the batch will keep touching, and the paragraph of any long document that actually applies —
+   and name it in each sketch instead of pointing children at the sources. Six children each reading
+   the same thousand-line design document to find one section is six times the cost of reading it
+   once, and each of them then carries it for the rest of its run.
 
    Each `spec.md` is the approved design: goal, scope in and out, settled decisions, the *left to
    the run* list with the default named for each item, and **done means** — the observable acceptance criteria the run
@@ -168,8 +177,10 @@ Then loop until no feature is runnable:
    written — it is a guess wearing the pipeline's name.
 
    Then find the feature's PR (`gh pr list --head <branch>`), and mark
-   `done` with `pr` filled. A rate-limit exit is not a failure: wait for the reset and relaunch
-   the same feature. A real failure gets **one informed retry** before it costs anything: reset
+   `done` with `pr` filled. A rate-limit exit is not a failure: the child's output names the hour the
+   limit resets, so read that time out of `run.log` and wait until it before relaunching the same
+   feature. Retrying earlier neither works nor costs nothing — it burns a session start per attempt,
+   and a queue that polls a closed window all night has nothing to show for it. A real failure gets **one informed retry** before it costs anything: reset
    the branch state, relaunch the same feature once with the tail of its `run.log` alongside the
    spec — a transient failure should not take a stack down. Only after the retry mark it
    `blocked` with a one-line `note` naming the reason; a `blocked` feature blocks its dependents —

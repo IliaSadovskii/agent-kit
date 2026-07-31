@@ -45,9 +45,15 @@ owner-only work becomes recorded manual actions, and only an insurmountable bloc
   is replaced by the most reasonable one that still reaches the sketch's goal — the best path, not
   the smallest diff — recorded as a deviation; and the product behavior and scope the owner
   approved are never quietly substituted. If the goal itself proves unreachable, that is this
-  feature's terminal blocker: report it rather than shipping a different feature. The expanded
-  spec is still written and committed. Incompatible with `--manual`; for the two gates below, a
-  brief counts as a supplied free-text task.
+  feature's terminal blocker: report it rather than shipping a different feature. Incompatible with
+  `--manual`; for the two gates below, a brief counts as a supplied free-text task.
+
+  **Don't rewrite the sketch.** It is an approved design carrying its own scope, settled decisions
+  and done-means, and restating those in a fresh document buys nothing while being carried for the
+  rest of the run. Commit the sketch itself as this feature's spec, and append to it only what
+  exploration actually changed: mechanics it left open that you have now settled, and deviations you
+  took. Bound the exploration the same way — read the documents and sections the sketch names, not
+  whole files around them.
 - Remaining free text is the chosen task and skips roadmap task selection. A screen id in it — `S7`,
   alone or inside a sentence — is a task about a screen the project's map already knows; see "Screen
   references" below.
@@ -86,7 +92,9 @@ say so once at the start and continue.
   present a design, and get explicit approval. No implementation code before approval. After
   approval, write the feature spec and enter autonomous mode. Under `--brief` this step is
   expansion, not interview — see Arguments.
-- **Plan** — run `writing-plans` for an executable implementation plan. No approval gate.
+- **Plan** — run `writing-plans` for an executable implementation plan. No approval gate. Under
+  `--brief` the plan is a task list with its verification, not a document: the spec already says what
+  is being built and what done means, and the plan's lasting job is to host the Run log.
 - **Build** — implement the approved design task by task using the project's conventions. Keep
   commits coherent and verification close to the changed behavior. The always-on rule about reaching
   for what already exists applies hardest here: before each new helper, look in the project, the
