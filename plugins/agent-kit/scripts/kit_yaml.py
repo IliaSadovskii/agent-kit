@@ -8,7 +8,11 @@ documents — raises KitYamlError naming the construct and the line.
 
 import re
 
-_INT_RE = re.compile(r"^-?\d+$")
+# No leading zeros: a `rev` is a 12-hex-digit hash, and roughly one in sixteen
+# hundred of those is all decimal digits with a leading zero. Read as a number
+# it comes back short, and the slot it belongs to could never match its own
+# hash again.
+_INT_RE = re.compile(r"^-?(?:0|[1-9]\d*)$")
 _KEY_RE = re.compile(r"^([^:\s][^:]*?):(?:\s+(.*)|)$")
 
 
@@ -92,6 +96,13 @@ def _parse_list(lines, i, indent, path):
             else:
                 value = None
         else:
+            # `- key: value` is a list of maps. The subset is lists of scalars,
+            # so name it here rather than letting the following indented line
+            # surface as a bare "unexpected indentation".
+            if rest[0] not in "\"'" and _KEY_RE.match(rest):
+                raise KitYamlError(
+                    "list items that are maps are not supported", path, line_no
+                )
             value = _parse_scalar(rest, path, line_no)
         result.append(value)
     return result, i
@@ -103,7 +114,7 @@ def _parse_scalar(text, path, line_no):
         m = re.match(r'^"((?:[^"\\]|\\.)*)"\s*(#.*)?$', text)
         if not m:
             raise KitYamlError("unterminated or malformed double-quoted scalar", path, line_no)
-        return _unescape_double(m.group(1))
+        return _unescape_double(m.group(1), path, line_no)
     if text.startswith("'"):
         m = re.match(r"^'((?:[^']|'')*)'\s*(#.*)?$", text)
         if not m:
@@ -138,10 +149,41 @@ def _find_comment(text):
     return None
 
 
-def _unescape_double(text):
-    return (
-        text.replace('\\"', '"')
-        .replace("\\\\", "\\")
-        .replace("\\n", "\n")
-        .replace("\\t", "\t")
-    )
+_ESCAPES = {
+    "n": "\n",
+    "t": "\t",
+    "r": "\r",
+    "0": "\0",
+    '"': '"',
+    "\\": "\\",
+    "/": "/",
+}
+
+
+def _unescape_double(text, path, line_no):
+    # One pass, left to right. Sequential str.replace would be order-dependent:
+    # an escaped backslash followed by a literal `n` would come back as a
+    # newline. An escape outside the subset is named rather than guessed at.
+    out = []
+    i = 0
+    while i < len(text):
+        ch = text[i]
+        if ch != "\\":
+            out.append(ch)
+            i += 1
+            continue
+        i += 1
+        if i >= len(text):
+            raise KitYamlError(
+                "double-quoted scalar ends with a lone backslash", path, line_no
+            )
+        escape = text[i]
+        if escape not in _ESCAPES:
+            raise KitYamlError(
+                "unsupported escape '\\{}' in a double-quoted scalar".format(escape),
+                path,
+                line_no,
+            )
+        out.append(_ESCAPES[escape])
+        i += 1
+    return "".join(out)

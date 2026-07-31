@@ -10,7 +10,7 @@ import hashlib
 import re
 
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
-_FENCE_RE = re.compile(r"^(```|~~~)")
+_FENCE_RE = re.compile(r"^(`{3,}|~{3,})")
 
 
 class MissingSection(Exception):
@@ -34,7 +34,16 @@ def sections(text):
     for i, line in enumerate(lines):
         stripped = line.strip()
         if in_fence:
-            if stripped.startswith(fence_marker):
+            # A fence closes only on the same character, at least as long as
+            # the one that opened it. Comparing a fixed three characters lets
+            # a nested ``` example close an outer ```` fence, after which a
+            # `#` line inside the example reads as a real heading.
+            close = _FENCE_RE.match(stripped)
+            if (
+                close
+                and close.group(1)[0] == fence_marker[0]
+                and len(close.group(1)) >= len(fence_marker)
+            ):
                 in_fence = False
             continue
         fence_match = _FENCE_RE.match(stripped)

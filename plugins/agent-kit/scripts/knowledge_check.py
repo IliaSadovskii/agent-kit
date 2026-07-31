@@ -6,9 +6,10 @@ Reads `<root>/.agent-kit/knowledge/contract.yml` and reports, without a grader:
 - every slot and collection has a terminal verdict (`filled`, `not_applicable`
   with a reason, `open_question`) — `empty`, `conflicts`, and any other status
   are findings;
-- every `source` a slot or collection binds to resolves to a file and a
-  section — a missing file, an unreadable contract, or a missing/ambiguous
-  heading is structural;
+- every `source` a slot binds to resolves to a file and a section — a missing
+  file, an unreadable contract, or a missing/ambiguous heading is structural.
+  A collection's `sources` globs are not resolved here; that is stage 2's work,
+  along with the entries themselves;
 - every binding with a `source` carries a `rev` that still matches the
   section's current hash — a mismatch or a missing `rev` is a finding;
 - unless `--skip-verification`, every command under `verification.commands`
@@ -47,7 +48,14 @@ def main(argv=None):
     try:
         with open(contract_path, encoding="utf-8") as fh:
             text = fh.read()
-    except OSError as exc:
+    except FileNotFoundError:
+        print("✗ contract")
+        print("  no contract at {}".format(contract_path))
+        print("  start one by copying the kit's template:")
+        print("    ${CLAUDE_PLUGIN_ROOT}/templates/project/contract.yml")
+        print("    → .agent-kit/knowledge/contract.yml")
+        return 2
+    except (OSError, UnicodeDecodeError) as exc:
         print("✗ contract\n  cannot read {}: {}".format(contract_path, exc))
         return 2
 
@@ -64,6 +72,16 @@ def main(argv=None):
     slots = data.get("slots") or {}
     collections = data.get("collections") or {}
 
+    for label, group in (("slots", slots), ("collections", collections)):
+        if not isinstance(group, dict):
+            print("✗ contract")
+            print(
+                "  `{}` is not a mapping of names to entries in {}".format(
+                    label, contract_path
+                )
+            )
+            return 2
+
     findings = []
     structural = []
 
@@ -73,7 +91,11 @@ def main(argv=None):
         _check_item(name, item, root, findings, structural)
 
     verification = slots.get("verification")
-    if isinstance(verification, dict) and not args.skip_verification:
+    if (
+        isinstance(verification, dict)
+        and verification.get("status") in TERMINAL_STATUSES
+        and not args.skip_verification
+    ):
         _check_verification(verification, root, structural)
 
     _report(slots, collections, findings, structural)
@@ -97,6 +119,10 @@ def _check_item(name, item, root, findings, structural):
         findings.append((name, "status is not_applicable with no reason recorded"))
 
     source = item.get("source")
+    if status == "filled" and not source and not item.get("commands"):
+        findings.append(
+            (name, "status is filled but nothing backs it — no source and no commands")
+        )
     if not source:
         return
 
@@ -114,7 +140,7 @@ def _check_item(name, item, root, findings, structural):
     try:
         with open(file_path, encoding="utf-8") as fh:
             doc_text = fh.read()
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         structural.append((name, "cannot read source file {}: {}".format(path, exc)))
         return
 
@@ -130,7 +156,16 @@ def _check_item(name, item, root, findings, structural):
     current_rev = kit_markdown.rev(body)
     stored_rev = item.get("rev")
     if not stored_rev:
-        findings.append((name, "bound to {} but has no rev recorded".format(source)))
+        # The current hash is printed so a fresh binding can be completed by
+        # copying it; there is no --resolve until stage 5.
+        findings.append(
+            (
+                name,
+                "bound to {} but has no rev recorded — current rev is {}".format(
+                    source, current_rev
+                ),
+            )
+        )
     elif stored_rev != current_rev:
         findings.append(
             (

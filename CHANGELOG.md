@@ -15,8 +15,8 @@ it means without repeating itself.
 - **`screens-riff` is now `riff` on a screen theme.** A standalone `S<digits>` token, or an explicit
   mention of screens or the map, routes `riff` into the screen-proposal pass, taken proposals still
   landing on the map as `idea` cards and turned-down ones as `rejected` memory.
-- Nine commands become six. See [migrations/0.18.0.md](migrations/0.18.0.md) for where each removed
-  command went.
+- The three folds take nine commands down to six; `blueprint` below brings the live list to seven.
+  See [migrations/0.18.0.md](migrations/0.18.0.md) for where each removed command went.
 - **`/agent-kit:blueprint --check`**, the mechanical half of the knowledge contract: a slot list
   with a deliberate verdict per slot — `filled`, `not_applicable`, or `open_question`, never `empty`
   or `conflicts` — each bound to a section of the project's own prose and checked for staleness by

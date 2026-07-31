@@ -32,7 +32,7 @@ is treated as the owner's decision.
 ## `--check`
 
 ```
-python3 "${CLAUDE_PLUGIN_ROOT}"/scripts/knowledge_check.py --root <project-root>
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/knowledge_check.py" --root <project-root>
 ```
 
 Cheap and non-interactive — seconds, no grader. It reads `<root>/.agent-kit/knowledge/contract.yml`
@@ -61,10 +61,15 @@ project's own reason for using it rather than leaving it as a silent flag; this 
 
 ## Starting a contract
 
-A project with none yet copies `plugins/agent-kit/templates/project/contract.yml` to
+A project with none yet copies `${CLAUDE_PLUGIN_ROOT}/templates/project/contract.yml` to
 `.agent-kit/knowledge/contract.yml` — every slot ships `status: empty`, which `--check` then reports
-as the state every slot starts in and must be resolved out of. Fill each slot by hand: set `status`,
-and for a `filled` slot, `source` and the `rev` `--check` reports as missing.
+as the state every slot starts in and must be resolved out of. `--check` against a project with no
+contract at all names that same path rather than only saying the file is missing.
+
+Fill each slot by hand: set `status`, and for a `filled` slot, `source` and its `rev`. Write the
+`source` first and run `--check` — a bound slot with no `rev` yet is reported with the section's
+current hash, which is the value to record. There is no `--resolve` that writes it for you until a
+later version.
 
 ## Bare invocation
 

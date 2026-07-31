@@ -50,6 +50,35 @@ class FencedCodeTests(unittest.TestCase):
         titles = [t for _level, t, _body in secs]
         self.assertEqual(titles, ["Real"])
 
+    def test_inner_shorter_fence_does_not_close_the_outer_one(self):
+        # A document showing a fenced example inside a fence — comparing a fixed
+        # three characters closes the outer fence on the inner one, and the `#`
+        # line in the example then reads as a real heading.
+        text = (
+            "# Real\n"
+            "````markdown\n"
+            "```\n"
+            "# Not a heading\n"
+            "```\n"
+            "````\n"
+            "tail\n"
+            "# Next\n"
+            "x\n"
+        )
+        titles = [t for _level, t, _body in km.sections(text)]
+        self.assertEqual(titles, ["Real", "Next"])
+        self.assertIn("tail", km.section(text, "Real")[2])
+
+    def test_longer_closing_fence_still_closes(self):
+        text = "# Real\n```\ncode\n````\n# Next\nx\n"
+        titles = [t for _level, t, _body in km.sections(text)]
+        self.assertEqual(titles, ["Real", "Next"])
+
+    def test_a_tilde_run_does_not_close_a_backtick_fence(self):
+        text = "# Real\n```\n~~~\n# Not a heading\n```\n# Next\nx\n"
+        titles = [t for _level, t, _body in km.sections(text)]
+        self.assertEqual(titles, ["Real", "Next"])
+
 
 class LookupErrorTests(unittest.TestCase):
     def test_missing_heading_raises(self):

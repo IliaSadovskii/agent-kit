@@ -137,21 +137,102 @@ class ErrorTests(unittest.TestCase):
         self.assertIn(":3:", str(ctx.exception))
 
 
+class RevScalarTests(unittest.TestCase):
+    """A rev is a 12-hex-digit hash and must survive the reader as a string."""
+
+    def test_all_digit_rev_with_leading_zero_stays_a_string(self):
+        # Read as an int this comes back as 31657175672, and the slot it belongs
+        # to could never match its own hash again.
+        data = load(
+            """
+            rev: 031657175672
+            """
+        )
+        self.assertEqual(data["rev"], "031657175672")
+
+    def test_ordinary_integers_are_still_integers(self):
+        data = load(
+            """
+            a: 0
+            b: 42
+            c: -7
+            """
+        )
+        self.assertEqual(data, {"a": 0, "b": 42, "c": -7})
+
+
+class EscapeTests(unittest.TestCase):
+    def test_escaped_backslash_before_n_is_not_a_newline(self):
+        # Source characters: backslash backslash n — an escaped backslash then a
+        # literal n. Sequential str.replace would turn this into a newline.
+        data = load(
+            """
+            a: "x\\\\ny"
+            """
+        )
+        self.assertEqual(data["a"], "x\\ny")
+
+    def test_known_escapes(self):
+        data = load(
+            """
+            a: "one\\ntwo"
+            b: "a\\tb"
+            c: "say \\"hi\\""
+            """
+        )
+        self.assertEqual(data["a"], "one\ntwo")
+        self.assertEqual(data["b"], "a\tb")
+        self.assertEqual(data["c"], 'say "hi"')
+
+    def test_unsupported_escape_is_named_not_guessed(self):
+        with self.assertRaises(kit_yaml.KitYamlError) as ctx:
+            load(
+                """
+                a: "C:\\Users"
+                """
+            )
+        self.assertIn("unsupported escape", str(ctx.exception))
+
+
+class ListOfMapsTests(unittest.TestCase):
+    def test_list_of_maps_names_the_construct(self):
+        with self.assertRaises(kit_yaml.KitYamlError) as ctx:
+            load(
+                """
+                items:
+                  - key: value
+                    other: value
+                """
+            )
+        self.assertIn("list items that are maps are not supported", str(ctx.exception))
+
+    def test_quoted_scalar_containing_a_colon_is_still_a_scalar(self):
+        data = load(
+            """
+            items:
+              - "key: value"
+            """
+        )
+        self.assertEqual(data["items"], ["key: value"])
+
+
 class RoundTripTests(unittest.TestCase):
     """Every YAML file the kit owns must parse without hitting the unsupported path."""
 
     def _files(self):
-        patterns = [
+        return [
             os.path.join(REPO, "plugins", "agent-kit", "templates", "project", "manifest.yml"),
             os.path.join(REPO, "plugins", "agent-kit", "templates", "project", "contract.yml"),
             os.path.join(REPO, ".agent-kit", "project", "manifest.yml"),
             os.path.join(REPO, ".agent-kit", "knowledge", "contract.yml"),
         ]
-        return [p for p in patterns if os.path.isfile(p)]
 
     def test_reads_back_every_yaml_file_the_kit_owns(self):
         files = self._files()
-        self.assertTrue(files, "expected at least one kit-owned YAML file to exist")
+        for path in files:
+            # Asserted, not filtered: skipping the ones that are missing would let
+            # the file this covers disappear and the test still pass.
+            self.assertTrue(os.path.isfile(path), "kit-owned YAML file is missing: {}".format(path))
         for path in files:
             with open(path, encoding="utf-8") as fh:
                 text = fh.read()

@@ -6,8 +6,8 @@
 # `not_applicable` (with a reason), and `open_question`.
 #
 # Check with: python3 plugins/agent-kit/scripts/knowledge_check.py --skip-verification
-# (scripts/validate.sh runs the same check, without --skip-verification, as one of its steps —
-# the flag is what keeps that step from calling itself through the verification slot below.)
+# (scripts/validate.sh runs the same check, with that same flag, as one of its steps — the flag is
+# what keeps that step from calling itself through the verification slot below.)
 
 version: 1
 
@@ -50,10 +50,10 @@ slots:
     criterion: null
 
   deferred_seams:
-    status: filled
-    source: docs/design/knowledge-and-gates.md#9. Order of work
-    rev: f6726d4ed42e
-    reason: null
+    status: open_question
+    source: null
+    rev: null
+    reason: "The nearest prose is \"9. Order of work\" in docs/design/knowledge-and-gates.md, and it is the stage order of one design batch rather than this repository's deferred seams — it names what comes later, not the decision in each stage that keeps the later one cheap. Binding it would also be bound to churn: stages 3–7 edit that document, so the slot would report stale on work that never touched what it claims to describe. Recorded as an open question rather than filled with the closest available heading."
     criterion: null
 
 collections:
