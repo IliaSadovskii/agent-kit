@@ -11,8 +11,9 @@ tokens of context re-reading for four features — and cut where the measurement
 - **A feature is carried by four short sessions, not one long one.** `ship --stage
   <design|build|review|deliver>` runs one stage and stops; `sprint` launches them in turn. The
   handoff is the spec, the plan, its Run log and the commits, which the pipeline already kept on
-  disk for exactly this. Cost grows with the square of a session's length, so four sessions that
-  each start small cost about half of one that ends four times larger than it began.
+  disk for exactly this. Splitting divides the part of the cost that grows with a session's length
+  while the handoff each stage re-reads at its start stays — which is why the saving lands near half
+  rather than the quarter the growth term alone would suggest.
 - **One review wave over a frozen diff.** `reviewer`, the `code-review` plugin's fan and the
   security pass ran serially, each with its own fix-and-reverify round over a diff that barely
   changed between them. They now run together, findings are deduplicated across passes, and there
@@ -21,19 +22,20 @@ tokens of context re-reading for four features — and cut where the measurement
 - **The pull request opens before the review, ready rather than draft.** The `code-review` plugin
   needs a pull request and declines drafts, so a stacked feature's PR — drafted the moment it opened
   — silently lost the strongest review in the pipeline, and children were rebuilding that fan by
-  hand out of generic agents. `sprint` converts it to a draft when it records the feature.
+  hand out of generic agents. The `deliver` stage converts it to a draft as the last thing it does,
+  including when the run ends on a blocker; `sprint` checks that it did.
 - **The wave is scaled to the diff.** A change with no executable surface earns the conformance
   question and a named skip, not a dozen agents proving that markdown has no injection flaws.
 - **Stages name a model tier.** Design and review on the strong model at high effort, build and
   deliver on the mid tier at lower effort. What makes a cheaper build safe is the review wave
   immediately after it, on the strong model over the same diff.
-- **`ship --brief` stops rewriting the sketch.** The brief's sketch is committed as the spec and
-  gains only what exploration changed; the plan becomes a task list whose lasting job is hosting the
+- **`ship --brief` stops rewriting the sketch.** It is copied to `docs/specs/` as the feature's spec
+  and gains only what exploration changed; the plan becomes a task list whose lasting job is hosting the
   Run log. Children had been producing two to three times the sketch's volume restating it.
 - **`sprint` writes `orientation.md` once per batch** instead of every child working out the
   repository for itself, delegates each `upstream.md` to a subagent so a finished feature's Run log
-  never enters the orchestrator's context, asks for at most one heavy verification layer per sketch
-  rather than three, and waits for the named reset hour after a rate-limit exit instead of polling a
+  never enters the orchestrator's context, asks for at most one heavy verification layer per
+  sketch and says why slow is not free, and waits for the named reset hour after a rate-limit exit instead of polling a
   closed window.
 - **`engine.md` gains the arithmetic**: read the part you need, cap long command output, batch
   edits. It applies to every session the kit governs, not only to pipelines.

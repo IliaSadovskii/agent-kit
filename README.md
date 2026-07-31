@@ -6,7 +6,7 @@ of improvised behavior.
 
 The owner stays in the loop where judgement matters (what to build, and the technical design) and
 steps out where it does not: after design approval the agent works through spec, plan,
-implementation, tests, an independent code review, a security review, and a pull request without
+implementation, tests, a pull request, and one review wave over it — conformance, bugs, and security together without
 asking routine questions.
 
 ## Install
