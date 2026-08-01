@@ -87,9 +87,14 @@ answers and points at the owner's document: `source: docs/DEVELOPER.md#offers @a
 hash is that section as you read it. Their prose stays theirs and is not duplicated; when they edit
 it the hash diverges and `--check` says so.
 
-**Finish on a branch.** Work on `claude/blueprint-<date>`, commit per slot, and open a pull request
-at the end for the owner to merge — knowledge nobody reviewed is knowledge the build inherits
-blind. Without a remote, commit locally and say so.
+**Commit onto the branch that is checked out**, one commit per slot, and push when there is a
+remote. No pull request of its own: the owner settled every slot out loud as it was written, so
+there is nothing a reviewer would catch, and an interview that may span days cannot leave the
+knowledge on an unmerged branch where the other commands cannot see it. Usually that branch is the
+default one and the guard asks once — the owner is present, that is their confirmation. Started
+mid-feature, the knowledge lands on that feature's branch and travels with its pull request, which
+is where the gap surfaced. Only if the default branch is protected does blueprint fall back to a
+branch and a pull request, and it says so.
 
 ## Notes left by runs
 
