@@ -1,0 +1,24 @@
+# The project's own corner of the kit. Written by blueprint, read by every command.
+# Never edited by a build command — they write only into the run file and the machine lines of
+# the knowledge entries.
+
+language: en                      # the language the kit talks to the owner in, and writes prose in
+
+commands:                         # the project's real commands; the only place they are recorded
+  test:
+  lint:
+  run:
+
+knowledge:                        # one verdict per slot: filled | not_applicable | open_question
+  product: open_question          # not_applicable and open_question carry a reason after the value
+  actors: open_question
+  entities: open_question
+  actions: open_question
+  screens: open_question
+  integrations: open_question
+  scenarios: open_question
+  stack: open_question
+
+checks:
+  stack_researched:               # date the stack slot was last derived; --check names it past six months
+  deps:                           # direct dependency manifests, and their hash at that moment
