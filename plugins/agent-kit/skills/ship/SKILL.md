@@ -55,6 +55,22 @@ this run's memory and the handoff to anything that resumes it: create it at Desi
 each thing happens, never in a batch at the end. A run outlives its own context — what is not in
 that file or in the code did not survive.
 
+Beside it, `run.log` records **when** things happened, which the state file cannot: one line per
+event, appended and never read back, so it costs nothing in context.
+
+```bash
+printf '%s step=%s event=%s detail=%s\n' "$(date -u +%FT%TZ)" build suite "make test → 1 failed" \
+  >> .agent-kit/runs/<slug>/run.log
+```
+
+Log a line when a step starts, when a command that matters returns, when you ask something and when
+it is answered, when you take an assumption or hit a blocker, and when the review comes back — with
+its counts. One event per line and nothing resembling prose: this is what someone reads to find out
+where a run spent its afternoon, not a narrative of it.
+
+Both files are working state, not repository content. Add `.agent-kit/runs/` to the project's
+`.gitignore` if it is not there yet.
+
 ## Design
 
 Skip this step when the run file already carries an approach and tasks: whoever wrote them designed

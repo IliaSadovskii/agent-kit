@@ -3,6 +3,35 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.19.0
+
+`ship` is written: one feature from a blueprint entry to a pull request that can be merged without
+reading the diff. Four steps — Design, Build, Verify, Deliver — where 0.17.0 had eleven, and no
+generated spec or plan document: the entry is the spec and the task list lives in the run file.
+
+- **Design is a precondition, not a flag.** Whoever writes the approach into the run file designed
+  the feature, so a run launched by something else skips the step. `gate: owner | none` in that file
+  says whether anyone is present, which replaces `--brief` and the two modes that had to be kept in
+  agreement with each other.
+- **One rule decides every question.** An expensive fork — stored data, a contract outside the
+  codebase, permission boundaries, money — is asked when someone is present and recorded as an
+  assumption when nobody is. Everything else is decided silently either way, so a feature with no
+  such fork never waits for approval.
+- **Review is one pass that reads the entry, plus a security pass on a diff trigger.** The
+  `code-review` plugin's fan measured 6.7M tokens for 2 findings against the in-house reviewer's
+  0.66M for 12, so it is not run per feature. `agent-kit:reviewer` returns; it also checks that every
+  line of the entry has a test, which is how a feature that looks proven and is not gets caught.
+- **Tests come from the entry, not from an agent's imagination** — one per line of what changes,
+  what is seen, and what can go wrong, at the highest seam that can see it. The risky ones are
+  written before the code, which is the proof they can fail; the separate pass that used to
+  establish that is gone, along with the `tester` agent.
+- **The pull request is opened after the review**, so it holds reviewed code from its first minute.
+- **`run.json` and `run.log`** — the run's state and a one-line-per-event trace of when things
+  happened, never read back, so a run that took an afternoon can be diagnosed afterwards.
+
+Also: `rules/pull-requests.md` returns as a file rather than as prose repeated per command, and the
+repository gains `scripts/measure.py`, which reports what a run cost per session or per branch.
+
 ## 0.18.0
 
 The kit is being rebuilt from an empty command set. A measured run of 0.17.0 put a feature at ~27M
