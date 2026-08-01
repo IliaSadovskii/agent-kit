@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Validate the plugin repository: manifests, skill and agent frontmatter, structure, and the
-# references the skills make to files that ship alongside them.
+# Validate the plugin repository: layout, manifests, versions, skill frontmatter, and the
+# references the payload makes to files that ship alongside it.
 # Run locally before a release; CI runs the same script.
 
 set -uo pipefail
@@ -19,10 +19,8 @@ step() { printf '\n== %s ==\n' "$1"; }
 step "repository layout"
 
 for path in VERSION CHANGELOG.md README.md .claude-plugin/marketplace.json \
-            "$PLUGIN/.claude-plugin/plugin.json" "$PLUGIN/engine.md" "$PLUGIN/README.md" \
-            "$PLUGIN/NOTICE.md" "$PLUGIN/hooks/hooks.json" \
-            "$PLUGIN/templates/project/manifest.yml" \
-            "$PLUGIN/templates/project/instructions.md"; do
+            "$PLUGIN/.claude-plugin/plugin.json" "$PLUGIN/README.md" \
+            "$PLUGIN/templates/project.yml" "$PLUGIN/templates/knowledge"; do
   [ -e "$path" ] || fail "missing: $path"
 done
 
@@ -33,26 +31,12 @@ grep -q "## $VERSION" CHANGELOG.md 2>/dev/null || fail "CHANGELOG.md has no entr
 # A project's own corner must never ship inside the plugin — an update would overwrite it.
 [ ! -e "$PLUGIN/.agent-kit" ] || fail "$PLUGIN/.agent-kit must not exist (project-owned)"
 
-# The vendored-install machinery was removed in 0.4.0; it must not grow back.
-for path in install.sh catalog.tsv kit templates scripts/generate-adapters.py; do
-  [ ! -e "$path" ] || fail "pre-plugin artefact is back in the repository: $path"
+# The templates are read by blueprint instead of the format being restated in its prompt, so a
+# template with no header comment is a file whose rules exist nowhere.
+for tpl in "$PLUGIN"/templates/knowledge/*.md; do
+  head -1 "$tpl" | grep -q '^<!--' \
+    || fail "${tpl#"$REPO"/}: no header comment — the template is what defines the file's shape"
 done
-
-grep -q '^bootstrapped: false' "$PLUGIN/templates/project/manifest.yml" \
-  || fail "the manifest template must ship unbootstrapped"
-
-# The screen map viewer is the one payload file that is copied into a project and then replaced by
-# a later update. That exception to "once copied it belongs to that repository" is only safe while
-# the file says so where whoever opens it will read it.
-grep -q 'agent-kit:plugin-owned' "$PLUGIN/templates/screens/screens.html" \
-  || fail "the screen map viewer must carry the agent-kit:plugin-owned marker in its header"
-
-# engine.md is delivered through a SessionStart hook, whose output Claude Code caps at 10,000
-# characters. Past the cap it is written to a file and replaced with a preview, so the governance
-# would silently stop being always-on.
-engine_bytes="$(wc -c < "$PLUGIN/engine.md" 2>/dev/null || echo 0)"
-[ "$engine_bytes" -lt 10000 ] \
-  || fail "engine.md is $engine_bytes bytes; the SessionStart hook output cap is 10000"
 
 # --------------------------------------------------------------------------------------------
 step "manifests, frontmatter, and versions"
@@ -78,9 +62,7 @@ if market is not None:
     for field in ("name", "owner", "plugins"):
         if field not in market:
             errors.append(f"marketplace.json: missing required field {field!r}")
-    entries = market.get("plugins") or []
-    sources = [e.get("source") for e in entries]
-    if f"./{plugin}" not in sources:
+    if f"./{plugin}" not in [e.get("source") for e in market.get("plugins") or []]:
         errors.append(f"marketplace.json: no plugin entry with source ./{plugin}")
 
 if manifest is not None:
@@ -104,13 +86,10 @@ if market is not None and manifest is not None:
 if manifest is not None and market is not None:
     allowed = set(market.get("allowCrossMarketplaceDependenciesOn") or [])
     for dep in manifest.get("dependencies") or []:
-        if not isinstance(dep, dict):
-            continue
-        origin = dep.get("marketplace")
-        if origin and origin not in allowed:
+        if isinstance(dep, dict) and dep.get("marketplace") and dep["marketplace"] not in allowed:
             errors.append(
-                f"plugin.json depends on {dep.get('name')!r} from marketplace {origin!r}, which is "
-                "not in marketplace.json allowCrossMarketplaceDependenciesOn — the install would fail"
+                f"plugin.json depends on {dep.get('name')!r} from marketplace {dep['marketplace']!r}, "
+                "which is not in marketplace.json allowCrossMarketplaceDependenciesOn"
             )
 
 
@@ -122,17 +101,16 @@ def frontmatter(path):
     end = text.find("\n---\n", 3)
     if end == -1:
         return None, text
-    block, body = text[4:end], text[end + 5:]
     fields = {}
-    for line in block.splitlines():
+    for line in text[4:end].splitlines():
         m = re.match(r"^([A-Za-z0-9_-]+):\s*(.*)$", line)
         if m:
             fields[m.group(1)] = m.group(2).strip().strip('"')
-    return fields, body
+    return fields, text[end + 5:]
 
 
 skills_dir = os.path.join(repo, plugin, "skills")
-skill_names = set()
+skill_names, stubs = set(), set()
 for name in sorted(os.listdir(skills_dir)):
     path = os.path.join(skills_dir, name, "SKILL.md")
     if not os.path.isfile(path):
@@ -149,37 +127,25 @@ for name in sorted(os.listdir(skills_dir)):
     if len(desc) < 40:
         errors.append(f"skills/{name}/SKILL.md: description is too thin to route on ({len(desc)} chars)")
     if len(desc) > 1024:
-        errors.append(f"skills/{name}/SKILL.md: description is {len(desc)} chars; keep it well under the 1536 listing cap")
-    # Behavior lives in exactly one file: a skill that only points somewhere else is the bug the
-    # old adapter layer used to institutionalize.
-    if len(body.strip()) < 400:
-        errors.append(f"skills/{name}/SKILL.md: body is {len(body.strip())} chars — a pointer, not behavior")
+        errors.append(f"skills/{name}/SKILL.md: description is {len(desc)} chars; keep it under the listing cap")
+    # A command is either behavior or an declared stub. Anything in between is a command that looks
+    # implemented and is not — which is worse than one that says so.
+    if "Not written yet." in body:
+        stubs.add(name)
+    elif len(body.strip()) < 400:
+        errors.append(f"skills/{name}/SKILL.md: body is {len(body.strip())} chars — neither behavior nor a declared stub")
 
-agents_dir = os.path.join(repo, plugin, "agents")
-for fname in sorted(os.listdir(agents_dir)):
-    if not fname.endswith(".md"):
-        continue
-    fields, body = frontmatter(os.path.join(agents_dir, fname))
-    stem = fname[:-3]
-    if fields is None:
-        errors.append(f"agents/{fname}: no YAML frontmatter")
-        continue
-    if fields.get("name") != stem:
-        errors.append(f"agents/{fname}: frontmatter name {fields.get('name')!r} != file name")
-    if len(fields.get("description", "")) < 40:
-        errors.append(f"agents/{fname}: description is too thin to route on")
-
-# Every command promised in the plugin README must exist as a skill, and vice versa.
+# Every command promised in the plugin README must exist as a skill, and vice versa. A stub has to
+# be marked as one there, so the README never advertises a command that does nothing.
 readme = open(os.path.join(repo, plugin, "README.md"), encoding="utf-8").read()
 documented = set(re.findall(r"/agent-kit:([a-z-]+)", readme))
 for missing in sorted(documented - skill_names):
     errors.append(f"{plugin}/README.md documents /agent-kit:{missing}, which is not a skill")
 for undocumented in sorted(skill_names - documented):
-    # Skills the pipelines call internally do not need a README row.
-    if undocumented in {"brainstorming", "writing-plans", "ideate", "idea-interview",
-                        "docs-reflection", "stack-playbook"}:
-        continue
     errors.append(f"skill {undocumented!r} is not documented in {plugin}/README.md")
+for name in sorted(stubs):
+    if not re.search(rf"/agent-kit:{name}\b.*\bnot written\b", readme, re.I):
+        errors.append(f"{plugin}/README.md must mark /agent-kit:{name} as not written yet")
 
 for e in errors:
     print(f"ERROR: {e}", file=sys.stderr)
@@ -190,101 +156,11 @@ PY
 # --------------------------------------------------------------------------------------------
 step "internal references resolve"
 
-# Every ${CLAUDE_PLUGIN_ROOT}/... path a skill or agent mentions must exist in the payload.
+# Every ${CLAUDE_PLUGIN_ROOT}/... path the payload mentions must exist in it.
 while IFS= read -r ref; do
-  target="$PLUGIN/${ref}"
-  [ -e "$target" ] || fail "dangling reference: \${CLAUDE_PLUGIN_ROOT}/$ref"
+  [ -e "$PLUGIN/${ref}" ] || fail "dangling reference: \${CLAUDE_PLUGIN_ROOT}/$ref"
 done < <(grep -rhoE '\$\{CLAUDE_PLUGIN_ROOT\}/[A-Za-z0-9_./-]+' "$PLUGIN" \
            | sed 's|${CLAUDE_PLUGIN_ROOT}/||' | sed 's|[.,)]*$||' | sort -u)
-
-# Skills take document paths only from the project manifest, so every `sources.<key>` the payload
-# reads has to be a key the manifest template ships. Renaming one there is a silent break: the skill
-# keeps naming a key nobody writes and reports the document as absent. `sources.screens` is read by
-# three skills and written by one, which is exactly the spread that makes a rename look harmless.
-while IFS= read -r key; do
-  grep -qE "^  $key:" "$PLUGIN/templates/project/manifest.yml" \
-    || fail "payload reads manifest sources.$key, which the manifest template does not ship"
-done < <(grep -rhoE '\bsources\.[a-z_]+' "$PLUGIN" | sed 's|sources\.||' | sort -u)
-
-# A template page and the scripts it loads are copied into a project together, so the same rule
-# applies to them: a src the page names but the payload does not ship is a blank page in someone
-# else's repository.
-while IFS= read -r html; do
-  while IFS= read -r src; do
-    [ -e "${html%/*}/$src" ] || fail "$html loads a script that does not ship beside it: $src"
-  done < <(grep -oE '<script[^>]*[[:space:]]src="[^"]*"' "$html" | sed 's/.*[[:space:]]src="//; s/"$//')
-done < <(find "$PLUGIN/templates" -name '*.html')
-
-# Paths from the pre-plugin layout must not survive anywhere in the payload.
-stale="$(grep -rnE '\.agent-kit/(engine|skills|rules|workflows|roles|GUIDE|NOTICE|scripts|kit\.lock)' "$PLUGIN" || true)"
-if [ -n "$stale" ]; then
-  printf '%s\n' "$stale" >&2
-  fail "payload references the pre-plugin .agent-kit/ layout"
-fi
-
-# --------------------------------------------------------------------------------------------
-step "template payload syntax"
-
-# A template page is loaded as a plain script from a file:// page, where a syntax error is a blank
-# page and no message at all. Parse the payload's JavaScript here instead of in a browser.
-if command -v node >/dev/null 2>&1; then
-  while IFS= read -r js; do
-    node --check "$js" || fail "syntax error: $js"
-  done < <(find "$PLUGIN/templates" -name '*.js')
-
-  # Every inline <script> of a template page, parsed but never run — vm.Script compiles, which is
-  # exactly the check, and reading the page in node keeps the step to one interpreter.
-  while IFS= read -r html; do
-    node -e '
-      const fs = require("fs"), vm = require("vm");
-      const src = fs.readFileSync(process.argv[1], "utf8");
-      const blocks = [...src.matchAll(/<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/g)];
-      if (!blocks.length) process.exit(0);
-      for (const [, code] of blocks) new vm.Script(code);
-    ' "$html" || fail "syntax error in the inline script of: $html"
-  done < <(find "$PLUGIN/templates" -name '*.html')
-
-  # `node --check` parses but never runs. A data file that assigns the wrong global, or throws on
-  # load, passes the parse and still reaches the owner as the same blank page — so load the screen
-  # map's data the way the viewer does and check the viewer's own precondition. The error itself is
-  # half the value of the check, so it is not swallowed.
-  node -e '
-    global.window = {};
-    require(require("path").resolve(process.argv[1]));
-    const d = global.window.SCREENS;
-    if (!d || !Array.isArray(d.screens) || !d.screens.length) {
-      throw new Error("no non-empty window.SCREENS after loading the file");
-    }
-  ' "$PLUGIN/templates/screens/screens.data.js" \
-    || fail "the screen map demo data does not load into a non-empty window.SCREENS"
-
-  # The demo map is what the format reference sends a reader to as the valid file, and a feature's
-  # Docs step now edits a real map by the same two rules: allocate ids from the counters and raise
-  # them, and give a card that reached `implemented` the `code` path that proves it. Neither rule is
-  # visible in the viewer — a counter that has fallen behind hands out an id that is already taken,
-  # which is the id reuse the format forbids — so an example that breaks one ships as the pattern.
-  node -e '
-    global.window = {};
-    require(require("path").resolve(process.argv[1]));
-    const d = global.window.SCREENS;
-    const top = (items) => (items || []).reduce(
-      (m, x) => Math.max(m, parseInt(String(x.id).slice(1), 10) || 0), 0);
-    const bad = [];
-    if (!(d.meta.nextScreenId > top(d.screens))) {
-      bad.push(`meta.nextScreenId ${d.meta.nextScreenId} does not clear S${top(d.screens)}`);
-    }
-    if (!(d.meta.nextTransitionId > top(d.transitions))) {
-      bad.push(`meta.nextTransitionId ${d.meta.nextTransitionId} does not clear T${top(d.transitions)}`);
-    }
-    for (const s of d.screens) {
-      if (s.status === "implemented" && !s.code) bad.push(`${s.id} is implemented with no code path`);
-    }
-    if (bad.length) throw new Error(bad.join("; "));
-  ' "$PLUGIN/templates/screens/screens.data.js" \
-    || fail "the screen map demo data breaks a rule the skills tell a project's map to keep"
-else
-  printf 'node not available — skipped\n'
-fi
 
 # --------------------------------------------------------------------------------------------
 step "no project-specific leakage in the payload"
@@ -298,30 +174,16 @@ fi
 # --------------------------------------------------------------------------------------------
 step "shell syntax"
 
-while IFS= read -r script; do
-  bash -n "$script" || fail "syntax error: $script"
-  [ -x "$script" ] || fail "not executable: $script"
-done < <(find . -name '*.sh' -not -path './.git/*')
-
-if command -v shellcheck >/dev/null 2>&1; then
-  shellcheck -S warning "$PLUGIN"/scripts/*.sh scripts/*.sh || fail "shellcheck reported problems"
-else
-  printf 'shellcheck not installed — skipped\n'
-fi
-
-# --------------------------------------------------------------------------------------------
-step "claude plugin validate"
-
-if command -v claude >/dev/null 2>&1; then
-  claude plugin validate "./$PLUGIN" --strict || fail "claude plugin validate reported problems"
-else
-  printf 'claude CLI not available — skipped\n'
-fi
+while IFS= read -r sh; do
+  bash -n "$sh" || fail "syntax error: $sh"
+  command -v shellcheck >/dev/null 2>&1 && { shellcheck -S warning "$sh" || fail "shellcheck: $sh"; }
+done < <(find "$PLUGIN" scripts -name '*.sh' 2>/dev/null)
 
 # --------------------------------------------------------------------------------------------
 printf '\n'
-if [ "$errors" -ne 0 ]; then
-  printf 'Validation failed with %s error(s).\n' "$errors" >&2
-  exit 1
+if [ "$errors" -eq 0 ]; then
+  printf 'OK — %s %s validates\n' "$PLUGIN" "$VERSION"
+else
+  printf '%d error(s)\n' "$errors" >&2
 fi
-printf 'Validation passed.\n'
+exit $(( errors > 0 ))

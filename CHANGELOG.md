@@ -3,6 +3,41 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.18.0
+
+The kit is being rebuilt from an empty command set. A measured run of 0.17.0 put a feature at ~27M
+tokens, of which the review wave was 13M — the `code-review` fan costing 6.7M for 2 findings against
+`agent-kit:reviewer`'s 0.66M for 12 — and verification at ~70%. The diagnosis was not any one of
+those numbers: nearly every expensive mechanism existed to insure the kit against its own autonomy,
+and four separate rules in the old text existed only to serve other rules. Autonomy stays; the
+insurance goes.
+
+This release is the first step of that rewrite and is **not a working kit**: only `blueprint` is
+implemented. Install `v0.17.0` if you need the complete previous version.
+
+- **Nine commands become five** — `blueprint`, `fix`, `ship`, `sprint`, `mvp`. `debug` and `address`
+  fold into `fix`; `riff` and `ideate` are dropped outright, because product thinking with nothing
+  to build is a conversation, not a command; `idea-interview`, `stack-playbook`, `docs`,
+  `docs-reflection` and `screens-riff` fold into `blueprint`; `brainstorming` and `writing-plans`
+  collapse into a step inside `ship`. `screens` is deferred until its format is simpler.
+- **`blueprint` — the knowledge layer.** One command owns what the project knows, and it is the only
+  writer: an interview that resumes where it stopped, and `blueprint --check`, mechanical enough to
+  run ahead of every other command and silent when clean. Knowledge lives in `docs/knowledge/`, one
+  file per slot, seeded from templates that carry the shape of a record — so the format and its
+  description cannot drift apart, and each file declares its own required fields.
+- **Feedback from runs, without a bookkeeping layer.** A run that has to assume something leaves a
+  marked block under the entry it stood in for, and that assumption is the decision of record until
+  the owner changes it. Resolving one is rewriting the entry and deleting the block; there is no
+  `resolved` field anywhere.
+- **Removed:** the `Stop` hook, which checked that a step had *a line* the agent wrote itself and
+  blocked unrelated conversations that happened to be on a feature branch; the sprint watchdog,
+  whose three headless levels made progress unobservable and which never once recovered correctly;
+  `--manual` and the interactive-mode rule; three of the four passes that re-derived whether the
+  documentation was still true; and the review levels stacked on top of the first one, which is what
+  produced thirty findings and then twenty more.
+- The plugin no longer declares `code-review` and `pr-review-toolkit` as dependencies. Whether a
+  review wave pulls them back in is decided when `ship` is written.
+
 ## 0.17.0
 
 A run costs its context multiplied by its steps. Measured over four headless `ship` runs — 207M

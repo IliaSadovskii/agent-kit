@@ -6,16 +6,13 @@
   },
   "metadata": {
     "description": "A development kit for building software with long-running Claude Code sessions.",
-    "version": "0.17.0"
+    "version": "0.18.0"
   },
   "plugins": [
     {
       "name": "agent-kit",
       "source": "./plugins/agent-kit",
-      "description": "Build product features through long-running Claude Code sessions: front-loaded interaction on what to build and how, then autonomous work through to a pull request."
+      "description": "Build software with long-running Claude Code sessions: one knowledge layer the project is described in, and the commands that build from it."
     }
-  ],
-  "allowCrossMarketplaceDependenciesOn": [
-    "claude-plugins-official"
   ]
 }

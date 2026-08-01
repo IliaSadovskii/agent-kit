@@ -15,8 +15,8 @@ jobs:
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
 
-      # Manifest and version agreement, skill and agent frontmatter, dangling plugin-root
-      # references, the engine size cap, and shell syntax across the payload.
+      # Layout, manifest and version agreement, skill frontmatter, dangling plugin-root
+      # references, and shell syntax across the payload.
       - name: Validate the plugin
         run: bash scripts/validate.sh
 

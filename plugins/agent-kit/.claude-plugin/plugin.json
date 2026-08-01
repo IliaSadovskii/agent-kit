@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "agent-kit",
   "displayName": "Agent Kit",
-  "version": "0.17.0",
-  "description": "Build product features through long-running Claude Code sessions: front-loaded interaction on what to build and how, then autonomous work through to a pull request.",
+  "version": "0.18.0",
+  "description": "Build software with long-running Claude Code sessions: one knowledge layer the project is described in, and the commands that build from it.",
   "author": {
     "name": "Ilia Sadovskii",
     "url": "https://github.com/IliaSadovskii"
@@ -17,15 +17,5 @@
     "code-review",
     "autonomous",
     "pull-request"
-  ],
-  "dependencies": [
-    {
-      "name": "code-review",
-      "marketplace": "claude-plugins-official"
-    },
-    {
-      "name": "pr-review-toolkit",
-      "marketplace": "claude-plugins-official"
-    }
   ]
 }
