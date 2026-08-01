@@ -1,0 +1,34 @@
+{
+  "_": "One run of any command. The same shape for fix, ship, sprint and mvp — what differs is which fields are filled. Written by the run, read by the run that resumes it, by the reviewer, and by whatever launched it. JSON because a script reads it; the owner reads the pull request instead.",
+
+  "slug": "developer-create-offer",
+  "command": "ship",
+  "gate": "owner",
+
+  "entries": ["developer.create_offer"],
+  "task": null,
+
+  "branch": "claude/developer-create-offer",
+  "base": "main",
+
+  "approach": "one sentence: how this is being built here",
+  "seams": ["the points the tests sit at"],
+  "tasks": [
+    { "id": 1, "what": "", "done": false }
+  ],
+
+  "step": "design",
+
+  "assumptions": [
+    { "what": "", "why": "", "entry": "developer.create_offer", "expensive": false }
+  ],
+  "deviations": [],
+  "blockers": [],
+
+  "waiting_since": null,
+  "waiting_on": null,
+
+  "suite": null,
+  "pr": null,
+  "children": []
+}

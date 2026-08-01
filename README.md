@@ -38,7 +38,7 @@ Updates come from the plugin system: `/plugin update agent-kit@agent-kit`.
 |---|---|
 | `/agent-kit:blueprint` | the project's knowledge layer: the interview, and `--check` that audits it |
 | `/agent-kit:fix` | something is wrong and it is small — not written yet |
-| `/agent-kit:ship` | one feature, end to end — not written yet |
+| `/agent-kit:ship` | one feature end to end, to a reviewed pull request |
 | `/agent-kit:sprint` | a batch of features, autonomous — not written yet |
 | `/agent-kit:mvp` | from the blueprint to a running prototype — not written yet |
 

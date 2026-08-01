@@ -11,12 +11,12 @@ argument. What the rewrite concluded, and why, is in
 |---|---|
 | `/agent-kit:blueprint` | the project's knowledge layer: an interview that writes what the project knows, and `--check` that audits it |
 | `/agent-kit:fix` | something is wrong and it is small — **not written yet** |
-| `/agent-kit:ship` | one feature, end to end — **not written yet** |
+| `/agent-kit:ship` | one feature end to end: design against the blueprint, build, verify, review, pull request |
 | `/agent-kit:sprint` | a batch of features, autonomous — **not written yet** |
 | `/agent-kit:mvp` | from the blueprint to a running prototype — **not written yet** |
 
-Only `blueprint` works today. The other four are declared so the shape of the kit is visible, and
-they do nothing when invoked.
+`blueprint` and `ship` work today. The other three are declared so the shape of the kit is visible,
+and they do nothing when invoked.
 
 ## Blueprint
 
@@ -39,6 +39,21 @@ Two modes:
 **One writer, one trigger.** Only blueprint rewrites knowledge, and only you start blueprint. A
 build command may leave a marked note where it had to assume something, and `--check` may flag what
 went stale — but nothing revises knowledge on its own.
+
+## Ship
+
+One feature — an action from the blueprint, or a small group of actions and screens — to a pull
+request that can be merged without reading the diff.
+
+Blueprint says what the feature does; ship decides how, here: which files, which layer, which
+existing helper, which seam the tests sit at. It asks only where a fork is expensive to reverse and
+someone is present; everything else is decided and recorded. The tests are the entry's own lines —
+what changes, what the initiator sees, what others see, what can go wrong — written before the code
+where the risk is, so a test that cannot fail cannot pass unnoticed. One review pass reads the diff
+against the entry that was approved, a security pass runs on a diff trigger, and the pull request is
+opened after the fixes rather than before.
+
+Why it is shaped this way, and what was rejected: [docs/design/ship.md](../../docs/design/ship.md).
 
 ## Working in a repository
 
