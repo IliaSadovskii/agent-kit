@@ -44,6 +44,17 @@ Then read, in one message: `.agent-kit/project.yml`, the entry and the entities 
 `docs/knowledge/stack.md`. **Read nothing else yet.** Everything you read is re-read on every
 remaining step, so a file costs its size times the steps left.
 
+**Pull the entry's own section, do not open the file it lives in.** A real project's `actions.md`
+runs to tens of thousands of characters, and opening it to read one of forty entries carries the
+other thirty-nine through the whole run:
+
+```bash
+awk -v RS='\n### ' '/`key: developer\.create_offer`/{print "### " $0}' docs/knowledge/actions.md
+```
+
+Measured on a real project that is one entry out of thirty-five: 1.6 KB against 44 KB. The same
+goes for every entity and screen you need — a section each, not the file.
+
 The working tree must be clean — a dirty tree is a blocker to report, not to work around. Create
 `claude/<slug>` from a freshly pulled default branch, unless the run file already names a branch and
 a base.

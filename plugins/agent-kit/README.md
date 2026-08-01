@@ -33,6 +33,9 @@ Two modes:
 
 - `blueprint` — the interview, resuming wherever the last session stopped. It works only on what is
   empty, stale, or marked by an earlier run, so a second run costs minutes rather than hours.
+- `blueprint <what you want to add or reconsider>` — the way in once everything is settled: a
+  feature you have thought through, a part you want reworked, a doubt about whether something is
+  covered.
 - `blueprint --check` — mechanical audit: fields, key references, orphans, stale sources, the state
   of the pull requests behind entries being built. Seconds, asks nothing, silent when clean.
 

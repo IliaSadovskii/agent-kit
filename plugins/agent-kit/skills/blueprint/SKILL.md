@@ -1,7 +1,7 @@
 ---
 name: blueprint
 description: The project's knowledge layer — interview the owner and write the documentation the other four commands build from: application type and stack, actors, entities, actions, screens, integrations, scenarios, MVP bounds. Also audits that knowledge mechanically.
-argument-hint: "[--check]"
+argument-hint: "[what to add or reconsider] [--check]"
 disable-model-invocation: true
 ---
 
@@ -15,12 +15,28 @@ blueprint. Everything else can mark — a build command leaves a note, `--check`
 stale — but nothing revises knowledge on its own. Rules the build follows must not change under a
 run.
 
-## Two modes
+## How it is invoked
 
 | Invocation | What it does |
 |---|---|
 | `blueprint` | continues from wherever the last session stopped: works only on what is empty, stale, or marked by an earlier run. Interactive. |
+| `blueprint <what you want to add or reconsider>` | the owner has something the documents do not hold yet — a feature they have thought through, a part they want reworked, a doubt about whether something is covered. Find the slots it touches, interview about those, write, stop. Without this a finished blueprint has no way in, and the thought turns into work nobody asked for. |
 | `blueprint --check` | audits. Seconds, mechanical, asks nothing, and prints nothing when everything is clean. Runs ahead of every other command. |
+
+## What this command does not do
+
+It writes knowledge. It does not build anything, start or instrument the application, write scripts,
+install dependencies, produce quality or audit reports, or decide what gets worked on first — those
+belong to `fix`, `ship`, `sprint`, `mvp`, or to a plain conversation with the owner.
+
+The pull is strongest when the owner voices a doubt: *is this ready?*, *does the admin area work?*
+Answer it from the knowledge and the code, name what you cannot answer from those, and offer the
+command that would. A three-hour audit started from a question is still not this command's job, and
+the owner asked for documentation.
+
+Gaps you do report are gaps **in the knowledge** — a screen nothing leads to, an entity nothing
+creates, an actor with no actions. Those are cross-checks and cost nothing. Defects in the product
+and in the code are somebody else's.
 
 ## Where it writes
 
@@ -57,7 +73,10 @@ Order, because each step feeds the next:
 4. **`actors`**, then **`entities`**, then **`actions`**. Actions are the bulk: take one actor at a
    time, put up the whole list of what it can do before filling anything in, then fill entries in
    batches.
-5. **`screens`** — largely derivable from the actions; propose and let the owner correct.
+5. **`screens`** — derived from the actions and from the routes and views in the code; propose and
+   let the owner correct. Do not start the application to find out what it has: when the code will
+   not tell you, say so, mark the slot `open_question` and move on. An honest gap costs a line; an
+   audit of a running app costs an afternoon and is not what was asked for.
    **`integrations`** the same way.
 6. **`scenarios`** — walk eight to ten end to end on real names and numbers. This is the
    completeness test, not a longer questionnaire: where the honest answer is "we would add another
@@ -86,6 +105,23 @@ confident around a wrong answer.
 answers and points at the owner's document: `source: docs/DEVELOPER.md#offers @a3f1c9d`, where the
 hash is that section as you read it. Their prose stays theirs and is not duplicated; when they edit
 it the hash diverges and `--check` says so.
+
+## How a session ends
+
+Not with a retelling of the product — the owner can read the files, and a summary always sounds
+confident whether the understanding under it is deep or shallow. End with the things they cannot see
+by looking:
+
+- **Where each slot came from** — derived from the code, taken from their own documents by
+  reference, or told to you in the interview. This is what says how much of it is really theirs.
+- **Where it is thin** — slots left `open_question`, entries with fields you could not fill,
+  and what the cross-checks found.
+- **Where the product stands against its own MVP bounds** — which entries inside them are not
+  `built` yet. Mechanical, and it is the question owners actually ask.
+- **What you did not do**, when something obvious was left alone.
+- **Then invite the rest**: this is what I understood, and here is where it is thin — what is wrong,
+  and what is missing? Naming your own weak spots is what makes that question answerable; asking
+  "anything to add?" after a confident summary gets "looks good" and hides everything.
 
 **Commit onto the branch that is checked out**, one commit per slot, and push when there is a
 remote. No pull request of its own: the owner settled every slot out loud as it was written, so
@@ -128,7 +164,9 @@ enough to run ahead of everything.
 
 - **States.** For every entry marked `building`, read its pull request: merged makes it `built`,
   closed unmerged puts it back to `planned`.
-- **Fields.** Every record has the `fields:` its file's header declares, each non-empty.
+- **Fields.** Every record has the `fields:` its file's header declares, each with content. A field
+  runs until the next field or the next heading, so one whose answer is a list on the lines below it
+  is filled — reading only the label's own line reports every scenario in the file as empty.
 - **References.** Every key resolves: the actor exists, the entity exists, a status an action sets
   is in that entity's states, an action named in a screen transition or a scenario step exists.
 - **Orphans.** An actor with no action, an entity nothing creates, a screen nothing leads to and

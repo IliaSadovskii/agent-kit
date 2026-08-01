@@ -3,6 +3,31 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.19.1
+
+The first live run of `blueprint`, on a real Laravel project: eight slots, 35 actions, 13 entities,
+12 screens, 11 scenarios — **5.6M tokens and about an hour**. Then a further **19.5M** went into a
+visual audit of the running application that this command was never meant to do. It was not the
+agent inventing work: the owner voiced a doubt about whether the product was ready, and blueprint had
+neither a way to answer it nor a boundary saying it should not go and find out.
+
+- **`blueprint <what you want to add or reconsider>`** — the way into a blueprint that is already
+  settled: a feature the owner has thought through, a part they want reworked, a doubt about
+  coverage. Without it the thought has nowhere to go and turns into work nobody asked for.
+- **A boundary section.** It writes knowledge: it does not build, start or instrument the
+  application, write scripts, install dependencies, produce audit reports, or decide what gets
+  worked on first. Gaps it reports are gaps in the knowledge — a screen nothing leads to, an actor
+  with no actions — not defects in the product.
+- **Screens are derived from the code, never from a running app.** When the code will not say, the
+  slot is `open_question` and the run moves on: an honest gap costs a line.
+- **A defined close-out** instead of a summary of the product. Where each slot came from, where it is
+  thin, what is still unbuilt inside the MVP bounds, and what was left alone — because a retelling
+  sounds equally confident whether the understanding under it is deep or shallow.
+- **`--check` reads a field to the next field or heading.** Checking only the label's own line
+  reported all eleven of that project's scenarios as empty, since their steps are a list below.
+- **`ship` pulls an entry's own section rather than opening the file.** Measured on that project:
+  1.6 KB against 44 KB, carried on every remaining step of the run.
+
 ## 0.19.0
 
 `ship` is written: one feature from a blueprint entry to a pull request that can be merged without
