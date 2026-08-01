@@ -10,6 +10,11 @@ disable-model-invocation: true
 One feature: an action from `docs/knowledge/actions.md`, or a small coherent group of actions and
 screens, delivered as one pull request.
 
+Some work has no entry and never will — the skeleton that makes an empty project start, a build
+step, a dependency bump. Then `entries` is empty, `task` in the run file describes what is being
+built, and everything below reads "the entry's lines" as "what that task says done means". Nothing
+else changes.
+
 Blueprint already says **what** this feature does and **why**. Your job is **how, in this codebase,
 now** — which files, which layer, which existing helper, which seam the tests sit at. Do not
 re-decide what blueprint settled, and do not put product decisions into the code that the entry does
@@ -97,6 +102,10 @@ it stood in for:
 That block is the decision of record for every later run, which is what keeps features consistent
 with each other. Anything contradicting the approved approach goes to `deviations` instead, with its
 cause.
+
+When you find a ready-made answer the library map in `stack.md` does not name — a package that
+covers what you were about to write — leave a `[found …]` block under that file the same way. It is
+the only route by which the map learns anything, since nothing else goes looking on its own.
 
 Code, identifiers and commit messages in English; anything the owner reads in the project's
 language.
