@@ -9,7 +9,7 @@ old kit carried is one `git show main:<path>` away and comes back only where it 
 
 ## Why we are rebuilding rather than editing
 
-Measured on the 0.17.0 run (`.agent-kit/sprint/2026-07-31-knowledge-and-gates/HANDOVER.md`):
+Measured on the 0.17.0 run ([0.17.0-measurements.md](0.17.0-measurements.md)):
 a feature cost ~27M tokens, of which the review wave was 13M of 19.9M; the `code-review` fan cost
 6.7M for 2 findings against `agent-kit:reviewer`'s 0.66M for 12; verification was ~70% of a feature.
 The only reliable win of that release was the orchestrator dropping 9× because orientation moved
@@ -194,9 +194,10 @@ Each command lands usable on its own.
   `sprint`, which calls `ship`. And on an empty project the first batch is a skeleton that starts
   and serves something, not a feature.
 - **Screens.** Deferred, to be reconsidered in a much simpler form once blueprint exists.
-- **What blueprint asks and writes.** The slot catalogue survives in
-  `docs/design/knowledge-and-gates.md` §3–§4 and in the specs under
-  `.agent-kit/sprint/2026-07-31-knowledge-and-gates/`. Kept from it: the slots themselves, actors
+- **What blueprint asks and writes.** Settled and shipped in 0.18.0; the templates under
+  `plugins/agent-kit/templates/knowledge/` are the catalogue. It came from a larger design that was
+  mostly rejected (`docs/design/knowledge-and-gates.md`, deleted — see the history of this branch).
+  Kept from it: the slots themselves, actors
   rather than roles, the fixed entry shape for an action, the readiness criterion ("can an
   implementer act on this without asking?"), the three statuses (`filled`, `not_applicable`,
   `open_question`) that stop a slot being filled with invention, the story pass, writing after each
