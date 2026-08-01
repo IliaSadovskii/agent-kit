@@ -6,6 +6,9 @@ Every entry carries a state, and it is the only place implementation progress is
   planned              nothing built yet
   building (pr: N)     a run opened a pull request for it
   built                that pull request merged
+
+`built` means the code for this exists — not that it works. Whether it works is what the scenarios
+answer, against a running application, and on a project the kit adopted they have never been run.
 A build command sets `building`; `--check` moves it to `built` or back to `planned` by reading
 the pull request. Nothing else writes this line.
 

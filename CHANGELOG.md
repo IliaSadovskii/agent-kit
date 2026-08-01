@@ -3,6 +3,24 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.19.2
+
+The second run of `blueprint` on the same project cost **2.0M tokens over 30 steps** against the
+first run's 24M: no re-interview, no application started, four questions, all of them about real
+holes — including that the only `planned` integration is mail, so email confirmation does not work in
+production. A functional problem found from the knowledge, with nothing run.
+
+That is what `state` is for, and this release says out loud what it can and cannot carry.
+
+- **`built` means the code exists — not that it works.** Written into the actions template, because
+  three commands and the owner read that marker.
+- **The close-out says what fifty `built` markers rest on**: the scenarios are the check that a
+  feature works, they run against a live application, and on an adopted project nobody has ever run
+  them.
+- **The declared test command is run once before the close.** Narrowly: blueprint recorded that
+  command and every later command depends on it, so a wrong one is found here instead of in the
+  middle of a build. The result is reported, never fixed.
+
 ## 0.19.1
 
 The first live run of `blueprint`, on a real Laravel project: eight slots, 35 actions, 13 entities,

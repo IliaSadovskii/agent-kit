@@ -118,10 +118,19 @@ by looking:
   and what the cross-checks found.
 - **Where the product stands against its own MVP bounds** — which entries inside them are not
   `built` yet. Mechanical, and it is the question owners actually ask.
+- **What `built` rests on.** Those entries have code; nothing in this file says they work. The
+  scenarios are that check, they run against a live application, and on a project the kit adopted
+  nobody has ever run them. Say it once, plainly, rather than letting fifty `built` markers imply
+  more than they carry.
 - **What you did not do**, when something obvious was left alone.
 - **Then invite the rest**: this is what I understood, and here is where it is thin — what is wrong,
   and what is missing? Naming your own weak spots is what makes that question answerable; asking
   "anything to add?" after a confident summary gets "looks good" and hides everything.
+
+Run `commands.test` from `project.yml` once before you close, and report what it returned. The
+point is narrow: you recorded that command, and every later command depends on it, so a wrong one is
+found here rather than in the middle of a build. Report the result and never fix it — a red suite on
+a project the kit has just adopted is the owner's news, not this command's work.
 
 **Commit onto the branch that is checked out**, one commit per slot, and push when there is a
 remote. No pull request of its own: the owner settled every slot out loud as it was written, so
