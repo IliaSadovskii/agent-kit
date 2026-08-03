@@ -14,9 +14,10 @@ argument. What the rewrite concluded, and why, is in
 | `/agent-kit:ship` | one feature end to end: design against the blueprint, build, verify, review, pull request |
 | `/agent-kit:sprint` | a batch of features, autonomous — **not written yet** |
 | `/agent-kit:mvp` | from the blueprint to a running prototype — **not written yet** |
+| `/agent-kit:audit` | compare existing code to the description and write a work list |
 
-`blueprint` and `ship` work today. The other three are declared so the shape of the kit is visible,
-and they do nothing when invoked.
+`blueprint`, `ship` and `audit` work today. The other three are declared so the shape of the kit is
+visible, and they do nothing when invoked.
 
 ## Blueprint
 

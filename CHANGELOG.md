@@ -3,6 +3,34 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.20.0
+
+`/agent-kit:audit` — the third role the kit was missing. It could describe a project and build from
+the description; nothing looked at code that already exists and said what was missing. The hole
+showed twice before it was named: `blueprint` answered a doubt about readiness by building a
+screenshot harness and spending 19.5M tokens, and there was nowhere to put "cover this inherited
+codebase with tests".
+
+Audit reads code, compares it to `docs/knowledge/`, and writes a work list that `ship` and `sprint`
+execute. **It changes nothing** — the moment an audit starts fixing what it finds it loses its
+stopping condition.
+
+- **A lens is a comparison plus a reference, and it is legitimate only with a finite list to walk** —
+  the entries, the dependency manifest, the scenarios. That list is the stopping condition, and its
+  absence is what turned a bounded question into an afternoon of screenshots.
+- **Two lenses to start: tests and deps.** Five more are designed with a verdict each in
+  `docs/design/audit.md`; the point of shipping two is to find out whether adding the third costs a
+  page or a redesign.
+- **A baseline check on every run:** a surface the code has and no entry describes, and an entry
+  naming a surface that is gone.
+- **Naming a lens does not require remembering one.** No argument runs every lens cheapest first,
+  committing each file as it finishes; free text is mapped to a lens and the mapping is said out
+  loud before any work starts; an unrecognised argument stops the run rather than guessing, because
+  guessing costs a full audit.
+- **One file per lens**, `docs/audits/<lens>.md`, rewritten each run — git holds the history.
+  Findings are grouped into batches of one `ship` run, and an item marked declined is never raised
+  again.
+
 ## 0.19.5
 
 - **Tests are written before the code by default**, not only for the lines that look risky — leaving

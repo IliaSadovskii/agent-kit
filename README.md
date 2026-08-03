@@ -8,8 +8,8 @@ The description lives in `docs/knowledge/`: actors, entities, actions, screens, 
 scenarios, the stack, and what is in the first version. `blueprint` writes it. `ship`, `fix`,
 `sprint` and `mvp` read it and write code. `audit` compares the code back to it.
 
-> Being rebuilt. `blueprint` and `ship` work today; the rest are declared and do nothing. The last
-> complete version is the `v0.17.0` tag.
+> Being rebuilt. `blueprint`, `ship` and `audit` work today; the rest are declared and do nothing.
+> The last complete version is the `v0.17.0` tag.
 
 ## Install
 
@@ -69,10 +69,21 @@ Several features briefed in one sitting, then built unattended and delivered as 
 Builds everything inside the MVP bounds and keeps going until the scenarios pass against the running
 application.
 
-### `audit <lens> [area]` — designed, not written yet
+### `audit [lens] [area]`
 
-Compares existing code to the description and writes a work list: tests, security, performance,
-debt, production readiness. Changes nothing. Lenses run one at a time.
+Compares existing code to the description and writes a work list. Changes nothing.
+
+- `audit` — every lens, cheapest first
+- `audit tests` — one lens; `тесты` and `tests` are the same one
+- `audit tests moderation` — narrowed to an area
+- `audit "why is moderation slow"` — says which lens it understood, then runs it
+
+Two lenses so far: **tests** (which entry lines nothing asserts) and **deps** (vulnerable, dead or
+a major behind). Scenarios, performance and security are designed and not written. Every run also
+checks for surfaces the code has and the description does not, and the reverse.
+
+The list lives in `docs/audits/<lens>.md`, grouped into batches of one `ship` run each. Mark an item
+declined and later runs leave it alone.
 
 ## Order of work
 

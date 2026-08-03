@@ -1,6 +1,6 @@
 # Audit — comparing code to the description
 
-Designed 2026-08-03, not written. The kit could describe a project and build from the description,
+Designed 2026-08-03, written in 0.20.0 with two of its seven lenses. The kit could describe a project and build from the description,
 but had no way to look at code that already exists and say what is missing. Two symptoms of the same
 hole: `blueprint` once answered a doubt about readiness by building a screenshot harness and
 spending 19.5M tokens, and the owner independently asked for a command that would cover an inherited
@@ -71,8 +71,17 @@ size of the project:
 5. **Anything noticed outside the lens** goes in a short separate section. Seeing a real defect and
    staying silent because it was not this lens's business is the worse failure.
 
-Output lives in `docs/audits/<date>-<lens>.md`, committed, and is what a `sprint` brief reads
-instead of composing a batch itself.
+Output lives in `docs/audits/<lens>.md` — **one file per lens, rewritten by each run of it**, not
+one per run. Git already holds the history, and a date in the filename only makes the previous state
+harder to find. Each run reads its own file first: items the owner marked declined are not raised
+again, which is what makes a second audit worth running.
+
+A finding is not a pull request. Items are grouped into batches, one batch per `ship` run, so thirty
+missing tests do not become thirty branches.
+
+The search inside a lens goes **per line of an entry, not per entry**: find one test asserting this
+line and stop. A count of matches around an entity is not evidence about the line that says what can
+go wrong, so there is no reading cap — the question bounds itself.
 
 ## Why the scenarios lens does not write the tests it wants
 
@@ -83,6 +92,17 @@ work list carries one item per scenario.
 
 The first run on a project with no end-to-end harness is therefore nearly empty, and that is honest:
 it orders the harness it needs, and every run after it is cheap and strong.
+
+## Naming a lens should not require remembering one
+
+Three things, none of them machinery: the skill's `argument-hint` lists the lenses as the command is
+typed; free text is accepted and mapped to a lens, with the mapping said out loud before any work
+starts; and every run ends by naming the next lens worth running. With no argument at all it runs
+every lens, cheapest first, committing each file as it finishes — so an interrupted full run keeps
+what it finished.
+
+An unrecognised first argument stops the run before anything happens. Guessing costs a full audit;
+asking costs nothing.
 
 ## First version: tests and deps
 
