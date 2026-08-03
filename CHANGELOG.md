@@ -3,6 +3,18 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.22.3
+
+Two defects the deps run surfaced, both about the command's own bookkeeping rather than its findings.
+
+- **The command now names the lenses that exist** — `tests`, `deps`, `scenarios` — because it
+  mentioned four unwritten ones while explaining where a question belongs, and then recommended one
+  as the next step. Typing it would have been refused by the unrecognised-argument rule: recommend,
+  then decline.
+- **The baseline check runs once per invocation, not once per lens**, into `docs/audits/baseline.md`.
+  It had been repeated in every lens file — the same work twice, and two places for one fact to
+  disagree with itself.
+
 ## 0.22.2
 
 The deps lens ran on a real project for 1.0M and three minutes, with every finding carrying its call

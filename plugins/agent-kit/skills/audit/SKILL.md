@@ -34,10 +34,24 @@ Guessing costs a full run; asking costs nothing.
 Lens files are named in English whatever language the lens was typed in, so a project that changes
 its language does not end up with two sets.
 
+## The lenses that exist
+
+**`tests`, `deps`, `scenarios`.** Those are the three, and nothing else is runnable.
+
+The rest of this file mentions `debt`, `performance`, `security` and `readiness` when explaining
+where a question belongs — "how a test is built has a different reference and belongs to the debt
+lens". Those are boundaries of the written lenses, not an offer. Never run one, never recommend one
+as the next step, and when the owner asks for one, say it is designed and not written and name what
+is.
+
 ## The baseline check
 
-Two comparisons that belong to no lens and run every time, because they cost seconds and catch drift
-in both directions:
+Two comparisons that belong to no lens and run **once per invocation, not once per lens** — a full
+run does them before the first lens and never again, and they go in `docs/audits/baseline.md` of
+their own. Repeating them in each lens file costs the same work twice and leaves two places for one
+fact to disagree with itself.
+
+They cost seconds and catch drift in both directions:
 
 - **a surface in the code that no entry describes** — a route, endpoint or command the application
   grew and nobody wrote down. Tests derived from the entries would never notice it.
@@ -270,7 +284,8 @@ item per scenario after it. Whoever writes those tests then knows which ones sho
 
 ## The work list
 
-`docs/audits/<lens>.md`, one file per lens, rewritten by each run of that lens. Git holds the
+`docs/audits/<lens>.md`, one file per lens, rewritten by each run of that lens, plus
+`docs/audits/baseline.md` for the check that belongs to no lens. Git holds the
 history; a date in the filename would only make the previous state harder to find.
 
 ```markdown
