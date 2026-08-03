@@ -3,6 +3,26 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.22.0
+
+The scenarios lens — the only one that answers whether the application works end to end, which is
+the question `built` markers cannot answer. Tests prove the parts; scenarios prove the joins, and a
+path where every action works and the step between two of them does not is invisible to any test
+written at the level of one action.
+
+- **Two passes, the first needing no code.** Chain the steps against the entries — step N sets a
+  status, step N+1 lists its preconditions, and a mismatch is a finding without opening anything —
+  then trace the path through the code.
+- **It traces when there is nothing to run.** End-to-end tests are run first where they exist; where
+  they do not, the scenario is walked through the code rather than reported as unrunnable, which on
+  most projects would mean an empty audit and a defect left in place.
+- **Each step cites the code that carries it**, and the break is named at the step where it happens.
+  A scenario is `walks`, `breaks at step N`, or `unfollowable` — never a verdict with no trace behind
+  it, which is this lens's cheap path.
+- **It does not write the end-to-end tests.** Tracing says what is broken now; the tests say whether
+  it breaks again, and building them is an owner's decision and a `ship` run. The work list opens
+  with the harness when there is none.
+
 ## 0.21.3
 
 The fourth run of the tests lens landed: 392 citations across 841 lines, exact to the line where

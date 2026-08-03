@@ -197,6 +197,52 @@ This lens needs no `docs/knowledge/` at all, so it is the one that works on a pr
 never described — and the only one that survives on a repository nobody has ever run `blueprint`
 against.
 
+## Lens: scenarios
+
+Reference: `docs/knowledge/scenarios.md`. Walks: every scenario.
+
+Tests prove the parts; scenarios prove the joins. A path where every action works and the step
+between two of them does not is invisible to any test written at the level of one action, and it is
+the defect a person notices first.
+
+**Two passes, and the first needs no code.**
+
+1. **Chain the steps against the entries.** Step N sets a status, step N+1 lists its preconditions —
+   a mismatch is a finding without opening anything. The same for surfaces: if step N+1 is reached
+   from a screen, some earlier step must lead to that screen. The entries already carry all of this.
+2. **Trace the path through the code**, step by step: the implementation of each step exists, and
+   the surface the next step needs is reachable from where the previous one leaves the actor.
+
+Run the end-to-end tests first if the project has any, and report per scenario what they returned.
+Where there are none, trace instead — an earlier draft of this lens reported "nothing to run" and
+stopped, which on most projects means an empty audit and a defect left in place.
+
+**The cheap path here is a verdict with no trace behind it** — "the path looks fine". So each
+scenario is written as its steps, each step citing the code that carries it, and the break named at
+the step where it happens:
+
+```
+Nino tells a story about a neighbour
+  1. author.submit_post     SubmitPostAction.php:24 · route web.php:57 · from screen.new_post   ok
+  2. author.edit_post_body  EditPostBodyAction.php:18                                           ok
+  3. validator.check_post   ClaimPostForValidationAction.php:31                                 ok
+  4. → published            PublishPostAction.php:40, sets post.published                       ok
+  5. guest.browse_feed      Feed.php:66                                                         BREAKS
+     the card links to the story only when the body is over 500 characters
+     (post-card.blade.php:34), and this story is shorter
+  verdict: breaks at step 5 — reachable in the entries, not reachable in the application
+```
+
+A scenario whose every step is cited and reachable is `walks`. One that breaks is `breaks at step
+N`. One you could not follow — a step with no implementation you can find — is `unfollowable`, not
+`walks`.
+
+**It does not write the end-to-end tests it wants.** Tracing answers what is broken now; the tests
+answer whether it breaks again, and building them means fixtures, seeding and often a harness the
+project does not have — an owner's decision and a `ship` run, not a side effect of an audit. So the
+work list opens with the harness when there is none, marked as the owner's decision, and carries one
+item per scenario after it. Whoever writes those tests then knows which ones should fail first.
+
 ## The work list
 
 `docs/audits/<lens>.md`, one file per lens, rewritten by each run of that lens. Git holds the
