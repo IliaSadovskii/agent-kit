@@ -35,7 +35,8 @@ Run `blueprint --check`. It is mechanical and silent when clean. Then:
 
 | What it found | What you do |
 |---|---|
-| a slot in scope unsettled, or the entry incomplete | stop, name what is missing, offer `/agent-kit:blueprint` |
+| a slot in scope unsettled, or the entry incomplete | stop, name what is missing, offer `/agent-kit:blueprint` — the owner is here and closes it in a minute |
+| no `docs/knowledge/` at all | **carry on.** Work from the task as written, with `entries` empty and `task` describing it, and say once that without an entry the tests can only aim at what the task says done means. A project's first command should not be an hour of interview |
 | `[assumed …]` blocks on the entries you will touch | with `gate: owner`, show them and offer to close them now — this is the last moment anyone is here; with `gate: none`, follow them as written |
 | the entry is already `built` | say so and ask whether this is a change to it |
 | nothing | continue without a word about it |
@@ -171,7 +172,9 @@ In this order, because it puts reviewed code in the pull request from its first 
 7. Close the run file: `step`, `suite`, `pr`, and any blocker.
 
 The run is finished when the pull request exists with CI green or its state reported — or when a
-blocker has been reported and the branch left in a recoverable state.
+blocker has been reported and the branch left in a recoverable state. Close it per
+`${CLAUDE_PLUGIN_ROOT}/rules/closing.md`: what is thin rather than what was done, then the one line
+naming what to run next.
 
 ## Review
 

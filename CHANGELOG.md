@@ -3,6 +3,28 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.19.3
+
+Three gaps in how the kit meets its user, found by walking the whole lifecycle rather than one
+command: a developer had to hold the order of commands in their head, had no way to ask where the
+project stood, and was stopped at the door of a project that has no knowledge yet.
+
+- **`rules/closing.md`** — every command ends by naming what is thin rather than summarising what it
+  did, then one line with the next command already filled in and its reason. A summary sounds
+  equally confident whether the work was thorough or shallow, which is the one thing the owner is
+  trying to judge.
+- **`blueprint --check` is the status view.** Run as another command's preflight it stays silent
+  when clean; run by hand it always prints where the project stands — what is built, what inside the
+  MVP bounds is not, open questions, assumptions waiting. No command of its own for that.
+- **`ship` no longer stops on a project with no knowledge at all.** It works from the task as
+  written, in the entry-less mode it already had, and says once what that costs: tests can only aim
+  at what the task says done means. An unsettled entry in a project that *does* have knowledge still
+  stops it — the owner is right there and closes it in a minute.
+
+The rule behind the last one: every command works with knowledge missing except `mvp`, which refuses
+because it has no stopping condition without the MVP bounds and the scenarios. The kit should be
+learnable from one command, not from an hour of interview.
+
 ## 0.19.2
 
 The second run of `blueprint` on the same project cost **2.0M tokens over 30 steps** against the

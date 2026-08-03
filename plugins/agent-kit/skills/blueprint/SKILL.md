@@ -21,7 +21,7 @@ run.
 |---|---|
 | `blueprint` | continues from wherever the last session stopped: works only on what is empty, stale, or marked by an earlier run. Interactive. |
 | `blueprint <what you want to add or reconsider>` | the owner has something the documents do not hold yet — a feature they have thought through, a part they want reworked, a doubt about whether something is covered. Find the slots it touches, interview about those, write, stop. Without this a finished blueprint has no way in, and the thought turns into work nobody asked for. |
-| `blueprint --check` | audits. Seconds, mechanical, asks nothing, and prints nothing when everything is clean. Runs ahead of every other command. |
+| `blueprint --check` | audits, mechanically, in seconds, asking nothing. Two audiences: as another command's preflight it prints nothing when everything is clean; **run by hand it always prints where the project stands** — entries built and planned, what inside the MVP bounds is not built yet, open questions, assumptions waiting for an answer. That is the status view, and it needs no command of its own. |
 
 ## What this command does not do
 
@@ -108,9 +108,8 @@ it the hash diverges and `--check` says so.
 
 ## How a session ends
 
-Not with a retelling of the product — the owner can read the files, and a summary always sounds
-confident whether the understanding under it is deep or shallow. End with the things they cannot see
-by looking:
+Per `${CLAUDE_PLUGIN_ROOT}/rules/closing.md`, and here that means naming the things the owner cannot
+see by reading the files:
 
 - **Where each slot came from** — derived from the code, taken from their own documents by
   reference, or told to you in the interview. This is what says how much of it is really theirs.
