@@ -71,23 +71,27 @@ application.
 
 ### `audit [lens] [area]`
 
-Compares existing code to the description and writes a work list. Changes nothing.
+Compares existing code to what the description says should be true, and writes a work list.
+Changes nothing.
+
+| Lens | Compares against | Finds |
+|---|---|---|
+| `tests` | the entries | lines nothing asserts, assertions too weak to observe what they claim, conditions left uncovered |
+| `deps` | the registries | vulnerable, dead or a major behind — with the call sites and whether the path is reachable here |
+| `scenarios` | the scenarios | where a path breaks, step by step, including breaks no test at the level of one action can see |
+| `security` | this product's *must never* rules, and the generic classes | a rule with nothing enforcing it, or a check that exists and is never invoked |
+| `performance` | the anti-patterns of this stack | where the data is fetched against everywhere it is consumed |
+| `conventions` | the rules in `stack.md` | hand-rolled where the library map names a package, a stance broken, a test badly built |
 
 - `audit` — every lens, cheapest first
 - `audit tests` — one lens; `тесты` and `tests` are the same one
 - `audit tests moderation` — narrowed to an area
 - `audit "why is moderation slow"` — says which lens it understood, then runs it
 
-Six lenses: **scenarios** (walk each one step by step and name where the path breaks —
-the defects no test at the level of one action can see), **tests** — for every line of every entry, whether a test asserts it, whether the
-assertion is strong enough to observe what the line claims, and whether it covers the conditions the
-line names — and **deps** (vulnerable, dead or a major behind, interpreted for this codebase). **security** — the actions touching untrusted input, permissions, money or files, checked
-against this product's own *must never* rules as well as the generic classes. **performance** — every action against the anti-patterns of its stack, where the data is fetched
-and where it is consumed. **conventions** — the code against the rules the project wrote about itself in `stack.md`. Every run also
-checks for surfaces the code has and the description does not, and the reverse.
-
-The list lives in `docs/audits/<lens>.md`, grouped into batches of one `ship` run each. Mark an item
-declined and later runs leave it alone.
+Every run also checks the code for surfaces the description does not have, and the reverse. Findings
+carry the file and line proving them, so a verdict can be checked in ten seconds. The list lives in
+`docs/audits/<lens>.md`, grouped into batches of one `ship` run each; mark an item declined and later
+runs leave it alone.
 
 ## Order of work
 
