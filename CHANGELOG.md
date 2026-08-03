@@ -3,6 +3,17 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.19.4
+
+The README is a reference now, not a story: what each command is for, its forms and arguments, the
+loop, and where the kit writes. No rationale — that lives in `docs/design/`.
+
+- **Two languages, two files.** `README.md` in English, `README.ru.md` in Russian, each linking to
+  the other. The validator fails when they document different commands, since a stale translation is
+  worse than none.
+- `/agent-kit:audit` is listed as designed-but-unwritten, so the shape of the kit is visible from
+  the front page.
+
 ## 0.19.3
 
 Three gaps in how the kit meets its user, found by walking the whole lifecycle rather than one

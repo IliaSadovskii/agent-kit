@@ -18,7 +18,7 @@ step() { printf '\n== %s ==\n' "$1"; }
 # --------------------------------------------------------------------------------------------
 step "repository layout"
 
-for path in VERSION CHANGELOG.md README.md .claude-plugin/marketplace.json \
+for path in VERSION CHANGELOG.md README.md README.ru.md .claude-plugin/marketplace.json \
             "$PLUGIN/.claude-plugin/plugin.json" "$PLUGIN/README.md" \
             "$PLUGIN/templates/project.yml" "$PLUGIN/templates/knowledge"; do
   [ -e "$path" ] || fail "missing: $path"
@@ -152,6 +152,12 @@ for e in errors:
 sys.exit(1 if errors else 0)
 PY
 [ $? -eq 0 ] || fail "manifest or frontmatter checks failed"
+
+# The two READMEs are the kit's front door in two languages; one of them going stale is worse than
+# not having it, and the command list is what a reader decides on.
+en="$(grep -oE '/agent-kit:[a-z-]+' README.md | sort -u)"
+ru="$(grep -oE '/agent-kit:[a-z-]+' README.ru.md | sort -u)"
+[ "$en" = "$ru" ] || fail "README.md and README.ru.md document different commands"
 
 # --------------------------------------------------------------------------------------------
 step "internal references resolve"
