@@ -1,7 +1,7 @@
 ---
 name: audit
 description: Compare existing code to what the project's description says should be true, and write a work list — missing tests, stale or vulnerable dependencies, and surfaces that exist in one place and not the other. Reads and reports; never changes code.
-argument-hint: "[tests|deps|scenarios|security] [area] — or say what worries you"
+argument-hint: "[tests|deps|scenarios|security|performance] [area] — or say what worries you"
 disable-model-invocation: true
 ---
 
@@ -36,11 +36,12 @@ its language does not end up with two sets.
 
 ## The lenses that exist
 
-**`tests`, `deps`, `scenarios`, `security`.** Those are the four, and nothing else is runnable.
+**`tests`, `deps`, `scenarios`, `security`, `performance`.** Those are the five, and nothing else
+is runnable.
 
-The rest of this file mentions `conventions` and `performance` when explaining where a question
-belongs — "how a test is built has a different reference and belongs to the conventions lens". Those
-are boundaries of the written lenses, not an offer. Never run one, never recommend one
+The rest of this file mentions `conventions` when explaining where a question belongs — "how a test
+is built has a different reference and belongs to the conventions lens". That is a boundary of the
+written lenses, not an offer. Never run one, never recommend one
 as the next step, and when the owner asks for one, say it is designed and not written and name what
 is.
 
@@ -332,6 +333,50 @@ the report.
 Walk every risky action, past the first finding: stopping early leaves the rest to be found one per
 fix. And do not attempt an exploit — the citation is the evidence, and a lens that changes state to
 prove a point has stopped being a lens.
+
+## Lens: performance
+
+Reference: the anti-patterns of this stack. Walks: every action, against every pattern.
+
+Not "will it hold ten thousand requests" — that needs numbers no project has written down. This
+lens finds the code that is slow for a reason anyone would recognise, early, while it is cheap to
+change.
+
+**Write the catalogue into the report before using it.** Derive it from `stack.md` and the
+framework's own documented pitfalls — a query per row of a loop, a select with no bound, IO inside a
+loop, a missing index under a query the code actually makes, work done synchronously that the stack
+would queue, a whole table pulled into memory, a hot read with no cache. The kit does not ship a
+catalogue: what is an anti-pattern in one stack is the idiom of another, and a list baked in here
+would be an opinion about somebody else's project. Writing it down is also what makes the scope of
+the check visible — a finding-free report against three patterns is a different thing from one
+against nine.
+
+**The query is not where the cost is.** An action can build a perfectly bounded query and the extra
+round trips happen in the template it feeds, in a serializer, in an accessor touched during
+rendering. So each action carries **two citations: where the data is fetched, and where it is
+consumed** — and the verdict is about the pair. Eager loading that covers what the action uses and
+misses what the view uses is the normal shape of this defect, not an unusual one.
+
+A method named `withRelations` is not evidence that the relations the view touches are loaded. Read
+it, and read what the view touches.
+
+**Every action in scope gets a row** — `clean`, a finding, or `unjudged` with the reason. A report
+that lists only the problems cannot be told apart from one that stopped looking. Walk them all, past
+the first finding.
+
+```
+guest.browse_feed
+  fetched at    Feed.php:206 — with(['author','tags']), paginate(20)
+  consumed at   post-card.blade.php:21 $post->origins->…  — not eager loaded
+  pattern       a query per row of a loop
+  cost          20 extra queries per page, one per card
+  clean for     author, tags
+```
+
+**Profiler output is an input, not a verdict.** If the project runs a query counter, a debug bar or
+a tracer, quote what it reported and say which path produced it; a number with no path behind it
+explains nothing and cannot be rechecked. The kit adds no tooling and runs no benchmark — measuring
+is somebody's work, and this lens is reading.
 
 ## The work list
 

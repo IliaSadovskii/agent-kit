@@ -3,6 +3,27 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.24.0
+
+The performance lens — not "will it hold ten thousand requests", which needs numbers no project has
+written down, but the code that is slow for a reason anyone would recognise, found early while it is
+cheap to change.
+
+- **The catalogue is derived, not shipped.** What is an anti-pattern in one stack is the idiom of
+  another, so it comes from `stack.md` and the framework's own documented pitfalls — and it is
+  written into the report before it is used, because a finding-free report against three patterns is
+  a different thing from one against nine.
+- **Two citations per action: where the data is fetched and where it is consumed.** An action can
+  build a perfectly bounded query while the extra round trips happen in the template it feeds, in a
+  serializer, in an accessor touched during rendering. Eager loading that covers what the action uses
+  and misses what the view uses is the normal shape of this defect.
+- **Every action in scope gets a row** — clean, a finding, or unjudged with the reason. A report
+  listing only problems cannot be told from one that stopped looking.
+- **Profiler output is an input, not a verdict**, and the kit adds no tooling and runs no benchmark.
+  Measuring is somebody's work; this lens is reading.
+
+Six lenses, five written. Conventions remains.
+
 ## 0.23.1
 
 Eleven corrections were earned by the first three lenses over eight live runs. Eight of them already
