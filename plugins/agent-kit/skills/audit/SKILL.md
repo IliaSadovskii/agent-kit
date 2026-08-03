@@ -136,6 +136,18 @@ The citation is what makes the verdict checkable in ten seconds and impossible t
 opening the file. An entry summarised as "covered" with no map behind it can only be believed, and
 this lens exists so that nothing has to be.
 
+**The map carries every line of the entry, and a line with nothing to cite is written `none`.**
+Leaving it out instead is the cheap way to satisfy a citation rule: what remains looks dense and
+proves nothing about what is absent. Each distinct claim inside a line gets its own row — "can go
+wrong" listing three ways is three rows, not one.
+
+**An entry with a single `none` is not covered.** It belongs among the gaps, however much of it is
+cited. Covered means covered whole; anything else is a partial dressed as a verdict.
+
+The map's completeness is arithmetic, not trust: the file's header declares its `fields:`, so a map
+with fewer rows than the entry has lines is a defect in the report rather than an absence of
+problems.
+
 What this lens does **not** judge: how the test is built — brittle, slow, duplicated, sitting at the
 wrong seam. That has a different reference, the project's own testing rules, and belongs to the debt
 lens. Nor does it invent conditions the entry never named: a missing edge case that no line mentions

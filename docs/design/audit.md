@@ -174,8 +174,22 @@ than being discouraged. It also removes the older hole where covered entries wer
 names: nineteen of them, with no way to see which line each was credited by, and therefore nothing
 to check.
 
-The lesson generalises past this lens. Where a cheaper path exists and produces plausible output,
-demand an artefact that path cannot produce.
+The third run answered: cost went 2.0M to 5.1M, file reads 3 to 34, coverings 19 to 12, and the file
+carried 155 real citations with line numbers. The format held.
+
+It also opened the next cheap path, which is the same shape one level down: **cite what can be
+cited and quietly omit the rest**. The disputed line — the report count hidden from an author —
+simply did not appear in the map, and the entry stayed covered. Dense citation reads as thorough,
+and nothing in the file said what was missing from it.
+
+So the rule needs a completeness clause, and that one is arithmetic rather than trust: the map lists
+every line of the entry, a line with nothing to cite is written `none`, and a single `none` moves the
+entry out of covered. The entry's own header declares its `fields:`, so a short map is a defect in
+the report, countable without reading it.
+
+The lesson generalises past this lens, and it took three runs to state properly. Where a cheaper path
+exists and produces plausible output, demand an artefact that path cannot produce — **and demand that
+the artefact be complete**, or the omission becomes the new cheap path.
 
 ## What the shape guarantees, and what it does not
 

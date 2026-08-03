@@ -3,6 +3,24 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.21.2
+
+The citation format held on its first live run — cost 2.0M to 5.1M, file reads 3 to 34, coverings 19
+to 12, and 155 real citations with line numbers. It also opened the next cheap path, one level down:
+cite what can be cited and quietly omit the rest. The disputed line — a report count hidden from an
+author — simply was not in the map, and the entry stayed covered.
+
+- **The map carries every line of the entry**, and a line with nothing to cite is written `none`.
+  Each distinct claim inside a line is its own row.
+- **A single `none` moves the entry out of covered.** Covered means covered whole; anything else is a
+  partial dressed as a verdict.
+- **Completeness is arithmetic, not trust:** the entry's file declares its `fields:`, so a map with
+  fewer rows than the entry has lines is a defect in the report, countable without reading it.
+
+The rule as it now stands, which took three runs to state: where a cheaper path exists and produces
+plausible output, demand an artefact that path cannot produce — and demand that the artefact be
+complete, or the omission becomes the new cheap path.
+
 ## 0.21.1
 
 The second live run of the tests lens produced a false covering, and finding it took one grep: the
