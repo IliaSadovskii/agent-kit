@@ -360,6 +360,11 @@ misses what the view uses is the normal shape of this defect, not an unusual one
 A method named `withRelations` is not evidence that the relations the view touches are loaded. Read
 it, and read what the view touches.
 
+**Name every consumer, not the first one.** An action's data can reach a list, a detail page, a
+notification and an export; reading one template and citing it leaves a row that looks checked while
+two consumers were never opened. Where you cannot enumerate them, say so — an honest `unjudged` is
+worth more than a clean row nobody can trust.
+
 **Every action in scope gets a row** — `clean`, a finding, or `unjudged` with the reason. A report
 that lists only the problems cannot be told apart from one that stopped looking. Walk them all, past
 the first finding.

@@ -3,6 +3,17 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.24.1
+
+Nine of the ten corrections earned by the earlier lenses already applied to performance — it was
+written after they were paid for. The tenth did not: the omission lesson, applied to the second
+citation.
+
+- **Name every consumer, not the first one.** An action's data can reach a list, a detail page, a
+  notification and an export; reading one template and citing it leaves a row that looks checked
+  while two consumers were never opened. Where they cannot be enumerated, `unjudged` is worth more
+  than a clean row nobody can trust.
+
 ## 0.24.0
 
 The performance lens — not "will it hold ten thousand requests", which needs numbers no project has
