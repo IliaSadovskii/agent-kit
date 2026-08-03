@@ -78,12 +78,12 @@ Compares existing code to the description and writes a work list. Changes nothin
 - `audit tests moderation` — narrowed to an area
 - `audit "why is moderation slow"` — says which lens it understood, then runs it
 
-Five lenses so far: **scenarios** (walk each one step by step and name where the path breaks —
+Six lenses: **scenarios** (walk each one step by step and name where the path breaks —
 the defects no test at the level of one action can see), **tests** — for every line of every entry, whether a test asserts it, whether the
 assertion is strong enough to observe what the line claims, and whether it covers the conditions the
 line names — and **deps** (vulnerable, dead or a major behind, interpreted for this codebase). **security** — the actions touching untrusted input, permissions, money or files, checked
 against this product's own *must never* rules as well as the generic classes. **performance** — every action against the anti-patterns of its stack, where the data is fetched
-and where it is consumed. Conventions is designed and not written. Every run also
+and where it is consumed. **conventions** — the code against the rules the project wrote about itself in `stack.md`. Every run also
 checks for surfaces the code has and the description does not, and the reverse.
 
 The list lives in `docs/audits/<lens>.md`, grouped into batches of one `ship` run each. Mark an item

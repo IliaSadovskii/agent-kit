@@ -3,6 +3,27 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.25.0
+
+The conventions lens, and with it all six. The other five check what the product does; this one
+checks how it is built, against the project's own words in `stack.md` — the stances per area, the
+library map, the testing rules, the list of what this project does not do.
+
+- **The rules are the list.** Each is walked and gets a row, including the ones nothing violates and
+  the ones that could not be checked. Three violations reported out of eighteen rules says nothing
+  about the other fifteen.
+- **Hand-rolled where the library map names a package** is the most valuable of the four kinds, and
+  cites both the code and the map line it ignores.
+- **It owns the half of "is this test any good" the tests lens cannot answer** — brittle, slow,
+  duplicated, asserting the implementation, sitting below the seam the project's rules ask for.
+- **A rule the project never wrote is not a finding.** An opinion about layering or naming smuggled
+  in as a violation is how a lens becomes an argument; it goes in "also noticed" and is a candidate
+  for `blueprint` to record.
+- **The lens is worth what `stack.md` is worth**, and says which of the two it was working with
+  before the findings — derived and confirmed stances, or three vague lines.
+
+Six lenses, six written.
+
 ## 0.24.1
 
 Nine of the ten corrections earned by the earlier lenses already applied to performance — it was
