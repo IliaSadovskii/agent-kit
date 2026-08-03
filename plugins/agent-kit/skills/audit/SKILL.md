@@ -137,6 +137,10 @@ opening the file. An entry summarised as "covered" with no map behind it can onl
 this lens exists so that nothing has to be.
 
 **The map carries every line of the entry, and a line with nothing to cite is written `none`.**
+A third marker, `n/a`, is allowed **only where the entry's line itself states that nothing happens**
+— "what changes: nothing", "others see: nothing". Anywhere else it is `none` with extra steps: a
+marker that needs neither a citation nor an admission is the next cheap path, and it looks like a
+verdict.
 Leaving it out instead is the cheap way to satisfy a citation rule: what remains looks dense and
 proves nothing about what is absent. Each distinct claim inside a line gets its own row — "can go
 wrong" listing three ways is three rows, not one.
@@ -162,12 +166,36 @@ Use the ecosystem's own tooling rather than reasoning about versions — `compos
 kinds of finding, in this order: a known vulnerability, a package past end of life, a major version
 behind. Ignore patch drift; a project is not in trouble because something moved by 0.0.1.
 
-**Do not relay the tool's output.** For each finding, say what it means here: whether the vulnerable
-path is reachable in this codebase at all, what a major upgrade would break, what blocks it. A list
-of advisories the owner has to go and interpret is the tool's job, already done.
+**Relaying the tool's output is this lens's cheap path**, and it is what the owner could have run
+themselves. So every finding carries the same kind of artefact the tests lens demands — a citation
+that cannot be written without looking:
+
+```
+league/commonmark 2.4.1 → CVE-2025-… (XSS in inline HTML)
+  used at        MarkdownRenderer.php:31, PostBody.php:18
+  reachable      yes — post bodies are user text and pass through it
+  upgrade to     2.6.0, no API change in the paths above
+
+symfony/mailer 6.4 → end of life 2026-11
+  used at        none — transitive through laravel/framework
+  reachable      not directly; moves with the framework's own upgrade
+
+filament/filament 3.2 → 4.0 available
+  used at        src/Admin/** (14 panels)
+  upgrade blocked by  4.0 requires Livewire 4; the project pins livewire/livewire ^3.5
+```
+
+Three fields, each of which forces a look: **where it is used** (call sites, or `none` for a
+transitive dependency), **whether the vulnerable path is reachable here**, and **what the upgrade
+costs or what blocks it**. A finding with no call sites and no reason is the tool's line copied
+across.
+
+Order by what the owner would act on first: a reachable vulnerability, then an unreachable one, then
+end of life, then a major behind. Ignore patch drift entirely.
 
 This lens needs no `docs/knowledge/` at all, so it is the one that works on a project the kit has
-never described.
+never described — and the only one that survives on a repository nobody has ever run `blueprint`
+against.
 
 ## The work list
 

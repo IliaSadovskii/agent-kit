@@ -191,6 +191,30 @@ The lesson generalises past this lens, and it took three runs to state properly.
 exists and produces plausible output, demand an artefact that path cannot produce — **and demand that
 the artefact be complete**, or the omission becomes the new cheap path.
 
+## The fourth run, and what a lens costs to make rigorous
+
+| | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|
+| cost | 1.7M | 2.0M | 5.1M | 5.1M |
+| files read | 2 | 3 | 34 | 46 |
+| report | 124 lines | 140 | 448 | 841 |
+| citations | 0 | 0 | 155 | 392 |
+| covered | 17 | 19 | 12 | 13 |
+
+Cost reached a plateau while trustworthiness kept rising, which is the point the lens was aiming at:
+three times the first run's price for a report that can be checked rather than believed. Spot-checking
+citations against the test files found them exact to the line. The entry that produced the false
+covering is now in the gaps, demoted by a single `none`.
+
+The fourth run also invented a third marker, `n/a`, for lines whose entry says nothing happens. Used
+honestly there — and it is the next cheap path everywhere else, since it demands neither a citation
+nor an admission. Allowed only where the entry's own line states the absence.
+
+**And the architecture answered its own question.** Bringing the deps lens to the same rigour cost a
+paragraph: the cheap path there is relaying the tool's output, so the artefact is where the package
+is used in this codebase, whether the vulnerable path is reachable, and what the upgrade costs. Same
+shape, one page, no special handling — which is what shipping two lenses first was meant to find out.
+
 ## What the shape guarantees, and what it does not
 
 **Guaranteed: completeness against the description.** A lens walks a list, and every item on it gets

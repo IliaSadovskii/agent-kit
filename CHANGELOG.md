@@ -3,6 +3,24 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.21.3
+
+The fourth run of the tests lens landed: 392 citations across 841 lines, exact to the line where
+spot-checked, the entry that once produced a false covering demoted to the gaps by a single `none`,
+and cost flat against the previous run. Four runs of measurement are recorded in
+`docs/design/audit.md`.
+
+- **`n/a` is allowed only where the entry's own line states that nothing happens.** The fourth run
+  invented the marker and used it honestly, but a marker needing neither a citation nor an admission
+  is the next cheap path, and it reads as a verdict.
+- **The deps lens gets the same discipline.** Its cheap path is relaying what `composer audit`
+  printed, so each finding now carries where the package is used in this codebase, whether the
+  vulnerable path is reachable here, and what the upgrade costs or what blocks it — three fields that
+  cannot be filled without looking. Ordered by what the owner acts on first; patch drift ignored.
+
+Bringing a second lens to full rigour cost a paragraph and no special handling, which is what
+shipping two lenses before the other five was meant to find out.
+
 ## 0.21.2
 
 The citation format held on its first live run — cost 2.0M to 5.1M, file reads 3 to 34, coverings 19
