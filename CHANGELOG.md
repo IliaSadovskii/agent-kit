@@ -3,6 +3,27 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.21.1
+
+The second live run of the tests lens produced a false covering, and finding it took one grep: the
+entry's line was about hiding the report *count* from an author, the assertion was about hiding the
+report *button*, and the entry was listed as covered without remarks.
+
+Two earlier corrections had been written as instructions — read the file, do not stop at a grep hit
+— and both were followed in letter. The run indexed every test *name* in the suite and judged from
+those, which costs almost nothing and reads plausibly, because a test's name is its claim about
+itself rather than its content.
+
+- **A line is covered only when the file names the test and the line number proving it.** No
+  citation, no coverage. A citation cannot be written without opening the file, so the cheap path
+  stops being available instead of being discouraged.
+- **The covered section is now the longest part of the file**, and that is correct: it is the only
+  half a reader can check. Previously it was a list of bare entry names with no way to see which
+  line each was credited by.
+
+The general rule, recorded in `docs/design/audit.md`: where a cheaper path exists and produces
+plausible output, demand an artefact that path cannot produce.
+
 ## 0.21.0
 
 The first live `audit` run cost 1.7M and three minutes — and was too cheap. Sixteen gaps were facts,

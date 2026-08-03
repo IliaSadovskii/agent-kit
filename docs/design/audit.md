@@ -154,6 +154,29 @@ Neither invents conditions the entry never named. A missing edge case nobody wro
 the description, and `blueprint` closes it — an audit that invents requirements has no stopping
 condition.
 
+## Instructions lose to the cheap path; formats do not
+
+Two corrections were written as instructions — read the file, do not stop at a grep hit — and both
+were followed in letter and skipped in substance. The second live run indexed every test *name* in
+the suite and judged from those, which cost almost nothing and read plausibly: a name like
+`it('shows the link to readers and not to the author')` is a claim about the test, not its content.
+It produced a false covering that took one grep to disprove — the entry's line was about hiding the
+report *count* from the author, and the assertion was about hiding the report *button*.
+
+A false covering is the worst thing this command can produce, and an instruction not to make one is
+worth nothing against a cheaper path. So the third correction is a **format**, not a rule:
+
+> A line is covered only when the file names the test and line number proving it. No citation, no
+> coverage.
+
+A citation cannot be written without opening the file, so the shortcut stops being available rather
+than being discouraged. It also removes the older hole where covered entries were listed as bare
+names: nineteen of them, with no way to see which line each was credited by, and therefore nothing
+to check.
+
+The lesson generalises past this lens. Where a cheaper path exists and produces plausible output,
+demand an artefact that path cannot produce.
+
 ## What the shape guarantees, and what it does not
 
 **Guaranteed: completeness against the description.** A lens walks a list, and every item on it gets

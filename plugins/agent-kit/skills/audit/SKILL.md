@@ -117,6 +117,25 @@ first "no":
    is a partial, and the partials are worth more than the absences — they are the ones that look
    covered.
 
+**Covered is claimed with a citation, never with a word.** Every line credited as covered names the
+test and the line number that proves it; a line with nothing to cite is a gap. A test's *name* is
+not a citation — `it('shows the link to readers and not to the author')` is the test's claim about
+itself, and the line it is credited for may be a different claim entirely.
+
+```
+author.report_post
+  what changes         → ReportButtonTest.php:57
+  initiator sees       → ReportButtonTest.php:64
+  others see           → ReportTest.php:85
+  can go wrong
+    repeat report      → ReportButtonTest.php:140
+    report count hidden from the author → none
+```
+
+The citation is what makes the verdict checkable in ten seconds and impossible to produce without
+opening the file. An entry summarised as "covered" with no map behind it can only be believed, and
+this lens exists so that nothing has to be.
+
 What this lens does **not** judge: how the test is built — brittle, slow, duplicated, sitting at the
 wrong seam. That has a different reference, the project's own testing rules, and belongs to the debt
 lens. Nor does it invent conditions the entry never named: a missing edge case that no line mentions
@@ -153,9 +172,19 @@ Suite: `make test` → 0, 118 passed. 35 entries, 21 with gaps, 3 declined.
 - [ ] `moderator.reject_post` — nothing asserts the author is notified
 - [x] declined: `moderator.open_queue` — visual only
 
+## Covered
+`guest.open_post`
+  what changes    → PostPageTest.php:41
+  initiator sees  → PostPageTest.php:58
+  can go wrong    → PostPageTest.php:72, 90
+
 ## Also noticed
 - `PostPolicy::update` allows an author to edit a published post; no entry says that is possible
 ```
+
+The covered section is the longest part of the file and that is correct: it is the only part a
+reader can check, and an audit whose reassuring half cannot be checked is worth less than one that
+reports nothing.
 
 **Read the previous file before writing the new one.** Items the owner marked declined stay
 declined and are not raised again; items that are gone since last time are gone because someone did
