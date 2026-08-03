@@ -2,15 +2,14 @@
 
 # agent-kit
 
-A Claude Code plugin that builds software from a description of it.
+A Claude Code plugin. You describe the project once, and the commands build from that description.
 
-You describe the product once — what it does, what it deliberately does not, the rules it is built
-under — and the commands work from that description: a bug fix, a feature, a batch of them, a whole
-first version. The description is what keeps a long autonomous run correct: nothing has to be
-guessed, and every decision taken without you is written where you will see it.
+The description lives in `docs/knowledge/`: actors, entities, actions, screens, integrations,
+scenarios, the stack, and what is in the first version. `blueprint` writes it. `ship`, `fix`,
+`sprint` and `mvp` read it and write code. `audit` compares the code back to it.
 
-> **Being rebuilt.** Today `/agent-kit:blueprint` and `/agent-kit:ship` work; the rest are declared
-> and do nothing. For the last complete version install the `v0.17.0` tag.
+> Being rebuilt. `blueprint` and `ship` work today; the rest are declared and do nothing. The last
+> complete version is the `v0.17.0` tag.
 
 ## Install
 
@@ -19,7 +18,7 @@ guessed, and every decision taken without you is written where you will see it.
 /plugin install agent-kit@agent-kit
 ```
 
-Pin it for a repository in `.claude/settings.json`:
+For a whole repository, in `.claude/settings.json`:
 
 ```json
 {
@@ -30,61 +29,52 @@ Pin it for a repository in `.claude/settings.json`:
 }
 ```
 
-Needs `git`, and `gh` for pull requests.
+Needs `git`, plus `gh` for pull requests.
 
 ## Commands
 
-### `/agent-kit:blueprint [what to add or reconsider] [--check]`
+### `blueprint`
 
-Describes the project: what it is and deliberately is not, the stack and the rules the build
-follows, actors, entities, actions, screens, integrations, scenarios, MVP bounds. Interviews you,
-writes `docs/knowledge/`, commits each slot as it is settled — stop whenever, it resumes.
+Interviews you and writes the description. Each slot is committed as it is finished, so you can stop
+and come back.
 
-| Form | Does |
-|---|---|
-| `blueprint` | continues where the last session stopped: what is empty, stale, or flagged by an earlier run |
-| `blueprint "rework the map"` | takes something you thought of after the fact into the right slots |
-| `blueprint --check` | run by hand: where the project stands — built, planned, open questions, assumptions waiting. Run by another command: silent when clean |
+- `blueprint` — continue with whatever is empty, stale, or flagged by an earlier run
+- `blueprint "rework the map"` — add or rethink one thing
+- `blueprint --check` — where the project stands: built, planned, open questions, assumptions
+  waiting on you
 
-On a project with existing code it reads the code first and brings you a draft to correct. It never
-starts your application, and it does not restate documents you already have — it links to them by
-section.
+On an existing codebase it reads the code and brings you a draft to correct. It does not start your
+application, and it does not restate documents you already have — it links to them.
 
-### `/agent-kit:ship [action key, or what to build]`
+### `ship <action key | what to build>`
 
-One feature to a pull request: design against the entry, build, verify, review, open the PR.
+One feature, one pull request. Designs against the entry, builds, tests, reviews, opens the PR.
 
-Asks only when a fork is expensive to reverse — stored data, a public contract, permissions, money.
-Everything else is decided and recorded in the PR. Tests come from the entry's own lines and are
-written before the code. One review pass reads the diff against the entry; a security pass runs when
-the diff touches auth, untrusted input, money, files, migrations or outbound calls.
+You are asked only about forks that are expensive to reverse: stored data, public contracts,
+permissions, money. Tests come from the entry and are written before the code. The PR lists what was
+assumed and what was proven.
 
-Works without a blueprint too, from a written task; it says once what that costs.
+Also works with no blueprint, from a written task.
 
-### `/agent-kit:fix [what is wrong] [--pr <n>]` — not written yet
+### `fix <what is wrong>` · `fix --pr <n>` — not written yet
 
-Something is wrong and it is small: your description of it, a failure you observed, or a review
-round on an open pull request.
+A small change: something you describe, a failure you hit, or a round of review comments.
 
-### `/agent-kit:sprint [theme]` — not written yet
+### `sprint <theme>` — not written yet
 
-A batch of features briefed in one sitting, then built autonomously and delivered as one mergeable
-pull request.
+Several features briefed in one sitting, then built unattended and delivered as one mergeable PR.
 
-### `/agent-kit:mvp [scope]` — not written yet
+### `mvp` — not written yet
 
-From the blueprint to a running prototype: composes batches from the MVP bounds and runs them until
-every scenario passes against the live application.
+Builds everything inside the MVP bounds and keeps going until the scenarios pass against the running
+application.
 
-### `/agent-kit:audit <lens> [area]` — designed, not written yet
+### `audit <lens> [area]` — designed, not written yet
 
-Reads existing code, compares it to the blueprint, writes a work list — tests, security,
-performance, debt, production readiness — and changes nothing. For code nobody watched being
-written: an adopted project, or a batch an autonomous run landed overnight.
+Compares existing code to the description and writes a work list: tests, security, performance,
+debt, production readiness. Changes nothing. Lenses run one at a time.
 
-## The loop
-
-**Know → build → check → build.** Enter wherever you are:
+## Order of work
 
 | You have | Order |
 |---|---|
@@ -92,25 +82,25 @@ written: an adopted project, or a batch an autonomous run landed overnight.
 | a half-built skeleton | `blueprint` → `audit` → `ship` / `sprint` |
 | a finished application | `blueprint` → `audit` → `sprint` → `fix` |
 
-Every command works with the knowledge missing except `mvp`, which refuses — without the MVP bounds
-and the scenarios it has no stopping condition. You do not have to start with `blueprint`: a bug fix
-today is a fine first command.
+`audit` is for code nobody watched being written — an inherited project, or a batch that landed
+overnight. After `ship` it is redundant.
 
-## Where things live
+Only `mvp` requires a blueprint. The rest work without one.
 
-| Path | What | Committed |
+## Files
+
+| Path | What | In git |
 |---|---|---|
-| `docs/knowledge/` | the project's description, one file per slot | yes |
-| `.agent-kit/project.yml` | language, the project's own commands, one verdict per slot | yes |
-| `.agent-kit/runs/<slug>/` | a run's state and its event log | no |
+| `docs/knowledge/` | the description, one file per slot | yes |
+| `.agent-kit/project.yml` | language, the project's commands, one verdict per slot | yes |
+| `.agent-kit/runs/<slug>/` | run state and event log | no |
 
-The kit works on branches, never merges a pull request, and writes prose nowhere except
-`docs/knowledge/`.
+The kit works on branches and never merges a pull request.
 
-## Working on the kit itself
+## Developing the kit
 
 `scripts/validate.sh` checks layout, manifests, versions and internal references; CI runs the same
-script. `scripts/measure.py <project>` reports what runs cost, per session or per branch. Design
-notes are in [docs/design/](docs/design/), release notes in [CHANGELOG.md](CHANGELOG.md).
+script. `scripts/measure.py <project>` reports what runs cost, by session or by branch. Design notes
+in [docs/design/](docs/design/), releases in [CHANGELOG.md](CHANGELOG.md).
 
-MIT licensed.
+MIT.
