@@ -19,10 +19,23 @@ landed overnight. After `ship` it is redundant — that diff was already reviewe
 Audit always compares code to something. A lens is which something. That makes the honest way to
 enumerate lenses "which references exist", not "which topics sound useful".
 
-**A lens is legitimate only when it has a finite list to walk.** The entries, the scenarios, the
-dependency manifest, the rules in `stack.md` — the list is what gives the run a stopping condition.
-Without one a lens is an expedition, which is exactly how a bounded question turned into 44
-screenshots.
+**A lens is legitimate on three counts: a finite list to walk, a reference to walk it against, and
+observability — what it checks has to be visible from where the audit stands.** The list is what
+gives the run a stopping condition; without one a lens is an expedition, which is exactly how a
+bounded question turned into 44 screenshots. The third count was added last and cost a lens.
+
+**Readiness was removed by it.** "Is this ready" splits in two: whether everything inside the MVP
+bounds is built and its scenarios pass, which the `built` markers and the scenarios lens already
+answer; and whether the thing survives production — migrations on deploy, secrets out of the
+repository, error tracking, backups, a health check, workers actually running. The second is real
+and nothing else covers it, but **half of it cannot be seen from a repository at all**: whether
+backups exist, whether monitoring receives anything, whether a restore was ever tested. A lens that
+checks half its checklist honestly and guesses the other half is worse than none, because its output
+reads as a checklist. The observable remainder — secrets in the repository — belongs to the security
+lens, and the rest is left out.
+
+That is the second time a removal beat an addition; the first was conformance dissolving into
+tests.
 
 | Lens | Reference | Walks | When |
 |---|---|---|---|
@@ -31,8 +44,7 @@ screenshots.
 | **scenarios** | the scenarios, run against a live application or traced through the code | 8–10 scenarios | first version |
 | **performance** | known anti-patterns of the stack | actions × patterns | second |
 | **security** | vulnerability classes and stack practice, **plus the "must never" lines of the entries** — a generic scanner cannot know this product's own authorization rules | actions touching untrusted input, permissions, money, files, outbound calls | second |
-| **debt** | the testing rules, stances and library map in `stack.md` | the rules recorded there | third — it owns half of "is this test any good" |
-| **readiness** | `product.md`'s environment plus the stack's own minimum | a checklist | later |
+| **conventions** | the testing rules, stances and library map in `stack.md` | the rules recorded there | third — it owns half of "is this test any good" |
 
 Two lenses were considered and are not in the table.
 
@@ -40,6 +52,8 @@ Two lenses were considered and are not in the table.
 reading code is an agent forming an opinion; answering it with a test derived from the entry is a
 fact. The tests lens already produces those tests, so a separate lens would buy the same answer at a
 worse quality.
+
+**Readiness — see the three counts above; it fails observability.**
 
 **Capacity — will it hold N requests — has no reference.** Most projects state no volumes or
 latencies, so there is nothing to compare against. What the owner actually wants from
@@ -147,8 +161,8 @@ buys the difference between a report you act on and one you re-check.
   This is the tests lens, and it costs almost nothing extra, because the expensive part is opening
   the file and that is now happening anyway.
 - **Is it well built** — brittle, slow, duplicated, sitting at the wrong seam. Reference: the
-  project's own testing rules in `stack.md`. This is the debt lens, which is why debt moved up the
-  queue.
+  project's own testing rules in `stack.md`. This is the conventions lens, which is why it moved up
+  the queue.
 
 Neither invents conditions the entry never named. A missing edge case nobody wrote down is a hole in
 the description, and `blueprint` closes it — an audit that invents requirements has no stopping

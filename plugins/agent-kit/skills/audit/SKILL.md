@@ -38,8 +38,8 @@ its language does not end up with two sets.
 
 **`tests`, `deps`, `scenarios`.** Those are the three, and nothing else is runnable.
 
-The rest of this file mentions `debt`, `performance`, `security` and `readiness` when explaining
-where a question belongs — "how a test is built has a different reference and belongs to the debt
+The rest of this file mentions `conventions`, `performance` and `security` when explaining where a
+question belongs — "how a test is built has a different reference and belongs to the conventions
 lens". Those are boundaries of the written lenses, not an offer. Never run one, never recommend one
 as the next step, and when the owner asks for one, say it is designed and not written and name what
 is.
@@ -172,8 +172,8 @@ with fewer rows than the entry has lines is a defect in the report rather than a
 problems.
 
 What this lens does **not** judge: how the test is built — brittle, slow, duplicated, sitting at the
-wrong seam. That has a different reference, the project's own testing rules, and belongs to the debt
-lens. Nor does it invent conditions the entry never named: a missing edge case that no line mentions
+wrong seam. That has a different reference, the project's own testing rules, and belongs to the
+conventions lens. Nor does it invent conditions the entry never named: a missing edge case that no line mentions
 is a hole in the description, and `blueprint` closes it.
 
 ## Lens: deps

@@ -3,6 +3,27 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.22.4
+
+The scenarios lens ran on a real project — 11 scenarios, 38 steps, two citations each, 5.4M — and
+found a break no test at the level of one action could see: a story held for human review shows the
+moderator the verdict fields but never the engine's raw response, so the next step of the scenario
+is a decision made blind. It also declined to inflate a known defect into a break, because the
+scenario it appears in walks past it, and reported it separately instead.
+
+- **`debt` is renamed `conventions`** — two letters from `deps`, and the owner tripped over it. Its
+  reference is what the project wrote down about itself, and the name now says so.
+- **`readiness` is removed.** "Is this ready" splits into whether the MVP bounds are built with their
+  scenarios passing — already answered by the `built` markers and the scenarios lens — and whether
+  the thing survives production. The second is real, and half of it cannot be seen from a repository
+  at all: backups, monitoring actually receiving events, a restore ever tested. A lens that checks
+  half its checklist and guesses the rest is worse than none, because its output reads as a checklist.
+  The observable remainder, secrets in the repository, belongs to the security lens.
+- **A lens is legitimate on three counts, not two:** a finite list, a reference, and observability.
+  The third was added here and cost a lens.
+
+Six lenses, three written.
+
 ## 0.22.3
 
 Two defects the deps run surfaced, both about the command's own bookkeeping rather than its findings.
