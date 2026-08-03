@@ -1,7 +1,7 @@
 ---
 name: audit
 description: Compare existing code to what the project's description says should be true, and write a work list — missing tests, stale or vulnerable dependencies, and surfaces that exist in one place and not the other. Reads and reports; never changes code.
-argument-hint: "[тесты|зависимости | tests|deps] [area] — or say what worries you"
+argument-hint: "[tests|deps|scenarios|security] [area] — or say what worries you"
 disable-model-invocation: true
 ---
 
@@ -36,11 +36,11 @@ its language does not end up with two sets.
 
 ## The lenses that exist
 
-**`tests`, `deps`, `scenarios`.** Those are the three, and nothing else is runnable.
+**`tests`, `deps`, `scenarios`, `security`.** Those are the four, and nothing else is runnable.
 
-The rest of this file mentions `conventions`, `performance` and `security` when explaining where a
-question belongs — "how a test is built has a different reference and belongs to the conventions
-lens". Those are boundaries of the written lenses, not an offer. Never run one, never recommend one
+The rest of this file mentions `conventions` and `performance` when explaining where a question
+belongs — "how a test is built has a different reference and belongs to the conventions lens". Those
+are boundaries of the written lenses, not an offer. Never run one, never recommend one
 as the next step, and when the owner asks for one, say it is designed and not written and name what
 is.
 
@@ -281,6 +281,49 @@ answer whether it breaks again, and building them means fixtures, seeding and of
 project does not have — an owner's decision and a `ship` run, not a side effect of an audit. So the
 work list opens with the harness when there is none, marked as the owner's decision, and carries one
 item per scenario after it. Whoever writes those tests then knows which ones should fail first.
+
+## Lens: security
+
+Reference: two of them, and only one is generic. Walks: the actions that touch anything dangerous.
+
+**Choosing the list is the first finding.** Go through every entry and mark it in or out, with the
+reason in three words — untrusted input, permissions, money, files or processes, an outbound call, a
+migration. Write the whole table, including the ones you excluded. A lens that quietly narrows its
+own scope produces a clean report about five actions and says nothing about the thirty it never
+looked at, and nobody can tell which happened.
+
+**Half of this lens is about rules no scanner can know.** Every entry's *must never* lines and its
+actor's — "a developer never sees another developer's offers", "the author is not shown the report
+count" — are this product's own authorization rules. For each, find the code that enforces it and
+cite it. Nothing enforcing it is a finding, and usually a more serious one than anything a generic
+pass returns, because it is specific and nobody else is looking.
+
+**The other half is the generic classes, and the tool exists.** Run `/security-review` over the
+files the risky actions live in — you can invoke it, unlike the review commands only a person can
+start — rather than reasoning about injection and deserialization from scratch. Point it at those
+files, not at the repository.
+
+Also check what the repository itself gives away: credentials in tracked files, a committed `.env`,
+keys in fixtures or seeds. That is the one part of production readiness a repository can actually
+show.
+
+**Every finding carries where and whether**, the same artefact the deps lens produces:
+
+```
+author.view_my_posts — must never: the moderation trail must not reach the author
+  enforced at   MyPosts.php:71 (select list), MyPostsPolicy.php:18
+  holds for     attempt_no, reason codes, human flag
+  does not for  body_snapshot, raw_response — both selected, both rendered at my-posts.blade.php:88
+  reachable     yes, any author on their own rejected story
+```
+
+**The scanner returning nothing is not a verdict.** It knows the classes in its own catalogue and
+nothing about this product's rules; say what it covered and keep the two halves visibly separate in
+the report.
+
+Walk every risky action, past the first finding: stopping early leaves the rest to be found one per
+fix. And do not attempt an exploit — the citation is the evidence, and a lens that changes state to
+prove a point has stopped being a lens.
 
 ## The work list
 

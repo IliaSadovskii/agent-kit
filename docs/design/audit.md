@@ -43,7 +43,7 @@ tests.
 | **deps** | registries: versions, advisories, end of life | the dependency manifest | first version |
 | **scenarios** | the scenarios, run against a live application or traced through the code | 8–10 scenarios | first version |
 | **performance** | known anti-patterns of the stack | actions × patterns | second |
-| **security** | vulnerability classes and stack practice, **plus the "must never" lines of the entries** — a generic scanner cannot know this product's own authorization rules | actions touching untrusted input, permissions, money, files, outbound calls | second |
+| **security** | vulnerability classes and stack practice, **plus the "must never" lines of the entries** — a generic scanner cannot know this product's own authorization rules | actions touching untrusted input, permissions, money, files, outbound calls | first version |
 | **conventions** | the testing rules, stances and library map in `stack.md` | the rules recorded there | third — it owns half of "is this test any good" |
 
 Two lenses were considered and are not in the table.

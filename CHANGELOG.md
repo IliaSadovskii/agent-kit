@@ -3,6 +3,29 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.23.0
+
+The security lens. Two references, and only one of them is generic.
+
+- **Choosing what to look at is the first finding.** Every entry is marked in or out with its reason
+  — untrusted input, permissions, money, files or processes, an outbound call, a migration — and the
+  whole table is written, excluded ones included. A lens that quietly narrows its own scope produces
+  a clean report about five actions and says nothing about the thirty it never opened, and nothing
+  in the output distinguishes the two.
+- **Half of it is rules no scanner can know.** The *must never* lines of the entries and their
+  actors are this product's own authorization rules: for each, the code enforcing it is cited, and
+  nothing enforcing it is a finding — usually a more serious one than a generic pass returns, because
+  it is specific and nobody else is looking for it.
+- **The other half delegates.** `/security-review` runs over the files the risky actions live in,
+  rather than reasoning about injection from scratch. Its silence is not a verdict: it knows its own
+  catalogue and nothing about this product, and the report keeps the two halves separate.
+- Credentials in tracked files, a committed `.env`, keys in fixtures — the one part of production
+  readiness a repository can actually show, which is why the readiness lens left it here.
+- No exploitation. The citation is the evidence, and a lens that changes state to prove a point has
+  stopped being a lens.
+
+Six lenses, four written.
+
 ## 0.22.4
 
 The scenarios lens ran on a real project — 11 scenarios, 38 steps, two citations each, 5.4M — and
