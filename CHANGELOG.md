@@ -3,6 +3,23 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.22.1
+
+The four cheap paths the tests lens revealed over four runs, extrapolated to the scenarios lens
+before its first — the first time the corrections arrive ahead of the evidence rather than after it.
+
+- **Two citations per step**: what implements it, and what gets the actor to it from the previous
+  step. An action can exist, be correct, be tested and be unreachable, which is the class of defect
+  this lens exists for and the one a single citation misses.
+- **Citations come from the code, never from the entries.** An entry claiming a step is reachable is
+  the claim under test; quoting it back is crediting a test for its name.
+- **Walk past a break.** Assume it fixed and keep going, or the remaining breaks are discovered one
+  per fix over the following weeks.
+- **Where end-to-end tests exist, name which covers which scenario and check it walks the same
+  steps.** Green is not evidence that the covered path is this one.
+- **Three verdicts, no fourth invented**, and every scenario and step in the map — the file's own
+  numbering makes a short trace countable.
+
 ## 0.22.0
 
 The scenarios lens — the only one that answers whether the application works end to end, which is

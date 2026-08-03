@@ -233,9 +233,29 @@ Nino tells a story about a neighbour
   verdict: breaks at step 5 — reachable in the entries, not reachable in the application
 ```
 
-A scenario whose every step is cited and reachable is `walks`. One that breaks is `breaks at step
-N`. One you could not follow — a step with no implementation you can find — is `unfollowable`, not
-`walks`.
+Each step carries **two citations, not one**: what implements it, and **what gets the actor to it
+from the previous step** — the route, the link, the redirect, the button. The second is the one that
+matters: an action can exist, be correct, be tested, and be unreachable from where the person
+actually is, which is the whole class of defect this lens exists for.
+
+**Citations come from the code, never from the entries.** An entry saying a step is reached from a
+screen is the claim under test; quoting it back is the same substitution as crediting a test because
+of its name. If the link is not in a template, a route or a controller, it is not there.
+
+**Walk the whole scenario, past a break.** When a step breaks, assume it fixed and keep going: the
+remaining steps may hold two more, and finding them a week later — one per fix — is the slow way to
+learn what the owner wanted in one pass.
+
+**Where end-to-end tests exist, name which test covers which scenario and check it walks the same
+steps.** A green suite is not evidence that this path is the one covered; that is the test's own
+claim about itself again.
+
+Three verdicts, and no fourth may be invented: a scenario whose every step is cited and reachable
+`walks`; one with a break is `breaks at step N` (all of them, listed); one with a step whose
+implementation you could not find is `unfollowable` — which is not `walks`.
+
+**Every scenario and every step appears in the map.** The file's own numbering says how many steps a
+scenario has, so a shorter trace is a defect in the report, countable without reading it.
 
 **It does not write the end-to-end tests it wants.** Tracing answers what is broken now; the tests
 answer whether it breaks again, and building them means fixtures, seeding and often a harness the

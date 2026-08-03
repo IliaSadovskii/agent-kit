@@ -215,6 +215,26 @@ paragraph: the cheap path there is relaying the tool's output, so the artefact i
 is used in this codebase, whether the vulnerable path is reachable, and what the upgrade costs. Same
 shape, one page, no special handling — which is what shipping two lenses first was meant to find out.
 
+## Extrapolating the cheap paths to a new lens
+
+Four cheap paths appeared over four runs of the tests lens, each replacing evidence with something
+that resembles it: a grep hit for a reading, a test's *name* for its content, omission for an
+admission, and an invented marker that demands neither. Three of the four have exact analogues in
+any lens, and it is cheaper to close them before the first run than after it.
+
+For scenarios the analogues are: crediting reachability to **the entry that claims it** rather than
+to the code (the name substitution, and the sharpest one here, since the entry is precisely what is
+under test); citing the implementation of a step while leaving the *link between steps* unevidenced —
+which is the entire class of defect the lens exists for, an action that is correct, tested and
+unreachable; skipping a step or a scenario; and inventing a fourth verdict such as "partially walks".
+
+Two more are specific to this lens. Stopping at the first break is cheaper and leaves the remaining
+breaks to be discovered one per fix over the following weeks. And a green end-to-end suite is not
+evidence that the covered path is *this* scenario — the test's claim about itself, one more time.
+
+All six are closed in the lens as written, which is the first time this has happened before a run
+rather than after four.
+
 ## What the shape guarantees, and what it does not
 
 **Guaranteed: completeness against the description.** A lens walks a list, and every item on it gets
