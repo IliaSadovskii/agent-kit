@@ -3,6 +3,15 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.25.1
+
+With six lenses written, `audit` had grown to 466 lines of which 301 described lenses — and a
+single-lens run carried all six, paying for five it would never use on every step it took
+afterwards. That is the kit's own rule about reading only what you need, broken by the kit.
+
+- **Each lens is its own file** under `skills/audit/references/`, read when that lens runs. The
+  command keeps the shared mechanics and drops to 180 lines.
+
 ## 0.25.0
 
 The conventions lens, and with it all six. The other five check what the product does; this one
