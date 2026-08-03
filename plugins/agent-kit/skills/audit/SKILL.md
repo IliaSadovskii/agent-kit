@@ -65,8 +65,13 @@ the size of the project:
    advisory matters differently depending on whether the vulnerable path is reachable here.
 5. **Work area by area, writing the file as each area finishes.** The last entry of a long run is
    then judged on as small a working set as the first, and an interrupted run keeps what it did.
-6. **Group the findings into batches**, each batch one `ship` run. A single missing test is five
-   minutes, not a pull request; thirty of them as thirty items would be thirty pull requests.
+6. **Group the findings into batches**, each batch one `ship` run, **in every lens**. A single
+   missing test is five minutes, not a pull request, and thirty of them as thirty items would be
+   thirty branches. What a batch is differs by lens and the shape does not: "apply these two
+   security patches" is one run, "drop the three unused packages" is another, "move to the next
+   framework major" is a project of its own and says so. The work list is what a `sprint` reads
+   instead of composing a batch itself, so a lens that reports findings without units of work has
+   not finished its job.
 7. **Write the lens's file and commit it** before moving to the next lens, so an interrupted run
    keeps everything it finished.
 

@@ -3,6 +3,18 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.22.2
+
+The deps lens ran on a real project for 1.0M and three minutes, with every finding carrying its call
+sites, its reachability judged against this codebase, and its upgrade path — including one the
+advisory could not state, that an unreachable host-check bypass still leaks an API key because the
+calls carrying it follow redirects. Two claims of "used nowhere" checked out exactly.
+
+- **Every lens groups its findings into units of work**, not only the tests lens. What a batch is
+  differs — two security patches are one run, dropping three unused packages another, a framework
+  major a project of its own — and the shape does not. A `sprint` reads that list instead of
+  composing a batch itself, so a lens reporting findings without units of work has not finished.
+
 ## 0.22.1
 
 The four cheap paths the tests lens revealed over four runs, extrapolated to the scenarios lens
