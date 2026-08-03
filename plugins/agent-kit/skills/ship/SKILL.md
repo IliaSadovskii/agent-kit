@@ -114,9 +114,14 @@ the smallest unit that carries its own verification.
 
 Task by task, one commit each.
 
-**Write the test before the code for every line of the entry that carries risk** — what changes, and
-what can go wrong. Written first it fails on its own, and that is the proof it can fail; there is no
-separate pass to establish it.
+**Write the test before the code.** That is the default for every line of the entry, and it is what
+makes the proof free: a test written first fails on its own, so nothing has to be run again to
+establish that it can.
+
+The one exception is a line whose shape is not decided until the code exists — presentation, mostly.
+Asserting on markup you have not chosen yet is not test-first, it is writing the test twice. Write
+those after, and **run each one once against the unfixed code**, so the guarantee holds where the
+default does not apply.
 
 Record as you go, not at the end. Cheap decisions go to the run file's `assumptions`. A decision
 that is expensive to reverse goes there **and** into `docs/knowledge/`, as a block under the entry

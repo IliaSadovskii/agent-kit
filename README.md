@@ -2,11 +2,12 @@
 
 # agent-kit
 
-A Claude Code plugin for building applications with an agent: one place the project is described,
-and commands that build from that description — a bug fix, a feature, a batch, a whole MVP.
+A Claude Code plugin that builds software from a description of it.
 
-Built for programmers. It assumes you read diffs, run tests, and want to know what a command will
-cost before you type it.
+You describe the product once — what it does, what it deliberately does not, the rules it is built
+under — and the commands work from that description: a bug fix, a feature, a batch of them, a whole
+first version. The description is what keeps a long autonomous run correct: nothing has to be
+guessed, and every decision taken without you is written where you will see it.
 
 > **Being rebuilt.** Today `/agent-kit:blueprint` and `/agent-kit:ship` work; the rest are declared
 > and do nothing. For the last complete version install the `v0.17.0` tag.
@@ -54,9 +55,9 @@ section.
 One feature to a pull request: design against the entry, build, verify, review, open the PR.
 
 Asks only when a fork is expensive to reverse — stored data, a public contract, permissions, money.
-Everything else is decided and recorded in the PR. Tests come from the entry's own lines, and the
-risky ones are written before the code. One review pass reads the diff against the entry; a security
-pass runs when the diff touches auth, untrusted input, money, files, migrations or outbound calls.
+Everything else is decided and recorded in the PR. Tests come from the entry's own lines and are
+written before the code. One review pass reads the diff against the entry; a security pass runs when
+the diff touches auth, untrusted input, money, files, migrations or outbound calls.
 
 Works without a blueprint too, from a written task; it says once what that costs.
 

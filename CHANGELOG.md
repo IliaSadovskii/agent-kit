@@ -3,6 +3,15 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.19.5
+
+- **Tests are written before the code by default**, not only for the lines that look risky — leaving
+  the agent to judge what counts as risky meant almost nothing did. The one exception is a line whose
+  shape is not decided until the code exists, mostly presentation: asserting on markup you have not
+  chosen yet is writing the test twice. Those are written after and run once against the unfixed
+  code, so the proof that a test can fail holds either way.
+- The README opens on what the kit is rather than on who it is for.
+
 ## 0.19.4
 
 The README is a reference now, not a story: what each command is for, its forms and arguments, the
