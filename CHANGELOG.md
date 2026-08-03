@@ -3,6 +3,21 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.23.1
+
+Eleven corrections were earned by the first three lenses over eight live runs. Eight of them already
+covered the security lens, through the shared rules or by being written into it. Three did not, and
+are now closed before its first run rather than after three.
+
+- **Two citations per rule, not one: where the check is written and where it is invoked** on the path
+  the actor takes. A policy method can be correct and never called; a middleware can be defined and
+  missing from the route group. That is the scenarios lesson — exists is not reachable — applied to
+  permissions.
+- **Every *must never* line appears in the report**, with a citation or `none`. Omitting the ones
+  that could not be placed is how a dense report stays silent about its gap.
+- **A name is not a check.** `PostPolicy::report` existing, or `auth` appearing in a route file, is
+  the code's claim about itself — the same substitution as crediting a test for its name.
+
 ## 0.23.0
 
 The security lens. Two references, and only one of them is generic.

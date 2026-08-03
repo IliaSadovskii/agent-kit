@@ -294,9 +294,17 @@ looked at, and nobody can tell which happened.
 
 **Half of this lens is about rules no scanner can know.** Every entry's *must never* lines and its
 actor's — "a developer never sees another developer's offers", "the author is not shown the report
-count" — are this product's own authorization rules. For each, find the code that enforces it and
-cite it. Nothing enforcing it is a finding, and usually a more serious one than anything a generic
-pass returns, because it is specific and nobody else is looking.
+count" — are this product's own authorization rules. **Every one of them appears in the report**,
+with a citation or `none`; leaving out the ones you could not place is how a report ends up dense
+and silent about the gap.
+
+For each, **two citations, not one: where the check is written, and where it is invoked on the path
+the actor takes.** A policy method can be correct and never called, a middleware can be defined and
+missing from the route group — the same defect the scenarios lens exists for, in permissions. One
+citation proves the rule was thought about; two prove it runs.
+
+And a name is not a check. `PostPolicy::report` existing, or `auth` appearing in a route file, is the
+code's claim about itself — the same substitution as crediting a test for its name. Read the body.
 
 **The other half is the generic classes, and the tool exists.** Run `/security-review` over the
 files the risky actions live in — you can invoke it, unlike the review commands only a person can
