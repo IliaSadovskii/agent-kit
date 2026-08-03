@@ -55,16 +55,19 @@ the size of the project:
 1. **Mechanical pass first.** Settle everything that needs no judgement. An entry whose entities,
    statuses and action key appear nowhere in the test suite is uncovered as a matter of fact — no
    reading required.
-2. **Judgement only on what survived**, and only over the files the first pass pointed at. Never the
-   codebase.
-3. **Search per line, not per entry.** For each line of an entry, look for one test asserting it and
-   stop at the first. Twenty tests around an entity prove nothing about the line that says what can
-   go wrong — the count of matches is not evidence.
-4. **Work area by area, writing the file as each area finishes.** The last entry of a long run is
+2. **A verdict rests on something you read, never on a search hit.** Grep locates a candidate and
+   settles nothing: a match can be a fixture, a variable name, or an assertion about the neighbouring
+   behavior. Open it and look. This is the rule that decides whether the report can be acted on —
+   a false "covered" is never looked for again by anyone.
+3. **Search per line, not per entry.** For each line of an entry, find the assertion that proves it.
+   Twenty tests around an entity prove nothing about the line that says what can go wrong.
+4. **Interpret the finding for this project.** A tool's output is an input, not a verdict: an
+   advisory matters differently depending on whether the vulnerable path is reachable here.
+5. **Work area by area, writing the file as each area finishes.** The last entry of a long run is
    then judged on as small a working set as the first, and an interrupted run keeps what it did.
-5. **Group the findings into batches**, each batch one `ship` run. A single missing test is five
+6. **Group the findings into batches**, each batch one `ship` run. A single missing test is five
    minutes, not a pull request; thirty of them as thirty items would be thirty pull requests.
-6. **Write the lens's file and commit it** before moving to the next lens, so an interrupted run
+7. **Write the lens's file and commit it** before moving to the next lens, so an interrupted run
    keeps everything it finished.
 
 **Uncertainty resolves to a gap, never to "covered".** The two mistakes are not symmetrical: a
@@ -102,11 +105,22 @@ Run the project's declared suite once first, from `project.yml` → `commands.te
 knows whether the existing tests even pass. Report the result; never fix it.
 
 Then, per entry, per line — what changes, what the initiator sees, what others see, what can go
-wrong — find the test that asserts it. A line with no test is a finding. An entry whose every line
-has one is covered, and covered entries are worth one line in the file, not a section.
+wrong — answer four questions about the test that claims to prove it, in order, stopping at the
+first "no":
 
-Say plainly in the file's header that a covered entry means a test exists, not that the test is
-good.
+1. **Is there one at all?** No match anywhere is a finding, and needs no reading.
+2. **Is it about this line?** Read it. A hit inside fixture data or an assertion about neighbouring
+   behavior is not coverage.
+3. **Is the assertion strong enough to observe what the line claims?** A line saying the buyer is
+   notified is not proven by `assertStatus(200)`.
+4. **Does it cover the conditions the line names?** Three ways to go wrong and one of them asserted
+   is a partial, and the partials are worth more than the absences — they are the ones that look
+   covered.
+
+What this lens does **not** judge: how the test is built — brittle, slow, duplicated, sitting at the
+wrong seam. That has a different reference, the project's own testing rules, and belongs to the debt
+lens. Nor does it invent conditions the entry never named: a missing edge case that no line mentions
+is a hole in the description, and `blueprint` closes it.
 
 ## Lens: deps
 
@@ -116,6 +130,10 @@ Use the ecosystem's own tooling rather than reasoning about versions — `compos
 `composer audit`, `npm outdated`, `npm audit`, `pip list --outdated`, whatever the stack has. Three
 kinds of finding, in this order: a known vulnerability, a package past end of life, a major version
 behind. Ignore patch drift; a project is not in trouble because something moved by 0.0.1.
+
+**Do not relay the tool's output.** For each finding, say what it means here: whether the vulnerable
+path is reachable in this codebase at all, what a major upgrade would break, what blocks it. A list
+of advisories the owner has to go and interpret is the tool's job, already done.
 
 This lens needs no `docs/knowledge/` at all, so it is the one that works on a project the kit has
 never described.

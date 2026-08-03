@@ -78,8 +78,9 @@ Compares existing code to the description and writes a work list. Changes nothin
 - `audit tests moderation` — narrowed to an area
 - `audit "why is moderation slow"` — says which lens it understood, then runs it
 
-Two lenses so far: **tests** (which entry lines nothing asserts) and **deps** (vulnerable, dead or
-a major behind). Scenarios, performance and security are designed and not written. Every run also
+Two lenses so far: **tests** — for every line of every entry, whether a test asserts it, whether the
+assertion is strong enough to observe what the line claims, and whether it covers the conditions the
+line names — and **deps** (vulnerable, dead or a major behind, interpreted for this codebase). Scenarios, performance and security are designed and not written. Every run also
 checks for surfaces the code has and the description does not, and the reverse.
 
 The list lives in `docs/audits/<lens>.md`, grouped into batches of one `ship` run each. Mark an item

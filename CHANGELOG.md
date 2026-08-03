@@ -3,6 +3,39 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.21.0
+
+The first live `audit` run cost 1.7M and three minutes — and was too cheap. Sixteen gaps were facts,
+because the absence of any match is a fact. The seventeen "covered" were guesses: they rested on grep
+hits, and two test files out of thirty-five entries were ever opened. That was a defect in the text,
+which said both "judge over the files the mechanical pass pointed at" and "stop at the first match",
+and the cheaper reading won.
+
+**Audit is the rarest command in the kit and its output has the longest life** — it decides whether
+fifty `built` markers can be believed. Cheapness is not its virtue. The list bounds the breadth;
+depth per item is not economised.
+
+- **A verdict rests on something read, never on a search hit.** A match can be fixture data, a
+  variable name, or an assertion about the neighbouring behavior. A false "covered" is the worst
+  thing an audit can produce, because nobody looks for it again.
+- **The tests lens asks four questions per line**, stopping at the first no: is there a test, is it
+  about this line, is the assertion strong enough to observe what the line claims, does it cover the
+  conditions the line names. Partial coverage is worth more than absence — it is what looks covered.
+- **It does not judge how a test is built** — brittle, slow, duplicated, wrong seam. That has a
+  different reference, `stack.md`'s testing rules, and belongs to the debt lens, which moves up the
+  queue as a result. Nor does it invent conditions the entry never named: that is a hole in the
+  description and `blueprint` closes it.
+- **Findings are interpreted for this project, not relayed from a tool.** Whether an advisory matters
+  depends on whether the vulnerable path is reachable here.
+- **The scenarios lens walks the code when there is nothing to run**, rather than reporting "no
+  harness" and stopping — the trace finds what is broken today, and the work list still orders the
+  end-to-end tests, opening with the harness as the owner's decision.
+- **The security lens will check the "must never" lines of the entries**, not only generic
+  vulnerability classes: no scanner knows this product's own authorization rules.
+
+Cost of the tests lens moves from ~1.7M to ~3–5M, which is what separates a report you act on from
+one you re-check.
+
 ## 0.20.1
 
 What `audit` guarantees, made explicit — and the three ways it could have ballooned, forbidden.

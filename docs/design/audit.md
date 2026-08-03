@@ -28,10 +28,10 @@ screenshots.
 |---|---|---|---|
 | **tests** | the entries | every entry | first version |
 | **deps** | registries: versions, advisories, end of life | the dependency manifest | first version |
-| **scenarios** | the scenarios, run against a live application | 8–10 scenarios | second |
+| **scenarios** | the scenarios, run against a live application or traced through the code | 8–10 scenarios | second |
 | **performance** | known anti-patterns of the stack | actions × patterns | second |
-| **security** | vulnerability classes, stack practice | actions touching untrusted input, permissions, money, files, outbound calls | second |
-| **debt** | the stances and library map in `stack.md` | the rules recorded there | later |
+| **security** | vulnerability classes and stack practice, **plus the "must never" lines of the entries** — a generic scanner cannot know this product's own authorization rules | actions touching untrusted input, permissions, money, files, outbound calls | second |
+| **debt** | the testing rules, stances and library map in `stack.md` | the rules recorded there | third — it owns half of "is this test any good" |
 | **readiness** | `product.md`'s environment plus the stack's own minimum | a checklist | later |
 
 Two lenses were considered and are not in the table.
@@ -83,15 +83,23 @@ The search inside a lens goes **per line of an entry, not per entry**: find one 
 line and stop. A count of matches around an entity is not evidence about the line that says what can
 go wrong, so there is no reading cap — the question bounds itself.
 
-## Why the scenarios lens does not write the tests it wants
+## The scenarios lens walks the code when there is nothing to run
 
-It runs the end-to-end tests if they exist and reports which scenarios fail — which is where a
-defect like "every action works, the path between two of them does not" appears, invisible to any
-test at the level of a single action. When they do not exist, the finding is exactly that, and the
-work list carries one item per scenario.
+It runs the end-to-end tests if they exist and reports which scenarios fail — which is where a defect
+like "every action works, the path between two of them does not" appears, invisible to any test at
+the level of a single action.
 
-The first run on a project with no end-to-end harness is therefore nearly empty, and that is honest:
-it orders the harness it needs, and every run after it is cheap and strong.
+When they do not exist, it **walks the scenario through the code**, step by step, and says where the
+path breaks. An earlier draft had it report "nothing to run" and stop, which would make the first run
+on most projects empty. Tracing is bounded by the same list — eight to ten scenarios — and finds the
+break today, before anything is built.
+
+It still does not write the tests. Tracing answers "what is broken now"; end-to-end tests answer
+"will it break again", and building them means fixtures, seeding and often a harness that does not
+exist yet — a decision for the owner and a `ship` run, not a side effect of an audit. So the work
+list opens with the harness, marked as the owner's decision, and carries one item per scenario after
+it. The trace also makes that work better: whoever writes the test already knows which scenarios are
+broken, so it can be written to fail first.
 
 ## Naming a lens should not require remembering one
 
@@ -103,6 +111,48 @@ what it finished.
 
 An unrecognised first argument stops the run before anything happens. Guessing costs a full audit;
 asking costs nothing.
+
+## Depth is not what the list bounds
+
+The first live run cost 1.7M and three minutes, and it was too cheap. Its verdicts of "covered"
+rested on grep hits — a match near an entity was read as proof that the entity's riskiest line was
+asserted — and two of thirty-five test files were opened. Sixteen gaps were facts, because absence of
+any match is a fact. The seventeen coverings were guesses.
+
+That was a design error, not an agent's shortcut: the text said "judge only over the files the
+mechanical pass pointed at" and also "stop at the first match", and the cheaper reading won.
+
+The correction is a recalibration of what audit optimises for. It is the **rarest** command in the
+kit — a few times in a project's life — and its output has the longest life: it decides whether fifty
+`built` markers can be believed. Cheapness is not its virtue; **being actable on** is. A false
+"covered" is the worst product it can make, because nobody looks for it again.
+
+> **The list bounds the breadth. Depth per item is not economised.**
+
+Two rules follow, and they apply to every lens:
+
+- **A verdict rests on something read.** A search locates a candidate and settles nothing.
+- **A finding is interpreted for this project**, not relayed from a tool. Whether an advisory
+  matters depends on whether the vulnerable path is reachable here.
+
+Doubling the cost of a cheap thing leaves it cheap: the tests lens moves from ~1.7M to ~3–5M, which
+buys the difference between a report you act on and one you re-check.
+
+## Test quality splits in two, and both halves already have a reference
+
+"Is this test any good" is not one question:
+
+- **Does it prove the entry's line** — is it about that line at all, is the assertion strong enough
+  to observe what the line claims, does it cover the conditions the line names. Reference: the entry.
+  This is the tests lens, and it costs almost nothing extra, because the expensive part is opening
+  the file and that is now happening anyway.
+- **Is it well built** — brittle, slow, duplicated, sitting at the wrong seam. Reference: the
+  project's own testing rules in `stack.md`. This is the debt lens, which is why debt moved up the
+  queue.
+
+Neither invents conditions the entry never named. A missing edge case nobody wrote down is a hole in
+the description, and `blueprint` closes it — an audit that invents requirements has no stopping
+condition.
 
 ## What the shape guarantees, and what it does not
 
