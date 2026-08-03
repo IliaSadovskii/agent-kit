@@ -74,14 +74,14 @@ application.
 Compares existing code to what the description says should be true, and writes a work list.
 Changes nothing.
 
-| Lens | Compares against | Finds |
-|---|---|---|
-| `tests` | the entries | lines nothing asserts, assertions too weak to observe what they claim, conditions left uncovered |
-| `deps` | the registries | vulnerable, dead or a major behind — with the call sites and whether the path is reachable here |
-| `scenarios` | the scenarios | where a path breaks, step by step, including breaks no test at the level of one action can see |
-| `security` | this product's *must never* rules, and the generic classes | a rule with nothing enforcing it, or a check that exists and is never invoked |
-| `performance` | the anti-patterns of this stack | where the data is fetched against everywhere it is consumed |
-| `conventions` | the rules in `stack.md` | hand-rolled where the library map names a package, a stance broken, a test badly built |
+| Lens | What it checks |
+|---|---|
+| `tests` | what the code promises and no test checks — and where a test exists but proves something else |
+| `deps` | which packages are outdated or have known holes, and whether it actually matters here |
+| `scenarios` | whether a user can get through a whole path, and at which step it breaks |
+| `security` | who can see or do something they should not |
+| `performance` | where the code is slow for a plain reason: extra queries, unbounded selects, work inside a loop |
+| `conventions` | where the code drifted from the rules you wrote for it yourself |
 
 - `audit` — every lens, cheapest first
 - `audit tests` — one lens; `тесты` and `tests` are the same one
