@@ -3,6 +3,24 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.20.1
+
+What `audit` guarantees, made explicit — and the three ways it could have ballooned, forbidden.
+
+- **A row per entry**, including covered and unjudged ones, so completeness is something the owner
+  counts rather than something the run claims.
+- **Uncertainty resolves to a gap, never to "covered".** A spurious finding costs ten seconds of
+  reading; a gap recorded as covered hides a bug nobody looks for again.
+- **Area by area, writing as each finishes**, so the last entry of a long run is judged on as small a
+  working set as the first.
+- **Each file states its blind spot**: complete against the description, and the baseline check finds
+  surfaces rather than logic that has none.
+- **One subagent per lens in a full run, inline for a single lens, never per area** — a subagent's
+  floor is 0.3–0.7M, so eight areas would spend more on orientation than the lens costs. Over forty
+  entries the area split earns its keep.
+- **No verification pass.** A second agent re-checking the first doubles the price against a
+  ten-second mistake, which is the stacking that once produced thirty findings and then twenty more.
+
 ## 0.20.0
 
 `/agent-kit:audit` — the third role the kit was missing. It could describe a project and build from

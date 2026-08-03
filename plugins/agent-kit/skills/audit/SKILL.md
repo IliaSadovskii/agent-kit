@@ -60,10 +60,33 @@ the size of the project:
 3. **Search per line, not per entry.** For each line of an entry, look for one test asserting it and
    stop at the first. Twenty tests around an entity prove nothing about the line that says what can
    go wrong — the count of matches is not evidence.
-4. **Group the findings into batches**, each batch one `ship` run. A single missing test is five
+4. **Work area by area, writing the file as each area finishes.** The last entry of a long run is
+   then judged on as small a working set as the first, and an interrupted run keeps what it did.
+5. **Group the findings into batches**, each batch one `ship` run. A single missing test is five
    minutes, not a pull request; thirty of them as thirty items would be thirty pull requests.
-5. **Write the lens's file and commit it** before moving to the next lens, so an interrupted run
+6. **Write the lens's file and commit it** before moving to the next lens, so an interrupted run
    keeps everything it finished.
+
+**Uncertainty resolves to a gap, never to "covered".** The two mistakes are not symmetrical: a
+finding that turns out to be already covered costs the owner ten seconds of reading, and a gap
+recorded as covered costs a bug that nobody will look for again.
+
+**Every entry in scope gets a row**, including the covered ones and the ones you could not judge —
+`covered`, `gaps`, `unjudged`, `declined`. Completeness is then something the owner can count rather
+than something you claim.
+
+**No verification pass.** A second agent re-checking the first doubles the price to catch a mistake
+that costs ten seconds. That stacking is what once produced thirty findings and then twenty more.
+
+**Delegation, and its limits.** A full run gives each lens its own subagent: lenses are independent,
+and without the isolation the fifth carries everything the first four accumulated. A single-lens run
+does the work inline — there a subagent pays the cost of orienting itself for context the session
+already has.
+
+Areas are **not** delegated. A subagent's floor is a few hundred thousand tokens before it produces
+anything, and eight areas would spend more on orientation than the whole lens costs; the area walk is
+about order and incremental writes, not isolation. The exception is a scope so large one session
+cannot carry it — over forty entries, split by area.
 
 Read entries the way `ship` does — a section at a time, never the whole file:
 
@@ -125,6 +148,11 @@ Sorting is what lets the owner read the top of the list and stop.
 
 **Anything noticed outside the lens goes in "Also noticed".** Seeing a real defect and staying quiet
 because it belonged to another lens is the worse failure.
+
+**State the blind spot in the file, every time.** This list is complete against the description: an
+area the description never mentioned is not in it, and the baseline check finds surfaces the code
+exposes, not logic that has none. A report that names what it cannot see can be used; one that reads
+as exhaustive cannot.
 
 ## Closing
 

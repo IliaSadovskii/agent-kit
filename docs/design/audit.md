@@ -104,6 +104,35 @@ what it finished.
 An unrecognised first argument stops the run before anything happens. Guessing costs a full audit;
 asking costs nothing.
 
+## What the shape guarantees, and what it does not
+
+**Guaranteed: completeness against the description.** A lens walks a list, and every item on it gets
+a row in the output — covered, gaps, unjudged, declined. Whether the run finished is a count the
+owner can do, not a claim the agent makes.
+
+**Not guaranteed: anything the description does not know about.** An area blueprint never recorded
+is invisible to every lens. The baseline check is the only defence and it finds *surfaces* — routes,
+endpoints, commands — so logic with no surface of its own can hide indefinitely. The output says so
+in every file rather than reading as exhaustive.
+
+**Quality is bounded by the search, not by the judgement.** "Does any test assert this line" is a
+narrow yes-or-no, and narrow questions degrade little across a long run. The failure mode is finding
+the wrong files: a missed test produces a spurious item costing ten seconds of reading, while the
+wrong files read as covered hide a gap that nobody looks for again. Hence the rule that uncertainty
+resolves to a gap, and hence no verification pass — a second agent doubles the price against a
+ten-second mistake.
+
+**Cost, against measured numbers.** A single agent reading a real codebase and producing structure
+runs 2–6M (blueprint on a real project: 5.6M first run, 2.0M second). A subagent's floor is 0.3–0.7M
+before it does anything. So: one subagent per lens in a full run, where isolation saves more than the
+floor costs; inline for a single lens, where it saves nothing; and never per area, where eight floors
+would exceed the lens itself. Above forty entries the area split earns its keep and not before.
+
+A five-lens run on a real project should land at 5–12M — a few times in a project's life, against 27M
+for one feature under the pipeline this kit replaced. It balloons from exactly three things, all of
+them now forbidden: agents per area, verification passes, and reading the codebase instead of walking
+the list.
+
 ## First version: tests and deps
 
 Two lenses, both cheap, before the other five. The point is to find out whether the shape of a lens
