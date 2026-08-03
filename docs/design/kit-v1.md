@@ -27,15 +27,24 @@ Autonomy stays, on all four build commands. What goes is the insurance.
 
 ## The command set
 
-Five commands, all user-invoked:
+Six commands, all user-invoked, in three roles. **Knowing** what the project is, **building** from
+that, and **checking** the code back against it — the third role was missing until 2026-08-03, and
+its absence showed twice: `blueprint` answered a doubt about readiness by building a screenshot
+harness, and there was nowhere to put "cover this inherited codebase with tests".
 
-| Command | Purpose |
-|---|---|
-| `blueprint` | the project's knowledge layer: interview, documents, audit |
-| `fix` | something is wrong and it is small |
-| `ship` | one feature |
-| `sprint` | a batch of features |
-| `mvp` | from the blueprint to a running prototype |
+| Command | Role | Purpose |
+|---|---|---|
+| `blueprint` | know | the project's description: interview, documents, `--check` |
+| `fix` | build | something is wrong and it is small |
+| `ship` | build | one feature |
+| `sprint` | build | a batch of features |
+| `mvp` | build | from the blueprint to a running prototype |
+| `audit` | check | compare existing code to the description, write a work list — see [audit.md](audit.md) |
+
+The loop is **know → build → check → build**, entered wherever the project already is: an idea, a
+half-built skeleton, or a finished application. Every command works with the knowledge missing
+except `mvp`, which has no stopping condition without the MVP bounds and the scenarios — the kit
+should be learnable from one command rather than from an hour of interview.
 
 - `debug` and `address` are absorbed into `fix` — the first is its opening phase when the cause is
   unknown, the second is `fix --pr <n>`, the same pipeline with a different input source.
@@ -194,6 +203,10 @@ Each command lands usable on its own.
   `sprint`, which calls `ship`. And on an empty project the first batch is a skeleton that starts
   and serves something, not a feature.
 - **Screens.** Deferred, to be reconsidered in a much simpler form once blueprint exists.
+- **Five of `audit`'s seven lenses.** Only tests and deps are in its first version; scenarios,
+  performance and security follow, with debt and readiness after them. The reasoning for each, and
+  the two that were rejected, is in [audit.md](audit.md) — the point of shipping two first is to
+  find out whether adding the third costs a page or a redesign.
 - **What blueprint asks and writes.** Settled and shipped in 0.18.0; the templates under
   `plugins/agent-kit/templates/knowledge/` are the catalogue. It came from a larger design that was
   mostly rejected (`docs/design/knowledge-and-gates.md`, deleted — see the history of this branch).
