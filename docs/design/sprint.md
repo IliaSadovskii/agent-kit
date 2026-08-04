@@ -1,263 +1,333 @@
 # Sprint — why it is shaped this way
 
 The behavior will be `plugins/agent-kit/skills/sprint/SKILL.md` and `scripts/orchestrate.py`. This
-file holds what neither should carry: the reasons, and what was rejected. Decided 2026-08-04,
-against [kit-v1.md](kit-v1.md), [ship.md](ship.md) and the numbers in
-[0.17.0-measurements.md](0.17.0-measurements.md).
+file holds what neither should carry: the reasons, and what was rejected. Decided 2026-08-04 against
+[kit-v1.md](kit-v1.md), [ship.md](ship.md) and [0.17.0-measurements.md](0.17.0-measurements.md),
+then rewritten the same day after a review that removed about a third of it — the removals are in
+**Rejected**, and they are the more useful half of this document.
 
-## Three roles, and none of them is an orchestrating agent
+A sprint is a batch of features built one after another while nobody watches. `mvp` is the same
+engine with a different entrance, so its decisions are settled here too rather than rediscovered.
 
-A sprint is a batch of features built one after another. Three things happen, and keeping them
-apart is the whole design:
+## The pieces
 
-| | Who | Talks to the owner |
+| | What it is | Talks to the owner |
 |---|---|---|
-| **Brief** | a session the owner is already sitting in | yes — this is the only place |
+| **Brief** | a session the owner is already sitting in | yes — this is where questions belong |
 | **Driver** | `scripts/orchestrate.py`, a loop with no model behind it | never |
-| **Child** | one `claude` session per feature, visible in the app | only on an expensive fork |
+| **Child** | one visible `claude` session per feature, running `ship` | only on an expensive fork |
+| **Window** | one control session, standing beside the run | on demand, and when poked |
 
-The brief ends before the driver starts. The driver does not raise an orchestrating session and
-does not read what the children say — it reads their run files. A child is a normal `ship` run.
+The brief ends before the driver starts. The driver never reads what a child says — it reads run
+files. The window decides nothing. There are two layers, not three: the driver leads, the children
+build.
 
-**Why no orchestrating agent.** 0.17.0 had one and it was the measured failure: an agent holding
-the queue dies of context, costs tokens to do bookkeeping a loop does for free, and puts a third
-headless level between the owner and the work, which is what made progress unobservable. A loop has
-no context to lose and no opinion to have. Its price is that anything unusual becomes an honest
-`blocked` rather than a clever recovery, and that price is acceptable.
+**Why no orchestrating agent.** 0.17.0 had one and it was the measured failure: an agent holding the
+queue dies of context, pays tokens for bookkeeping a loop does for free, and puts a third headless
+level between the owner and the work, which is what made progress unobservable. A loop has no
+context to lose and no opinion to have. Its price is that anything unusual becomes an honest
+`blocked` rather than a clever recovery.
 
 **Why the children are visible rather than headless.** A visible session can be watched from the
-app, can be typed into when it goes wrong, and can ask a question that reaches the owner's phone by
-itself — no relay through an orchestrator that lacks the context to explain the fork. Headless
-children were cheaper to launch and could do none of this.
+app, typed into when it goes wrong, and can ask a question that reaches the owner's phone by itself.
+Headless children were cheaper to launch and could do none of this.
 
-## The brief is optional, and only some commands may ask
+## Who may ask what
 
 Each command asks about the thing only it can see. `ship` sees one feature and asks about it
 concretely, at design time. `sprint` sees a batch and asks about composition and order, shallowly.
 `mvp` sees the whole product and asks once, at launch, whether the blueprint can define a finish —
 then goes quiet for the rest of the run.
 
-So the brief is a way to produce a sprint's input, not the definition of it. The input **is** the
-run file: a list of children, each with an approach and a task list. A person can fill it by talking
-to the brief; `mvp` fills it directly. Nothing downstream can tell the difference. This is the same
-shape `ship` already uses — whoever wrote the design is the designer, and the run file says whether
-anyone was present.
+## The brief is optional
 
-Building the brief as the only entrance would mean rewriting sprint when `mvp` arrives.
+The brief is a way to produce a sprint's input, not the definition of it. The input **is** the run
+file: a list of children, each with an approach and a task list. A person fills it by talking to the
+brief; `mvp` fills it directly. Nothing downstream can tell the difference. Building the brief as
+the only entrance would mean rewriting sprint when `mvp` arrives.
 
-### What the brief is worth
+### What it is worth
 
 Two things, and they are the only two a child cannot supply.
 
-**It sees the batch.** A child knows its own feature. It cannot notice that two features write to the
-same table, that the fourth depends on the second rather than the first, or that an audit item was
-fixed a month ago. That is visible only from above, and only before the run starts.
+**It sees the batch.** A child knows its own feature. It cannot notice that two features write to
+the same table, that the fourth depends on the second rather than the first, or that an audit item
+was fixed a month ago.
 
 **The owner is present.** Overnight an expensive fork becomes an assumption, and a wrong assumption
 is paid for in code already written. So the brief's real job is to **pre-answer the questions the
 night will have nobody to ask.**
 
-### What the brief does not do
+### What it does not do
 
 It does not design the features. The old kit spent eight to ten minutes sketching each one, and the
 sketch was written by a session that had read less of the code than the child later would. `ship`
 already has a Design step that reads the code it touches, puts up one screen, and asks only on an
-expensive fork.
+expensive fork. A brief that designs either duplicates that step or replaces it with a
+worse-informed version of itself.
 
-A brief that designs either duplicates that step or replaces it with a worse-informed version of
-itself. The consequence is deliberate and worth stating plainly: **the owner sees each feature's
-design in its pull request, not before the night.** What they get up front is the forks, not the
-shape.
+The consequence is deliberate: **the owner sees each feature's design in the pull request, not
+before the night.** What they get up front is the forks, not the shape.
 
 ### What it reads, in order
 
-Cheapest and most decisive first. It rarely needs to go past the third.
+Cheapest and most decisive first; it rarely needs the fourth.
 
-1. **`blueprint --check`** — mechanical, silent when clean. It reports an incomplete entry, or an
+1. **`blueprint --check`** — mechanical, silent when clean. It reports an incomplete entry or an
    `[assumed …]` block left by an earlier run. Both turn into invention overnight.
 2. **The batch's source** — an audit's work list, a roadmap, or the theme the owner named.
 3. **The entries themselves**, a section each rather than the file, plus `stack.md`. This is where
-   features touching the same ground become visible, and where an expensive fork is recognisable from
-   the entry alone — stored data, an outside contract, a permission boundary, money.
-4. **Code, narrowly.** Two questions only: *does this already exist?* and *who else touches these
-   files?* A search or two per feature. The deep read belongs to the child.
+   features touching the same ground become visible, and where an expensive fork is recognisable
+   from the entry alone: stored data, an outside contract, a permission boundary, money.
+4. **Code, narrowly and only in doubt** — *does this already exist?*, *who else touches these
+   files?* The deep read belongs to the child.
 
 ### The questions that come out of it
 
 One rule of selection: **ask only when different answers lead to different work and the rework is
 expensive.** Answered by the blueprint — not asked. Cheap either way — the child decides.
 
-In practice four kinds, plus one that is not about the work:
+In practice four kinds, plus one that is not about the work: composition ("the audit lists twelve, I
+am taking these five"), order and collisions ("three and five both alter the orders table"), a fork
+found early ("the second feature stores something and the entry does not say where — decide it now
+or get a migration"), an open assumption from a previous run, and whether the owner is reachable.
 
-- **Composition** — "the audit lists twelve, I am taking these five; they are one topic and do not
-  collide."
-- **Order and collisions** — "three and five both alter the orders table, so five goes after three
-  and branches from it."
-- **A fork found early** — "the second feature stores something and the entry does not say where. I
-  will decide it overnight and you will get a migration. Decide it now?"
-- **An open assumption** — "an earlier run assumed this under that entry; this is the last moment to
-  close it."
-- **Whether the owner is reachable**, which sets the one timer.
+Finding none of these is an honest outcome: the brief states the batch and the order, and starts.
 
-Finding none of these is an honest outcome. Then the brief states the batch and the order and starts.
+An audit's items are the easiest input there is — each already carries file, line and why — so the
+brief reduces to composition and order. With no blueprint at all, it works from the owner's words
+and the code, and says once that tests can only aim at what the task itself says done means.
 
-### When there is no blueprint, and when the source is an audit
+## Children run in sequence, in one chain
 
-An audit's items are the easiest input there is: each already carries its evidence — file, line, why
-it is a defect — so there is nothing to invent and the brief is reduced to composition and order.
-
-With no blueprint at all, the brief works from the owner's words and the code, and says once that
-tests can only aim at what the task itself says done means. That is the rule `ship` already carries;
-sprint does not vary it.
-
-## Children run in sequence, and inherit two things
-
-Sequential, never parallel: a shared VPS and one repository, and parallel children were never the
+Sequential, never parallel: a shared VPS and one repository, and parallelism was never the
 bottleneck — a night is long.
 
-**Code passes by the branch.** A dependent feature branches from its parent's branch rather than
-from the default branch. That is most of the transfer: everything the parent built is simply there.
+**Every child branches from the last successful child's tip**, whether or not it depends on it. The
+chain is what removes the whole integration problem: the last tip already contains the batch, so
+there is nothing to merge together at the end, and each child's suite run happens on code containing
+everything before it. Integration stops being a step and becomes a property.
 
-**Decisions pass by the parent's run file.** Code shows what exists, not why. If the parent renamed
-a field, chose a library, or hit a constraint, the child must inherit that instead of deciding it
-differently. So a child with a parent reads the parent's run file first — its approach, assumptions
-and deviations. Ten lines of JSON that are already being written; no new file and no new format.
+Its cost, stated plainly: unrelated features are entangled, so a feature cannot be dropped out of the
+middle — it is amended or reverted by a commit. That is the price of deleting an entire stage, the
+drafts, and both merge accidents the old shape caused.
+
+**Code passes by the branch. Decisions pass by the parent's run file.** Code shows what exists, not
+why; if the parent renamed a field, chose a library or hit a constraint, the child inherits that
+instead of deciding differently. So a child reads its parent's approach, assumptions and deviations
+first — ten lines of JSON that are already being written.
 
 **Only the immediate parent is read.** Otherwise the last child of the night carries the whole
-history. This is the same reasoning that killed `upstream.md`: a file that grows with the run is a
-context bill paid by every step after it.
+history. This is what killed `upstream.md`: a file that grows with the run is a context bill paid by
+every step after it.
 
-Independent children inherit nothing, because they need nothing.
+**A failed child skips its descendants**, and the rest of the list runs in order. The driver does not
+re-plan, re-order, or look for the next independent feature — the parent field it already needs for
+branching is the whole mechanism.
 
-## A child may ask, and silence has a deadline
+## A child may ask, and there is no clock
 
 A child asks only on an expensive fork — stored data, a public contract, permission boundaries,
 money — the rule `ship` already carries. Everything else it decides silently.
 
-When it asks, it writes two things into its run file: **the question**, and **what it will do if no
-answer comes** — either a named assumption, or "this cannot continue without an answer". The
-decision belongs to whoever can see the fork; the driver is not asked to understand it.
+**Someone present: it asks and waits. Nobody present: it takes the assumption immediately.** That is
+all. `ship` settled this already — *waiting costs nothing; a session stopped on a question burns no
+tokens* — and the first draft of this document contradicted it by adding a thirty-minute clock, a
+declared fallback, and a poke from the driver.
 
-The driver sees a run file waiting and starts a clock:
+Walk the case that machinery was for: the owner said they were reachable and then stepped away, at
+their own desk, in daylight. They come back and find the run standing on a question with the
+question in front of them. Insuring against that cost four mechanisms, one of them the driver typing
+into a working agent. That is exactly the class of spend this rewrite exists to delete.
 
-- an answer arrives — the child clears the wait and carries on;
-- the clock runs out — the driver types one line into the session: *no answer, take your fallback.*
-  A waiting agent runs no timer of its own, so somebody has to poke it, and that is all the poking
-  the driver ever does.
-
-Then the child's own fallback decides: build on with a recorded assumption, or stop. A stopped
-feature is parked and the driver moves to the next independent one. If nothing independent is left,
-the sprint stops and waits for the owner, with a notification.
-
-**The clock is one number, set by the brief.** Reachable: thirty minutes. Nobody present: zero — the
-fallback is taken immediately, and a night is not spent waiting for an answer that cannot come.
-
-This is the one timer in the design. It exists because the alternative is a lost night, and its cost
-is a single configurable number.
+So the driver never interrupts a child. If a child waits when nobody is present — a misbehaving run —
+it stops making progress, and the liveness check below kills it like any other hang.
 
 ## Liveness, limits, and picking a run back up
 
-The old answer to "is it still working?" was that the log stopped growing. That is wrong: a large
-feature can work silently for half an hour, and a log line is written only when the agent chooses to
-write one.
+The old answer to "is it still working?" was that the log stopped growing. That is wrong twice over:
+a large feature can work silently for half an hour, and a log line is written only when the agent
+chooses to write one.
 
 **Liveness comes from the session's own transcript** — `~/.claude/projects/<cwd-slug>/<id>.jsonl`,
-which grows on every message and every tool call whether or not the agent cooperates. Its
+which grows on every message and every tool call whether the agent cooperates or not. Its
 modification time is the heartbeat. Because children are sequential, the driver identifies a child's
 transcript as the one that appeared in that directory after it launched the session.
 
-**A limit is a structured record, not prose.** When the account limit is hit, that same file gets a
-line carrying `"isApiErrorMessage":true,"apiErrorStatus":429` and a text like
-`You've hit your session limit · resets 2:20am (Asia/Tbilisi)`. So the driver sleeps until the
-stated reset rather than guessing an interval, then raises the session again and resumes the same
-child. `529` is the overloaded case — a short retry, not a wait.
+**A limit is a structured record, not prose.** The account limit puts a line in that same file
+carrying `"isApiErrorMessage":true,"apiErrorStatus":429` and a text like `You've hit your session
+limit · resets 2:20am (Asia/Tbilisi)`. The reset time comes with it, so the driver sleeps until the
+stated moment rather than guessing. `529` is the overloaded case — a short retry, not a wait. A
+reset more than a few hours out is a weekly limit: stop the run and say so, do not sleep through a
+day.
 
-**Resuming needs nothing new.** A child writes its state after each step, so a fresh session opens
-the run file and continues from the step recorded there. This is the first thing to test on the
-first live run: kill a child mid-feature and see it come back.
+**Coming back is a ladder, cheapest first.** A limit does not kill the process: the session is alive
+and its whole conversation is in memory.
+
+1. **Process alive** — after the reset, type one line into the pane. The child continues with its
+   context intact and re-reads nothing. This is the normal case.
+2. **Process dead** — raise a session that resumes the old one; the conversation comes back from the
+   transcript.
+3. **Resume failed** — a fresh session runs `ship` again; it reads the run file and continues from
+   the recorded step. Costs a re-orientation, always works.
+
+Typing into a pane was rejected above as a way to interrupt a child and is accepted here, because the
+conditions are opposite: a known-idle session at a known moment, not a working agent mid-step.
 
 **Judge by the world, not by the exit.** A limit hit at the tail of a feature looks exactly like a
 crash while the work is already done — this cost us a feature in the July run. Before calling a
-feature failed, the driver checks whether the pull request actually exists.
+feature failed, the driver checks whether the branch and the pull request actually exist.
 
-So the driver's whole vocabulary is: the run file's state, the transcript's modification time, one
-error code, and `gh pr list`.
+So the driver's whole vocabulary is: the run file, a transcript's modification time, one error code,
+`git`, and `gh`.
 
-## How a sprint ends
+## The control window
 
-Every child is terminal — a pull request, or parked with a reason. Then integration: a branch from a
-freshly pulled default branch, the children's tips merged into it, the suite run **once** there, and
-one pull request for the batch. Feature pull requests exist for reading and review; the integration
-one is what the owner merges.
+One session raised beside the run, for the owner to talk to. It **decides nothing**, and the run does
+not depend on it: kill it and the driver carries on. That invariant is what keeps it from becoming
+0.17.0's orchestrator, which *led* the run and died of it.
 
-End-to-end scenarios are not run here. They belong to `mvp`'s finish line, against a running
-application — running them per batch pays for the whole product on every sprint.
+It does three things.
 
-The report is per feature: status, pull request, and the assumptions actually taken. Those
-assumptions are where the questions the owner never got asked come back to them, in one place.
+**Answers when asked.** It reads run files and the tail of the log and says where the run is. The
+value is the synthesis: children are individually visible in the app, but the finished ones are gone
+and the whole picture exists nowhere else. It does not read children's transcripts — that is how it
+would eat its own context.
 
-## What `mvp` needs from this, and why it is decided now
+**Speaks when poked.** The driver decides an event is worth words — a limit, a parked feature, a
+finished batch — and types one line into the window. The window turns it into a sentence, and the app
+turns that into a notification on the owner's phone. When the driver is silent, so is the window.
 
-`mvp` composes batches and owns no build, test or pull-request logic — it calls `sprint`, which
-calls `ship`. Three consequences, all cheap now and expensive later:
+**Relays three instructions back.** This is the reader that a feedback channel needs: the driver runs
+for the whole night, so it can be told things. The window writes the owner's instruction to a file
+and the driver picks it up **at the boundary between features**, never mid-feature:
 
-1. **The brief must be skippable**, because `mvp` composes its batches itself and there is nobody to
-   brief with between them. Hence the input being a run file rather than a conversation.
-2. **A sprint's result must be readable by a program** — built, parked, assumed — because `mvp`
-   composes the next batch from it. The run file already is that.
-3. **A sprint does not judge whether the product is done.** It finishes its batch. Whether the MVP is
-   finished is measured against the blueprint's in-list and its scenarios, and that is `mvp`'s
-   question.
+- **pause** — finish this feature and stop;
+- **skip** — do not build that feature, carry on;
+- **stop** — wind up, deliver what exists.
 
-### `mvp` has one gate, at launch, and it is the heaviest of the three
+Its context grows only when the owner asks something, a little at a time. If it ever fills, it dies
+without consequence and is raised again.
 
-Recorded here so it is not rediscovered later; the full design goes in `mvp.md` when it is built.
+## Delivery
 
-The moment `mvp` is started, the owner is present — they typed the command. That is its only
-opportunity, and it is not a courtesy. A sprint with a thin blueprint still delivers five features.
-An `mvp` with a thin blueprint **has no stopping condition**: its finish is the in-list plus the
-scenarios passing against a running application, so vague inputs mean it either stops early or never
-stops at all.
+**No per-feature pull requests, no drafts, no integration branch.** Every child pushes its branch and
+stops there; one pull request is opened for the run, based on the default branch. The old shape cost
+two live merge accidents — children merged into their parent, nothing reaching `main` — plus a review
+plugin that refuses drafts, and it bought a per-feature reading surface the owner never used, because
+they merge the batch.
 
-The gate checks: `blueprint --check` across the slots it needs; that the MVP bounds are two real
-lists ("and so on" is not a bound); that the scenarios cover the in-list — checkable by arithmetic,
-since scenario steps name action keys, so an action in no scenario and a scenario naming an action
-nobody wrote both fall out; that the in-list's entries are complete enough to aim tests at; any open
-assumptions and open questions, this being the last chance to close them; and that `stack.md`
-actually says how to start the application and run its suite, because without that the finish line
-cannot be walked.
+**A single feature can still be seen alone.** Its branch is pushed and its base is known, so its own
+pull request is one command away, on the day it is wanted. The report prints that command per
+feature. The capability stays; the machinery goes.
 
-It ends on one screen, and the finish line is stated back in words — *"I stop when these fourteen
-actions are built and these six scenarios pass against the running app."*
+A last session — not the driver, because writing a pull request is judgement — opens or updates the
+pull request and writes the report.
 
-**Missing bounds or missing scenarios stop the run**; those are precisely what `mvp` cannot work
-without. Anything smaller — a field, a stack detail — is taken as an assumption rather than costing a
-whole run.
+### What the pull request says
 
-**No gate between batches.** Showing progress and asking "continue?" puts the waiting back in the
-middle, which is what the design exists to remove. The checkpoint already exists: each batch has its
-own integration pull request, and not merging it is how the owner stops. Children inside an `mvp`
-can still ask — the same clock — because a child sees forks `mvp` could not foresee.
+`rules/pull-requests.md` already fixes the sections and the goal: decide in the first five lines
+whether this is mergeable without reading the diff. A batch fills the same sections, composed across
+its features, and is **organised by what could have gone wrong, not by what was done**. With the
+entries written in advance, a batch can only have gone wrong in three places, and all three stay
+uncollapsed at the top:
+
+- **What did not happen** — features parked and why. A hole in a batch is more dangerous than any
+  line of code in it.
+- **Manual actions** — merged across features into one ordered list. Three migrations are three
+  numbered steps, not three sections the owner assembles in their head.
+- **Assumptions** — one table for the batch: decision, why, which feature, which entry. Expensive
+  first. This is the single place a well-specified batch diverges from what the owner wanted.
+
+Then **Proven** — a row per feature naming which of the entry's lines have a test, what the suite
+returned, and what is *not* proven, plus the batch-level fact that end-to-end scenarios were not run
+here. **Review** and **Changes** collapse as usual.
+
+Per feature, a collapsed block of about eight lines: what it does now in product terms, the approach
+in one sentence — that line is where "you put it in the wrong layer" is visible in a second — where
+the tests aim, its branch, and the command to open it as its own pull request.
+
+## `mvp`
+
+`mvp` composes batches and owns no build, test or pull-request logic — it calls `sprint`, which calls
+`ship`. Everything above holds; four things are its own.
+
+**One gate, at launch, and it is the heaviest of the three.** The moment `mvp` is started the owner
+is present, and that is its only opportunity. A sprint with a thin blueprint still delivers five
+features; an `mvp` with a thin blueprint has no stopping condition. The gate checks `blueprint
+--check` over the slots it needs; that the MVP bounds are two real lists ("and so on" is not a
+bound); that the scenarios cover the in-list — arithmetic, because scenario steps name action keys,
+so an action in no scenario and a scenario naming an action nobody wrote both fall out; that the
+in-list's entries are complete enough to aim tests at; any open assumptions, this being the last
+chance to close them; and that `stack.md` says how to start the application and run its suite,
+without which the finish line cannot be walked. It ends on one screen, with the finish line said back
+in words. **Missing bounds or missing scenarios stop the run**; anything smaller becomes an
+assumption rather than costing a whole run.
+
+**The finish line is three things, in this order.** The in-list is built. Then `audit` runs over the
+lenses declared at the gate, its findings are fixed, and the remainder is reported. Then the
+scenarios pass against the running application. Audit before scenarios because audit finds the holes
+and the scenarios judge the final state.
+
+This is what closes the old open question of how `mvp` knows it is finished, and it closes the loop
+the kit already claims — know, build, check, build — which until now stopped at *build*.
+
+Three limits keep the audit from becoming a second MVP. **Not every lens**: tests, scenarios and
+dependencies always; security when the product has users, permissions or money; performance is
+premature at this stage and conventions are optional. **One wave, not a cycle**: audit, then sprints
+over its findings, then done — a later audit may report but does not start another round. **One
+sprint per lens**, because the audit already groups its findings into units of work and a batch
+should be about one thing. The fixes go into the same chain and the same pull request.
+
+A standalone sprint gets no audit: a batch of five features is small enough for the owner to read,
+and the sweep would cost more than the batch.
+
+**One pull request for the whole run, opened at the start and grown.** Batches append commits to the
+`mvp` branch; each batch's closing session rewrites the summary and adds a comment with that batch's
+digest. The owner reads one place, sees what is new since they last looked, and merges once. The
+owner merges — `mvp` does not, and the reason autonomous merging was proposed (a pile of pull
+requests nobody would read) no longer exists once there is one.
+
+**Notification without a checkpoint.** After each batch the owner is told what now works and what was
+decided without them. Nobody waits for an answer and no mechanism picks one up. `mvp` does not stop
+between batches: that would put back in the middle exactly the waiting this design removes, and the
+control window already exists for steering a live run.
 
 ## Rejected
 
+From the first draft of this design, in the review that produced this version:
+
+- **A thirty-minute clock on an unanswered question**, with a declared fallback and the driver typing
+  into a working child. It contradicted a settled rule and insured against the owner walking away
+  from their own desk.
+- **Per-feature pull requests, drafts, and parking them.** Two live merge accidents, one review
+  plugin that refuses drafts, and a reading surface the owner does not use.
+- **The integration branch and its own suite run.** The chain integrates continuously; the last
+  child's suite run already covers the batch.
+- **Finding the next independent feature after a failure.** Replaced by skipping the failed child's
+  descendants.
+- **Reading code as a step of the brief.** Audit items carry their own evidence and `blueprint
+  --check` already reports what is built.
+- **Mid-run checkpoints where `mvp` waits for the owner**, and **pull request comments as the
+  feedback channel** — a channel with no reader, since every session that could have read it has
+  closed. The control window replaced both.
+
+From earlier:
+
 - **An agent orchestrator** (0.17.0): dies of context, pays tokens for bookkeeping, hides progress.
-- **A watchdog above the orchestrator**: a third headless level, and the reason the July run stopped.
-- **Children as headless `claude -p` runs**: cheaper to launch, but invisible, unaskable, and
-  impossible to rescue by hand.
-- **`queue.yml` + `handoff.yml` + `upstream.md`**: three files to say what `children` and the
-  children's own run files already say. State lost between them is what this rewrite exists to fix.
-- **A dependency graph with parking and re-planning**: the driver parks a feature and moves on; it
-  does not re-order the batch. Anything cleverer is machinery for a case that has not happened yet.
-- **Timers anywhere except the unanswered question**: a run that is working is left alone, however
-  long it takes.
+- **A watchdog above it**: a third headless level, and the reason the July run stopped.
+- **Headless children**: cheaper to launch, but invisible, unaskable, impossible to rescue by hand.
+- **`queue.yml` + `handoff.yml` + `upstream.md`**: three files saying what `children` and the
+  children's own run files already say.
+- **Timers anywhere except the limit ladder**: a run that is working is left alone, however long it
+  takes.
 
 ## Still open
 
-- **Where the launcher lives.** On this server a visible session is `claude-new <name> <dir>` and the
-  command typed into it; the kit cannot depend on that. The contract the driver needs is small — a
-  session whose transcript is discoverable and which can be typed into — so this is one configurable
-  line rather than a design question. Settle it while writing the script.
-- **Whether the integration step is the driver's or a final child's.** Merging tips and running the
-  suite is judgement the driver does not have, so it is probably a last session; that costs one more
-  session per sprint and is decided on the first run.
+- **Where the launcher lives.** On this server a visible session is `claude-new <name> <dir>` with
+  the command typed in; the kit cannot depend on that. The contract is small — a session whose
+  transcript is discoverable and which can be typed into — so this is one configurable line. Settle
+  it while writing the script.
+- **`rules/pull-requests.md` still describes stacked features and an integration pull request.** That
+  section is now wrong and is replaced when sprint is written: base is always the default branch,
+  feature branches are pushed, a per-feature pull request is opened on demand.
