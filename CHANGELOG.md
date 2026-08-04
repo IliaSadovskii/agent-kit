@@ -3,6 +3,41 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.26.0
+
+`sprint` — a batch of features built one after another while nobody watches. Its design was written
+first, then reviewed against itself and cut by about a third; what survived is in
+[docs/design/sprint.md](docs/design/sprint.md), and the *Rejected* section there is the more useful
+half.
+
+- **A driver, not an orchestrating agent.** `scripts/orchestrate.py` is a loop with no model behind
+  it: it reads run files, watches a transcript's modification time, knows one HTTP status, and asks
+  git whether a branch exists. 0.17.0's agent-held queue died of its own context and hid the run
+  behind a third headless level; a loop does neither.
+- **One visible session per feature.** It can be watched from the app, typed into when it goes
+  wrong, and can ask its own question — none of which a headless child could do.
+- **One chain, one pull request.** Every feature branches off the last successful one, so the last
+  branch already holds the batch: integration stops being a step. No per-feature pull requests, no
+  drafts, no integration branch — each branch is pushed, and a single feature's pull request is one
+  printed command away on the day it is wanted.
+- **The account limit costs the wait and nothing else.** The 429 record carries its own reset time,
+  and the process survives it with its context intact, so one typed line resumes the session. A
+  reset more than a few hours out is a weekly limit: the run stops instead of sleeping through a day.
+- **No clock on a question.** Someone present, a child asks and waits; nobody present, it records
+  the assumption and carries on. A failed feature takes its descendants with it and the rest of the
+  batch runs.
+- **The window is the owner's own session**, not one the kit raises: the brief writes its tmux name
+  into the run file and stays to answer *how is it going*, to speak the driver's news, and to relay
+  *pause*, *skip* and *stop* between features. A batch without one simply runs unnarrated.
+- `ship` learns `--run <dir>` to continue a run file somebody else wrote, `parent` to inherit the
+  decisions its base branch cannot explain, and `deliver: "branch"` to push reviewed code and stop.
+- **The kit has tests.** `tests/test_orchestrate.py`, run by the validator; they found two defects
+  before any live run — an unbounded wait on a closing session that never returns, and a dead
+  session waited out as though it were merely quiet.
+
+Nothing here has run against a real project yet, and neither has `ship`. The first batch's first
+feature is `ship`'s first live run and belongs in daylight.
+
 ## 0.25.1
 
 With six lenses written, `audit` had grown to 466 lines of which 301 described lenses — and a
