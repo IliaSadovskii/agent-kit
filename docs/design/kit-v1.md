@@ -199,7 +199,8 @@ Each command lands usable on its own.
 | `fix`, `sprint`, `mvp` | stubs |
 
 How a command is written and hardened is in [method.md](method.md) — eleven corrections paid for
-with live runs, which `fix`, `sprint` and `mvp` should not pay for again.
+with live runs, which `fix`, `sprint` and `mvp` should not pay for again. `sprint` is designed but
+not written: [sprint.md](sprint.md).
 
 **Untested paths in `audit`**, all of them invocation rather than lens: a full run with no argument
 (delegation per lens, cheapest-first ordering, per-lens commits), a repeat run without deleting the
@@ -208,11 +209,9 @@ untested anywhere: a project with a thin `stack.md`, and any stack other than La
 
 ## Still open
 
-- **What drives a sprint's stages.** Three candidates: fix the watchdog; drop it and resume by hand
-  (`sprint --resume`), losing the hours until someone looks; or replace the agent orchestrator with
-  a script. The third is the current preference — an LLM session dies of context and costs tokens, a
-  loop does neither, and the judgement it needs ("did this stage close its steps?") is mechanical.
-  Its cost is that anything unusual becomes an honest `blocked` rather than a clever recovery.
+- ~~**What drives a sprint's stages.**~~ Decided 2026-08-04: a script driver, no orchestrating
+  agent, one visible session per feature. The reasoning, the question protocol and the limit
+  handling are in [sprint.md](sprint.md).
 - **How `mvp` knows it is finished.** "Until the agent decides it works" has no anchor and either
   stops early or never stops. The intended anchor is blueprint's `mvp_bounds` (an explicit in-list
   and out-list) plus its scenarios walking end to end against the running app. Also settled in
@@ -220,10 +219,8 @@ untested anywhere: a project with a thin `stack.md`, and any stack other than La
   `sprint`, which calls `ship`. And on an empty project the first batch is a skeleton that starts
   and serves something, not a feature.
 - **Screens.** Deferred, to be reconsidered in a much simpler form once blueprint exists.
-- **Five of `audit`'s seven lenses.** Only tests and deps are in its first version; scenarios,
-  performance and security follow, with debt and readiness after them. The reasoning for each, and
-  the two that were rejected, is in [audit.md](audit.md) — the point of shipping two first is to
-  find out whether adding the third costs a page or a redesign.
+- ~~**Five of `audit`'s seven lenses.**~~ Closed: six lenses are written and each has run once. The
+  reasoning for each, and the two that were rejected, is in [audit.md](audit.md).
 - **What blueprint asks and writes.** Settled and shipped in 0.18.0; the templates under
   `plugins/agent-kit/templates/knowledge/` are the catalogue. It came from a larger design that was
   mostly rejected (`docs/design/knowledge-and-gates.md`, deleted — see the history of this branch).
