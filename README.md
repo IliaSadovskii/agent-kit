@@ -60,9 +60,11 @@ Also works with no blueprint, from a written task.
 
 A small change: something you describe, a failure you hit, or a round of review comments.
 
-### `sprint <theme>` — not written yet
+### `sprint <theme>`
 
-Several features briefed in one sitting, then built unattended and delivered as one mergeable PR.
+Several features briefed in one sitting, then built unattended — each as its own visible session,
+one after another, chained so the batch arrives as a single mergeable pull request. A control
+session stands beside the run to say how it is going and to take *pause*, *skip* and *stop*.
 
 ### `mvp` — not written yet
 

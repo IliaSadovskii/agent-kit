@@ -67,6 +67,12 @@ this run's memory and the handoff to anything that resumes it: create it at Desi
 each thing happens, never in a batch at the end. A run outlives its own context — what is not in
 that file or in the code did not survive.
 
+**`--run <dir>` means the file is already there**: a batch wrote it, or an earlier session of this
+feature did. Read it and continue from its `step` rather than starting over — that is also how a run
+comes back after the account limit killed its session. Set `step` as you enter each step, and one of
+`done` / `blocked` when you stop, because whatever launched this is watching that field to know you
+are finished.
+
 Beside it, `run.log` records **when** things happened, which the state file cannot: one line per
 event, appended and never read back, so it costs nothing in context.
 
@@ -87,6 +93,12 @@ Both files are working state, not repository content. Add `.agent-kit/runs/` to 
 
 Skip this step when the run file already carries an approach and tasks: whoever wrote them designed
 this feature, and redesigning it discards a decision the owner may already have approved.
+
+**When `parent` names another run, read its run file first** — approach, assumptions, deviations.
+You are building on its branch, so its code is already under you; what the code cannot tell you is
+why. A field it renamed, a library it chose, a constraint it hit are decisions you inherit, not
+decisions you get to take again. Read the immediate parent only: the whole chain would cost every
+later feature the history of all the earlier ones.
 
 Otherwise read the code the entry touches — including the callers and the stored data of everything
 you will alter, because a feature that quietly moves a neighbour's behavior is the most expensive
@@ -174,10 +186,17 @@ In this order, because it puts reviewed code in the pull request from its first 
 6. Set the entry's machine line to `state: building (pr: <n>)`. Besides an assumption block, that is
    the only thing you write into knowledge; `blueprint --check` moves it to `built` once the pull
    request merges.
-7. Close the run file: `step`, `suite`, `pr`, and any blocker.
+7. Close the run file: `step: "done"`, `suite`, `pr`, and any blocker.
 
-The run is finished when the pull request exists with CI green or its state reported — or when a
-blocker has been reported and the branch left in a recoverable state. Close it per
+**`deliver: "branch"` stops you after step 3.** A feature inside a batch pushes reviewed code and
+nothing else: the batch opens one pull request over the whole chain, runs CI there, and sets the
+entries' machine lines from it. Push, close the run file with `step: "done"` and the branch name,
+and stop — do not open a pull request, do not wait for a pipeline that has none, and do not report
+as if you had. Everything before Deliver is unchanged, review included.
+
+The run is finished when the pull request exists with CI green or its state reported — or, delivering
+a branch, when that branch is pushed with its review done — or when a blocker has been reported and
+the branch left in a recoverable state. Close it per
 `${CLAUDE_PLUGIN_ROOT}/rules/closing.md`: what is thin rather than what was done, then the one line
 naming what to run next.
 

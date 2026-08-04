@@ -12,12 +12,12 @@ argument. What the rewrite concluded, and why, is in
 | `/agent-kit:blueprint` | the project's knowledge layer: an interview that writes what the project knows, and `--check` that audits it |
 | `/agent-kit:fix` | something is wrong and it is small — **not written yet** |
 | `/agent-kit:ship` | one feature end to end: design against the blueprint, build, verify, review, pull request |
-| `/agent-kit:sprint` | a batch of features, autonomous — **not written yet** |
+| `/agent-kit:sprint` | a batch of features: brief them in one sitting, then a driver builds each unattended |
 | `/agent-kit:mvp` | from the blueprint to a running prototype — **not written yet** |
 | `/agent-kit:audit` | compare existing code to the description and write a work list |
 
-`blueprint`, `ship` and `audit` work today. The other three are declared so the shape of the kit is
-visible, and they do nothing when invoked.
+`blueprint`, `ship`, `sprint` and `audit` work today. `fix` and `mvp` are declared so the shape of
+the kit is visible, and they do nothing when invoked.
 
 ## Blueprint
 

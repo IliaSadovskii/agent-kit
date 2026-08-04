@@ -28,10 +28,18 @@ A Mermaid diagram when the change alters a flow — GitHub renders it. Tables fo
 enumerable. `<details>` for supporting evidence, with the conclusion in the `<summary>` line, so the
 collapsed view still tells the whole story.
 
-## Stacked features
+## Batches
 
-A pull request based on another feature's branch cannot land code: merging it moves the code
-sideways. Open it as normal and say in the first line which batch it belongs to, what it is based
-on, and that it reaches the default branch through that batch's integration pull request. Parking
-it — draft, closing, whatever the batch decides — belongs to whoever launched the feature, not to
-the run that opened it.
+A batch — a sprint, or one of an `mvp`'s — opens **one** pull request, based on the default branch,
+covering every feature in it. Its features chain off each other, so the last branch already holds
+the batch and there is nothing to merge together first.
+
+A feature inside a batch does not open one of its own. Its branch is pushed, so a pull request for
+it alone is one `gh pr create --base <its base> --head <its branch>` away on the day it is wanted,
+and the batch's own pull request prints that command per feature. Opening them in advance is what
+caused two merge accidents — a feature merged into its parent branch instead of the default one, so
+nothing reached it at all — and a review plugin that declines drafts silently skipping the pass.
+
+The sections above are then composed across features rather than written per feature: one **Manual
+actions** list in the order they must be done, one **Assumptions** table with a column for which
+feature took each, and a **What did not happen** section — parked features and why — before either.

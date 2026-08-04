@@ -1,10 +1,133 @@
 ---
 name: sprint
-description: A batch of features around one theme — brief them all with the owner in one sitting, then build each autonomously and deliver the batch as one mergeable pull request.
-argument-hint: "[theme]"
+description: Build a batch of features one after another while nobody watches — compose the batch with the owner in one sitting, then let a driver run each feature as its own visible session and deliver the whole batch as one pull request.
+argument-hint: "[theme, or a list of work]"
 disable-model-invocation: true
 ---
 
 # Sprint
 
-Not written yet.
+A batch of features around one theme, built by `ship` one at a time, delivered as one pull request.
+
+You are the **brief**: you compose the batch with the owner, write a run file per feature, and start
+the driver. You do not build anything and you do not design the features — `ship` does both, and it
+will have read more of the code than you have.
+
+| Invocation | You are |
+|---|---|
+| `/agent-kit:sprint <theme>` | the brief — this file |
+| `/agent-kit:sprint --resume <run dir>` | the brief, restarting a driver over children already written |
+| `/agent-kit:sprint --close <run dir>` | the closing session — `${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/close.md` |
+| `/agent-kit:sprint --window <run dir>` | the control window — `${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/window.md` |
+
+The last two are started by the driver. Read the file named for you and nothing else in this table.
+
+## What the brief is for
+
+Two things, and they are the only two a child cannot supply: you see the whole batch, and the owner
+is here. A child cannot notice that two features write to the same table or that an audit item was
+fixed last month, and once the run starts there is nobody to answer anything.
+
+So your job is to **pre-answer the questions the night will have nobody to ask** — and then get out
+of the way.
+
+## Before you ask anything
+
+Run `/agent-kit:blueprint --check`. It is mechanical and silent when clean.
+
+| What it found | What you do |
+|---|---|
+| an entry in the batch incomplete, or a slot unsettled | name it and offer `/agent-kit:blueprint` — the owner is here and closes it in a minute |
+| `[assumed …]` blocks on entries you are about to build | show them; this is the last moment anyone can answer |
+| no `docs/knowledge/` at all | carry on from the owner's own words, and say once that without entries the tests can only aim at what each task says done means |
+| nothing | continue without a word about it |
+
+Then read, in one message: `.agent-kit/project.yml`, the batch's source (an audit's work list, the
+roadmap, whatever the owner named), and **a section per candidate entry** — never the whole file.
+Read `docs/knowledge/stack.md` once. Read code only where you are in doubt, and only to answer *does
+this already exist?* and *who else touches these files?* The deep read belongs to the child.
+
+## Compose the batch
+
+Ask only what different answers would send down different roads, where the rework is expensive.
+Anything the blueprint already answers is not a question. Finding nothing to ask is an honest
+outcome — say what you are taking and in what order, and start.
+
+What is worth asking, when it applies:
+
+1. **Composition** — which items of a long list are taken now. Propose a set that is one topic.
+2. **Order and collisions** — which features touch the same ground, and therefore which must follow
+   which.
+3. **A fork found early** — an entry that stores something, crosses a contract, moves a permission
+   boundary or touches money without saying how. Overnight that becomes an assumption and then a
+   migration; ask it now, with a recommendation.
+4. **An open assumption** from an earlier run, under an entry in the batch.
+5. **Whether the owner is reachable while it runs.** This is the only thing that decides whether a
+   child waits on an expensive fork or takes it as an assumption.
+
+Present it the way `ship` presents a design: one screen, the batch and its order, what you take as
+given. Do not sketch the features. The owner sees each design in the pull request, not before the
+run.
+
+## Write the run files
+
+One directory per feature under `.agent-kit/runs/`, plus one for the batch, all shaped like
+`${CLAUDE_PLUGIN_ROOT}/templates/run.json`.
+
+The batch — `.agent-kit/runs/<date>-<theme>/run.json`:
+
+```json
+{ "slug": "2026-08-05-offers", "command": "sprint", "gate": "owner", "base": "main",
+  "children": ["2026-08-05-offers-01-create", "2026-08-05-offers-02-accept"] }
+```
+
+`children` is the order of the run. There is no queue file: this is the queue.
+
+Each feature — `.agent-kit/runs/<batch>-NN-<feature>/run.json`:
+
+- `command: "ship"`, plus `entries` or a `task`. Fill `approach` and `tasks` **only if the owner
+  settled them** — left empty, `ship` designs the feature properly.
+- `gate: "owner"` when the owner said they are reachable, `"none"` when they did not. That one field
+  decides whether a child waits on an expensive fork or records it as an assumption.
+- `branch: "claude/<feature-slug>"`.
+- `base` and `parent` — **the previous feature in the list**, always: its branch and its run slug,
+  whether or not this feature depends on it. The first child takes the batch's `base` and
+  `parent: null`.
+- `deliver: "branch"` — a feature inside a batch pushes and stops; the batch gets one pull request.
+- `step: "queued"`.
+
+**Every child chains to the previous one.** That is what makes integration a property instead of a
+step: the last branch already holds the batch, and each child's suite runs on everything before it.
+Its cost is that a feature cannot be dropped out of the middle afterwards — it is amended or
+reverted by a commit.
+
+Add `.agent-kit/runs/` to `.gitignore` if it is not there.
+
+## Start the driver
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrate.py" .agent-kit/runs/<batch>/ >/dev/null 2>&1 &
+```
+
+It builds the children in order, each as its own visible session, and raises a control window the
+owner can talk to. It survives the account limit by sleeping until the reset named in the record and
+typing one line into the session, which is still alive with its context — so a limit costs the wait
+and nothing more.
+
+Then **say one line about where to watch it, and stop.** Do not stay and narrate: the window exists
+for that, and this session's context is the most expensive place to keep a running commentary.
+
+Close per `${CLAUDE_PLUGIN_ROOT}/rules/closing.md`.
+
+## `--resume`
+
+Start the driver again over the same directory. Children that already reached a pull request or a
+blocker are left alone and the rest run in order. Rewrite nothing: a run file is the memory of its
+own run, and the only reason to touch one is that the owner changed their mind about that feature.
+
+## What this command does not do
+
+It does not design features, write code, run tests, merge anything, or watch the run once the driver
+has it. It never opens a pull request itself — the closing session does that, once, for the batch.
+And it does not run `/agent-kit:audit` over its own output: a batch of a few features is small
+enough for the owner to read, and the sweep would cost more than the batch. That belongs to `mvp`.

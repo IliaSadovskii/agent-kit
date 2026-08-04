@@ -178,6 +178,15 @@ if [ -n "$leaks" ]; then
 fi
 
 # --------------------------------------------------------------------------------------------
+step "the driver's own tests"
+
+# orchestrate.py runs unattended overnight; the cheap place to find out it is wrong is here.
+if [ -d tests ]; then
+  python3 -m compileall -q "$PLUGIN/scripts" >/dev/null || fail "python syntax error under $PLUGIN/scripts"
+  python3 -m unittest discover -s tests -q || fail "tests failed"
+fi
+
+# --------------------------------------------------------------------------------------------
 step "shell syntax"
 
 while IFS= read -r sh; do

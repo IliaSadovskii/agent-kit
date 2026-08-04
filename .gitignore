@@ -1,8 +1,3 @@
-# Local scratch
-*.kit-new
-
-# Run state — never repository content
-.agent-kit/runs/
-
-# Python bytecode
 __pycache__/
+*.pyc
+.agent-kit/runs/
