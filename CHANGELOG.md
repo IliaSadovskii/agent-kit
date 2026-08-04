@@ -3,6 +3,43 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.27.0
+
+The first live sprint — the tests lens over a real project, seven batches, 43 tests, all green —
+froze three product defects as expected behavior. Not from laziness: a test for a line the code
+contradicts could only be left red, which stops the branch, the batch behind it and CI, or written
+over what the code does, which makes the suite guard the bug. This release adds the third road.
+
+- **A promise the product does not keep gets a test and a mark.** The test says what the entry
+  promises, and carries `// agent-kit:unmet <entry key>` beside whatever this project uses to keep
+  it off the red. The dispute is recorded instead of settled: the proof is in the repository, the
+  suite stays green, and whoever settles it later finds the test already written.
+- **The mark is a constant of the kit, not a framework's syntax** — one project can hold three
+  suites in two languages. `check.py` looks for that comment in every tracked file and reports the
+  entry key rather than a fragment of code; `project.yml` → `tests.unmet` records only what keeps
+  such a test green here, so runs do not each pick their own form.
+- **The check prints them on every command and changes no exit code.** These tests are green by
+  design, so nothing else in a run would mention them again; this is the one place that does, and a
+  reminder is not a failure. It asks for `tests.unmet` only once a mark exists, so nothing nags a
+  project that has none.
+- **The mark is never for code the same run writes** — otherwise a feature could declare itself
+  done by marking what it could not make pass.
+- **`ship`** treats *the entry promises one thing, the code already does another* as an expensive
+  fork of its own: unattended it marks and records both readings in `deviations`; with the owner
+  present it marks and asks which side is wrong.
+- **`sprint` with no theme** offers what the project already owes, from four places: entries still
+  `planned`, the audits' work lists, open `[assumed …]` notes, and marked promises. There is no
+  separate command for debt — debt is the part of that list nobody has chosen yet.
+- **The tests lens** scores a marked line `unmet`: neither coverage nor a gap, since the work it
+  asks for is a product change, and those lines are reported as their own list.
+- **The window may not ask** — *your call now*, *either the entry is wrong or the code is* are
+  questions with the mark filed off, landing on a phone as work owed and answered into a session
+  that builds nothing. The ban is now on the shape, with a report to copy instead.
+- **One question means one question in the call**, not one topic per screen.
+
+Existing projects need nothing: the mark works without `tests.unmet`, and the key is asked for the
+first time a marked test exists.
+
 ## 0.26.0
 
 `sprint` — a batch of features built one after another while nobody watches. Its design was written
