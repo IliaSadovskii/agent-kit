@@ -27,11 +27,18 @@ not carry.
 > is. Everything else you decide silently, either way.
 
 `gate` in the run file says whether anyone is present. A question whose answers all lead to the same
-work is never asked at all.
+work is never asked at all. How to put one — with options, not prose — is
+`${CLAUDE_PLUGIN_ROOT}/rules/asking.md`.
 
 ## Before you start
 
-Run `blueprint --check`. It is mechanical and silent when clean. Then:
+Run the knowledge check. It is mechanical, takes seconds, and is silent when clean:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" .
+```
+
+Then:
 
 | What it found | What you do |
 |---|---|

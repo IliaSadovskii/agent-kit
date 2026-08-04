@@ -21,7 +21,10 @@ run.
 |---|---|
 | `blueprint` | continues from wherever the last session stopped: works only on what is empty, stale, or marked by an earlier run. Interactive. |
 | `blueprint <what you want to add or reconsider>` | the owner has something the documents do not hold yet — a feature they have thought through, a part they want reworked, a doubt about whether something is covered. Find the slots it touches, interview about those, write, stop. Without this a finished blueprint has no way in, and the thought turns into work nobody asked for. |
-| `blueprint --check` | audits, mechanically, in seconds, asking nothing. Two audiences: as another command's preflight it prints nothing when everything is clean; **run by hand it always prints where the project stands** — entries built and planned, what inside the MVP bounds is not built yet, open questions, assumptions waiting for an answer. That is the status view, and it needs no command of its own. |
+| `blueprint --check` | audits, mechanically, in seconds, asking nothing. Run the program — `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status` — and put its output in front of the owner with a sentence about what to do next. Two audiences: as another command's preflight it is run without `--status` and prints nothing when clean; **by hand it always prints where the project stands**. That is the status view, and it needs no command of its own. |
+
+Every question you put to the owner follows `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`: options
+rather than prose, the recommendation first, one at a time.
 
 ## What this command does not do
 
@@ -102,9 +105,16 @@ with invention, and invented knowledge is worse than a gap: a run is careful aro
 confident around a wrong answer.
 
 **When knowledge already exists elsewhere**, do not restate it. The entry keeps the structured
-answers and points at the owner's document: `source: docs/DEVELOPER.md#offers @a3f1c9d`, where the
-hash is that section as you read it. Their prose stays theirs and is not duplicated; when they edit
-it the hash diverges and `--check` says so.
+answers and points at the owner's document: `source: docs/DEVELOPER.md#offers @a3f1c9d`. Their prose
+stays theirs and is not duplicated; when they edit it the hash diverges and the check says so.
+
+**Never write that hash by hand.** Ask the program that verifies it, or the two will disagree
+forever — which is exactly what happened while the algorithm was left to whoever was reading:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --hash docs/DEVELOPER.md offers
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --hash composer.json   # for checks.deps
+```
 
 ## How a session ends
 
@@ -167,6 +177,9 @@ history. Without that filter the documents silt up after one sprint.
 
 ## What `--check` does
 
+`scripts/check.py`, and this section describes it rather than instructing you: the rules live in the
+program, which is why every command can run them and why the same rule cannot mean two things.
+
 Mechanical only. No reading for quality, no grader, no research — that is what makes it cheap
 enough to run ahead of everything.
 
@@ -185,5 +198,9 @@ enough to run ahead of everything.
 - **Notes.** Count the `[assumed …]` and `[found …]` blocks and list them.
 - **Verdicts.** Slots with no verdict in `project.yml`.
 
-Silent when clean. Otherwise one screen: what is open, what is stale, what does not line up.
-`mvp` refuses to start when a slot in its scope is not settled; the other three report and carry on.
+Silent when clean, exit code 1 when not. Otherwise one screen: what is open, what is stale, what
+does not line up, and what it could not see. `mvp` refuses to start when a slot in its scope is not
+settled; the other three report and carry on.
+
+Your job around it is the part a program cannot do: say which of its findings matter for what the
+owner is about to do, and offer to fix them here and now.

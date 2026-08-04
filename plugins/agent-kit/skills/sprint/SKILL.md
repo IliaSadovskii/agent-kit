@@ -33,7 +33,11 @@ of the way.
 
 ## Before you ask anything
 
-Run `/agent-kit:blueprint --check`. It is mechanical and silent when clean.
+Run the knowledge check — mechanical, seconds, silent when clean:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" .
+```
 
 | What it found | What you do |
 |---|---|
@@ -65,9 +69,9 @@ What is worth asking, when it applies:
 5. **Whether the owner is reachable while it runs.** This is the only thing that decides whether a
    child waits on an expensive fork or takes it as an assumption.
 
-Present it the way `ship` presents a design: one screen, the batch and its order, what you take as
-given. Do not sketch the features. The owner sees each design in the pull request, not before the
-run.
+Ask per `${CLAUDE_PLUGIN_ROOT}/rules/asking.md` — with options, the recommendation first, one at a
+time. Then present the batch and its order as one screen, with what you take as given. Do not sketch
+the features: the owner sees each design in the pull request, not before the run.
 
 ## Write the run files
 
