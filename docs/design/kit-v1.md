@@ -189,6 +189,23 @@ command instead of four. `ship` adds design-from-blueprint and the autonomous ph
 
 Each command lands usable on its own.
 
+## Where it stands, 2026-08-04
+
+| Command | State |
+|---|---|
+| `blueprint` | written, two live runs; second cost 2.0M against the first's 24M |
+| `ship` | written, **never run** |
+| `audit` | written, six lenses, each run once on a real project (tests four times); 21.4M for the whole sweep |
+| `fix`, `sprint`, `mvp` | stubs |
+
+How a command is written and hardened is in [method.md](method.md) — eleven corrections paid for
+with live runs, which `fix`, `sprint` and `mvp` should not pay for again.
+
+**Untested paths in `audit`**, all of them invocation rather than lens: a full run with no argument
+(delegation per lens, cheapest-first ordering, per-lens commits), a repeat run without deleting the
+file (reading the previous one, leaving declined items alone), narrowing by area, and free text. Also
+untested anywhere: a project with a thin `stack.md`, and any stack other than Laravel.
+
 ## Still open
 
 - **What drives a sprint's stages.** Three candidates: fix the watchdog; drop it and resume by hand
