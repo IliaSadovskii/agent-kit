@@ -43,11 +43,17 @@ places, and all three stay uncollapsed at the top:
 2. **Manual actions** — merged across features into one ordered list. Three migrations are three
    numbered steps, not three sections the owner assembles in their head.
 3. **Assumptions** — one table for the batch: decision, why, which feature, which entry. Expensive
-   first. This is the single place a well-specified batch diverges from what the owner wanted.
+   first, and the children's `deviations` belong in it too: a deviation is an assumption the code
+   forced. This is the single place a well-specified batch diverges from what the owner wanted.
 
 Then **Proven**: a row per feature naming which of the entry's lines have a test, what the suite
 returned, and what is *not* proven — plus the batch-level fact that the product's end-to-end
 scenarios were not run here.
+
+Inside it, uncollapsed, **the promises this batch did not keep**: every line of every child's
+`unmet`, with the entry, what the code does instead, and which feature met it. A batch that ends
+green while the product contradicts three entries is only honest if that list is in plain sight —
+and it is the list the next `sprint` composes a batch from.
 
 Then a collapsed block per feature, about eight lines: what it does now in the product's terms, the
 approach in one sentence, where the tests sit, its branch, and the command that opens it as its own

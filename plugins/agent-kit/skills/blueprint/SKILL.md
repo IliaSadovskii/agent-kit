@@ -201,10 +201,14 @@ enough to run ahead of everything.
   `stack_researched` past six months, named once.
 - **Notes.** Count the `[assumed …]` and `[found …]` blocks and list them.
 - **Verdicts.** Slots with no verdict in `project.yml`.
+- **Unmet promises.** Every test carrying `agent-kit:unmet` outside `docs/`, with the entry it
+  names — flagging a key no entry defines, and a project that has marks but no `tests.unmet`.
 
-Silent when clean, exit code 1 when not. Otherwise one screen: what is open, what is stale, what
-does not line up, and what it could not see. `mvp` refuses to start when a slot in its scope is not
-settled; the other three report and carry on.
+Silent when clean, exit code 1 when not — with one exception: unmet promises are listed whenever
+they exist and change no exit code, because a recorded promise is a statement about the product, not
+a defect in the knowledge. Otherwise one screen: what is open, what is stale, what does not line up,
+and what it could not see. `mvp` refuses to start when a slot in its scope is not settled; the other
+three report and carry on.
 
 Your job around it is the part a program cannot do: say which of its findings matter for what the
 owner is about to do, and offer to fix them here and now.

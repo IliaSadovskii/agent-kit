@@ -10,6 +10,7 @@ import contextlib
 import importlib.util
 import io
 import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -177,11 +178,18 @@ class CheckCase(unittest.TestCase):
     MARKED = ("// agent-kit:unmet guest.browse_feed\n"
               "it('the feed is newest first')->todo();\n")
 
-    def suite(self, body, form="->todo()"):
+    def suite(self, body, form="->todo()", name="tests/FeedTest.php"):
+        """A real git repository, because `git grep` is the path that runs in a real project."""
         manifest = MANIFEST + (f"tests:\n  unmet: {form}\n" if form else "")
         (self.root / ".agent-kit" / "project.yml").write_text(manifest, encoding="utf-8")
-        (self.root / "tests").mkdir(exist_ok=True)
-        (self.root / "tests" / "FeedTest.php").write_text(body, encoding="utf-8")
+        path = self.root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body, encoding="utf-8")
+        self.git("init", "-q")
+        self.git("add", "-A")
+
+    def git(self, *args):
+        subprocess.run(["git", *args], cwd=self.root, capture_output=True, check=False)
 
     def test_a_marked_test_is_listed_with_its_entry_even_when_everything_else_is_clean(self):
         self.suite(self.MARKED)
@@ -191,19 +199,42 @@ class CheckCase(unittest.TestCase):
         self.assertIn("tests/FeedTest.php:1 guest.browse_feed", output)
         self.assertIn("sprint with no theme", output)
 
-    def test_the_mark_is_found_wherever_it_is_written(self):
-        self.suite("it('the feed is newest first');\n")
-        (self.root / "src").mkdir()
-        (self.root / "src" / "feed.spec.ts").write_text(
-            "// agent-kit:unmet guest.browse_feed\ntest.failing('newest first', () => {});\n",
-            encoding="utf-8")
+    def test_a_file_named_in_the_project_language_is_read_like_any_other(self):
+        self.suite(self.MARKED, name="tests/Лента.php")   # git ls-files would quote this away
         _code, output = self.run_check()
-        self.assertIn("src/feed.spec.ts:1 guest.browse_feed", output)
+        self.assertIn("tests/Лента.php:1 guest.browse_feed", output)
+
+    def test_the_mark_quoted_in_a_document_is_not_a_promise(self):
+        self.suite(self.MARKED)
+        (self.root / "docs" / "audits").mkdir(parents=True)
+        (self.root / "docs" / "audits" / "tests.md").write_text(
+            "- [ ] `guest.browse_feed` — see agent-kit:unmet guest.browse_feed in the suite\n",
+            encoding="utf-8")
+        self.git("add", "-A")
+        _code, output = self.run_check()
+        self.assertIn("Promises the product does not keep (1)", output)
+
+    def test_a_mark_naming_an_entry_that_does_not_exist(self):
+        self.suite("// agent-kit:unmet guest.gone\nit('x')->todo();\n")
+        _code, output = self.run_check()
+        self.assertIn("guest.gone — no such entry", output)
+
+    def test_an_entry_key_without_a_dot_is_an_entry_too(self):
+        self.suite("# agent-kit:unmet guest\ndef test_x(): ...\n")
+        _code, output = self.run_check()
+        self.assertIn("guest", output)
+        self.assertNotIn("no such entry", output)
 
     def test_a_mark_without_an_entry_is_still_listed(self):
         self.suite("# agent-kit:unmet\ndef test_newest_first(): ...\n")
         _code, output = self.run_check()
         self.assertIn("no entry named", output)
+
+    def test_several_suites_are_a_map_and_do_not_crash_the_check(self):
+        self.suite(self.MARKED, form='\n    php: "->todo()"\n    js: test.failing')
+        code, output = self.run_check()
+        self.assertEqual(code, 0, output)
+        self.assertIn("tests/FeedTest.php:1 guest.browse_feed", output)
 
     def test_a_suite_without_the_mark_says_nothing(self):
         self.suite("it('the feed is newest first');\n")
@@ -211,17 +242,25 @@ class CheckCase(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(output, "")
 
-    def test_a_mark_with_no_form_recorded_for_the_project_is_a_finding(self):
+    def test_a_mark_with_no_form_recorded_is_said_without_failing_the_check(self):
         self.suite(self.MARKED, form="")
         code, output = self.run_check()
-        self.assertEqual(code, 1)
-        self.assertIn("tests.unmet", output)
+        self.assertEqual(code, 0, output)          # a run must not stop over a missing manifest key
+        self.assertIn("no tests.unmet", output)
 
     def test_a_project_with_no_marks_is_never_nagged_about_the_form(self):
         self.suite("it('the feed is newest first');\n", form="")
         code, output = self.run_check()
         self.assertEqual(code, 0)
         self.assertEqual(output, "")
+
+    def test_a_long_list_is_cut_to_a_glance(self):
+        body = "".join(f"// agent-kit:unmet guest.browse_feed\nit('{i}')->todo();\n" for i in range(15))
+        self.suite(body)
+        _code, output = self.run_check()
+        self.assertIn("Promises the product does not keep (15)", output)
+        self.assertIn("and 5 more", output)
+        self.assertEqual(output.count("guest.browse_feed"), 10)
 
     # ---- a project with no blueprint at all ----------------------------------------------------
 

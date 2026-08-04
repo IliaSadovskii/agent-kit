@@ -14,10 +14,14 @@ tests:
                                   # comment `agent-kit:unmet <entry key>` — that is the kit's own
                                   # constant and never changes. This key is the other half: what
                                   # keeps such a test off the red in THIS project's runner, so
-                                  # every run marks them the same way. Examples: pytest
-                                  # xfail(strict=True), Jest test.failing, Pest todo, RSpec
-                                  # pending. Prefer a form that fails once the product does keep
-                                  # the promise. Several suites in one project: one line each
+                                  # every run marks them the same way. Prefer a form that runs the
+                                  # test and expects the failure — pytest xfail(strict=True), Jest
+                                  # test.failing — over one that skips it, like Pest todo: a skipped
+                                  # test proves nothing and stays quiet the day the product keeps
+                                  # the promise. Several suites? Nest one line per suite:
+                                  #   unmet:
+                                  #     php: "->todo()"
+                                  #     js: test.failing
 
 knowledge:                        # one verdict per slot: filled | not_applicable | open_question
   product: open_question          # not_applicable and open_question carry a reason after the value

@@ -35,26 +35,32 @@ Which side is right is not yours to settle — but leaving the contradiction unw
 option either, so **write the test on what the entry promises and mark it unmet**. Two things make
 the mark, and both are needed:
 
-```php
-// agent-kit:unmet author.request_validation_now
-it('the edit window closes once the check is asked for')->todo();
+```python
+# agent-kit:unmet author.request_validation_now
+@pytest.mark.xfail(strict=True, reason="the entry promises the window closes; it stays open")
+def test_the_edit_window_closes_once_the_check_is_asked_for(): ...
 ```
 
 The comment is the kit's constant, followed by the entry key — it is what every command finds, in
-any language. The rest is whatever keeps the test off the red in this project, recorded once in
-`project.yml` → `tests.unmet` so that runs do not each pick their own. That records the dispute
-instead of resolving it. The
-proof lives in the repository rather than in a sentence of a report, the suite stays green, and
-whoever settles it later finds the test already written. With `gate: none` that is the whole of your
-move, plus the contradiction in `deviations` with both readings named. With someone present, mark it
-the same way and ask which side is wrong — the answer either turns into product work now or goes to
-`blueprint` through the pull request. A test written over a contradiction nobody chose is the one
-kind of green that costs more than red.
+any language, and the key is checked against the knowledge. The rest is whatever keeps the test off
+the red here, recorded once in `project.yml` → `tests.unmet` so that runs do not each pick their
+own. **Prefer a form that runs the test and expects it to fail** — `xfail(strict=True)`, Jest
+`test.failing` — over one that skips it, like Pest `todo`: a skipped test proves nothing today and
+stays quiet on the day the product does keep the promise.
 
-**The mark is only ever for code that was there before you.** A test for what this feature itself
-builds is never marked: that is the feature failing to be built, and calling it a recorded promise
-would let any run declare itself done by marking what it could not make pass. When `tests.unmet` is
-`none`, the line stays uncovered rather than covered by the code's side, and the run file says so.
+That records the dispute instead of resolving it. The proof lives in the repository rather than in a
+sentence of a report, the suite stays green, and whoever settles it later finds the test already
+written. With `gate: none` that is the whole of your move, plus the contradiction written into
+`deviations` with both readings named — that field is where the batch's pull request gets it from.
+With someone present, mark it the same way and ask which side is wrong: the answer either turns into
+product work now, or goes to `blueprint` through the pull request. Rewriting the entry is never
+yours — `blueprint` owns the prose, so the mark stays until it does.
+
+**The mark is only ever for code that was there before you** — including code a sibling run put on
+the branch you are building from. A test for what this feature itself builds is never marked: that
+is the feature failing to be built, and calling it a recorded promise would let any run declare
+itself done by marking what it could not make pass. When the project records no form at all, the
+line stays uncovered rather than covered by the code's side, and the run file says so.
 
 `gate` in the run file says whether anyone is present. A question whose answers all lead to the same
 work is never asked at all. How to put one — with options, not prose — is
@@ -62,7 +68,9 @@ work is never asked at all. How to put one — with options, not prose — is
 
 ## Before you start
 
-Run the knowledge check. It is mechanical, takes seconds, and is silent when clean:
+Run the knowledge check. It is mechanical, takes seconds, and says nothing when there is nothing to
+say — bar the standing list of promises the product does not keep, which is a statement, not a
+finding, and leaves the exit code alone:
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" .
@@ -73,7 +81,7 @@ Then:
 | What it found | What you do |
 |---|---|
 | a slot in scope unsettled, or the entry incomplete | stop, name what is missing, offer `/agent-kit:blueprint` — the owner is here and closes it in a minute |
-| promises the product does not keep, on an entry you are about to touch | read that test before you design: it is the shape the promise will take when it is kept, and building over it is how a feature and a marked test end up contradicting each other. On any other entry, ignore the list — it belongs to whoever composes the next batch |
+| promises the product does not keep, on an entry you are about to touch | read that test before you design: it is the shape the promise will take when it is kept, and building over it is how a feature and a marked test end up contradicting each other. On any other entry, ignore the list — it belongs to whoever composes the next batch. It is never a reason to stop, whatever else it says about a missing `tests.unmet` or an entry that no longer exists |
 | no `docs/knowledge/` at all | **carry on.** Work from the task as written, with `entries` empty and `task` describing it, and say once that without an entry the tests can only aim at what the task says done means. A project's first command should not be an hour of interview |
 | `[assumed …]` blocks on the entries you will touch | with `gate: owner`, show them and offer to close them now — this is the last moment anyone is here; with `gate: none`, follow them as written |
 | the entry is already `built` | say so and ask whether this is a change to it |
@@ -184,7 +192,8 @@ it stood in for:
 
 That block is the decision of record for every later run, which is what keeps features consistent
 with each other. Anything contradicting the approved approach goes to `deviations` instead, with its
-cause.
+cause — and so does every contradiction you marked unmet, one line in `unmet` as well: the closing
+session reads run files and nothing else, so a mark left out of them never reaches the pull request.
 
 When you find a ready-made answer the library map in `stack.md` does not name — a package that
 covers what you were about to write — leave a `[found …]` block under that file the same way. It is

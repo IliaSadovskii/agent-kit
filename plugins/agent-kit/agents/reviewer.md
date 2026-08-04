@@ -36,6 +36,11 @@ hand-rolled code that duplicates a library the map names is a finding.
 A line with no test is a finding, and it is usually the most valuable one you will produce: tests
 that exist but avoid the risky path are the standard way a feature looks proven and is not.
 
+A test carrying `agent-kit:unmet` is **not** coverage: it says the product does not keep that
+promise. Legitimate when the run file records the contradiction and the code it contradicts was
+already there — a finding when either is missing, and a serious one when the mark sits on something
+this very diff was supposed to build. That is how a run declares itself done without doing it.
+
 ## Report
 
 At most ten findings, ordered by severity, each on its own:

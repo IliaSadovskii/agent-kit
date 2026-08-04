@@ -34,8 +34,9 @@ of the way.
 
 ## Before you ask anything
 
-Run the knowledge check — mechanical, seconds, silent when clean. `--status` because composing a
-batch is the one moment where how much is `planned` against `built` is worth the line:
+Run the knowledge check — mechanical, seconds, quiet unless something is open or the product owes a
+promise. `--status` because composing a batch is the one moment where what is `planned` against
+`built` is worth the line, and it names the planned entries:
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status
@@ -79,13 +80,19 @@ the features: the owner sees each design in the pull request, not before the run
 ### With no theme
 
 Called with nothing, you do not ask the owner to think one up. The project has already written down
-what it owes, in four places, and all four are in front of you by now:
+what it owes, in four places:
 
-- the entries still **`state: planned`** — described and not built, which the check's standing line
-  counts;
-- the **work lists of the audits** in `docs/audits/`, newest first;
-- the **open `[assumed …]` notes** the check collected — decisions taken without the owner;
-- the **promises the product does not keep** — tests already written and marked, from the same check.
+- the entries still **`state: planned`** — described and not built. `--status` names them, so you
+  need no entry file to list them;
+- the **open `[assumed …]` notes** and the **promises the product does not keep** — both printed by
+  the same check;
+- the **work lists of the audits** in `docs/audits/`. The check does not open those, so read the
+  newest file per lens yourself — the unchecked boxes only, never the covered half.
+
+A work list written before the last batch may already be done — nothing marks an audit's boxes when
+a sprint closes them. Cheapest check there is: the entry's state line. An item whose entry is
+`built` and whose lens has not run since is stale, and stale items go at the bottom, named as such,
+rather than into the batch.
 
 Put them up as one screen, a line per candidate with its size, and ask which batch to take. That is
 the composition question you would have asked anyway; there is no separate command for debt, because

@@ -11,7 +11,9 @@ found none, and carried on without the check — silently, in every autonomous r
 It reads. It judges nothing: no quality, no research, no opinion about the prose. The one thing it
 writes is an entry's state line, and only what a merged pull request already decided.
 
-Silent when clean. `--status` always prints where the project stands.
+Silent when clean, except for tests marked `agent-kit:unmet`: those are listed whenever they exist,
+because nothing else in a run ever mentions them, and they change no exit code — a recorded promise
+is not a defect. `--status` always prints where the project stands, and names what is `planned`.
 
 Python 3.9+, standard library only.
 """
@@ -31,6 +33,7 @@ from pathlib import Path
 KNOWLEDGE = "docs/knowledge"
 MANIFEST = ".agent-kit/project.yml"
 MARK = "agent-kit:unmet"
+UNMET_SHOWN = 10
 
 KEY_RE = re.compile(r"^`key:\s*([^`·]+?)\s*`(?:\s*·\s*`state:\s*([^`]+?)\s*`)?", re.M)
 HEADING_RE = re.compile(r"^###\s+(.+)$", re.M)
@@ -38,7 +41,8 @@ FIELDS_RE = re.compile(r"^fields:\s*(.+)$", re.M)
 SOURCE_RE = re.compile(r"`source:\s*([^#`]+)#([^@`]+?)\s*@([0-9a-f]+)`")
 NOTE_RE = re.compile(r"^>\s*\*\*\[(assumed|found)\b([^\]]*)\]\*\*\s*(.*)$", re.M)
 REF_RE = re.compile(r"`([a-z][a-z0-9_]*\.[a-z0-9_]+)`")
-MARK_RE = re.compile(re.escape(MARK) + r"[:\s]*([a-z][a-z0-9_]*\.[a-z0-9_]+)?")
+# entities and actors are keys without a dot, so the entry part is one or more segments
+MARK_RE = re.compile(re.escape(MARK) + r"[:\s]*([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)*)?")
 STATE_LINE_RE = re.compile(r"(`key:\s*%s\s*`\s*·\s*`state:\s*)building \(pr:\s*(\d+)\)(\s*`)")
 
 SLOTS = ("product", "actors", "entities", "actions", "screens", "integrations", "scenarios", "stack")
@@ -175,12 +179,13 @@ def check_fields(docs: list, report: Report) -> None:
                 report.add("Fields", f"{doc.path.name}:{entry.line} {entry.key} — {', '.join(empty)}")
 
 
+def keys(docs: list) -> set:
+    """Every entry key the knowledge declares, commented-out drafts aside."""
+    return {entry.key for doc in docs for entry in doc.entries if not doc.commented(entry)}
+
+
 def check_references(docs: list, report: Report) -> None:
-    defined = set()
-    for doc in docs:
-        for entry in doc.entries:
-            if not doc.commented(entry):
-                defined.add(entry.key)
+    defined = keys(docs)
     actors = {k for k in defined if "." not in k}
 
     for doc in docs:
@@ -279,7 +284,7 @@ def check_verdicts(manifest: dict, report: Report) -> None:
             report.add("Verdicts", f"{slot} — open question")
 
 
-def collect_unmet(root: Path, manifest: dict, report: Report) -> None:
+def collect_unmet(root: Path, manifest: dict, defined: set, report: Report) -> None:
     """Tests that prove a promise the product does not keep.
 
     They are green by design — the suite is told to expect them — so nothing else in a run will
@@ -289,36 +294,62 @@ def collect_unmet(root: Path, manifest: dict, report: Report) -> None:
     What is searched for is MARK, a constant of this kit written as a comment beside the test, and
     not whatever the suite uses to keep the test off the red. Frameworks differ, one project can
     have three suites in two languages, and a search for `->todo()` would find one of them at best.
-    A constant is language-agnostic, so the search needs no list of test directories either: every
-    tracked file is fair game and the mark can only be where someone put it deliberately.
+    A constant is language-agnostic, so the search needs no list of test directories.
+
+    The search is `git grep`, not a read of every tracked file: it skips binaries, does not follow
+    symlinks into counting the same test twice, quotes nothing, and is an order of magnitude faster
+    on a large repository. `docs/` is excluded because reports and entries quote the mark in prose,
+    and a quotation is not a promise.
     """
-    files = tracked_files(root)
-    for path in files:
+    for path, number, line in grep(root, MARK):
+        found = MARK_RE.search(line)
+        if not found:
+            continue
+        key = found.group(1)
+        if not key:
+            report.unmet.append(f"{path}:{number} — no entry named beside the mark")
+        elif defined and key not in defined:
+            report.unmet.append(f"{path}:{number} {key} — no such entry")
+        else:
+            report.unmet.append(f"{path}:{number} {key}")
+
+    form = (manifest.get("tests") or {}).get("unmet")
+    if report.unmet and not form:
+        report.unmet.append(f"project.yml has no tests.unmet — what keeps such a test green here")
+
+
+def grep(root: Path, needle: str) -> list:
+    """Every `path, line number, line` where the needle appears, outside `docs/`."""
+    found = subprocess.run(
+        # core.quotePath=false or a path with a non-ASCII character comes back escaped and unusable
+        ["git", "-c", "core.quotePath=false", "grep", "-n", "-I", "--no-color", "-F",
+         "-e", needle, "--", ":!docs"],
+        cwd=root, capture_output=True, text=True)
+    if found.returncode in (0, 1):                       # 1 is git grep for "no matches"
+        hits = []
+        for row in found.stdout.splitlines():
+            path, _, rest = row.partition(":")
+            number, _, line = rest.partition(":")
+            if number.isdigit():
+                hits.append((path, int(number), line))
+        return hits
+
+    skip = {".git", "docs", "node_modules", "vendor", "dist", "build", ".venv", "__pycache__"}
+    hits = []
+    for path in sorted(p for p in root.rglob("*") if p.is_file()):
+        parts = set(path.relative_to(root).parts)
+        if skip & parts:
+            continue
         try:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError, ValueError):
             continue
-        if MARK not in text:
+        if needle not in text:
             continue
         for number, line in enumerate(text.splitlines(), 1):
-            found = MARK_RE.search(line)
-            if found:
-                key = found.group(1) or "no entry named"
-                report.unmet.append(f"{path.relative_to(root)}:{number} {key}")
-
-    form = ((manifest.get("tests") or {}).get("unmet") or "").strip().strip("\"'")
-    if report.unmet and not form:
-        report.add("Manifest", f"{len(report.unmet)} tests carry {MARK} but project.yml has no "
-                               "tests.unmet — the form this project uses to keep such a test green")
-
-
-def tracked_files(root: Path) -> list:
-    listed = subprocess.run(["git", "ls-files"], cwd=root, capture_output=True, text=True)
-    if listed.returncode == 0:
-        return sorted(root / p for p in listed.stdout.splitlines() if (root / p).is_file())
-    skip = {".git", "node_modules", "vendor", "dist", "build", ".venv", "__pycache__"}
-    return sorted(p for p in root.rglob("*")
-                  if p.is_file() and not skip & set(p.relative_to(root).parts))
+            if needle in line:
+                hits.append((str(path.relative_to(root)), number, line))
+    return hits
 
 
 def collect_notes(docs: list, report: Report) -> None:
@@ -369,7 +400,22 @@ def standing(docs: list) -> list:
     return [f"{state}: {count}" for state, count in sorted(counts.items())]
 
 
+def planned(docs: list) -> list:
+    """Entries described and not built — named, because a count is nothing to compose a batch from."""
+    return [entry.key for doc in docs for entry in doc.entries
+            if not doc.commented(entry) and (entry.state or "").split(" (")[0] == "planned"]
+
+
 # --------------------------------------------------------------------------------------------
+
+
+def print_planned(docs: list) -> None:
+    waiting = planned(docs)
+    if not waiting:
+        return
+    shown = ", ".join(waiting[:UNMET_SHOWN])
+    rest = f", … and {len(waiting) - UNMET_SHOWN} more" if len(waiting) > UNMET_SHOWN else ""
+    print(f"Planned: {shown}{rest}")
 
 
 def main(argv: list | None = None) -> int:
@@ -415,7 +461,7 @@ def main(argv: list | None = None) -> int:
     check_sources(root, docs, report)
     check_stack(root, manifest, report)
     check_verdicts(manifest, report)
-    collect_unmet(root, manifest, report)
+    collect_unmet(root, manifest, keys(docs), report)
     collect_notes(docs, report)
 
     if report.states:
@@ -426,17 +472,23 @@ def main(argv: list | None = None) -> int:
     if report.unmet:
         print(f"\nPromises the product does not keep ({len(report.unmet)}) — the entry, and the "
               "test already written for it, waiting for the product to change or the entry to:")
-        for line in report.unmet:
+        # A long list is read before every feature and acted on by none of them, so it is cut to
+        # what fits in a glance; the count above is what the commands actually use.
+        for line in report.unmet[:UNMET_SHOWN]:
             print(f"  {line}")
+        if len(report.unmet) > UNMET_SHOWN:
+            print(f"  … and {len(report.unmet) - UNMET_SHOWN} more")
         print("  Not this run's work. They are offered as a batch by /agent-kit:sprint with no theme.")
 
     if report.clean and not report.notes:
         if options.status:
             print("Knowledge is clean. " + ", ".join(standing(docs)))
+            print_planned(docs)
         return 0
 
     if options.status:
         print("Standing: " + ", ".join(standing(docs)))
+        print_planned(docs)
     for group, lines in report.groups.items():
         print(f"\n{group}:")
         for line in lines:

@@ -3,6 +3,39 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.28.0
+
+0.27.0 shipped the mark with a hand-written file walk behind it, and a review of that release found
+what the walk cost. Every finding below was reproduced before it was fixed, and the tests now run
+against a real git repository — the six written in 0.27.0 all took the fallback path, which is why
+none of this was caught there.
+
+- **The check no longer crashes on the form its own template asks for.** Several suites in one
+  project means a nested map under `tests.unmet`, and the reader called a string method on it —
+  taking the preflight of `ship`, `sprint` and `blueprint` down with it.
+- **Files whose names are not ASCII are read again.** `git ls-files` quotes them, so a marked test
+  in a file named in the project's own language was silently invisible.
+- **The search is `git grep`** — binaries skipped, symlinks not counted twice, `docs/` excluded
+  because reports and entries quote the mark in prose and a quotation is not a promise. On a
+  50,000-file repository this is 0.2s against 2.3s and 142MB.
+- **Entry keys without a dot** — entities and actors — are keys too, and **a key no entry defines
+  is now said out loud**, so a renamed entry cannot leave a mark pointing at nothing.
+- **A missing `tests.unmet` no longer fails the check.** It printed a finding in a group no skill's
+  table mentions, and a run that met it would most likely have stopped.
+- **The list is cut to ten and counted** — it is read before every feature and acted on by none.
+- **`--status` names the planned entries** instead of counting them, which is what `sprint` with no
+  theme needs to offer them as a batch.
+- **The mark now has somewhere to live**: `unmet` in the run file, read by the closing session into
+  the batch's pull request under Proven, uncollapsed. Before this it reached the owner only if a
+  child happened to write it into `deviations`.
+- **`reviewer` knows the mark** — not coverage, legitimate only when the run file records the
+  contradiction, and a serious finding when it sits on what the diff itself was to build.
+- **The example is `xfail(strict=True)`**, not Pest `todo`: a skipped test proves nothing today and
+  stays quiet the day the product keeps the promise.
+- **`ship` may not rewrite an entry** — `blueprint` owns the prose, so the mark stays until it does.
+- `sprint` with no theme is told that audit work lists go stale, because nothing ticks their boxes
+  when a batch closes them, and how to spot that from an entry's state.
+
 ## 0.27.0
 
 The first live sprint — the tests lens over a real project, seven batches, 43 tests, all green —

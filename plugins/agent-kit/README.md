@@ -38,7 +38,8 @@ Two modes:
   feature you have thought through, a part you want reworked, a doubt about whether something is
   covered.
 - `blueprint --check` — mechanical audit: fields, key references, orphans, stale sources, the state
-  of the pull requests behind entries being built. Seconds, asks nothing, silent when clean.
+  of the pull requests behind entries being built, and the promises the product does not keep.
+  Seconds, asks nothing, quiet when there is nothing open.
 
 **One writer, one trigger.** Only blueprint rewrites knowledge, and only you start blueprint. A
 build command may leave a marked note where it had to assume something, and `--check` may flag what
