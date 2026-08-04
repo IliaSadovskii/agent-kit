@@ -336,7 +336,8 @@ class Driver:
     # ---- one child --------------------------------------------------------------------------
 
     def build(self, child: Run) -> str:
-        name = f"{self.run.slug}-{child.slug}"[:60]
+        # The child's slug already carries the batch's, and it is what the owner sees in the app.
+        name = child.slug[:60]
         why = self.watch(name, child, f"/agent-kit:ship --run {child.dir}")
         self.launcher.stop(name)
 
