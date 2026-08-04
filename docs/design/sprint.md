@@ -324,10 +324,17 @@ From earlier:
 
 ## Still open
 
-- **Where the launcher lives.** On this server a visible session is `claude-new <name> <dir>` with
-  the command typed in; the kit cannot depend on that. The contract is small — a session whose
-  transcript is discoverable and which can be typed into — so this is one configurable line. Settle
-  it while writing the script.
-- **`rules/pull-requests.md` still describes stacked features and an integration pull request.** That
-  section is now wrong and is replaced when sprint is written: base is always the default branch,
-  feature branches are pushed, a per-feature pull request is opened on demand.
+Both of the questions this section carried are closed. The launcher uses `claude-new` when it is on
+the PATH and plain tmux otherwise, so the server's helper is an optimisation rather than a
+dependency; `rules/pull-requests.md` now describes batches instead of stacked features.
+
+What is left is not a design question but the only thing that settles one: **none of this has run.**
+`ship` has never run either, so the first sprint's first child is `ship`'s first live run, and it
+should be watched by hand rather than started at midnight. Measure it with `scripts/measure.py`,
+check a sample of what it claims, and expect the corrections to be about the seams between the
+pieces — a child that does not close its run file, a launcher that races its own session — rather
+than about the shape above.
+
+The driver's own tests cover what it decides: they already found an unbounded wait on a closing
+session that never returns, and a dead session waited out as though it were merely quiet. What they
+cannot cover is a real `claude` session on the other side of the launcher.

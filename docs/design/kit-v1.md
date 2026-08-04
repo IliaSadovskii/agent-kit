@@ -196,11 +196,16 @@ Each command lands usable on its own.
 | `blueprint` | written, two live runs; second cost 2.0M against the first's 24M |
 | `ship` | written, **never run** |
 | `audit` | written, six lenses, each run once on a real project (tests four times); 21.4M for the whole sweep |
-| `fix`, `sprint`, `mvp` | stubs |
+| `sprint` | written with its driver, tests green, **never run** |
+| `fix`, `mvp` | stubs |
 
 How a command is written and hardened is in [method.md](method.md) — eleven corrections paid for
-with live runs, which `fix`, `sprint` and `mvp` should not pay for again. `sprint` is designed but
-not written: [sprint.md](sprint.md).
+with live runs, which `fix` and `mvp` should not pay for again. `sprint`'s reasoning, and the third
+of its first design that a review deleted, are in [sprint.md](sprint.md).
+
+The build order settled at **`sprint` → `mvp` → `fix`**, not the one below: the shared bones `fix`
+was meant to settle are already live in `ship`, so `fix` became the smallest command rather than the
+foundational one.
 
 **Untested paths in `audit`**, all of them invocation rather than lens: a full run with no argument
 (delegation per lens, cheapest-first ordering, per-lens commits), a repeat run without deleting the
