@@ -31,6 +31,7 @@ class FakeLauncher:
     def __init__(self, *_args, **_kwargs):
         self.helper = None
         self.typed = []
+        self.told = []
 
     def start(self, name, prompt):
         return True
@@ -44,6 +45,13 @@ class FakeLauncher:
 
     def stop(self, _name):
         pass
+
+    def send_to(self, target, text):
+        self.told.append((target, text))
+        return True
+
+    def alive_at(self, _target):
+        return True
 
 
 class DriverCase(unittest.TestCase):
@@ -98,7 +106,7 @@ class DriverCase(unittest.TestCase):
 
     def drive(self, launcher_class, **overrides):
         orch.Launcher = launcher_class
-        options = types.SimpleNamespace(poll=60, hang=30, max_wait=6, model=None, no_window=True)
+        options = types.SimpleNamespace(poll=60, hang=30, max_wait=6, model=None)
         for key, value in overrides.items():
             setattr(options, key, value)
         driver = orch.Driver(orch.Run(self.runs / "b"), self.cwd, options)
@@ -212,6 +220,43 @@ class DriverCase(unittest.TestCase):
         _driver, code = self.drive(Launcher)
         self.assertEqual(code, 0)
         self.assertEqual(self.step("b"), "blocked")
+
+    def test_the_driver_speaks_to_the_session_named_in_the_run_file(self):
+        first, = self.batch("one")
+        state = json.loads((self.runs / "b" / "run.json").read_text(encoding="utf-8"))
+        state["window"] = "cc-my-own-session"
+        self.write("b", state)
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt):
+                if first in name:
+                    case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
+                if name.endswith("-close"):
+                    state["step"], state["pr"] = "done", 3
+                    case.write("b", state)
+                return True
+
+        driver, _code = self.drive(Launcher)
+        targets = {target for target, _text in driver.launcher.told}
+        self.assertEqual(targets, {"cc-my-own-session"})
+        self.assertTrue(all(text.startswith("[driver] ") for _t, text in driver.launcher.told))
+
+    def test_a_batch_with_no_window_runs_unnarrated(self):
+        first, = self.batch("one")
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt):
+                if first in name:
+                    case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first], "step": "done", "pr": 4})
+                return True
+
+        driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertEqual(driver.launcher.told, [])
 
     def test_a_pushed_branch_outvotes_a_run_file_left_behind(self):
         first, = self.batch("one")

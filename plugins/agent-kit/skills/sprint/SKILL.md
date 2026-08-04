@@ -15,12 +15,12 @@ will have read more of the code than you have.
 
 | Invocation | You are |
 |---|---|
-| `/agent-kit:sprint <theme>` | the brief — this file |
+| `/agent-kit:sprint <theme>` | the brief — this file, and afterwards the window |
 | `/agent-kit:sprint --resume <run dir>` | the brief, restarting a driver over children already written |
-| `/agent-kit:sprint --close <run dir>` | the closing session — `${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/close.md` |
-| `/agent-kit:sprint --window <run dir>` | the control window — `${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/window.md` |
+| `/agent-kit:sprint --close <run dir>` | the closing session, started by the driver — `${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/close.md` |
+| `/agent-kit:sprint --window <run dir>` | stand beside a run somebody else started — `${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/window.md` |
 
-The last two are started by the driver. Read the file named for you and nothing else in this table.
+Read the file named for you and nothing else in this table.
 
 ## What the brief is for
 
@@ -78,10 +78,15 @@ The batch — `.agent-kit/runs/<date>-<theme>/run.json`:
 
 ```json
 { "slug": "2026-08-05-offers", "command": "sprint", "gate": "owner", "base": "main",
+  "window": "cc-sprint-offers",
   "children": ["2026-08-05-offers-01-create", "2026-08-05-offers-02-accept"] }
 ```
 
 `children` is the order of the run. There is no queue file: this is the queue.
+
+`window` is **your own session** — the driver types its news there, which is what reaches the owner
+as a notification. Take it from `tmux display-message -p '#{session_name}'` and leave the field out
+if that fails, because a run with no narrator is fine and a wrong address is not.
 
 Each feature — `.agent-kit/runs/<batch>-NN-<feature>/run.json`:
 
@@ -109,15 +114,23 @@ Add `.agent-kit/runs/` to `.gitignore` if it is not there.
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrate.py" .agent-kit/runs/<batch>/ >/dev/null 2>&1 &
 ```
 
-It builds the children in order, each as its own visible session, and raises a control window the
-owner can talk to. It survives the account limit by sleeping until the reset named in the record and
-typing one line into the session, which is still alive with its context — so a limit costs the wait
-and nothing more.
+It builds the children in order, each as its own visible session. It survives the account limit by
+sleeping until the reset named in the record and typing one line into the session, which is still
+alive with its context — so a limit costs the wait and nothing more.
 
-Then **say one line about where to watch it, and stop.** Do not stay and narrate: the window exists
-for that, and this session's context is the most expensive place to keep a running commentary.
+## Then stay, as the window
 
-Close per `${CLAUDE_PLUGIN_ROOT}/rules/closing.md`.
+You are the only session the owner has for this batch, and you already know why it looks the way it
+does — a session raised later would have to read that back out of files. So say in one line that the
+run has started and that they can ask you how it is going, and then **stop and wait**.
+
+From here on you follow `${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/window.md`: you answer when
+asked, you say the driver's news when it types a `[driver]` line at you, and you relay *pause*,
+*skip* and *stop*. You do not narrate on your own, you do not poll anything, and you never take work
+back on yourself — the run does not depend on you, and if the owner closes you it carries on without
+a narrator.
+
+Close per `${CLAUDE_PLUGIN_ROOT}/rules/closing.md` before you go quiet.
 
 ## `--resume`
 

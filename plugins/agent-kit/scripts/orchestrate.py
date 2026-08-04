@@ -131,14 +131,21 @@ class Launcher:
         return self.send(name, prompt)
 
     def send(self, name: str, text: str) -> bool:
-        target = self.tmux_name(name)
+        return self.send_to(self.tmux_name(name), text)
+
+    def alive(self, name: str) -> bool:
+        return self.alive_at(self.tmux_name(name))
+
+    # The owner's own session is named by them, not by this program, so it is addressed verbatim.
+
+    def send_to(self, target: str, text: str) -> bool:
         if self._tmux("send-keys", "-t", target, "-l", text).returncode != 0:
             return False
         time.sleep(0.5)
         return self._tmux("send-keys", "-t", target, "Enter").returncode == 0
 
-    def alive(self, name: str) -> bool:
-        return self._tmux("has-session", "-t", self.tmux_name(name)).returncode == 0
+    def alive_at(self, target: str) -> bool:
+        return self._tmux("has-session", "-t", target).returncode == 0
 
     def stop(self, name: str) -> None:
         if self.helper and self.closer:
@@ -230,26 +237,19 @@ class Driver:
         self.cwd = cwd
         self.opt = options
         self.launcher = Launcher(cwd, options.model)
-        self.window = f"{run.slug}-window" if not options.no_window else None
         self.skip: set[str] = set()
         self.stopping = False
 
     # ---- the control window -----------------------------------------------------------------
-
-    def open_window(self) -> None:
-        if not self.window:
-            return
-        prompt = f"/agent-kit:sprint --window {self.run.dir}"
-        if self.launcher.start(self.window, prompt):
-            self.run.event("window-open", self.window)
-        else:
-            self.window = None
-            self.run.event("window-failed", "carrying on without it")
+    #
+    # The driver raises no session for talking to the owner. The one they briefed the batch in is
+    # already exactly that, and it knows why the batch looks the way it does — so it records its own
+    # tmux name in the run file and stays. If it is gone, the run carries on without a narrator.
 
     def tell(self, message: str) -> None:
-        """Poke the window so it turns an event into a sentence, and the app into a notification."""
-        if self.window and self.launcher.alive(self.window):
-            self.launcher.send(self.window, f"[driver] {message}")
+        window = self.run.state().get("window")
+        if window and self.launcher.alive_at(window):
+            self.launcher.send_to(window, f"[driver] {message}")
 
     # ---- watching one session ----------------------------------------------------------------
 
@@ -372,7 +372,8 @@ class Driver:
 
         self.run.set(step="building")
         self.run.event("start", f"{len(children)} features")
-        self.open_window()
+        window = state.get("window")
+        self.run.event("window", window or "none — the run will have no narrator")
 
         built = 0
         for slug in children:
@@ -452,7 +453,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--hang", type=int, default=30, help="minutes of transcript silence before a session is treated as stuck")
     parser.add_argument("--max-wait", type=float, default=6, help="hours: a reset further away than this is a weekly limit, and the run stops")
     parser.add_argument("--model", default=None, help="model for the children, when the launcher takes one")
-    parser.add_argument("--no-window", action="store_true", help="do not raise the control session")
     options = parser.parse_args(argv)
 
     run_dir = options.run_dir.resolve()

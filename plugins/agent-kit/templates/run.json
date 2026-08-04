@@ -30,6 +30,9 @@
   "deviations": [],
   "blockers": [],
 
+  "window": null,
+  "_window": "The tmux session the owner briefed this run in, so a driver knows where to put its news. Only a batch has one, and a batch without one simply runs unnarrated.",
+
   "waiting_since": null,
   "waiting_on": null,
 

@@ -13,14 +13,18 @@ engine with a different entrance, so its decisions are settled here too rather t
 
 | | What it is | Talks to the owner |
 |---|---|---|
-| **Brief** | a session the owner is already sitting in | yes — this is where questions belong |
+| **Brief**, then the **window** | the session the owner ran the command in | yes — this is where questions belong |
 | **Driver** | `scripts/orchestrate.py`, a loop with no model behind it | never |
 | **Child** | one visible `claude` session per feature, running `ship` | only on an expensive fork |
-| **Window** | one control session, standing beside the run | on demand, and when poked |
+| **Closing session** | opens the batch's pull request and writes the report | no |
 
-The brief ends before the driver starts. The driver never reads what a child says — it reads run
-files. The window decides nothing. There are two layers, not three: the driver leads, the children
-build.
+The driver never reads what a child says — it reads run files. There are two layers, not three: the
+driver leads, the children build.
+
+**The kit creates a session only for work that must happen anyway.** A child and the closing session
+have to exist, so the driver starts them and neither depends on a person being awake. Everything
+that exists to serve the owner lives in the owner's own session, because they already opened one by
+deciding to run a sprint. That is why there is no separate control window and no separate brief.
 
 **Why no orchestrating agent.** 0.17.0 had one and it was the measured failure: an agent holding the
 queue dies of context, pays tokens for bookkeeping a loop does for free, and puts a third headless
@@ -183,9 +187,21 @@ So the driver's whole vocabulary is: the run file, a transcript's modification t
 
 ## The control window
 
-One session raised beside the run, for the owner to talk to. It **decides nothing**, and the run does
-not depend on it: kill it and the driver carries on. That invariant is what keeps it from becoming
-0.17.0's orchestrator, which *led* the run and died of it.
+The window is **not a session the kit creates** — it is a role the brief takes on once the driver
+has the run. The first version raised one, and that was a session spawned to learn, from files, what
+the session next door already knew and had thrown away. The owner opened a session in order to run a
+sprint; that session is the window.
+
+It **decides nothing**, and the run does not depend on it: close it and the driver carries on,
+simply unnarrated. Since the window can now be genuinely absent, that invariant is a fact about the
+program rather than a promise about a prompt — which is what keeps it from becoming 0.17.0's
+orchestrator, the thing that *led* the run and died of it.
+
+Mechanically: the brief writes its own tmux session name into the batch's run file, and the driver
+types its news there. A wrong address is worse than none, so a brief that cannot read its own name
+leaves the field empty. If the owner closes that session and wants a narrator again later, any
+session can `--window` an existing run: it reads the run files, puts its own name in the field, and
+says plainly that it was not there when the batch was composed.
 
 It does three things.
 
@@ -311,6 +327,8 @@ From the first draft of this design, in the review that produced this version:
 - **Mid-run checkpoints where `mvp` waits for the owner**, and **pull request comments as the
   feedback channel** — a channel with no reader, since every session that could have read it has
   closed. The control window replaced both.
+- **Raising a control window as its own session.** It had to read out of files what the session
+  beside it already knew. The brief stays instead, and the kit creates no session for talking.
 
 From earlier:
 
