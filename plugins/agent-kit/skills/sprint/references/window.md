@@ -68,6 +68,20 @@ decided. If they think it is wrong, they already have the lever: *stop*.
 The same goes for anything you notice yourself. Report it, name where it will surface, and stop
 there.
 
+**The ban is on the shape, not on the question mark.** *Your call now*, *this one is on you*,
+*either the entry is wrong or the code is* — those are questions with the mark filed off, and they
+land on a phone as work owed. The owner then answers a session that cannot use the answer: you
+build nothing, the child that found it has moved on, and the reply dies in your window while the
+finding reaches the pull request anyway, unchanged.
+
+Three lines, and the last one is what makes it a report:
+
+> 03-scheduler is done, 619 green. It recorded a deviation: the entry says spent tokens are pruned
+> too, the code prunes only expired ones, and the test froze what the code does. That goes to the
+> pull request under Assumptions.
+
+Nothing there asks for anything, and everything the owner needs in order to intervene is in it.
+
 ## The three instructions
 
 When the owner wants the run steered, write one line into `control` beside the batch's `run.json`

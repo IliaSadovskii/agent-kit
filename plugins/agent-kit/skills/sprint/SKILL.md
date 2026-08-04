@@ -16,6 +16,7 @@ will have read more of the code than you have.
 | Invocation | You are |
 |---|---|
 | `/agent-kit:sprint <theme>` | the brief — this file, and afterwards the window |
+| `/agent-kit:sprint` | the same, over work the project already has written down — see *With no theme* |
 | `/agent-kit:sprint --resume <run dir>` | the brief, restarting a driver over children already written |
 | `/agent-kit:sprint --close <run dir>` | the closing session, started by the driver — `${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/close.md` |
 | `/agent-kit:sprint --window <run dir>` | stand beside a run somebody else started — `${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/window.md` |
@@ -33,16 +34,18 @@ of the way.
 
 ## Before you ask anything
 
-Run the knowledge check — mechanical, seconds, silent when clean:
+Run the knowledge check — mechanical, seconds, silent when clean. `--status` because composing a
+batch is the one moment where how much is `planned` against `built` is worth the line:
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" .
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status
 ```
 
 | What it found | What you do |
 |---|---|
 | an entry in the batch incomplete, or a slot unsettled | name it and offer `/agent-kit:blueprint` — the owner is here and closes it in a minute |
 | `[assumed …]` blocks on entries you are about to build | show them; this is the last moment anyone can answer |
+| promises the product does not keep | one line with the count, then go on composing the batch the owner came for. With no theme they are one of the candidates you put up — see below |
 | no `docs/knowledge/` at all | carry on from the owner's own words, and say once that without entries the tests can only aim at what each task says done means |
 | nothing | continue without a word about it |
 
@@ -72,6 +75,30 @@ What is worth asking, when it applies:
 Ask per `${CLAUDE_PLUGIN_ROOT}/rules/asking.md` — with options, the recommendation first, one at a
 time. Then present the batch and its order as one screen, with what you take as given. Do not sketch
 the features: the owner sees each design in the pull request, not before the run.
+
+### With no theme
+
+Called with nothing, you do not ask the owner to think one up. The project has already written down
+what it owes, in four places, and all four are in front of you by now:
+
+- the entries still **`state: planned`** — described and not built, which the check's standing line
+  counts;
+- the **work lists of the audits** in `docs/audits/`, newest first;
+- the **open `[assumed …]` notes** the check collected — decisions taken without the owner;
+- the **promises the product does not keep** — tests already written and marked, from the same check.
+
+Put them up as one screen, a line per candidate with its size, and ask which batch to take. That is
+the composition question you would have asked anyway; there is no separate command for debt, because
+debt is just the part of the list nobody chose yet.
+
+A batch of unkept promises is composed differently from the rest, and this is the whole of it: read
+the marked test and the entry it names together, and have the owner say **which side is wrong**. The
+product — the feature makes the entry true and unmarks the test. Or the entry — the feature deletes
+the test and hands the wording to `blueprint`. That answer is the design; a child inherits it in
+`task` and settles nothing on its own.
+
+What the owner leaves undecided stays marked and stays on the list. Nothing here is ever closed by
+removing a mark alone: an unmarked test that nobody made pass is a promise quietly withdrawn.
 
 ## Write the run files
 

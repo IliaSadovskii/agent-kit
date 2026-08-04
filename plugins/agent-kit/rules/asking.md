@@ -21,6 +21,11 @@ asking. Options give the owner something to disagree with; open prose gives them
 usually resolve themselves once it is answered, and a queue of questions is how a five-minute gate
 becomes an evening.
 
+One question means **one question in the call**, not one topic per screen. The tool takes a list,
+and putting two there is the same wall of text the rule exists to prevent: the owner now has to hold
+both, and the second one is answered on the way past. Ask the blocker, take the answer, and ask the
+next only if it survived — usually it did not, because the first answer named the road.
+
 ## Say what you would do, and why it is a fork
 
 The recommended option comes first and says what you would take. Below it, one line on what makes

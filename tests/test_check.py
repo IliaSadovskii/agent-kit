@@ -172,6 +172,57 @@ class CheckCase(unittest.TestCase):
         self.assertIn("Open notes", output)
         self.assertIn("assumed", output)
 
+    # ---- promises the product does not keep ----------------------------------------------------
+
+    MARKED = ("// agent-kit:unmet guest.browse_feed\n"
+              "it('the feed is newest first')->todo();\n")
+
+    def suite(self, body, form="->todo()"):
+        manifest = MANIFEST + (f"tests:\n  unmet: {form}\n" if form else "")
+        (self.root / ".agent-kit" / "project.yml").write_text(manifest, encoding="utf-8")
+        (self.root / "tests").mkdir(exist_ok=True)
+        (self.root / "tests" / "FeedTest.php").write_text(body, encoding="utf-8")
+
+    def test_a_marked_test_is_listed_with_its_entry_even_when_everything_else_is_clean(self):
+        self.suite(self.MARKED)
+        code, output = self.run_check()
+        self.assertEqual(code, 0, output)          # a promise on record is not a defect in the check
+        self.assertIn("Promises the product does not keep (1)", output)
+        self.assertIn("tests/FeedTest.php:1 guest.browse_feed", output)
+        self.assertIn("sprint with no theme", output)
+
+    def test_the_mark_is_found_wherever_it_is_written(self):
+        self.suite("it('the feed is newest first');\n")
+        (self.root / "src").mkdir()
+        (self.root / "src" / "feed.spec.ts").write_text(
+            "// agent-kit:unmet guest.browse_feed\ntest.failing('newest first', () => {});\n",
+            encoding="utf-8")
+        _code, output = self.run_check()
+        self.assertIn("src/feed.spec.ts:1 guest.browse_feed", output)
+
+    def test_a_mark_without_an_entry_is_still_listed(self):
+        self.suite("# agent-kit:unmet\ndef test_newest_first(): ...\n")
+        _code, output = self.run_check()
+        self.assertIn("no entry named", output)
+
+    def test_a_suite_without_the_mark_says_nothing(self):
+        self.suite("it('the feed is newest first');\n")
+        code, output = self.run_check()
+        self.assertEqual(code, 0)
+        self.assertEqual(output, "")
+
+    def test_a_mark_with_no_form_recorded_for_the_project_is_a_finding(self):
+        self.suite(self.MARKED, form="")
+        code, output = self.run_check()
+        self.assertEqual(code, 1)
+        self.assertIn("tests.unmet", output)
+
+    def test_a_project_with_no_marks_is_never_nagged_about_the_form(self):
+        self.suite("it('the feed is newest first');\n", form="")
+        code, output = self.run_check()
+        self.assertEqual(code, 0)
+        self.assertEqual(output, "")
+
     # ---- a project with no blueprint at all ----------------------------------------------------
 
     def test_a_project_without_knowledge_is_not_a_failure(self):

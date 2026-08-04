@@ -30,6 +30,7 @@ from pathlib import Path
 
 KNOWLEDGE = "docs/knowledge"
 MANIFEST = ".agent-kit/project.yml"
+MARK = "agent-kit:unmet"
 
 KEY_RE = re.compile(r"^`key:\s*([^`·]+?)\s*`(?:\s*·\s*`state:\s*([^`]+?)\s*`)?", re.M)
 HEADING_RE = re.compile(r"^###\s+(.+)$", re.M)
@@ -37,6 +38,7 @@ FIELDS_RE = re.compile(r"^fields:\s*(.+)$", re.M)
 SOURCE_RE = re.compile(r"`source:\s*([^#`]+)#([^@`]+?)\s*@([0-9a-f]+)`")
 NOTE_RE = re.compile(r"^>\s*\*\*\[(assumed|found)\b([^\]]*)\]\*\*\s*(.*)$", re.M)
 REF_RE = re.compile(r"`([a-z][a-z0-9_]*\.[a-z0-9_]+)`")
+MARK_RE = re.compile(re.escape(MARK) + r"[:\s]*([a-z][a-z0-9_]*\.[a-z0-9_]+)?")
 STATE_LINE_RE = re.compile(r"(`key:\s*%s\s*`\s*·\s*`state:\s*)building \(pr:\s*(\d+)\)(\s*`)")
 
 SLOTS = ("product", "actors", "entities", "actions", "screens", "integrations", "scenarios", "stack")
@@ -151,6 +153,7 @@ class Report:
         self.groups: dict = {}
         self.notes: list = []
         self.states: list = []
+        self.unmet: list = []
 
     def add(self, group: str, line: str) -> None:
         self.groups.setdefault(group, []).append(line)
@@ -276,6 +279,48 @@ def check_verdicts(manifest: dict, report: Report) -> None:
             report.add("Verdicts", f"{slot} — open question")
 
 
+def collect_unmet(root: Path, manifest: dict, report: Report) -> None:
+    """Tests that prove a promise the product does not keep.
+
+    They are green by design — the suite is told to expect them — so nothing else in a run will
+    ever mention them again. This is the one place that does, which is why it prints on every
+    command and not only when something is wrong.
+
+    What is searched for is MARK, a constant of this kit written as a comment beside the test, and
+    not whatever the suite uses to keep the test off the red. Frameworks differ, one project can
+    have three suites in two languages, and a search for `->todo()` would find one of them at best.
+    A constant is language-agnostic, so the search needs no list of test directories either: every
+    tracked file is fair game and the mark can only be where someone put it deliberately.
+    """
+    files = tracked_files(root)
+    for path in files:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError, ValueError):
+            continue
+        if MARK not in text:
+            continue
+        for number, line in enumerate(text.splitlines(), 1):
+            found = MARK_RE.search(line)
+            if found:
+                key = found.group(1) or "no entry named"
+                report.unmet.append(f"{path.relative_to(root)}:{number} {key}")
+
+    form = ((manifest.get("tests") or {}).get("unmet") or "").strip().strip("\"'")
+    if report.unmet and not form:
+        report.add("Manifest", f"{len(report.unmet)} tests carry {MARK} but project.yml has no "
+                               "tests.unmet — the form this project uses to keep such a test green")
+
+
+def tracked_files(root: Path) -> list:
+    listed = subprocess.run(["git", "ls-files"], cwd=root, capture_output=True, text=True)
+    if listed.returncode == 0:
+        return sorted(root / p for p in listed.stdout.splitlines() if (root / p).is_file())
+    skip = {".git", "node_modules", "vendor", "dist", "build", ".venv", "__pycache__"}
+    return sorted(p for p in root.rglob("*")
+                  if p.is_file() and not skip & set(p.relative_to(root).parts))
+
+
 def collect_notes(docs: list, report: Report) -> None:
     for doc in docs:
         for kind, tail, text in NOTE_RE.findall(doc.text):
@@ -370,12 +415,20 @@ def main(argv: list | None = None) -> int:
     check_sources(root, docs, report)
     check_stack(root, manifest, report)
     check_verdicts(manifest, report)
+    collect_unmet(root, manifest, report)
     collect_notes(docs, report)
 
     if report.states:
         print("Moved by their pull requests:")
         for line in report.states:
             print(f"  {line}")
+
+    if report.unmet:
+        print(f"\nPromises the product does not keep ({len(report.unmet)}) — the entry, and the "
+              "test already written for it, waiting for the product to change or the entry to:")
+        for line in report.unmet:
+            print(f"  {line}")
+        print("  Not this run's work. They are offered as a batch by /agent-kit:sprint with no theme.")
 
     if report.clean and not report.notes:
         if options.status:

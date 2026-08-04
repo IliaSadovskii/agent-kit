@@ -71,6 +71,10 @@ Order, because each step feeds the next:
    proposal, never as a written record: *here is what I found, what is wrong and what is missing?*
    On an empty repository the owner says what patterns and infrastructure they want, in free form,
    and research fills in around it.
+   Settle `tests.unmet` in `project.yml` here, while the runner is in front of you: what keeps a
+   test off the red in this project, for the day a test has to prove a promise the product does not
+   keep. The template says what to look for, and a project with several suites gets a line each.
+   Leaving it blank costs a build command an invented answer at midnight.
 3. **`product`** — what it is for, and what it deliberately does not do. The second is worth more
    to an autonomous run than the first.
 4. **`actors`**, then **`entities`**, then **`actions`**. Actions are the bulk: take one actor at a

@@ -9,6 +9,16 @@ commands:                         # the project's real commands; the only place 
   lint:
   run:
 
+tests:
+  unmet:                          # a test proving a promise the product does not keep carries the
+                                  # comment `agent-kit:unmet <entry key>` — that is the kit's own
+                                  # constant and never changes. This key is the other half: what
+                                  # keeps such a test off the red in THIS project's runner, so
+                                  # every run marks them the same way. Examples: pytest
+                                  # xfail(strict=True), Jest test.failing, Pest todo, RSpec
+                                  # pending. Prefer a form that fails once the product does keep
+                                  # the promise. Several suites in one project: one line each
+
 knowledge:                        # one verdict per slot: filled | not_applicable | open_question
   product: open_question          # not_applicable and open_question carry a reason after the value
   actors: open_question

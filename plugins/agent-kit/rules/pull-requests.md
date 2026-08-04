@@ -20,6 +20,9 @@ are canonical, so translate them with the body.
 - **Proven** — which of the entry's lines have a test, what the suite returned, and whether the app
   was started and exercised. Name what is *not* proven and why. A feature that says it is unproven
   in one line is fine; one that looks proven and is not is the failure this section exists against.
+  Tests left marked unmet go here in their own short list — the promise, the test that proves it
+  absent, and what would have to change in the product. Never collapsed: a green suite that carries
+  unkept promises is exactly the thing a reader will otherwise take for a clean bill.
 - **Review** — the reviewer's findings and how each was closed, and whether the security pass ran or
   was skipped and why. Collapsible, count in the summary line.
 - **Changes** — the key files and their role, as a table. Collapsible.
