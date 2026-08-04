@@ -32,9 +32,10 @@ children were cheaper to launch and could do none of this.
 
 ## The brief is optional, and only some commands may ask
 
-`ship` can ask about one feature, concretely. `sprint` can ask about a set of features, and only in
-the abstract — composition, order, boundaries. `mvp` cannot ask at all: it composes batches from the
-blueprint with nobody present, so there is no one to answer.
+Each command asks about the thing only it can see. `ship` sees one feature and asks about it
+concretely, at design time. `sprint` sees a batch and asks about composition and order, shallowly.
+`mvp` sees the whole product and asks once, at launch, whether the blueprint can define a finish —
+then goes quiet for the rest of the run.
 
 So the brief is a way to produce a sprint's input, not the definition of it. The input **is** the
 run file: a list of children, each with an approach and a task list. A person can fill it by talking
@@ -44,19 +45,70 @@ anyone was present.
 
 Building the brief as the only entrance would mean rewriting sprint when `mvp` arrives.
 
-### What the brief asks
+### What the brief is worth
 
-Five things, and nothing that is already written down. The blueprint says what the product is and
-what it must do; the brief only says what is being built now and in what order.
+Two things, and they are the only two a child cannot supply.
 
-1. **What is in the batch** — when the input is a long list (an audit's work list, a roadmap), which
-   items are taken this time.
-2. **Order and dependencies** — which feature builds on which. This decides what each child branches
-   from.
-3. **The batch's boundaries** — anything that must not be touched this time.
-4. **Per feature, only a fork the blueprint does not answer.** If the blueprint answers it, it is not
-   asked. Most features get no question at all.
-5. **Whether the owner is reachable** — this sets one number, below.
+**It sees the batch.** A child knows its own feature. It cannot notice that two features write to the
+same table, that the fourth depends on the second rather than the first, or that an audit item was
+fixed a month ago. That is visible only from above, and only before the run starts.
+
+**The owner is present.** Overnight an expensive fork becomes an assumption, and a wrong assumption
+is paid for in code already written. So the brief's real job is to **pre-answer the questions the
+night will have nobody to ask.**
+
+### What the brief does not do
+
+It does not design the features. The old kit spent eight to ten minutes sketching each one, and the
+sketch was written by a session that had read less of the code than the child later would. `ship`
+already has a Design step that reads the code it touches, puts up one screen, and asks only on an
+expensive fork.
+
+A brief that designs either duplicates that step or replaces it with a worse-informed version of
+itself. The consequence is deliberate and worth stating plainly: **the owner sees each feature's
+design in its pull request, not before the night.** What they get up front is the forks, not the
+shape.
+
+### What it reads, in order
+
+Cheapest and most decisive first. It rarely needs to go past the third.
+
+1. **`blueprint --check`** — mechanical, silent when clean. It reports an incomplete entry, or an
+   `[assumed …]` block left by an earlier run. Both turn into invention overnight.
+2. **The batch's source** — an audit's work list, a roadmap, or the theme the owner named.
+3. **The entries themselves**, a section each rather than the file, plus `stack.md`. This is where
+   features touching the same ground become visible, and where an expensive fork is recognisable from
+   the entry alone — stored data, an outside contract, a permission boundary, money.
+4. **Code, narrowly.** Two questions only: *does this already exist?* and *who else touches these
+   files?* A search or two per feature. The deep read belongs to the child.
+
+### The questions that come out of it
+
+One rule of selection: **ask only when different answers lead to different work and the rework is
+expensive.** Answered by the blueprint — not asked. Cheap either way — the child decides.
+
+In practice four kinds, plus one that is not about the work:
+
+- **Composition** — "the audit lists twelve, I am taking these five; they are one topic and do not
+  collide."
+- **Order and collisions** — "three and five both alter the orders table, so five goes after three
+  and branches from it."
+- **A fork found early** — "the second feature stores something and the entry does not say where. I
+  will decide it overnight and you will get a migration. Decide it now?"
+- **An open assumption** — "an earlier run assumed this under that entry; this is the last moment to
+  close it."
+- **Whether the owner is reachable**, which sets the one timer.
+
+Finding none of these is an honest outcome. Then the brief states the batch and the order and starts.
+
+### When there is no blueprint, and when the source is an audit
+
+An audit's items are the easiest input there is: each already carries its evidence — file, line, why
+it is a defect — so there is nothing to invent and the brief is reduced to composition and order.
+
+With no blueprint at all, the brief works from the owner's words and the code, and says once that
+tests can only aim at what the task itself says done means. That is the rule `ship` already carries;
+sprint does not vary it.
 
 ## Children run in sequence, and inherit two things
 
@@ -149,13 +201,43 @@ assumptions are where the questions the owner never got asked come back to them,
 `mvp` composes batches and owns no build, test or pull-request logic — it calls `sprint`, which
 calls `ship`. Three consequences, all cheap now and expensive later:
 
-1. **The brief must be skippable**, because `mvp` has nobody to brief with. Hence the input being a
-   run file rather than a conversation.
+1. **The brief must be skippable**, because `mvp` composes its batches itself and there is nobody to
+   brief with between them. Hence the input being a run file rather than a conversation.
 2. **A sprint's result must be readable by a program** — built, parked, assumed — because `mvp`
    composes the next batch from it. The run file already is that.
 3. **A sprint does not judge whether the product is done.** It finishes its batch. Whether the MVP is
    finished is measured against the blueprint's in-list and its scenarios, and that is `mvp`'s
    question.
+
+### `mvp` has one gate, at launch, and it is the heaviest of the three
+
+Recorded here so it is not rediscovered later; the full design goes in `mvp.md` when it is built.
+
+The moment `mvp` is started, the owner is present — they typed the command. That is its only
+opportunity, and it is not a courtesy. A sprint with a thin blueprint still delivers five features.
+An `mvp` with a thin blueprint **has no stopping condition**: its finish is the in-list plus the
+scenarios passing against a running application, so vague inputs mean it either stops early or never
+stops at all.
+
+The gate checks: `blueprint --check` across the slots it needs; that the MVP bounds are two real
+lists ("and so on" is not a bound); that the scenarios cover the in-list — checkable by arithmetic,
+since scenario steps name action keys, so an action in no scenario and a scenario naming an action
+nobody wrote both fall out; that the in-list's entries are complete enough to aim tests at; any open
+assumptions and open questions, this being the last chance to close them; and that `stack.md`
+actually says how to start the application and run its suite, because without that the finish line
+cannot be walked.
+
+It ends on one screen, and the finish line is stated back in words — *"I stop when these fourteen
+actions are built and these six scenarios pass against the running app."*
+
+**Missing bounds or missing scenarios stop the run**; those are precisely what `mvp` cannot work
+without. Anything smaller — a field, a stack detail — is taken as an assumption rather than costing a
+whole run.
+
+**No gate between batches.** Showing progress and asking "continue?" puts the waiting back in the
+middle, which is what the design exists to remove. The checkpoint already exists: each batch has its
+own integration pull request, and not merging it is how the owner stops. Children inside an `mvp`
+can still ask — the same clock — because a child sees forks `mvp` could not foresee.
 
 ## Rejected
 
