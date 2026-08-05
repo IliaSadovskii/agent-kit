@@ -3,6 +3,25 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.32.0
+
+A pull request should end without a to-do list. Two rules were letting one form anyway: nothing said
+that a leftover must name the file it now lives in, and nothing forbade handing it over in words.
+
+- **Nothing is left on the owner.** *Your call*, *this is on you*, *needs your decision* are banned
+  from pull requests and from closing lines alike. Every leftover instead names **where it is now**
+  and **what will raise it again** — an `[assumed …]` block under its entry, a test marked
+  `agent-kit:unmet`, a line in `docs/technical_debt.md` — each of which the check prints before the
+  next command and `sprint` with no theme offers as work. A table in the rule maps every kind of
+  leftover to its place; a leftover with no place in it is not recorded at all, and saying it in
+  prose does not make it so.
+- **Manual actions stays the one exception**, because secrets, migrations and third-party accounts
+  genuinely need hands — and even there the line says what to do, not whose fault it is undone.
+- **What was hard** — a new section, three to five lines, never collapsed: the approach that looked
+  right and was not, the library that did not behave as documented, the test that passed for the
+  wrong reason. It is the only part of a run that exists nowhere else, since the code shows the
+  answer and never the two answers before it.
+
 ## 0.31.0
 
 The ledger could be written to and never emptied: 0.30.0 said "closed by deleting the line" in the

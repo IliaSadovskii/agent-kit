@@ -74,11 +74,12 @@ land on a phone as work owed. The owner then answers a session that cannot use t
 build nothing, the child that found it has moved on, and the reply dies in your window while the
 finding reaches the pull request anyway, unchanged.
 
-Three lines, and the last one is what makes it a report:
+Three lines, and the last one is what makes it a report — it names where the thing now lives and
+what will raise it again, per `${CLAUDE_PLUGIN_ROOT}/rules/closing.md`:
 
-> 03-scheduler is done, 619 green. It recorded a deviation: the entry says spent tokens are pruned
-> too, the code prunes only expired ones, and the test froze what the code does. That goes to the
-> pull request under Assumptions.
+> 03-scheduler is done, 619 green. It found the entry promising that spent tokens are pruned too
+> while the code prunes only expired ones — the test for the promise is in, marked unmet. The check
+> lists it from now on, and a sprint with no theme offers it as work.
 
 Nothing there asks for anything, and everything the owner needs in order to intervene is in it.
 
