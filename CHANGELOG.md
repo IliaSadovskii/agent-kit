@@ -3,6 +3,29 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.38.0
+
+**`fix` is written.** It was a stub from the day the rewrite started, which meant every small repair
+happened by hand, outside the kit, recorded nowhere.
+
+- **Three ways in, one pipeline**: the owner's description when the cause is unknown, whatever is
+  already red when it is not, and `--pr <n>` for a review round — that one commits onto the pull
+  request's own branch and opens nothing new.
+- **The spine is a failing test written before the change**, asserting the behaviour that should
+  have held, at a seam the project already tests at. Then the fix is undone once to watch it fail
+  again: the only cheap proof that the test guards the fix rather than passing beside it.
+- **It says why nobody noticed** — which test should have caught this and does not exist, or exists
+  and asserts the wrong thing. That is what keeps the defect from returning by another route.
+- **It stops early rather than late.** A cause that is *this was never built* is `ship`'s; a cause
+  that is somebody's decision belongs to the entry; a repair that touches a layer rather than a
+  place goes to the ledger with the cause named. A run that grows a feature under the name of a fix
+  delivers something nobody described.
+- **It changes the least that makes the test pass.** The tidy-up next to it, the rename, the second
+  defect found on the way are lines in `docs/technical_debt.md` — a fix that also refactors cannot
+  be reviewed as one, or reverted without taking the refactor along.
+- An hour with no cause ends in a report, not a hopeful change: what was ruled out, what is
+  suspected, where to look next.
+
 ## 0.37.1
 
 `next` gained the right to tick a box it had verified and, on its third run, exercised it by

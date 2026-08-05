@@ -194,10 +194,12 @@ Each command lands usable on its own.
 | Command | State |
 |---|---|
 | `blueprint` | written, two live runs; second cost 2.0M against the first's 24M |
-| `ship` | written, **never run** |
+| `ship` | written, run inside two sprints |
 | `audit` | written, six lenses, each run once on a real project (tests four times); 21.4M for the whole sweep |
-| `sprint` | written with its driver, tests green, **never run** |
-| `fix`, `mvp` | stubs |
+| `sprint` | written with its driver; two live batches — a tests lens and a security one |
+| `next` | written 2026-08-05, three live runs, each of which corrected a rule |
+| `fix` | written 2026-08-05, **never run** |
+| `mvp` | stub |
 
 How a command is written and hardened is in [method.md](method.md) — eleven corrections paid for
 with live runs, which `fix` and `mvp` should not pay for again. `sprint`'s reasoning, and the third

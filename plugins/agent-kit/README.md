@@ -10,15 +10,15 @@ argument. What the rewrite concluded, and why, is in
 | Command | What it does |
 |---|---|
 | `/agent-kit:blueprint` | the project's knowledge layer: an interview that writes what the project knows, and `--check` that audits it |
-| `/agent-kit:fix` | something is wrong and it is small — **not written yet** |
+| `/agent-kit:fix` | something is wrong and it is small: find the cause, prove it with a failing test, change the least that works |
 | `/agent-kit:ship` | one feature end to end: design against the blueprint, build, verify, review, pull request |
 | `/agent-kit:sprint` | a batch of features: brief them in one sitting, then a driver builds each unattended |
 | `/agent-kit:mvp` | from the blueprint to a running prototype — **not written yet** |
 | `/agent-kit:audit` | compare existing code to the description and write a work list |
 | `/agent-kit:next` | where the project stands and which command to run — for the cold start |
 
-`blueprint`, `ship`, `sprint`, `audit` and `next` work today. `fix` and `mvp` are declared so the
-shape of the kit is visible, and they do nothing when invoked.
+`blueprint`, `fix`, `ship`, `sprint`, `audit` and `next` work today. `mvp` is declared so the shape
+of the kit is visible, and does nothing when invoked.
 
 ## Next
 
@@ -60,6 +60,23 @@ Two modes:
 **One writer, one trigger.** Only blueprint rewrites knowledge, and only you start blueprint. A
 build command may leave a marked note where it had to assume something, and `--check` may flag what
 went stale — but nothing revises knowledge on its own.
+
+## Fix
+
+The product does something it should not, and putting it right is smaller than a feature. Three ways
+in, one pipeline: the owner's description when the cause is unknown, whatever is already red when it
+is not, and `--pr <n>` for a review round on an open pull request, which commits onto that request's
+own branch.
+
+The spine is a failing test written **before** the change: without it "fixed" is a claim, and a
+month later nobody can tell whether the defect was real. After the change the fix is undone once to
+watch the test fail again — the only proof that it guards the fix rather than passing beside it.
+
+It stops early rather than late. A cause that turns out to be *this was never built* is `ship`'s
+work; a cause that is somebody's decision belongs to the entry; a repair that touches a layer rather
+than a place goes to the ledger with the cause named. And it changes the least that makes the test
+pass: the tidy-up next to it, the rename, the second defect found on the way are lines in
+`docs/technical_debt.md`, because a fix that also refactors cannot be reviewed as a fix.
 
 ## Ship
 
