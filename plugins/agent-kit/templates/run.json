@@ -41,8 +41,25 @@
 
   "waiting_since": null,
   "waiting_on": null,
+  "_answers": "What the owner was asked and what they answered, verbatim — one entry per question. A run that resumes reads this instead of asking again, and the pull request quotes it instead of remembering it.",
+  "answers": [
+    { "asked": "", "answered": "", "when": "2026-08-05" }
+  ],
 
+  "_review": "What the reviewer found and what became of it. `verdict` is its closing sentence; `findings` carry a severity so a run cannot finish with an open critical or major one. `security` says whether that pass ran, and when it did not, why not.",
+  "review": {
+    "verdict": null,
+    "findings": [
+      { "severity": "critical | major | minor", "what": "", "closed": false, "how": "" }
+    ],
+    "security": null
+  },
+
+  "_suite": "What was run and what it returned: tests, types, lint — and, when the feature has a surface a person can reach, what was opened in the running application and what was seen there. 'Not exercised' is an answer; silence is not.",
   "suite": null,
   "pr": null,
-  "children": []
+  "children": [],
+
+  "_notes": "Anything this run wants to leave behind that no field above holds — context for whoever picks it up, a dead end worth not repeating, a suspicion. Free prose, read by people and by the closing session. It exists so that no run invents a key of its own: an invented key is one nothing will ever read, because every reader knows only this shape.",
+  "notes": null
 }

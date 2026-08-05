@@ -32,6 +32,12 @@ says can happen, a broken contract with existing callers, a resource left open, 
 against `stack.md` — the stances and the library map there are what this project agreed to, so
 hand-rolled code that duplicates a library the map names is a finding.
 
+**Is this the feature that was designed?** The run file — `.agent-kit/runs/<slug>/run.json` — holds
+the approach the run committed to, the seams it named, its task list and its deviations. Read it
+first: code can be correct, tested and still not be what the run set out to build, and nothing else
+in the kit compares those two. A deviation that is in the diff and not in the file is a finding on
+its own; so is a task marked done whose work is not there.
+
 **Do the tests cover the entry?** Take the entry's lines one at a time and find the test for each.
 A line with no test is a finding, and it is usually the most valuable one you will produce: tests
 that exist but avoid the risky path are the standard way a feature looks proven and is not.

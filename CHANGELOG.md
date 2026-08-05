@@ -3,6 +3,30 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.36.0
+
+Runs were inventing fields. `review`, `fork_resolved`, `notes`, `commits` — none of them in the
+template, each written in whatever shape that run felt like, and read by nobody, because every
+reader knows only the template. The kit's most expensive output after the code itself — what the
+reviewer found — was living in a chat window.
+
+- **`review` in the run file**, with a severity per finding, whether it was closed and how, and
+  whether the security pass ran. Written as the findings come back, before they are fixed; a
+  critical or major one left open is not `step: done`. The batch's pull request composes its Review
+  section from these rather than from a child's summary of them.
+- **`answers`** — what the owner was asked and what they said, verbatim. A resumed run reads it
+  instead of asking twice, and the pull request quotes it instead of recalling it.
+- **The app check leaves a trace.** `suite` now carries what was opened in the running application
+  and what was seen, or that there was nothing to open. Otherwise "checked by hand" and "wrote that
+  it was checked" are the same sentence.
+- **The reviewer reads the run file.** It could judge whether the code was good and whether the
+  entry was covered, but not whether this was the feature that was designed — nothing in the kit
+  compared the diff to the approach the run committed to.
+- **Invented keys are a finding, and `notes` is where prose goes.** The field list is closed because
+  readers are fixed; free context now has a home, so nothing has to mint a key to keep it. `check`
+  names run files carrying unknown fields — on the project this was built against it found
+  `commits` in seven of them.
+
 ## 0.35.0
 
 Looking for other places with the same shape as the hash problem — a value one party records and

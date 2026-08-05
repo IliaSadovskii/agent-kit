@@ -119,6 +119,13 @@ comes back after the account limit killed its session. Set `step` as you enter e
 `done` / `blocked` when you stop, because whatever launched this is watching that field to know you
 are finished.
 
+**Its fields are a closed list.** Every reader — the run that resumes this one, the closing
+session, `check.py` — knows only the shape in the template, so a key you invent is a key nothing
+will ever read. Anything with no field of its own goes in `notes`, in prose: context for whoever
+picks this up, a dead end worth not repeating, a suspicion you could not chase. And a field the
+whole kit is missing is a finding about the kit — say it in the report, do not mint it here. The
+check names run files that carry unknown keys.
+
 Beside it, `run.log` records **when** things happened, which the state file cannot: one line per
 event, appended and never read back, so it costs nothing in context.
 
@@ -162,8 +169,10 @@ and wait. With none, say what you are about to do and start — a gate that alwa
 owner to approve without reading. Under `gate: none` you never wait, and the fork becomes an
 assumption.
 
-Before asking anything, write `waiting_since` and the fork into the run file, and clear them when it
-is answered.
+Before asking anything, write `waiting_since` and the fork into the run file; when the answer comes,
+clear them and put the question and the answer into `answers`, in the owner's own words. A run that
+resumes reads that instead of asking a second time, and the pull request quotes it instead of
+recalling it.
 
 Design ends when the run file holds the approach, the seams, and a task list in which each task is
 the smallest unit that carries its own verification.
@@ -233,7 +242,9 @@ language.
    type error is a failing test. Fix the product; never weaken an assertion for green output.
 3. **Start the app and exercise what changed**, when the feature has a surface a person can reach. A
    green suite on an app that does not start is exactly what this catches. Say so when there is no
-   such surface.
+   such surface. Either way it goes into `suite` beside the test and lint results — what you opened
+   and what you saw, or that there was nothing to open. Nobody can tell "checked by hand" from
+   "wrote that it was checked" unless the run says which screens it went to.
 
 Fix what fails, then run the suite once more at the end. Record in the run file what ran and what it
 returned: the pull request is written from that, not from memory.
@@ -246,7 +257,10 @@ and belong to whatever integrates a batch.
 In this order, because it puts reviewed code in the pull request from its first minute:
 
 1. Commit and push the branch.
-2. **Review** — see below.
+2. **Review** — see below. Its verdict and every finding go into the run file's `review` **as they
+   come back**, before you fix any of them, with a severity each; then mark what you closed and how.
+   Written afterwards from memory it becomes a summary, and a summary is what a batch's pull request
+   already has too much of. A critical or major finding left open is not `step: done`.
 3. **One round of fixes**, then rerun what the fixes put at risk, plus the suite.
 4. Open the pull request per `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md`. Never merge it.
 5. **CI** — `gh pr checks`, or the closest this session has. Fix what is yours: formatting, lint, a

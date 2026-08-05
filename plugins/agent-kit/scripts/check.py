@@ -551,6 +551,43 @@ def work_branches(root: Path, base: str) -> list:
     return out
 
 
+def run_shape() -> set:
+    """The fields a run file may carry — taken from the template that ships beside this program, so
+    the two cannot drift apart."""
+    template = Path(__file__).resolve().parent.parent / "templates" / "run.json"
+    try:
+        shape = json.loads(template.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return set()
+    return {k for k in shape if not k.startswith("_")}
+
+
+def check_runs(root: Path, report: Report) -> None:
+    """Keys no reader knows about.
+
+    A run that needs somewhere to put something and invents a key has written to nobody: every
+    reader — the resuming run, the closing session, this program — knows only the template. Free
+    prose belongs in `notes`, and a field the whole kit needs is a finding about the kit.
+    """
+    known = run_shape()
+    if not known:
+        return
+    strays: dict = {}
+    for path in sorted((root / ".agent-kit" / "runs").glob("*/run.json")):
+        try:
+            run = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        for key in run:
+            if key not in known and not key.startswith("_"):
+                strays.setdefault(key, 0)
+                strays[key] += 1
+    if strays:
+        named = ", ".join(f"{k} ({n})" for k, n in sorted(strays.items()))
+        report.add("Runs", f"run files carry fields the template does not: {named} — nothing reads "
+                           f"them; free prose goes in `notes`, a field the kit needs is a finding")
+
+
 def open_runs(root: Path) -> list:
     """Runs that never reached a terminal step — a feature somebody started and left."""
     out = []
@@ -758,6 +795,7 @@ def main(argv: list | None = None) -> int:
     check_sources(root, docs, report)
     check_stack(root, manifest, report)
     check_verdicts(manifest, report)
+    check_runs(root, report)
     collect_unmet(root, manifest, keys(docs), report)
     collect_debt(root, report)
     collect_notes(docs, report)

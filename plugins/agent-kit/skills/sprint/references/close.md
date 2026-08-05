@@ -10,7 +10,8 @@ You build nothing and fix nothing. If a feature is broken, it is parked and said
 ## Read first
 
 `run.json` in the batch directory, then each child's `run.json` — approach, assumptions, deviations,
-suite, blockers, branch, step. Then `.agent-kit/project.yml` for the language.
+`review`, `answers`, `unmet`, `deferred`, `closed_debt`, suite, blockers, branch, step, and whatever
+a child left in `notes`. Then `.agent-kit/project.yml` for the language.
 
 That is your whole source. Do not re-read the code of features you are describing: their run files
 and their commits are the record, and re-deriving it costs more than the batch's own delivery.
@@ -82,6 +83,11 @@ gh pr create --base <its base branch> --head <its branch>
 
 That line is why per-feature pull requests are not opened up front: the capability costs one command
 on the day it is wanted, and opening them in advance cost two merge accidents.
+
+The **Review** section is composed from the children's `review` fields, not from their prose: the
+verdict, then the findings that were closed and how, then any that were not — a finding a child
+carried to the end without closing is the batch's most important line, and paraphrase is how it gets
+lost. The same for **Assumptions**, whose owner-answered forks come from `answers` word for word.
 
 **Review and CI.** The batch pull request is where a repository-wide pass is worth its price, so
 this is the one place the `/code-review` fan belongs — offer it to the owner in the closing line
