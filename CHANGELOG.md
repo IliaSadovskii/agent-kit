@@ -3,6 +3,47 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.40.0
+
+The 5 August audit left five proposals unbuilt and asked that each be checked against the files
+before it was executed. It was, and three of the five turned out to have a cheaper answer: the text
+they wanted moved into new reference files was already in files that exist. No new file was written.
+
+- **One route for an unmet mark, not two.** `ship` said in its opening that a contradiction between
+  an entry and the code goes into `deviations`, "that field is where the batch's pull request gets
+  it from", and said in its Build step that it goes into `deviations` **and** `unmet`. The closing
+  session composes the batch's list of unkept promises from `unmet` alone — so a run that followed
+  the opening left that list empty while the marks stood in the code. `unmet` is now the only route;
+  `deviations` keeps what it is for, a departure from the approved approach.
+- **`ship` records through one table.** Eight destinations — what you found, where it goes, who
+  reads it — in place of six rules spread across three sections. The table in
+  `rules/pull-requests.md` was not copied but reduced to its other half: what raises the record
+  again.
+- **The form of the `unmet` mark leaves `ship`.** The argument for a form that runs and fails over
+  one that skips is in `templates/project.yml`, where `blueprint` settles `tests.unmet`; the answer
+  for a project is in its own `project.yml`, which `ship` reads every run. The rule stays: the mark
+  is the kit's constant plus the entry key, and it is only ever for code that was there before you.
+- **The debt mechanics leave `ship`.** `templates/technical_debt.md` is the ledger's own header and
+  already carried the format, the boundary against assumptions and marks, and delete-don't-tick. It
+  gains the one rule it was missing — half an item deleted is worse than an item untouched — and
+  says plainly that the ticked boxes in this kit belong to the audits' work lists.
+- **The agent no longer writes `run.log`.** The driver already records a child's sessions starting,
+  stalling, waiting out a limit and finishing, which is what the control window reads it for. The
+  design has said since the rewrite that the log is written by the driver and never by the agent.
+- **`check.py --run <dir>` judges one run file as it closes.** An open critical or major review
+  finding, or an empty `suite`, at `step: done`. It is asked by `ship` and `fix` as they close and
+  by the driver before it calls a feature built — a finished run's file is history, so a finding
+  raised later reaches nobody. The driver does not park the feature over it: the branch is pushed
+  and reviewed either way, so the defect goes to `blockers` and the pull request names it.
+- **`validate.sh` checks that every field of the run file has a writer and a reader.** Half the
+  defects of the audit were records with one side; this fails on a field fewer than two of the
+  plugin's files name. Confirmed to fail on `waiting_since` before it was kept.
+- **The `[assumed …]` block had two homes** and only one writer. `blueprint` describes it now
+  instead of restating its shape.
+- `docs/developing.md` records which of the three levels a piece of text belongs at — chosen by how
+  often it is needed, never by how long it is — and its repository map covers the whole payload
+  again.
+
 ## 0.39.0
 
 An audit of the whole kit — the first since the rewrite reached six working commands — found one

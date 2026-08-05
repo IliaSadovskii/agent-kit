@@ -111,9 +111,15 @@ looked right and was not is exactly what the next person needs.
 `--pr <n>` ends differently: commit onto that pull request's branch, push, and say what changed in
 its terms. No new pull request, no second branch — the round belongs to the one that is open.
 
-Close the run file: `step: done`, `suite`, `pr`, anything deferred. Then end per
-`${CLAUDE_PLUGIN_ROOT}/rules/closing.md` — what is thin, where it now lives, and the one command
-that comes next.
+Close the run file: `step: done`, `suite`, `pr`, anything deferred — then have the check read it
+back, which is silent unless a finished run is saying something it may not:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --run .agent-kit/runs/<slug>
+```
+
+Then end per `${CLAUDE_PLUGIN_ROOT}/rules/closing.md` — what is thin, where it now lives, and the
+one command that comes next.
 
 ## What this command does not do
 

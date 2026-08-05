@@ -160,15 +160,11 @@ branch and a pull request, and it says so.
 
 ## Notes left by runs
 
-A run that lacks knowledge does not stop and does not ask. It decides, continues, and leaves a
-block under the entry it stood in for:
-
-```markdown
-> **[assumed 2026-08-02 · claude/offer-roles]** Nothing says what happens to an offer when the
-> request is cancelled. Took: it goes to `withdrawn`, not deleted. Expensive to get wrong — data model.
-```
-
-A run that finds a better answer than the library map holds leaves `[found …]` the same way.
+A run that lacks knowledge does not stop and does not ask. It decides, continues, and leaves an
+`[assumed …]` block under the entry it stood in for — what the knowledge did not say, what it took,
+and why being wrong there is expensive. A run that finds a better answer than the library map holds
+leaves `[found …]` under `stack.md` the same way. The check prints both before every command; the
+build commands own their shape, and you own what becomes of them.
 
 **A recorded assumption is the decision of record until the owner changes it.** A later run hitting
 the same gap follows it rather than inventing a second reading — that is what keeps features

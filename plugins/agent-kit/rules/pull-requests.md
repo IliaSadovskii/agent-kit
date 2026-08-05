@@ -15,21 +15,22 @@ actions**, which exists because a few things genuinely need hands and access —
 migration, an account somewhere — and even there the line says what to do, not whose fault it is
 that it is undone.
 
-Everything else the run did not finish is not a message to a person, it is **a record in a file**,
-and the sentence that names it says where it now lives and what will raise it again:
+Everything else the run did not finish is not a message to a person, it is **a record in a file**.
+By the time you write this, every such thing is already in one — the run put it there as it went,
+and the run file's fields are where you find them again. Your job here is the second half of the
+sentence: what will raise it again.
 
-| What was left | Where it is now | What raises it |
-|---|---|---|
-| a decision taken without the owner | `[assumed …]` under the entry, in `docs/knowledge/` | the check prints it before every command; `blueprint` closes it |
-| a promise the entry makes and the product does not keep | a test marked `agent-kit:unmet` | the check lists it; `sprint` with no theme offers it as a batch |
-| work understood and not done | a line in `docs/technical_debt.md` | the check counts it; `sprint` with no theme offers it |
-| a defect found but out of scope | a line in `docs/technical_debt.md`, or an audit's work list if a lens covers it | the same |
-| an entry whose prose is now wrong | `[assumed …]` block plus a line in the ledger | `blueprint`, on the next run |
+| Where it is | What raises it |
+|---|---|
+| an `[assumed …]` block under the entry | the check prints it before every command; `blueprint` closes it |
+| a test marked `agent-kit:unmet` | the check lists it; `sprint` with no theme offers it as a batch |
+| a line in `docs/technical_debt.md` | the check counts it; `sprint` with no theme offers it |
+| an item in an audit's work list | that lens on its next run, and `next` when it comes due |
 
 So the sentence reads *recorded in `docs/technical_debt.md`, offered by the next sprint* — a
-statement about where the project keeps it, not a task handed over. If a leftover has no place in
-that table, it does not go in the pull request as a request either: find its file, or it is not
-recorded at all.
+statement about where the project keeps it, not a task handed over. A leftover that is in none of
+those files is not recorded at all, and writing it here as a request does not record it: put it in
+its file first.
 
 The reader should finish the description without a to-do list — knowing what changed, what was hard,
 what is thin, and that nothing they just read depends on them remembering it.

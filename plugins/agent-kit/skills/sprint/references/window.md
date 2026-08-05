@@ -19,7 +19,8 @@ code, never touch a feature's run file, and never start a session of your own.
 
 - `run.json` in the batch directory — `children` in order, and `step`.
 - Each child's `run.json` — `step`, `branch`, `pr`, `assumptions`, `blockers`, `waiting_on`.
-- The tail of `run.log` in either, for when things happened.
+- The tail of `run.log` in either — the driver's own trace, and the only record of *when* things
+  happened: a session started, stalled, waited out a limit, finished. No agent writes to it.
 
 **Never open a child's transcript.** It is the largest file in the run and reading one would spend
 your context on a feature nobody asked you about.

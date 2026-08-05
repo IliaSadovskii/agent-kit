@@ -32,6 +32,11 @@ try:                                              # 3.9+, but not on every distr
 except ImportError:                               # pragma: no cover - fallback below covers it
     ZoneInfo = None
 
+# The two ship side by side, and the driver is the one thing present at the moment a child stops —
+# which is the only moment a defect in a run file can still be acted on.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from check import run_defects                     # noqa: E402 - the path above is what makes it work
+
 TERMINAL_STEPS = {"done", "blocked", "skipped"}
 LIMIT_MARKER = '"apiErrorStatus":429'
 OVERLOADED_MARKER = '"apiErrorStatus":529'
@@ -345,6 +350,7 @@ class Driver:
         # crash while the work is already done.
         state = child.state()
         if state.get("pr") or state.get("step") == "done":
+            self.audit(child, state)
             child.event("built", state.get("branch") or "")
             return "built"
         branch = state.get("branch")
@@ -355,6 +361,20 @@ class Driver:
         child.set(step="blocked")
         child.event("blocked", why or "no terminal state")
         return "blocked"
+
+    def audit(self, child: Run, state: dict) -> None:
+        """What a child closed with that it should not have.
+
+        The branch is pushed and reviewed either way, so this does not park the feature and lose the
+        rest of the night: it writes the defect into `blockers`, which the closing session reads and
+        names in the pull request. A hole a batch reports is recoverable; one nobody noticed is not.
+        """
+        defects = run_defects(state)
+        if not defects:
+            return
+        child.set(blockers=(state.get("blockers") or []) + defects)
+        child.event("closed-with-defects", "; ".join(defects))
+        self.tell(f"{child.slug} closed with {len(defects)} thing(s) it should not have: {defects[0]}")
 
     def branch_pushed(self, branch: str) -> bool:
         done = subprocess.run(["git", "ls-remote", "--heads", "origin", branch],

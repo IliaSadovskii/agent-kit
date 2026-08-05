@@ -2,6 +2,7 @@
 """Audit a project's knowledge documents, mechanically.
 
     check.py [project root] [--status] [--offline]
+    check.py . --run .agent-kit/runs/<slug>      what a run at step done may not leave behind
 
 This is what `/agent-kit:blueprint --check` runs, and what every other command runs before it
 starts. It exists as a program rather than as instructions because a skill cannot be invoked by
@@ -601,6 +602,37 @@ def check_runs(root: Path, report: Report) -> None:
                             f"them; prose goes in `notes`, and a field the kit needs is a finding")
 
 
+def run_defects(state: dict) -> list:
+    """What a run may not close with.
+
+    Two rules that held only as long as a run remembered them at the end of its longest step, and
+    that a program can settle in a millisecond. They are asked at the moment of closing — by the run
+    itself, and by the driver before it calls a feature built — and nowhere else: a finished run's
+    file is history, and telling the next command about it reaches nobody who can act.
+
+    Only `done` is judged. A run that stopped at `blocked` is already saying so.
+    """
+    if state.get("step") != "done":
+        return []
+    out = []
+
+    review = state.get("review") or {}
+    for finding in (review.get("findings") or []) if isinstance(review, dict) else []:
+        if not isinstance(finding, dict):
+            continue
+        severity = str(finding.get("severity") or "").strip().lower()
+        if severity in ("critical", "major") and not finding.get("closed"):
+            what = str(finding.get("what") or "").strip() or "unnamed"
+            out.append(f"a {severity} review finding is open — {what[:70]}")
+
+    suite = state.get("suite")
+    if suite is None or (isinstance(suite, str) and not suite.strip()) or suite in ([], {}):
+        out.append("`suite` is empty — nothing says what was run or what it returned, and the pull "
+                   "request is written from that field rather than from memory")
+
+    return out
+
+
 def open_runs(root: Path) -> list:
     """Runs that never reached a terminal step — a feature somebody started and left."""
     out = []
@@ -764,9 +796,30 @@ def main(argv: list | None = None) -> int:
                              "mid-flight, when each lens last ran")
     parser.add_argument("--hash", nargs="+", metavar="ARG",
                         help="print the digest of a file, or of one heading inside it: --hash FILE [HEADING]")
+    parser.add_argument("--run", metavar="DIR",
+                        help="judge one run file as it closes: what a run at step done may not "
+                             "leave behind. Silent when there is nothing")
     options = parser.parse_args(argv)
 
     root = options.root.resolve()
+
+    if options.run:
+        target = Path(options.run)
+        path = target if target.suffix == ".json" else target / "run.json"
+        if not path.is_file():
+            print(f"no run file: {path}", file=sys.stderr)
+            return 2
+        try:
+            state = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            print(f"{path} cannot be read: {exc}", file=sys.stderr)
+            return 2
+        defects = run_defects(state if isinstance(state, dict) else {})
+        if defects:
+            print(f"This run cannot close as it stands ({len(defects)}):")
+            for line in defects:
+                print(f"  {line}")
+        return 1 if defects else 0
 
     if options.hash:
         target = root / options.hash[0] if not Path(options.hash[0]).is_absolute() else Path(options.hash[0])

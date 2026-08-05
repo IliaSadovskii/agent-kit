@@ -435,6 +435,68 @@ class CheckCase(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(output, "")
 
+    # ---- what a run may not close with ---------------------------------------------------------
+    #
+    # These are the two rules that used to hold only if the run remembered them at the end of its
+    # longest step. Each is shown firing, and shown silent on the run that did the thing right.
+
+    def close(self, **fields):
+        """A run file at `done` with everything filled in, minus whatever the test breaks."""
+        state = {"slug": "x", "command": "ship", "step": "done", "suite": "made 41 green, lint ok",
+                 "review": {"verdict": "ok", "findings": [], "security": None}}
+        state.update(fields)
+        directory = self.root / ".agent-kit" / "runs" / "x"
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "run.json").write_text(json.dumps(state), encoding="utf-8")
+        return self.run_check("--run", str(directory))
+
+    def test_a_finished_run_that_did_everything_says_nothing(self):
+        code, output = self.close()
+        self.assertEqual(code, 0)
+        self.assertEqual(output, "")
+
+    def test_a_major_finding_left_open_is_not_done(self):
+        code, output = self.close(review={"findings": [
+            {"severity": "major", "what": "the token is logged", "closed": False}]})
+        self.assertEqual(code, 1)
+        self.assertIn("a major review finding is open", output)
+        self.assertIn("the token is logged", output)
+
+    def test_a_finding_that_was_closed_is_not_reported(self):
+        code, output = self.close(review={"findings": [
+            {"severity": "critical", "what": "x", "closed": True},
+            {"severity": "minor", "what": "y", "closed": False}]})
+        self.assertEqual(code, 0)
+        self.assertEqual(output, "")
+
+    def test_a_run_that_says_nothing_about_its_suite(self):
+        code, output = self.close(suite=None)
+        self.assertEqual(code, 1)
+        self.assertIn("`suite` is empty", output)
+
+    def test_a_run_still_working_is_not_judged(self):
+        code, output = self.close(step="build", suite=None, review={"findings": [
+            {"severity": "critical", "what": "x", "closed": False}]})
+        self.assertEqual(code, 0)
+        self.assertEqual(output, "")
+
+    def test_a_blocked_run_is_already_saying_so(self):
+        code, output = self.close(step="blocked", suite=None)
+        self.assertEqual(code, 0)
+        self.assertEqual(output, "")
+
+    def test_the_template_itself_closes_nothing(self):
+        """The shipped template carries a placeholder severity; it must not read as a finding."""
+        template = json.loads(
+            (ROOT / "plugins" / "agent-kit" / "templates" / "run.json").read_text(encoding="utf-8"))
+        template["step"] = "done"
+        template["suite"] = "green"
+        self.assertEqual(check.run_defects(template), [])
+
+    def test_a_run_directory_with_no_file(self):
+        code, _output = self.run_check("--run", str(self.root / ".agent-kit" / "runs" / "gone"))
+        self.assertEqual(code, 2)
+
 
 if __name__ == "__main__":
     unittest.main()

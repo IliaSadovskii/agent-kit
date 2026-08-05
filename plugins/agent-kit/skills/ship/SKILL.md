@@ -32,35 +32,27 @@ treats as true. Take the entry and the feature changes the product; take the cod
 the contradiction, so the day someone makes the entry come true, the suite calls it a regression.
 
 Which side is right is not yours to settle — but leaving the contradiction unwritten is not an
-option either, so **write the test on what the entry promises and mark it unmet**. Two things make
-the mark, and both are needed:
-
-```python
-# agent-kit:unmet author.request_validation_now
-@pytest.mark.xfail(strict=True, reason="the entry promises the window closes; it stays open")
-def test_the_edit_window_closes_once_the_check_is_asked_for(): ...
-```
-
-The comment is the kit's constant, followed by the entry key — it is what every command finds, in
-any language, and the key is checked against the knowledge. The rest is whatever keeps the test off
-the red here, recorded once in `project.yml` → `tests.unmet` so that runs do not each pick their
-own. **Prefer a form that runs the test and expects it to fail** — `xfail(strict=True)`, Jest
-`test.failing` — over one that skips it, like Pest `todo`: a skipped test proves nothing today and
-stays quiet on the day the product does keep the promise.
+option either, so **write the test on what the entry promises and mark it unmet**. The mark is the
+comment `agent-kit:unmet <entry key>` beside the test: the kit's own constant, which every command
+finds in any language, and the key is checked against the knowledge. What keeps such a test off the
+red belongs to the project and is recorded once in `project.yml` → `tests.unmet`, whose own comment
+says which forms are worth having. Where nothing is recorded there, the line stays uncovered rather
+than covered by the code's side, and the run file says so.
 
 That records the dispute instead of resolving it. The proof lives in the repository rather than in a
 sentence of a report, the suite stays green, and whoever settles it later finds the test already
-written. With `gate: none` that is the whole of your move, plus the contradiction written into
-`deviations` with both readings named — that field is where the batch's pull request gets it from.
-With someone present, mark it the same way and ask which side is wrong: the answer either turns into
-product work now, or goes to `blueprint` through the pull request. Rewriting the entry is never
-yours — `blueprint` owns the prose, so the mark stays until it does.
+written. Then **one line in the run file's `unmet`**: the entry, what the code does instead, and
+what it is waiting for. That field is the only route by which a mark reaches a batch's pull request,
+because the closing session reads run files and never the code. With `gate: none` the mark and that
+line are the whole of your move. With someone present, mark it the same way and ask which side is
+wrong: the answer either turns into product work now, or goes to `blueprint` through the pull
+request. Rewriting the entry is never yours — `blueprint` owns the prose, so the mark stays until it
+does.
 
 **The mark is only ever for code that was there before you** — including code a sibling run put on
 the branch you are building from. A test for what this feature itself builds is never marked: that
 is the feature failing to be built, and calling it a recorded promise would let any run declare
-itself done by marking what it could not make pass. When the project records no form at all, the
-line stays uncovered rather than covered by the code's side, and the run file says so.
+itself done by marking what it could not make pass.
 
 `gate` in the run file says whether anyone is present. A question whose answers all lead to the same
 work is never asked at all. How to put one — with options, not prose — is
@@ -126,21 +118,12 @@ picks this up, a dead end worth not repeating, a suspicion you could not chase. 
 whole kit is missing is a finding about the kit — say it in the report, do not mint it here. The
 check names run files that carry unknown keys.
 
-Beside it, `run.log` records **when** things happened, which the state file cannot: one line per
-event, appended and never read back, so it costs nothing in context.
+Beside it there may be a `run.log` — **the driver's**, not yours. It records when a session started,
+stalled, hit a limit or finished, which is the one thing a run cannot record about itself once it
+has stopped. Never write to it: everything you would have logged has a field above, and writing it
+twice buys nothing but shell calls.
 
-```bash
-printf '%s step=%s event=%s detail=%s\n' "$(date -u +%FT%TZ)" build suite "make test → 1 failed" \
-  >> .agent-kit/runs/<slug>/run.log
-```
-
-Log a line when a step starts and when a command that matters returns — that is all. What was
-assumed, what was asked and answered, what the review found already have fields of their own in the
-state file, and writing them twice buys nothing but shell calls. One event per line and nothing
-resembling prose: this is what someone reads to find out where a run spent its afternoon, not a
-narrative of it.
-
-Both files are working state, not repository content. Add `.agent-kit/runs/` to the project's
+The run directory is working state, not repository content. Add `.agent-kit/runs/` to the project's
 `.gitignore` if it is not there yet.
 
 ## Design
@@ -193,42 +176,34 @@ Asserting on markup you have not chosen yet is not test-first, it is writing the
 those after, and **run each one once against the unfixed code**, so the guarantee holds where the
 default does not apply.
 
-Record as you go, not at the end. Cheap decisions go to the run file's `assumptions`. A decision
-that is expensive to reverse goes there **and** into `docs/knowledge/`, as a block under the entry
-it stood in for:
+Record as you go, not at the end. What you found decides where it goes, and every destination has a
+reader that acts on it — a finding written anywhere else reaches nobody:
+
+| What you found | Where it goes | Who reads it |
+|---|---|---|
+| a decision the entry did not settle, cheap to reverse | `assumptions` | the pull request |
+| one expensive to reverse — stored data, permissions, money, a public contract | `assumptions` **and** an `[assumed …]` block under the entry | every later run follows it; the check prints it; `blueprint` closes it |
+| the entry promises what the code does not | a test marked `agent-kit:unmet`, and a line in `unmet` | the check lists it; the pull request; `sprint` with no theme offers it as a batch |
+| you departed from the approach that was approved | `deviations`, with its cause | the pull request, as an assumption the code forced |
+| a ready-made answer the library map does not name | a `[found …]` block under `stack.md` | the check prints it; `blueprint` folds it into the map |
+| work you understood and decided not to do | a line in `docs/technical_debt.md` — and in `deferred` when a batch delivers this | the check counts it; `sprint` with no theme offers it |
+| an item of that ledger you finished | delete its line in the commit that does the work; name it in `closed_debt` | the batch's report, for the count |
+| anything with no field of its own | `notes`, in prose | whoever resumes this run, and the closing session |
+
+Two of those have a shape. The assumption block goes under the entry it stood in for, and is the
+decision of record for every later run — which is what keeps features consistent with each other:
 
 ```markdown
 > **[assumed 2026-08-02 · claude/<branch>]** <what the knowledge does not say>. Took: <what you did>.
 > Expensive to get wrong — <data model | permissions | money | public contract>.
 ```
 
-That block is the decision of record for every later run, which is what keeps features consistent
-with each other. Anything contradicting the approved approach goes to `deviations` instead, with its
-cause — and so does every contradiction you marked unmet, one line in `unmet` as well: the closing
-session reads run files and nothing else, so a mark left out of them never reaches the pull request.
+`[found …]` is written the same way under `stack.md`, and is the only route by which the library map
+learns anything, since nothing else goes looking on its own.
 
-When you find a ready-made answer the library map in `stack.md` does not name — a package that
-covers what you were about to write — leave a `[found …]` block under that file the same way. It is
-the only route by which the map learns anything, since nothing else goes looking on its own.
-
-**Work you decided not to do goes in `docs/technical_debt.md`**, one line, copied from
-`${CLAUDE_PLUGIN_ROOT}/templates/technical_debt.md` when the file is not there yet. Not the
-decisions — those are `[assumed …]` blocks — and not the promises the product does not keep, which
-are marks on tests. This is the leftover: a fix resting on an invariant nothing checks, a review's
-minor that belonged to another command, a rename you applied in one place of three. Delivering a
-batch, write it into the run file's `deferred` as well: the closing session reads run files, not
-your diff. An item recorded nowhere survives in a pull request nobody reopens, which is the same as
-forgotten.
-
-**And the way back out: an item you finished, you delete** — the line, in the commit that does the
-work, so the diff shows the debt going down beside the code that paid it. Never a ticked box. A
-ticked box is a line nobody deletes afterwards, and a ledger of them stops being read within a
-month; git holds every line that was ever there, and the pull request holds the reasoning. The run
-file names what you closed in `closed_debt`, one line each, which is what lets the batch's report
-say the debt went from nine to six rather than leaving the owner to diff a file.
-
-If the work turns out bigger than its line said, the line stays and gains what you learned. Half an
-item deleted is worse than an item untouched: the next run reads the shorter list and believes it.
+The ledger is the third file you may write, and it carries its own format and its own rules in its
+header: copy `${CLAUDE_PLUGIN_ROOT}/templates/technical_debt.md` to `docs/technical_debt.md` when
+the project has none yet, and read it there before writing your first line.
 
 Code, identifiers and commit messages in English; anything the owner reads in the project's
 language.
@@ -278,7 +253,13 @@ In this order, because it puts reviewed code in the pull request from its first 
 6. Set the entry's machine line to `state: building (pr: <n>)`. Besides an assumption block, that is
    the only thing you write into knowledge; `blueprint --check` moves it to `built` once the pull
    request merges.
-7. Close the run file: `step: "done"`, `suite`, `pr`, and any blocker.
+7. Close the run file: `step: "done"`, `suite`, `pr`, and any blocker. Then have the check read it
+   back — it is silent unless the file says something a finished run may not say, and what it names
+   is fixed in the work rather than in the field that named it:
+
+   ```bash
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --run .agent-kit/runs/<slug>
+   ```
 
 **`deliver: "branch"` stops you after step 3.** A feature inside a batch pushes reviewed code and
 nothing else: the batch opens one pull request over the whole chain, runs CI there, and sets the

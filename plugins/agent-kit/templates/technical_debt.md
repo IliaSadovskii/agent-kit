@@ -22,8 +22,17 @@ composed around one area rather than around whatever was written last; `—` whe
 no entry, like a tidy-up in the test suite. The run slug and the pull request are where the reasoning
 still lives when the line is too short to carry it.
 
-Closed by deleting the line, in the commit that does the work — a ticked box is a line nobody will
-delete later. Nothing else edits this file: a run appends, a run that finishes an item removes it.
+Closed by deleting the line, in the commit that does the work, so the diff shows the debt going down
+beside the code that paid it. **Never a ticked box** — a ticked box is a line nobody deletes
+afterwards, and a ledger of them stops being read within a month; git holds every line that was ever
+here, and the pull request holds the reasoning. The ticked boxes in this kit are in the audits' work
+lists, which is a different file and a different rule.
+
+If the work turns out bigger than its line said, the line stays and gains what was learned. **Half
+an item deleted is worse than an item untouched**: the next run reads the shorter list and believes
+it.
+
+Nothing else edits this file: a run appends, a run that finishes an item removes it.
 
 Keep it in the project's language, like everything else the owner reads.
 

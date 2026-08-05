@@ -169,6 +169,45 @@ done < <(grep -rhoE '\$\{CLAUDE_PLUGIN_ROOT\}/[A-Za-z0-9_./-]+' "$PLUGIN" \
            | sed 's|${CLAUDE_PLUGIN_ROOT}/||' | sed 's|[.,)]*$||' | sort -u)
 
 # --------------------------------------------------------------------------------------------
+step "every field of the run file has a writer and a reader"
+
+# Half the defects of the 5 August audit were records with only one side: a field a template
+# declared and no instruction ever filled, or an instruction filling a field nothing read. Both are
+# invisible in review and cost a whole release each.
+#
+# What this can prove is weaker than the rule: it counts the files that name a field, not what they
+# do with it, so a generic name like `task` passes on prose alone. It still catches the case that
+# actually happens — a field named in the template and nowhere else, or in one file only, which is
+# a writer with no reader or the reverse.
+python3 - "$REPO" "$PLUGIN" <<'PY'
+import json, re, sys
+from pathlib import Path
+
+repo, plugin = Path(sys.argv[1]), sys.argv[2]
+root = repo / plugin
+template = root / "templates" / "run.json"
+shape = json.loads(template.read_text(encoding="utf-8"))
+
+payload = [p for p in sorted(root.rglob("*"))
+           if p.is_file() and p.suffix in (".md", ".py", ".json", ".yml")
+           and p != template and "__pycache__" not in p.parts]
+texts = {p: p.read_text(encoding="utf-8", errors="replace") for p in payload}
+
+errors = []
+for field in [k for k in shape if not k.startswith("_")]:
+    named = [p for p, text in texts.items() if re.search(rf"\b{re.escape(field)}\b", text)]
+    if len(named) < 2:
+        where = ", ".join(str(p.relative_to(root)) for p in named) or "nowhere"
+        errors.append(f"run.json field {field!r} is named in {where} — a record with one side "
+                      f"is written by nobody or read by nobody")
+
+for e in errors:
+    print(f"ERROR: {e}", file=sys.stderr)
+sys.exit(1 if errors else 0)
+PY
+[ $? -eq 0 ] || fail "the run file declares a field the payload does not use"
+
+# --------------------------------------------------------------------------------------------
 step "no project-specific leakage in the payload"
 
 leaks="$(grep -rniE 'beeplish|english push tutor' "$PLUGIN" 2>/dev/null || true)"
