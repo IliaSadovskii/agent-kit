@@ -3,6 +3,21 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.35.0
+
+Looking for other places with the same shape as the hash problem — a value one party records and
+another trusts — turned up two, both silent by construction.
+
+- **A dependency manifest nobody recorded is now a finding.** `checks.deps` was only ever walked
+  over what it already contained, so a project that grew a second ecosystem — a `package.json`
+  beside a `composer.json`, a `requirements.txt`, a `go.mod` — had those dependencies under no
+  watch at all, and the check reported clean. It now looks for the manifest names it knows among
+  the tracked files and names the ones the manifest does not carry.
+- **A scenario mark pointing at nothing says so.** `agent-kit:scenario <heading>` matched by
+  heading, so renaming a scenario silently unhooked its test: the scenario went back to "no
+  end-to-end test" and the mark itself was never mentioned again. Same fix as for entry keys —
+  the mark is checked against what exists, and an orphan is reported.
+
 ## 0.34.0
 
 Running `next` on a real project surfaced two things it could not see and one it saw wrongly.

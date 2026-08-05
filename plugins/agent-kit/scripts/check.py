@@ -50,6 +50,12 @@ STATE_LINE_RE = re.compile(r"(`key:\s*%s\s*`\s*·\s*`state:\s*)building \(pr:\s*
 
 SLOTS = ("product", "actors", "entities", "actions", "screens", "integrations", "scenarios", "stack")
 
+# What a dependency manifest is called, across the ecosystems a project here might use. Only their
+# names are known — the check reads none of them, it just notices one nobody recorded.
+MANIFEST_NAMES = ("composer.json", "package.json", "requirements.txt", "pyproject.toml", "go.mod",
+                  "Gemfile", "Cargo.toml", "pom.xml", "build.gradle", "build.gradle.kts",
+                  "Package.swift", "mix.exs", "pubspec.yaml")
+
 
 def digest(text: str) -> str:
     """The hash recorded beside a `source:` and a dependency manifest.
@@ -279,12 +285,29 @@ def check_stack(root: Path, manifest: dict, report: Report) -> None:
                 report.add("Stack", f"researched {researched} — over six months ago")
         except ValueError:
             report.add("Stack", f"stack_researched is not a date: {researched}")
-    for name, recorded in (checks.get("deps") or {}).items():
+    recorded_deps = checks.get("deps") or {}
+    for name, recorded in recorded_deps.items():
         target = root / name
         if not target.is_file():
             report.add("Stack", f"{name} is recorded but missing")
         elif digest(target.read_text(encoding="utf-8")) != recorded:
             report.add("Stack", f"{name} changed since the library map was written")
+
+    # A manifest nobody wrote down is a whole ecosystem of dependencies under no watch at all —
+    # the same failure as a stale hash, one level up, and invisible because the loop above only
+    # ever visits what was already recorded.
+    for name in tracked_manifests(root):
+        if name not in recorded_deps:
+            report.add("Stack", f"{name} is a dependency manifest that project.yml does not record "
+                                f"— nothing watches it for changes")
+
+
+def tracked_manifests(root: Path) -> list:
+    listed = subprocess.run(["git", "-c", "core.quotePath=false", "ls-files"],
+                            cwd=root, capture_output=True, text=True)
+    if listed.returncode != 0:
+        return []
+    return sorted(p for p in listed.stdout.splitlines() if Path(p).name in MANIFEST_NAMES)
 
 
 def check_verdicts(manifest: dict, report: Report) -> None:
@@ -556,7 +579,7 @@ def scenarios(root: Path) -> tuple:
     """
     path = root / KNOWLEDGE / "scenarios.md"
     if not path.is_file():
-        return 0, []
+        return 0, [], []
     text = path.read_text(encoding="utf-8", errors="replace")
     body = re.sub(r"<!--.*?-->", "", text, flags=re.S)          # the template's example is commented
     described = [h.strip() for h in HEADING_RE.findall(body)]
@@ -565,8 +588,10 @@ def scenarios(root: Path) -> tuple:
         named = line.split(SCENARIO_MARK, 1)[1].strip(" :\"'*/#-\t")
         if named:
             covered.add(" ".join(named.split()).lower())
-    uncovered = [h for h in described if " ".join(h.split()).lower() not in covered]
-    return len(described), uncovered
+    known = {" ".join(h.split()).lower() for h in described}
+    uncovered = [h for h in described if " ".join(h.split()).lower() not in known & covered]
+    orphaned = sorted(c for c in covered if c not in known)
+    return len(described), uncovered, orphaned
 
 
 def audit_lenses(root: Path) -> list:
@@ -648,10 +673,12 @@ def print_state(root: Path, offline: bool) -> None:
               f"{', conflicts' if pr['mergeable'] == 'CONFLICTING' else ''}, "
               f"updated {pr['updated']}")
 
-    described, uncovered = scenarios(root)
+    described, uncovered, orphaned = scenarios(root)
     if described:
         print(f"  scenarios: {described} described, {described - len(uncovered)} with an end-to-end "
               f"test" + (f" — uncovered: {', '.join(uncovered[:3])}" if uncovered else ""))
+    for name in orphaned:
+        print(f"  a test claims scenario \"{name}\" — no scenario by that heading exists")
 
     lenses = audit_lenses(root)
     if lenses:

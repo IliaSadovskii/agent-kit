@@ -377,6 +377,34 @@ class CheckCase(unittest.TestCase):
         self.assertIn("1 described, 1 with an end-to-end test", output)
         self.assertNotIn("uncovered", output)
 
+    def test_a_mark_naming_a_scenario_that_no_longer_exists_is_said_out_loud(self):
+        self.suite("// agent-kit:scenario Anna accepts an offer\nit('walks it');\n")
+        self.write("scenarios.md", "# Scenarios\n\n### Anna declines an offer\n\n**Who:** Anna\n")
+        self.git("add", "-A")
+        _code, output = self.run_check("--state")
+        self.assertIn("no scenario by that heading exists", output)
+
+    # ---- dependency manifests nobody recorded ---------------------------------------------------
+
+    def test_a_manifest_the_project_does_not_record(self):
+        self.suite("it('x');\n")
+        (self.root / "package.json").write_text('{"name": "x"}\n', encoding="utf-8")
+        self.git("add", "-A")
+        _code, output = self.run_check()
+        self.assertIn("package.json is a dependency manifest that project.yml does not record",
+                      output)
+
+    def test_a_recorded_manifest_is_not_reported_twice(self):
+        self.suite("it('x');\n")
+        (self.root / "package.json").write_text('{"name": "x"}\n', encoding="utf-8")
+        current = check.digest('{"name": "x"}\n')
+        (self.root / ".agent-kit" / "project.yml").write_text(
+            MANIFEST + f"checks:\n  deps:\n    package.json: {current}\n", encoding="utf-8")
+        self.git("add", "-A")
+        code, output = self.run_check()
+        self.assertEqual(code, 0, output)
+        self.assertEqual(output, "")
+
     # ---- a project with no blueprint at all ----------------------------------------------------
 
     def test_a_project_without_knowledge_is_not_a_failure(self):
