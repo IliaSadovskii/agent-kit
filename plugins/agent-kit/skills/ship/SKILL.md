@@ -199,8 +199,8 @@ When you find a ready-made answer the library map in `stack.md` does not name �
 covers what you were about to write — leave a `[found …]` block under that file the same way. It is
 the only route by which the map learns anything, since nothing else goes looking on its own.
 
-**Work you decided not to do goes in `docs/debt.md`**, one line, copied from
-`${CLAUDE_PLUGIN_ROOT}/templates/debt.md` when the file does not exist yet. Not the decisions —
+**Work you decided not to do goes in `docs/technical_debt.md`**, one line, copied from
+`${CLAUDE_PLUGIN_ROOT}/templates/technical_debt.md` when the file does not exist yet. Not the decisions —
 those are `[assumed …]` blocks — and not the promises the product does not keep, which are marks on
 tests. This is the leftover: a fix resting on an invariant nothing checks, a review's minor that
 belonged to another command, a rename you applied in one place of three. Delivering a batch, write

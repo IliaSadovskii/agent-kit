@@ -55,8 +55,8 @@ Inside it, uncollapsed, **the promises this batch did not keep**: every line of 
 green while the product contradicts three entries is only honest if that list is in plain sight —
 and it is the list the next `sprint` composes a batch from.
 
-**Then write the batch's leftovers into `docs/debt.md`** — every child's `deferred`, one line each,
-newest first, copying `${CLAUDE_PLUGIN_ROOT}/templates/debt.md` if the file is not there yet. Commit
+**Then write the batch's leftovers into `docs/technical_debt.md`** — every child's `deferred`, one line each,
+newest first, copying `${CLAUDE_PLUGIN_ROOT}/templates/technical_debt.md` if the file is not there yet. Commit
 it on the batch's branch, before the pull request. This is the only step of yours that leaves
 something behind in the repository, and it is the difference between work the project remembers and
 work that lived in a pull request until it was merged.

@@ -3,6 +3,24 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.30.0
+
+- **The ledger is `docs/technical_debt.md`.** `debt.md` sat one letter from `deps.md` in the same
+  documentation folder and read like it — a name nobody should have to disambiguate. Renamed with
+  the template; 0.29.0's `docs/debt.md` was a day old and is not migrated for anyone.
+- **Its line carries the entry key**: `<what> — <why> · <entry key or —> · <run> · PR #<n>`. That is
+  what lets a batch be composed around one area of the product rather than around whatever was
+  written last.
+- **`sprint` with no theme asks which pile first.** Everything it finds sorts into *owed on what
+  exists* — the ledger, the audits' work lists, open notes, unkept promises — and *not built yet* —
+  entries still `planned`. One question with the two counts, then a second naming the candidates of
+  the chosen pile. Skipped when a pile is empty. No separate command and no flag for debt: it is not
+  a mode, it is the half of the list that has been waiting longer.
+- **The scenarios lens now demands an end-to-end test per scenario**, reported as its own verdict
+  beside the walk. Tracing proves a path exists in the code today and says nothing about tomorrow,
+  and this lens only runs when somebody remembers to run it. A step that cannot honestly live in a
+  test — a paid third-party call, something only a person can judge — goes to the ledger by name.
+
 ## 0.29.0
 
 A batch closed with two leftovers: an invariant the security fix rested on and nothing checked, and

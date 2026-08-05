@@ -203,7 +203,7 @@ enough to run ahead of everything.
 - **Verdicts.** Slots with no verdict in `project.yml`.
 - **Unmet promises.** Every test carrying `agent-kit:unmet` outside `docs/`, with the entry it
   names — flagging a key no entry defines, and a project that has marks but no `tests.unmet`.
-- **Debt.** The open items of `docs/debt.md` — work earlier runs decided not to do.
+- **Debt.** The open items of `docs/technical_debt.md` — work earlier runs decided not to do.
 
 Silent when clean, exit code 1 when not — with one exception: unmet promises are listed whenever
 they exist and change no exit code, because a recorded promise is a statement about the product, not

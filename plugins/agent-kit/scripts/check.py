@@ -32,7 +32,7 @@ from pathlib import Path
 
 KNOWLEDGE = "docs/knowledge"
 MANIFEST = ".agent-kit/project.yml"
-DEBT = "docs/debt.md"
+DEBT = "docs/technical_debt.md"
 MARK = "agent-kit:unmet"
 UNMET_SHOWN = 10
 

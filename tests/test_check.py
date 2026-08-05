@@ -265,7 +265,7 @@ class CheckCase(unittest.TestCase):
     # ---- the debt ledger -----------------------------------------------------------------------
 
     def test_open_debt_is_listed_without_failing_the_check(self):
-        (self.root / "docs" / "debt.md").write_text(
+        (self.root / "docs" / "technical_debt.md").write_text(
             "# Долг\n\n"
             "- [ ] Закрепить инвариант «аккаунт всегда с паролем» — на нём держится правка · PR #21\n"
             "- [ ] Дописать прозу про передачу аккаунта · PR #21\n",
@@ -273,7 +273,7 @@ class CheckCase(unittest.TestCase):
         code, output = self.run_check()
         self.assertEqual(code, 0, output)          # a project's own memory is not a defect
         self.assertIn("Debt (2)", output)
-        self.assertIn("docs/debt.md:3", output)
+        self.assertIn("docs/technical_debt.md:3", output)
 
     def test_a_project_with_no_ledger_says_nothing_about_debt(self):
         code, output = self.run_check()
@@ -281,7 +281,7 @@ class CheckCase(unittest.TestCase):
         self.assertNotIn("Debt", output)
 
     def test_prose_around_the_items_is_not_counted(self):
-        (self.root / "docs" / "debt.md").write_text(
+        (self.root / "docs" / "technical_debt.md").write_text(
             "# Долг\n\nПишут прогоны, читают команды. Формат:\n\n"
             "```markdown\n- [ ] <что сделать> — <почему> · <прогон>\n```\n\n"
             "- [ ] Один настоящий пункт · PR #21\n",

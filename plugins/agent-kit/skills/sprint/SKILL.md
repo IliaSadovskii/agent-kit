@@ -85,22 +85,35 @@ what it owes, in four places:
 - the entries still **`state: planned`** — described and not built. `--status` names them, so you
   need no entry file to list them;
 - the **open `[assumed …]` notes**, the **promises the product does not keep**, and the **debt** in
-  `docs/debt.md` — all three printed by the same check;
+  `docs/technical_debt.md` — all three printed by the same check;
 - the **work lists of the audits** in `docs/audits/`. The check does not open those, so read the
   newest file per lens yourself — the unchecked boxes only, never the covered half.
 
-Debt is the cheapest of the five and ages worst: each line is work an earlier run understood well
-enough to describe and left anyway, usually because it belonged to no feature. Offer it as its own
-small batch, or fold a line or two into whatever else is taken.
+Sort what you found into two piles, because they are answered by different halves of the owner's
+head:
+
+| Owed on what exists | Not built yet |
+|---|---|
+| `docs/technical_debt.md`, the audits' work lists, open `[assumed …]` notes, promises the product does not keep | entries still `state: planned`, and whatever the owner has in mind |
+
+**Ask which pile first, before naming a single candidate.** Two options — *close what is owed* and
+*build what is missing* — each carrying its count, so the choice is made on size rather than on
+mood. Then, and only then, put the chosen pile up as one screen, a line per candidate with what it
+would cost, and ask which of them the batch takes. Two questions, one at a time, per
+`${CLAUDE_PLUGIN_ROOT}/rules/asking.md` — not one screen holding both.
+
+Skip the first question when one pile is empty: nothing owed goes straight to what is missing, and
+a project with nothing planned goes straight to the debt. A question with one real answer is not a
+question.
+
+There is no separate command for this. Debt is not a mode, it is the half of the list that has been
+waiting longer, and the same screen that offers a new feature is where somebody decides it can wait
+another week.
 
 A work list written before the last batch may already be done — nothing marks an audit's boxes when
 a sprint closes them. Cheapest check there is: the entry's state line. An item whose entry is
 `built` and whose lens has not run since is stale, and stale items go at the bottom, named as such,
 rather than into the batch.
-
-Put them up as one screen, a line per candidate with its size, and ask which batch to take. That is
-the composition question you would have asked anyway; there is no separate command for debt, because
-debt is just the part of the list nobody chose yet.
 
 A batch of unkept promises is composed differently from the rest, and this is the whole of it: read
 the marked test and the entry it names together, and have the owner say **which side is wrong**. The
