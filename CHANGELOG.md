@@ -3,6 +3,16 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.46.0
+
+- **A closing line names what follows from its own work, or it names `/agent-kit:next`.** Every
+  command ends by recommending a next step, and the rule asked for one every time — so a command
+  that had nothing to say invented something, blind to the rest of the project: it has not looked at
+  the branches, the pipeline or the audits since it started, and *build the next entry* while the
+  default branch is red is worse than silence. What it does know is its own consequence — a pull
+  request to merge, a blocker, the next feature of the batch. Beyond that it hands over to the
+  command that reads the whole state and ranks it.
+
 ## 0.45.0
 
 - **Questions go up in one round.** The rule said one question per call, and `blueprint` said the
