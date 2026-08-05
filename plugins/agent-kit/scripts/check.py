@@ -428,6 +428,155 @@ def planned(docs: list) -> list:
 
 
 # --------------------------------------------------------------------------------------------
+# the state of the work
+#
+# Where the checks above read what the project says about itself, this reads what has been happening
+# to it: branches, pull requests, runs left mid-flight, when each lens last looked. Facts only —
+# `/agent-kit:next` is what turns them into a recommendation.
+
+
+def git(root: Path, *args: str) -> str:
+    done = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)
+    return done.stdout.strip() if done.returncode == 0 else ""
+
+
+def default_branch(root: Path) -> str:
+    """`origin/main` when there is one: the local copy of it is usually behind, and comparing a
+    branch against a stale base reports work as unmerged long after it landed."""
+    head = git(root, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")
+    if head:
+        return head.split("refs/remotes/", 1)[-1]
+    for name in ("origin/main", "origin/master", "main", "master"):
+        if git(root, "rev-parse", "--verify", "--quiet", name):
+            return name
+    return ""
+
+
+def work_branches(root: Path, base: str) -> list:
+    """Branches a run would have made, and how far each has drifted from the base."""
+    out = []
+    listed = git(root, "for-each-ref", "--format=%(refname:short)\t%(upstream:short)", "refs/heads")
+    for row in listed.splitlines():
+        name, _, upstream = row.partition("\t")
+        if not name.startswith(("claude/", "sprint/", "mvp/")):
+            continue
+        counts = git(root, "rev-list", "--left-right", "--count", f"{base}...{name}") if base else ""
+        behind, _, ahead = counts.partition("\t")
+        out.append({"branch": name, "pushed": bool(upstream),
+                    "behind": int(behind or 0), "ahead": int(ahead or 0),
+                    "last": git(root, "log", "-1", "--format=%cs", name)})
+    return out
+
+
+def open_runs(root: Path) -> list:
+    """Runs that never reached a terminal step — a feature somebody started and left."""
+    out = []
+    runs = root / ".agent-kit" / "runs"
+    if not runs.is_dir():
+        return out
+    for path in sorted(runs.glob("*/run.json")):
+        try:
+            run = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if run.get("step") in ("done", "blocked", "skipped"):
+            continue
+        out.append({"slug": run.get("slug") or path.parent.name,
+                    "command": run.get("command", "?"), "step": run.get("step", "?"),
+                    "branch": run.get("branch"), "waiting_on": run.get("waiting_on"),
+                    "blockers": run.get("blockers") or []})
+    return out
+
+
+def audit_lenses(root: Path) -> list:
+    """Each lens's work list: when it last ran, and how much of it is still unticked."""
+    out = []
+    audits = root / "docs" / "audits"
+    if not audits.is_dir():
+        return out
+    for path in sorted(audits.glob("*.md")):
+        text = path.read_text(encoding="utf-8", errors="replace")
+        found = re.search(r"(\d{4}-\d{2}-\d{2})", text[:400])
+        out.append({"lens": path.stem, "date": found.group(1) if found else None,
+                    "open": len(re.findall(r"^\s*- \[ \]", text, re.M))})
+    return out
+
+
+def pull_requests(root: Path, offline: bool) -> list:
+    if offline or not shutil.which("gh"):
+        return []
+    done = subprocess.run(
+        ["gh", "pr", "list", "--state", "open", "--json",
+         "number,title,headRefName,isDraft,mergeable,statusCheckRollup,updatedAt"],
+        cwd=root, capture_output=True, text=True)
+    if done.returncode != 0:
+        return []
+    try:
+        rows = json.loads(done.stdout or "[]")
+    except ValueError:
+        return []
+    out = []
+    for row in rows:
+        checks = row.get("statusCheckRollup") or []
+        verdicts = {c.get("conclusion") or c.get("state") for c in checks if isinstance(c, dict)}
+        if not checks:
+            ci = "none"
+        elif verdicts & {"FAILURE", "TIMED_OUT", "CANCELLED", "ERROR"}:
+            ci = "failing"
+        elif verdicts & {"PENDING", "IN_PROGRESS", "QUEUED", None}:
+            ci = "pending"
+        else:
+            ci = "green"
+        out.append({"number": row.get("number"), "branch": row.get("headRefName"),
+                    "draft": row.get("isDraft"), "mergeable": row.get("mergeable"),
+                    "ci": ci, "updated": (row.get("updatedAt") or "")[:10]})
+    return out
+
+
+def print_state(root: Path, offline: bool) -> None:
+    """Runs and audits do not need git; everything about branches does, so it degrades in pieces."""
+    base = default_branch(root)
+    print("\nWork:")
+    if base:
+        dirty = git(root, "status", "--porcelain")
+        print(f"  on {git(root, 'rev-parse', '--abbrev-ref', 'HEAD')}, "
+              f"{'uncommitted changes present' if dirty else 'tree clean'}; "
+              f"{base} last moved {git(root, 'log', '-1', '--format=%cs', base) or '?'}")
+    elif (root / ".git").exists():
+        print("  a repository with no commits yet — nothing to compare branches against")
+    else:
+        print("  no git repository here — branches and pull requests cannot be read")
+
+    for run in open_runs(root):
+        waiting = f", waiting on {run['waiting_on']}" if run.get("waiting_on") else ""
+        blocked = f", blockers: {len(run['blockers'])}" if run["blockers"] else ""
+        print(f"  run {run['slug']} left at step={run['step']} "
+              f"({run['command']}, {run['branch'] or 'no branch'}{waiting}{blocked})")
+
+    live = [b for b in work_branches(root, base) if b["ahead"]] if base else []
+    for branch in live[:UNMET_SHOWN // 2]:
+        pushed = "pushed" if branch["pushed"] else "**never pushed**"
+        print(f"  branch {branch['branch']}: {branch['ahead']} ahead, {branch['behind']} behind "
+              f"{base}, {pushed}, last commit {branch['last']}")
+    if len(live) > UNMET_SHOWN // 2:
+        print(f"  … and {len(live) - UNMET_SHOWN // 2} more unmerged branches")
+
+    for pr in pull_requests(root, offline):
+        print(f"  PR #{pr['number']} ({pr['branch']}): CI {pr['ci']}"
+              f"{', draft' if pr['draft'] else ''}"
+              f"{', conflicts' if pr['mergeable'] == 'CONFLICTING' else ''}, "
+              f"updated {pr['updated']}")
+
+    lenses = audit_lenses(root)
+    if lenses:
+        print("  audits: " + ", ".join(
+            f"{l['lens']} {l['date'] or 'undated'}" + (f" ({l['open']} open)" if l["open"] else "")
+            for l in lenses))
+    else:
+        print("  audits: none has ever run")
+
+
+# --------------------------------------------------------------------------------------------
 
 
 def print_planned(docs: list) -> None:
@@ -444,6 +593,9 @@ def main(argv: list | None = None) -> int:
     parser.add_argument("root", nargs="?", default=".", type=Path)
     parser.add_argument("--status", action="store_true", help="always print where the project stands")
     parser.add_argument("--offline", action="store_true", help="do not ask gh about pull requests")
+    parser.add_argument("--state", action="store_true",
+                        help="also print the state of the work: branches, pull requests, runs left "
+                             "mid-flight, when each lens last ran")
     parser.add_argument("--hash", nargs="+", metavar="ARG",
                         help="print the digest of a file, or of one heading inside it: --hash FILE [HEADING]")
     options = parser.parse_args(argv)
@@ -467,8 +619,10 @@ def main(argv: list | None = None) -> int:
 
     knowledge = root / KNOWLEDGE
     if not knowledge.is_dir():
-        if options.status:
+        if options.status or options.state:
             print(f"no {KNOWLEDGE}/ — this project has no blueprint yet")
+        if options.state:
+            print_state(root, options.offline)
         return 0
 
     docs = [Doc(p) for p in sorted(knowledge.glob("*.md"))]
@@ -513,6 +667,8 @@ def main(argv: list | None = None) -> int:
         if options.status:
             print("Knowledge is clean. " + ", ".join(standing(docs)))
             print_planned(docs)
+        if options.state:
+            print_state(root, options.offline)
         return 0
 
     if options.status:
@@ -531,6 +687,9 @@ def main(argv: list | None = None) -> int:
         print(f"\nOpen notes ({len(report.notes)}) — each is a decision waiting for the owner:")
         for note in report.notes:
             print(f"  {note}")
+
+    if options.state:
+        print_state(root, options.offline)
 
     print("\nNot checked here: whether an answer is any good, whether a status an action sets is "
           "one the entity declares, and anything that needs the code read.")

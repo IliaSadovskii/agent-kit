@@ -8,6 +8,7 @@ here is shown failing on a document that breaks it and silent on one that does n
 
 import contextlib
 import importlib.util
+import json
 import io
 import shutil
 import subprocess
@@ -288,6 +289,44 @@ class CheckCase(unittest.TestCase):
             encoding="utf-8")
         _code, output = self.run_check()
         self.assertIn("Debt (1)", output)          # the example inside the fence is indented prose
+
+    # ---- the state of the work -----------------------------------------------------------------
+
+    def repo_with_work(self):
+        (self.root / "docs" / "audits").mkdir(parents=True, exist_ok=True)
+        (self.root / "docs" / "audits" / "tests.md").write_text(
+            "# Тесты — 2026-08-04\n\n- [ ] один пункт\n- [ ] второй\n", encoding="utf-8")
+        runs = self.root / ".agent-kit" / "runs" / "2026-08-05-feed"
+        runs.mkdir(parents=True)
+        (runs / "run.json").write_text(json.dumps({
+            "slug": "2026-08-05-feed", "command": "ship", "step": "build",
+            "branch": "claude/feed", "waiting_on": None, "blockers": []}), encoding="utf-8")
+        self.git("init", "-q")
+        self.git("add", "-A")
+        self.git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "base")
+        self.git("branch", "claude/feed")
+
+    def test_state_names_an_abandoned_run_and_the_audits(self):
+        self.repo_with_work()
+        _code, output = self.run_check("--state")
+        self.assertIn("run 2026-08-05-feed left at step=build", output)
+        self.assertIn("tests 2026-08-04 (2 open)", output)
+
+    def test_a_finished_run_is_not_reported_as_left_behind(self):
+        self.repo_with_work()
+        path = self.root / ".agent-kit" / "runs" / "2026-08-05-feed" / "run.json"
+        path.write_text(json.dumps({"slug": "2026-08-05-feed", "step": "done"}), encoding="utf-8")
+        _code, output = self.run_check("--state")
+        self.assertNotIn("left at step", output)
+
+    def test_a_project_with_no_audits_says_so_rather_than_staying_silent(self):
+        self.suite("it('x');\n")                       # suite() makes it a repository
+        _code, output = self.run_check("--state")
+        self.assertIn("audits: none has ever run", output)
+
+    def test_state_survives_a_directory_that_is_not_a_repository(self):
+        _code, output = self.run_check("--state")
+        self.assertIn("no git repository here", output)      # docs still read
 
     # ---- a project with no blueprint at all ----------------------------------------------------
 

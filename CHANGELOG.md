@@ -3,6 +3,29 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.33.0
+
+Every command names a next step as it finishes, and that only helps while its session is open. A
+week later there is nothing: a new session, no context, and no memory of where the last one stopped.
+
+- **`/agent-kit:next`** answers exactly that, and nothing else. It reads the state, ranks it, and
+  names **one** command with the reason in a clause, plus two or three alternatives so it is visible
+  what was weighed. It starts nothing and changes nothing.
+- **The ladder is the cost of leaving something alone**, not what is most interesting: work that
+  exists on one machine only, then a run abandoned at a non-terminal step, then a green pull request
+  nobody merged, then a red pipeline, then conflicts and unreviewed work, then anyone waiting on an
+  answer, then knowledge too thin to build from, then a lens that never ran, then debt, then unbuilt
+  entries. Three overrides on top: no knowledge at all means `blueprint`, an empty repository means
+  `mvp`, and while the MVP bounds are unmet, unbuilt entries come before debt.
+- **`check.py --state`** is the mechanical half, and three of its sources had no reader in the kit
+  until now: runs left mid-flight, branches with their drift from `origin/main` and whether they
+  were ever pushed, and the date each audit lens last ran. Pull requests come with their CI verdict
+  and conflict state.
+- **It degrades in pieces**: audits and runs need no git, branches do, pull requests need `gh`. A
+  repository with no commits says so rather than reporting nothing.
+- The ladder carries its own warning about stale lists — a run thirty commits behind is "start
+  again", not "carry on", and an audit box may already be closed by a batch that never ticked it.
+
 ## 0.32.0
 
 A pull request should end without a to-do list. Two rules were letting one form anyway: nothing said

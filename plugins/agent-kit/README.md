@@ -15,9 +15,25 @@ argument. What the rewrite concluded, and why, is in
 | `/agent-kit:sprint` | a batch of features: brief them in one sitting, then a driver builds each unattended |
 | `/agent-kit:mvp` | from the blueprint to a running prototype — **not written yet** |
 | `/agent-kit:audit` | compare existing code to the description and write a work list |
+| `/agent-kit:next` | where the project stands and which command to run — for the cold start |
 
-`blueprint`, `ship`, `sprint` and `audit` work today. `fix` and `mvp` are declared so the shape of
-the kit is visible, and they do nothing when invoked.
+`blueprint`, `ship`, `sprint`, `audit` and `next` work today. `fix` and `mvp` are declared so the
+shape of the kit is visible, and they do nothing when invoked.
+
+## Next
+
+For the cold start: a session opened after a break, with nothing in context and no memory of where
+the last one stopped. Every other command names a next step as it finishes, which works while that
+session is still open; this one answers the same question a week later.
+
+It reads the mechanical state — knowledge findings, debt, unkept promises, branches and their drift,
+open pull requests and their CI, runs left at a non-terminal step, when each lens last ran — and
+ranks what it finds by the cost of leaving it alone: work that exists on one machine only, then a
+run abandoned mid-flight, then a green pull request nobody merged, then a red pipeline, and so on
+down to unbuilt entries.
+
+The answer is one command with the reason in a clause, plus two or three alternatives so it is
+visible what was weighed. It changes nothing and starts nothing.
 
 ## Blueprint
 
