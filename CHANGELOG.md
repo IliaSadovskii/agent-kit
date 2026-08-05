@@ -3,6 +3,24 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.34.0
+
+Running `next` on a real project surfaced two things it could not see and one it saw wrongly.
+
+- **Hashes are written by the program now.** `check.py --record` rewrites every `source:` and every
+  dependency hash in place, so no run transcribes one. Until 4 August the rule said the hash "is
+  that section as you read it" — an algorithm left to the reader, which means every value written
+  before then was invented. They are recognisable by length, and the check now says so in one line
+  — *predate this program, re-record, no document changed* — instead of eleven false "changed"
+  findings that crowded out the real ones.
+- **Scenarios count their end-to-end tests.** A test claims one by carrying
+  `agent-kit:scenario <the scenario's heading>`; `--state` reports how many scenarios have one and
+  names those that do not. On the project this was built against: eleven described, zero covered —
+  a blind spot `next` had reported as "none".
+- **A batch ticks the audit boxes it closed.** `- [x] closed by PR #<n>` in `docs/audits/<lens>.md`,
+  in the same commit that writes the ledger. Nothing else ever ticks them: the lens rewrites that
+  file only on its next run, so until then every command reads finished work as still waiting.
+
 ## 0.33.0
 
 Every command names a next step as it finishes, and that only helps while its session is open. A

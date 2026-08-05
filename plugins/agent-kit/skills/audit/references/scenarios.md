@@ -52,10 +52,20 @@ steps.** A green suite is not evidence that this path is the one covered; that i
 claim about itself again.
 
 **Every scenario needs one, and a scenario with none is a finding of its own** — separate from
-whether it walks, and reported per scenario as `no end-to-end test`. Tracing proves the path exists
-in the code today; it says nothing about tomorrow, and this lens runs when somebody remembers to
-run it. A scenario is exactly what a test cannot be talked out of: it goes through the queue, the
-worker, the schedule and the browser at once, which is where a green suite over green units breaks.
+whether it walks, and reported per scenario as `no end-to-end test`. The test says which scenario it
+walks by carrying the scenario's heading in a comment, so that nothing has to guess from its name:
+
+```php
+// agent-kit:scenario Нино рассказывает про соседа и попадает в ленту
+```
+
+That is what `check.py --state` counts, and what lets `/agent-kit:next` see the blind spot without
+opening a single test.
+
+Tracing proves the path exists in the code today; it says nothing about tomorrow, and this lens runs
+only when somebody remembers to run it. A scenario is exactly what a test cannot be talked out of: it
+goes through the queue, the worker, the schedule and the browser at once, which is where a green
+suite over green units breaks.
 
 Where a step cannot honestly live in a test — a paid call to a real third party, something only a
 person can judge — the test covers the rest and the exception goes to `docs/technical_debt.md`,

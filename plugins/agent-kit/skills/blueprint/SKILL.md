@@ -203,6 +203,10 @@ enough to run ahead of everything.
 - **Verdicts.** Slots with no verdict in `project.yml`.
 - **Unmet promises.** Every test carrying `agent-kit:unmet` outside `docs/`, with the entry it
   names — flagging a key no entry defines, and a project that has marks but no `tests.unmet`.
+- **Hashes it can compute itself.** `--record` rewrites every `source:` and every dependency hash in
+  place. Use it rather than copying a printed value into a file: a hash carried by hand is how the
+  pre-4-August ones came to be invented, and a value nobody can recompute proves nothing. A recorded
+  hash shorter than eight characters is from that era — re-record and move on, no document changed.
 - **Debt.** The open items of `docs/technical_debt.md` — work earlier runs decided not to do.
 
 Silent when clean, exit code 1 when not — with one exception: unmet promises are listed whenever

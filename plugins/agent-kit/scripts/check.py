@@ -34,6 +34,8 @@ KNOWLEDGE = "docs/knowledge"
 MANIFEST = ".agent-kit/project.yml"
 DEBT = "docs/technical_debt.md"
 MARK = "agent-kit:unmet"
+SCENARIO_MARK = "agent-kit:scenario"
+DIGEST_LEN = 8
 UNMET_SHOWN = 10
 
 KEY_RE = re.compile(r"^`key:\s*([^`·]+?)\s*`(?:\s*·\s*`state:\s*([^`]+?)\s*`)?", re.M)
@@ -57,7 +59,7 @@ def digest(text: str) -> str:
     whoever happened to be reading, which made every recorded hash unverifiable by anything else.
     """
     lines = [line.rstrip() for line in text.strip().splitlines()]
-    return hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()[:8]
+    return hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()[:DIGEST_LEN]
 
 
 # --------------------------------------------------------------------------------------------
@@ -235,6 +237,7 @@ def check_orphans(docs: list, report: Report) -> None:
 
 
 def check_sources(root: Path, docs: list, report: Report) -> None:
+    stale_format = 0
     for doc in docs:
         for path_text, heading, recorded in SOURCE_RE.findall(doc.text):
             target = root / path_text.strip()
@@ -244,9 +247,17 @@ def check_sources(root: Path, docs: list, report: Report) -> None:
             section = section_of(target.read_text(encoding="utf-8"), heading.strip())
             if section is None:
                 report.add("Sources", f"{doc.path.name} → {path_text}#{heading.strip()} — no such heading")
+            elif len(recorded) != DIGEST_LEN:
+                # Before this program owned the algorithm, the rule said "the hash is that section
+                # as you read it" — so the value was invented, and its length gives it away. It
+                # cannot be compared with anything, and nothing follows about the document.
+                stale_format += 1
             elif digest(section) != recorded:
                 report.add("Sources", f"{doc.path.name} → {path_text}#{heading.strip()} changed "
                                       f"({recorded} → {digest(section)})")
+    if stale_format:
+        report.add("Sources", f"{stale_format} source hashes predate this program and mean nothing "
+                              f"— re-record them with `check.py . --record`; no document changed")
 
 
 def section_of(text: str, heading: str) -> str | None:
@@ -427,6 +438,55 @@ def planned(docs: list) -> list:
             if not doc.commented(entry) and (entry.state or "").split(" (")[0] == "planned"]
 
 
+def record(root: Path, docs: list, manifest_path: Path) -> list:
+    """Write every hash this program is able to compute, in place.
+
+    Printing a value and letting a run copy it into a file leaves one hand in the loop, and a hand
+    is what made every pre-4-August hash unverifiable. This closes that: `blueprint` calls one
+    command instead of transcribing numbers.
+    """
+    written = []
+
+    def rewrite(found: re.Match) -> str:
+        # Substituting on the match keeps whatever spacing the line had; rebuilding the string from
+        # the captured groups silently dropped the space before the `@`.
+        path_text, heading, recorded = found.group(1), found.group(2), found.group(3)
+        target = root / path_text.strip()
+        if not target.is_file():
+            return found.group(0)
+        section = section_of(target.read_text(encoding="utf-8"), heading.strip())
+        if section is None:
+            return found.group(0)
+        fresh = digest(section)
+        if fresh == recorded:
+            return found.group(0)
+        written.append(f"{doc.path.name} → {path_text.strip()}#{heading.strip()} {recorded} → {fresh}")
+        return found.group(0).replace(f"@{recorded}", f"@{fresh}")
+
+    for doc in docs:
+        text = SOURCE_RE.sub(rewrite, doc.text)
+        if text != doc.text:
+            doc.path.write_text(text, encoding="utf-8")
+            doc.text = text
+
+    if manifest_path.is_file():
+        text = manifest_path.read_text(encoding="utf-8")
+        for name in re.findall(r"^\s{4}([\w.\-]+):\s*([0-9a-f]*)\s*$", text, re.M):
+            manifest_file, recorded = name
+            target = root / manifest_file
+            if not target.is_file():
+                continue
+            fresh = digest(target.read_text(encoding="utf-8"))
+            if fresh == recorded:
+                continue
+            text = re.sub(rf"^(\s{{4}}{re.escape(manifest_file)}:\s*)[0-9a-f]*\s*$",
+                          rf"\g<1>{fresh}", text, flags=re.M)
+            written.append(f"project.yml → {manifest_file} {recorded or '(empty)'} → {fresh}")
+        manifest_path.write_text(text, encoding="utf-8")
+
+    return written
+
+
 # --------------------------------------------------------------------------------------------
 # the state of the work
 #
@@ -486,6 +546,27 @@ def open_runs(root: Path) -> list:
                     "branch": run.get("branch"), "waiting_on": run.get("waiting_on"),
                     "blockers": run.get("blockers") or []})
     return out
+
+
+def scenarios(root: Path) -> tuple:
+    """How many scenarios the knowledge describes, and how many a test says it walks.
+
+    A scenario is proved by an end-to-end test carrying `agent-kit:scenario <its heading>`; without
+    one it has only a trace through the code, which was true on the day somebody last looked.
+    """
+    path = root / KNOWLEDGE / "scenarios.md"
+    if not path.is_file():
+        return 0, []
+    text = path.read_text(encoding="utf-8", errors="replace")
+    body = re.sub(r"<!--.*?-->", "", text, flags=re.S)          # the template's example is commented
+    described = [h.strip() for h in HEADING_RE.findall(body)]
+    covered = set()
+    for _path, _number, line in grep(root, SCENARIO_MARK):
+        named = line.split(SCENARIO_MARK, 1)[1].strip(" :\"'*/#-\t")
+        if named:
+            covered.add(" ".join(named.split()).lower())
+    uncovered = [h for h in described if " ".join(h.split()).lower() not in covered]
+    return len(described), uncovered
 
 
 def audit_lenses(root: Path) -> list:
@@ -567,6 +648,11 @@ def print_state(root: Path, offline: bool) -> None:
               f"{', conflicts' if pr['mergeable'] == 'CONFLICTING' else ''}, "
               f"updated {pr['updated']}")
 
+    described, uncovered = scenarios(root)
+    if described:
+        print(f"  scenarios: {described} described, {described - len(uncovered)} with an end-to-end "
+              f"test" + (f" — uncovered: {', '.join(uncovered[:3])}" if uncovered else ""))
+
     lenses = audit_lenses(root)
     if lenses:
         print("  audits: " + ", ".join(
@@ -593,6 +679,9 @@ def main(argv: list | None = None) -> int:
     parser.add_argument("root", nargs="?", default=".", type=Path)
     parser.add_argument("--status", action="store_true", help="always print where the project stands")
     parser.add_argument("--offline", action="store_true", help="do not ask gh about pull requests")
+    parser.add_argument("--record", action="store_true",
+                        help="rewrite every source and dependency hash in place, so no run has to "
+                             "copy one by hand")
     parser.add_argument("--state", action="store_true",
                         help="also print the state of the work: branches, pull requests, runs left "
                              "mid-flight, when each lens last ran")
@@ -628,6 +717,12 @@ def main(argv: list | None = None) -> int:
     docs = [Doc(p) for p in sorted(knowledge.glob("*.md"))]
     manifest = read_manifest(root / MANIFEST)
     report = Report()
+
+    if options.record:
+        written = record(root, docs, root / MANIFEST)
+        print("\n".join(f"  {line}" for line in written) if written
+              else "  every hash was already current")
+        return 0
 
     sync_states(docs, report, options.offline)
     check_fields(docs, report)

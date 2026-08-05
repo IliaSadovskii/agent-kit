@@ -328,6 +328,55 @@ class CheckCase(unittest.TestCase):
         _code, output = self.run_check("--state")
         self.assertIn("no git repository here", output)      # docs still read
 
+    # ---- hashes this program owns --------------------------------------------------------------
+
+    def sourced_project(self, recorded):
+        (self.root / "idea.md").write_text("# Idea\n\nWhat it is for.\n", encoding="utf-8")
+        self.write("product.md", f"# Product\n\n`source: idea.md#Idea @{recorded}`\n")
+
+    def test_a_hash_from_before_the_program_is_named_as_such_not_as_a_change(self):
+        self.sourced_project("a3f1c9d")            # seven characters: nobody could have computed it
+        _code, output = self.run_check()
+        self.assertIn("predate this program", output)
+        self.assertNotIn("→", output)              # not reported as a value that moved
+
+    def test_record_writes_the_hashes_and_says_what_it_wrote(self):
+        self.sourced_project("a3f1c9d")
+        _code, output = self.run_check("--record")
+        self.assertIn("idea.md#Idea", output)
+        code, after = self.run_check()
+        self.assertEqual(code, 0, after)            # and the check goes quiet
+        self.assertEqual(after, "")
+
+    def test_record_is_idempotent(self):
+        self.sourced_project("a3f1c9d")
+        self.run_check("--record")
+        _code, output = self.run_check("--record")
+        self.assertIn("already current", output)
+
+    def test_record_keeps_the_spacing_of_the_line_it_rewrites(self):
+        self.sourced_project("a3f1c9d")
+        self.run_check("--record")
+        line = (self.root / "docs" / "knowledge" / "product.md").read_text(encoding="utf-8")
+        self.assertIn("#Idea @", line)              # the space before the @ survived
+
+    # ---- scenarios and their end-to-end tests --------------------------------------------------
+
+    def test_a_scenario_with_no_test_is_counted_as_uncovered(self):
+        self.suite("it('x');\n")
+        self.write("scenarios.md", "# Scenarios\n\n### Anna accepts an offer\n\n**Who:** Anna\n")
+        _code, output = self.run_check("--state")
+        self.assertIn("1 described, 0 with an end-to-end test", output)
+        self.assertIn("Anna accepts an offer", output)
+
+    def test_a_test_claiming_the_scenario_by_name_counts(self):
+        self.suite("// agent-kit:scenario Anna accepts an offer\nit('walks it');\n")
+        self.write("scenarios.md", "# Scenarios\n\n### Anna accepts an offer\n\n**Who:** Anna\n")
+        self.git("add", "-A")
+        _code, output = self.run_check("--state")
+        self.assertIn("1 described, 1 with an end-to-end test", output)
+        self.assertNotIn("uncovered", output)
+
     # ---- a project with no blueprint at all ----------------------------------------------------
 
     def test_a_project_without_knowledge_is_not_a_failure(self):
