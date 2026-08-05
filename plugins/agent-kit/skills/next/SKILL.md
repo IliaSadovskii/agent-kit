@@ -18,10 +18,24 @@ you rank, you say one line. The owner runs it.
 
 The single exception is the bookkeeping you just did: when you establish that an audit's box is
 closed — the entry is built, the pull request that closed it is merged — **tick it**, right then:
-`- [x]` with the pull request that closed it, in `docs/audits/<lens>.md`, in the project's
-language. You are the one holding the evidence, and if you
-leave it unticked every later run repeats the same comparison and the list keeps lying. Tick only
-what you verified; a box ticked on a guess costs more than one left open.
+`- [x]` with the pull request that closed it, in `docs/audits/<lens>.md`, in the project's language.
+You are the one holding the evidence, and if you leave it unticked every later run repeats the same
+comparison and the list keeps lying. Tick only what you verified; a box ticked on a guess costs more
+than one left open.
+
+That tick goes straight to the default branch, with no pull request: it is not a decision anybody
+needs to approve, it is a fact catching up with itself. Which is exactly why it is fenced:
+
+- **only `docs/audits/*`, and only boxes** — not a line of anything else in that commit, or the next
+  run will fix "just one more thing" in the same breath;
+- **its own commit**, message `docs(audits): …`, so it reads as bookkeeping in the history rather
+  than hiding inside work;
+- **switch branches only when it costs nothing**: a clean tree and a current branch already merged.
+  Otherwise leave the boxes alone and say it — *ten of eleven are closed, I will tick them when the
+  tree is free* — because moving somebody off their branch is a bigger intrusion than a stale list;
+- **a rejected push is an answer.** If the branch is protected, keep the commit local, say so, and
+  do not go looking for a way around it. A command that changes nothing does not argue with branch
+  protection.
 
 ## Read this much and no more
 

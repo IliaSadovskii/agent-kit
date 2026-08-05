@@ -3,6 +3,14 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.37.1
+
+`next` gained the right to tick a box it had verified and, on its third run, exercised it by
+switching to the default branch, committing and pushing — all reasonable, none of it written down.
+The fence now is: only `docs/audits/*` and only boxes, its own `docs(audits):` commit, branches
+switched only when the tree is clean and the current branch already merged, and a rejected push
+accepted rather than worked around.
+
 ## 0.37.0
 
 A second run of `next` on a real project did better than the rule it was following, and worse in one
