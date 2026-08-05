@@ -104,9 +104,24 @@ and report anything that needs a feature's design changed. Never merge.
 ## Knowledge
 
 For every entry a finished feature built, set its machine line to `state: building (pr: <n>)` with
-the batch's number. That is the only thing you write into `docs/knowledge/` — the assumption blocks
-were written by the children as they went, and `blueprint --check` moves an entry to `built` once
-the pull request merges.
+the batch's number. `blueprint --check` moves an entry to `built` once the pull request merges.
+
+**Then apply the `[stale …]` blocks the children left.** A block says two things — what the entry
+still claims, and what became true when the feature shipped — so putting the second in place of the
+first is transcription, not judgement, and you are the last session that knows this batch. Delete
+the block in the same commit and **name every sentence you changed in the report**, one line each,
+uncollapsed: a pull request that edits the description it is judged against has to make that the
+easiest thing in it to see.
+
+Two limits, and outside them the block stays and travels to `blueprint`:
+
+- **only what the block itself states.** If applying it means deciding anything the block does not
+  already say, it is not yours.
+- **never what an entry requires.** A block claiming the product should do something else is a
+  product decision wearing a correction's clothes. The owner settles those.
+
+`[assumed …]` blocks are not touched. They are questions nobody has answered, they are already in
+the Assumptions section of this pull request, and answering them is the owner's.
 
 ## Close the run file
 

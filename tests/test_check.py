@@ -174,15 +174,24 @@ class CheckCase(unittest.TestCase):
         self.assertIn("Open notes", output)
         self.assertIn("assumed", output)
 
-    def test_a_stale_block_is_listed_like_the_other_two(self):
-        """A feature can make an entry's prose false, and only blueprint may rewrite it — so the
-        block under the entry is the whole of the run's move, and the check is what raises it."""
+    def test_a_stale_block_is_a_statement_and_not_a_finding(self):
+        """The block sits under the entry it corrects, so no run is misled while it stands. Counting
+        it as a defect made every command after a batch report the knowledge as broken, and every
+        `next` recommend the same command."""
         self.write("actions.md", ACTIONS + "\n> **[stale 2026-08-05 · claude/x]** Says the driver "
                                            "is `log`; mail goes out over SMTP now.\n")
         code, output = self.run_check()
+        self.assertEqual(code, 0)
+        self.assertIn("Prose a feature has already outdated (1)", output)
+        self.assertIn("SMTP", output)
+        self.assertNotIn("Open notes", output)
+
+    def test_an_assumption_stays_a_finding(self):
+        """It is a question nobody has answered, which is not the same thing at all."""
+        self.write("actions.md", ACTIONS + "\n> **[assumed 2026-08-05 · claude/x]** Nothing says "
+                                           "where it is stored. Took: beside the post.\n")
+        code, _output = self.run_check()
         self.assertEqual(code, 1)
-        self.assertIn("Open notes", output)
-        self.assertIn("stale", output)
 
     # ---- promises the product does not keep ----------------------------------------------------
 

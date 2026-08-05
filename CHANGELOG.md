@@ -3,6 +3,30 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.44.0
+
+A record that can only be closed by a command the owner has to start for that purpose makes every
+batch end owing them a command — and `next` recommended exactly that after every sprint, because an
+open block made the check unclean and the ladder read unclean knowledge as *not ready*. The block
+was the right idea in the wrong place: it had a closer and nowhere to be closed.
+
+- **A block is settled inside work that was happening anyway.** `ship` and `sprint` show the blocks
+  on the entries in scope in their first minute, as they always did — and now, when the owner
+  answers, they write it into the entry and delete the block in their own `docs(knowledge):` commit.
+  Transcribing an answer, never deciding: what an entry *requires* is still `blueprint`'s alone.
+- **The session that closes a batch applies the `[stale …]` blocks its children left.** Such a block
+  states both halves — what the entry claims, what became true — so putting the second in place of
+  the first needs no judgement and no owner. It rides in the pull request they are about to read,
+  with every changed sentence named in the report. So a batch no longer ends by leaving stale prose
+  behind at all.
+- **`[stale …]` is a statement, not a finding.** It sits under the prose it corrects, so no run is
+  misled while it stands, and it no longer changes the check's exit code. `[assumed …]` stays a
+  finding: it is a question nobody has answered.
+- **`next` does not recommend `blueprint` for open blocks.** It reports the count and goes on down
+  the ladder — unless the entry it was about to recommend building is the one carrying the block.
+- The graph in `docs/design/the-loop.md` gains the column it was missing: **where** a record is
+  closed, not only who may close it. Every defect of this release lived in that column.
+
 ## 0.43.1
 
 - **`blueprint` deletes a ledger line whose work it has just done.** The rule was already the

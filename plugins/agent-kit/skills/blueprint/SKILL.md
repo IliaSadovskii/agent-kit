@@ -10,10 +10,15 @@ disable-model-invocation: true
 Everything the project knows about itself, in one place, written before anything is built.
 `fix`, `ship`, `sprint` and `mvp` read it; none of them write prose into it.
 
-**One writer, one trigger.** Only blueprint rewrites knowledge, and only the owner starts
-blueprint. Everything else can mark — a build command leaves a note, `--check` flags what went
-stale — but nothing revises knowledge on its own. Rules the build follows must not change under a
-run.
+**One decider, one trigger.** Only blueprint decides what an entry *requires*, and only the owner
+starts blueprint. Rules the build follows must not change under a run.
+
+Everything else may record, or transcribe — never decide. A build command leaves a block where it
+had to assume something or where its feature outdated a sentence; that same command, or the next
+one, writes the owner's answer into the entry and deletes the block while they are sitting there;
+the session closing a batch applies a block that already states both halves. None of them settles
+anything, and each change rides in a pull request the owner reads. What none of them may do is
+change what the product must do — that is the sentence this rule exists for.
 
 ## How it is invoked
 

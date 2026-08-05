@@ -45,7 +45,8 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status
 | What it found | What you do |
 |---|---|
 | an entry in the batch incomplete, or a slot unsettled | name it and offer `/agent-kit:blueprint` — the owner is here and closes it in a minute |
-| `[assumed …]` blocks on entries you are about to build | show them; this is the last moment anyone can answer |
+| `[assumed …]` blocks on entries you are about to build | show them; this is the last moment anyone can answer. **When the owner answers, write it into the entry and delete the block** — its own `docs(knowledge):` commit, before the children start, so every one of them builds against the settled text |
+| `[stale …]` blocks on those entries | an earlier feature outdated a sentence and could not correct it; the block says what the entry claims and what is true now. Apply it and delete the block, in the same commit. You are transcribing what a run already established, not deciding anything |
 | promises the product does not keep | one line with the count, then go on composing the batch the owner came for. With no theme they are one of the candidates you put up — see below |
 | no `docs/knowledge/` at all | carry on from the owner's own words, and say once that without entries the tests can only aim at what each task says done means |
 | nothing | continue without a word about it |

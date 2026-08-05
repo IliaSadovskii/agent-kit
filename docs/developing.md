@@ -50,9 +50,9 @@ because each was added on its own and nobody looked at the column.
 
 | File | Who writes it | What they may write |
 |---|---|---|
-| `docs/knowledge/*.md` — prose | `blueprint` | all of it; nothing else touches the prose |
+| `docs/knowledge/*.md` — prose | `blueprint` decides it. `ship`, `sprint` and a batch's closing session may transcribe: the owner's answer to an open block, or a `[stale …]` block that already states both halves | never a change to what an entry requires — that is the decision the rule exists to protect |
 | `docs/knowledge/*.md` — an entry's `state:` line | `ship`, the closing session, and `next` via `check.py --sync` | `building (pr: n)` when a pull request opens; `built` or back to `planned` from a merged or closed one. Every run of the check says when a line is behind; only `--sync` moves it |
-| `docs/knowledge/*.md` — `[assumed …]`, `[found …]` and `[stale …]` blocks | `ship`, `fix` | a block under the entry they stood in for; `blueprint` is what deletes one |
+| `docs/knowledge/*.md` — `[assumed …]`, `[found …]` and `[stale …]` blocks | `ship`, `fix` | a block under the entry they stood in for; deleted by whoever applies it — `blueprint`, a preflight with the owner present, or the closing session for a `[stale …]` |
 | `docs/technical_debt.md` | `ship`, `fix`, the closing session, and `blueprint` for a line whose work was prose | a line appended, or a finished line deleted; never a ticked box |
 | `docs/audits/<lens>.md` | `audit` | the lens's own work list, rewritten whole on each run |
 | `docs/audits/<lens>.md` — the boxes | the closing session, `next` | `- [x]` on an item verified as done, and nothing else in that commit |
@@ -60,9 +60,12 @@ because each was added on its own and nobody looked at the column.
 | `.agent-kit/runs/<slug>/run.json` | the run it belongs to, and the driver | the run writes its own state; the driver writes `step`, `blockers` and the batch's own file |
 | `.agent-kit/runs/<slug>/run.log` | the driver | when a session started, stalled, waited out a limit, finished |
 
-Two properties are worth keeping as the table grows: **one writer per kind of content**, even where
-a file has several writers overall; and **nothing writes to a project as a side effect of reading
-it** — that is why `check.py` moves a state line only when it is asked with `--sync`.
+Three properties are worth keeping as the table grows. **One decider per kind of content**, even
+where a file has several writers overall — the others transcribe what the decider settled. **Nothing
+writes to a project as a side effect of reading it**, which is why `check.py` moves a state line
+only when asked with `--sync`. And **a record is closed inside work that was happening anyway**: a
+record whose only closing place is a command the owner has to start for that purpose turns every
+batch into a chore, and the reminder to run it stops being read.
 
 The lifecycle of each record — who records it, what raises it again, who may close it, and who
 removes it — is [docs/design/the-loop.md](design/the-loop.md), which is the map the tables here, in

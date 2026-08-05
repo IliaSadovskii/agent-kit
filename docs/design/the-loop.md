@@ -23,21 +23,25 @@ when a merged feature sat at `building` for a week.
 
 ## The records
 
-Five columns. A record with a blank in any of them is a defect, not a design.
+Six columns. A record with a blank in any of them is a defect, not a design — and the last one is
+the column this page did not have when it was written. *Who* may close a record says nothing about
+*where* that happens, and a record whose only closing place is a session the owner has to start by
+hand is a record that makes them run a command after every batch. That is what an open block did
+until 0.44.0.
 
-| What was found | Who records it | Where it lives | What raises it again | Who may close it |
-|---|---|---|---|---|
-| a decision the knowledge did not settle, expensive to reverse | `ship`, `fix` | `[assumed …]` block under the entry | the check, before every command | `blueprint` — asks it as a yes-or-no, rewrites the entry, deletes the block |
-| a ready-made answer the library map does not name | `ship`, `fix` | `[found …]` block under `stack.md` | the check, before every command | `blueprint` — folds it into the map and deletes the block |
-| the entry promises what the product does not do | `ship` | `agent-kit:unmet` on a test, plus `unmet` in the run file | the check lists it; `sprint` with no theme offers it as a batch | the owner picks the side; then `ship` makes it true and unmarks, or `blueprint` rewrites the entry and `ship` deletes the test |
-| what a run built made the entry's prose false | `ship`, `fix` | `[stale …]` block under the entry | the check, before every command | `blueprint` — rewrites the prose and deletes the block |
-| work understood and not done | `ship`, `fix` | a line in `docs/technical_debt.md` | the check counts it; `sprint` with no theme offers it | whoever does that work — `ship`, `fix`, or `blueprint` where the work was prose — deleting the line in the same commit |
-| a gap between the code and the description | `audit` | a box in `docs/audits/<lens>.md` | `next`; `sprint` composes a batch from it | `ship`, `fix` do the work; the closing session or `next` tick the box |
-| a rule the project never wrote, where the code is plainly worse | `audit` | "also noticed" in the lens's file | that lens's next run | `blueprint`, by making it a rule — or nobody, deliberately |
-| a scenario with no end-to-end test | nobody records it — it is computed | the absence of `agent-kit:scenario` in the suite | `check.py --state`, and `next` at rung 8 | `ship`, writing the test — via the scenarios lens and a batch |
-| a feature delivered | `ship` or the closing session | `state: building (pr: n)` on the entry | the check compares against the pull request on every run | `next` or `blueprint --check`, with `--sync` |
-| a fork nobody was there to answer | `ship` | `waiting_on` in the run file | the window, the driver, `next` | the run itself, when the answer lands in `answers` |
-| everything else a run learned | the run | `deviations`, `notes`, `blockers`, `review`, `suite`, `answers` | the closing session, into the pull request | **nobody — this is history by design**, and it dies with the branch |
+| What was found | Who records it | Where it lives | What raises it again | Who may close it | Where that happens |
+|---|---|---|---|---|---|
+| a decision the knowledge did not settle, expensive to reverse | `ship`, `fix` | `[assumed …]` block under the entry | the check, before every command | `blueprint` — asks it as a yes-or-no, rewrites the entry, deletes the block | in a `blueprint` session, or in the preflight of the next command to touch that entry, when the owner answers there |
+| a ready-made answer the library map does not name | `ship`, `fix` | `[found …]` block under `stack.md` | the check, before every command | `blueprint` — folds it into the map and deletes the block | in a `blueprint` session |
+| the entry promises what the product does not do | `ship` | `agent-kit:unmet` on a test, plus `unmet` in the run file | the check lists it; `sprint` with no theme offers it as a batch | the owner picks the side; then `ship` makes it true and unmarks, or `blueprint` rewrites the entry and `ship` deletes the test | in a `sprint` composed of unkept promises |
+| what a run built made the entry's prose false | `ship`, `fix` | `[stale …]` block under the entry | the check, before every command | `blueprint` — rewrites the prose and deletes the block | the batch's closing session applies it in the pull request; otherwise the preflight of the next command to touch that entry, or a `blueprint` session |
+| work understood and not done | `ship`, `fix` | a line in `docs/technical_debt.md` | the check counts it; `sprint` with no theme offers it | whoever does that work — `ship`, `fix`, or `blueprint` where the work was prose — deleting the line in the same commit | in the commit that does the work |
+| a gap between the code and the description | `audit` | a box in `docs/audits/<lens>.md` | `next`; `sprint` composes a batch from it | `ship`, `fix` do the work; the closing session or `next` tick the box | in the batch's own commit, or in `next`'s bookkeeping commit |
+| a rule the project never wrote, where the code is plainly worse | `audit` | "also noticed" in the lens's file | that lens's next run | `blueprint`, by making it a rule — or nobody, deliberately | in a `blueprint` session |
+| a scenario with no end-to-end test | nobody records it — it is computed | the absence of `agent-kit:scenario` in the suite | `check.py --state`, and `next` at rung 8 | `ship`, writing the test — via the scenarios lens and a batch | in a `sprint` composed from that lens |
+| a feature delivered | `ship` or the closing session | `state: building (pr: n)` on the entry | the check compares against the pull request on every run | `next` or `blueprint --check`, with `--sync` | in their own `docs(knowledge):` commit |
+| a fork nobody was there to answer | `ship` | `waiting_on` in the run file | the window, the driver, `next` | the run itself, when the answer lands in `answers` | in the run that asked |
+| everything else a run learned | the run | `deviations`, `notes`, `blockers`, `review`, `suite`, `answers` | the closing session, into the pull request | **nobody — this is history by design**, and it dies with the branch | — |
 
 ## The cycles
 
@@ -45,8 +49,15 @@ Five columns. A record with a blank in any of them is a defect, not a design.
 state line → the pull request merges → `next` or `blueprint --check` moves it to `built`. Closed.
 
 **2. Code → knowledge.** A run meets a gap in the description and takes a decision → `[assumed …]`
-→ the check prints it before every command → `blueprint` asks the owner one yes-or-no → the entry
-gains the answer, the block goes. Closed.
+→ the check prints it before every command → the next command to touch that entry shows it to the
+owner in its preflight and writes their answer in, or a `blueprint` session does → the block goes.
+Closed, and **without a command run for the purpose**: the settling happens inside work the owner
+was doing anyway, which is the difference between a loop and a chore.
+
+**2b. Code → knowledge, with nothing to ask.** A feature outdates a sentence of its own entry →
+`[stale …]` under it, saying what it claims and what is true now → the batch's closing session
+applies it in the pull request the owner is about to read, or the next command to touch that entry
+does. Nothing is misled meanwhile: the correction sits under the prose it corrects. Closed.
 
 **3. The contradiction.** An entry promises what the code does not do → the test is written and
 marked, the run file names it → the check lists it for ever → `sprint` with no theme offers the pile
@@ -112,7 +123,11 @@ Two sentences say the whole loop:
 
 > **Records are written by many. Reminding is always the check. Only three commands resolve
 > anything: `ship` and `fix` change code, `blueprint` changes knowledge, `audit` writes its own
-> list.**
+> list.** Everything else transcribes what one of them has already established.
+
+> **A record is closed inside work that was happening anyway.** If the only place it can be closed
+> is a session the owner has to start for that purpose, every batch ends by owing them a command,
+> and the recommendation to run it stops being read by the third time.
 
 > **Every record names who may close it and who removes it.** They may be different actors — but
 > both must be named, and a record whose resolver cannot remove it needs a remover of its own.

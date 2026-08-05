@@ -45,9 +45,11 @@ Three ways in:
   of the pull requests behind entries being built, and the promises the product does not keep.
   Seconds, asks nothing, quiet when there is nothing open.
 
-**One writer, one trigger.** Only blueprint rewrites knowledge, and only you start blueprint. A
-build command may leave a marked note where it had to assume something, and `--check` may flag what
-went stale — but nothing revises knowledge on its own.
+**One decider, one trigger.** Only blueprint decides what an entry requires, and only you start
+blueprint. A build command leaves a marked block where it had to assume something, or where its own
+feature outdated a sentence — and when you are sitting there, the next command settles the block with
+you and writes your answer in rather than sending you off to run another command. Nothing revises
+what the product must do on its own.
 
 ## Fix
 
@@ -138,7 +140,7 @@ is allowed to remove is a record that grows for ever:
 | Record | Holds | Written by | Closed by |
 |---|---|---|---|
 | `docs/knowledge/` | what the product is, one file per slot; each entry's state — `planned`, `building (pr: n)`, `built` | `blueprint` writes the prose; a build command sets `building`, and the line moves on from there once its pull request merges | the state line is bookkeeping; the prose is `blueprint`'s alone |
-| `[assumed …]`, `[found …]`, `[stale …]` blocks | what a run had to decide without you, a library it found, or prose its own feature has made false | any build command, under the entry or under `stack.md` | `blueprint`, by rewriting and deleting the block — nothing else removes one |
+| `[assumed …]`, `[found …]`, `[stale …]` blocks | what a run had to decide without you, a library it found, or prose its own feature has made false | any build command, under the entry or under `stack.md` | `blueprint` — or the next command that builds in that entry, which settles it with you in its first minute |
 | `agent-kit:unmet` on a test | a promise the entry makes and the product does not keep — the test is written and marked so the suite stays green | `ship`, when the entry and the code contradict each other | you choose the side; then the product changes or the entry does |
 | `docs/technical_debt.md` | work a run understood and did not do | `ship`, `fix`, and the session that closes a batch | whoever does the work, deleting the line in the same commit |
 | `docs/audits/*.md` | a lens's work list, boxes ticked as they are closed | `audit` writes; a batch and `next` tick | that lens's next run, which rewrites the file |

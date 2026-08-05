@@ -103,11 +103,19 @@ alone, not what is most interesting.
 | 4 | CI failing — on a pull request or on the default branch | it breaks whatever starts next | `/agent-kit:fix` |
 | 5 | a pull request with conflicts, or one never reviewed | it looks finished and is not | resolve, or review it |
 | 6 | somebody is waiting: a run's `waiting_on`, open `[assumed …]` on entries about to be built | the answer is cheapest while the context is warm | answer it, or `/agent-kit:blueprint` |
-| 7 | knowledge not ready: a slot `open_question`, empty fields, a stale `source:`, a `[stale …]` block saying an entry's prose is now false | a run over that entry believes what it reads, and invents the missing half | `/agent-kit:blueprint` |
+| 7 | knowledge not ready **for the work you are about to name**: a slot `open_question`, empty fields, a stale `source:`, an open block on the very entry you would recommend building | a run over that entry invents the missing half | `/agent-kit:blueprint` |
 | 8 | a blind spot: a lens that never ran, or ran long ago; scenarios with no end-to-end test | not knowing what is broken is not the same as nothing being broken | `/agent-kit:audit <lens>` |
 | 9 | debt, unkept promises, unticked audit boxes | it only gets more expensive | `/agent-kit:sprint` with no theme |
 | 10 | entries still `planned` | the product is unfinished | `/agent-kit:sprint` or `/agent-kit:ship <key>` |
 | 11 | none of the above | say so | nothing |
+
+**An open block is not by itself a reason to recommend `blueprint`.** Every batch leaves some, and a
+ladder that fires on them recommends the same command after every sprint until the owner learns to
+ignore the recommendation. A `[stale …]` carries its own correction under the entry, so no run is
+misled; an `[assumed …]` is a decision already taken and already in a merged pull request. Both are
+settled by the next command that builds in that entry, with the owner present, and the check names
+them there. Report the count in *Where it stands* and go on down the ladder — unless the entry you
+were about to recommend is the one carrying the block, which is rung 7.
 
 Three overrides, because a ladder read literally lies:
 

@@ -177,6 +177,7 @@ class Report:
     def __init__(self):
         self.groups: dict = {}
         self.notes: list = []
+        self.stale: list = []
         self.states: list = []
         self.unmet: list = []
         self.debt: list = []
@@ -423,9 +424,19 @@ def grep(root: Path, needle: str) -> list:
 
 
 def collect_notes(docs: list, report: Report) -> None:
+    """Blocks a run left under an entry — and the two kinds are not equally urgent.
+
+    `[assumed …]` and `[found …]` are questions the owner has not answered, so they are findings and
+    they change the exit code. A `[stale …]` is not a question: the run wrote both what the entry
+    still says and what is true now, and the block sits under the entry, so every later run reads
+    the correction along with the prose it corrects. Nobody is misled while it is open. Reported as
+    a statement, like a promise the product does not keep, or every command after a batch reports
+    knowledge as broken and every `next` recommends the same command.
+    """
     for doc in docs:
         for kind, tail, text in NOTE_RE.findall(doc.text):
-            report.notes.append(f"[{kind}{tail}] {doc.path.name}: {text.strip()[:90]}")
+            line = f"[{kind}{tail}] {doc.path.name}: {text.strip()[:90]}"
+            (report.stale if kind == "stale" else report.notes).append(line)
 
 
 def sync_states(docs: list, report: Report, sync: bool, offline: bool) -> None:
@@ -913,6 +924,14 @@ def main(argv: list | None = None) -> int:
             print(f"  {line}")
         print("  Not this run's work. They are offered as a batch by /agent-kit:sprint with no theme.")
 
+    if report.stale:
+        print(f"\nProse a feature has already outdated ({len(report.stale)}) — the entry carries "
+              "the correction under it, so nothing is misled while it stands:")
+        for line in report.stale:
+            print(f"  {line}")
+        print("  Applied by whoever next builds in that entry, with the owner present, or by "
+              "/agent-kit:blueprint. Not a reason to run either.")
+
     for line in report.drift:
         print(f"\n  {line}")
 
@@ -923,7 +942,7 @@ def main(argv: list | None = None) -> int:
         if len(report.debt) > UNMET_SHOWN:
             print(f"  … and {len(report.debt) - UNMET_SHOWN} more")
 
-    if report.clean and not report.notes:
+    if report.clean and not report.notes:      # `stale` is a statement, not a finding
         if options.status:
             print("Knowledge is clean. " + ", ".join(standing(docs)))
             print_planned(docs)
@@ -944,7 +963,7 @@ def main(argv: list | None = None) -> int:
         print("\n  Every source looks changed — most likely they were recorded before this program "
               "owned the hash. Re-record them with blueprint rather than reading each document.")
     if report.notes:
-        print(f"\nOpen notes ({len(report.notes)}) — each is waiting for blueprint: a decision to confirm, a library to record, or prose a feature has made false:")
+        print(f"\nOpen notes ({len(report.notes)}) — each is a decision waiting for the owner:")
         for note in report.notes:
             print(f"  {note}")
 
