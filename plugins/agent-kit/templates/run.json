@@ -32,6 +32,8 @@
   "unmet": [],
   "_deferred": "Work this run decided not to do, one line each — the same lines it wrote into docs/technical_debt.md. Delivering a pull request itself, the run has already written them there; inside a batch, the closing session carries them over.",
   "deferred": [],
+  "_closed_debt": "Items of docs/technical_debt.md this run finished and deleted from the file, one line each. The ledger only shrinks in a commit that does the work, and this is where a batch's report gets the count from.",
+  "closed_debt": [],
   "blockers": [],
 
   "window": null,

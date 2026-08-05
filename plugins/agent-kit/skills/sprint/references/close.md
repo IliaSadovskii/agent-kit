@@ -55,11 +55,16 @@ Inside it, uncollapsed, **the promises this batch did not keep**: every line of 
 green while the product contradicts three entries is only honest if that list is in plain sight —
 and it is the list the next `sprint` composes a batch from.
 
-**Then write the batch's leftovers into `docs/technical_debt.md`** — every child's `deferred`, one line each,
-newest first, copying `${CLAUDE_PLUGIN_ROOT}/templates/technical_debt.md` if the file is not there yet. Commit
-it on the batch's branch, before the pull request. This is the only step of yours that leaves
-something behind in the repository, and it is the difference between work the project remembers and
-work that lived in a pull request until it was merged.
+**The ledger moves both ways in one commit.** Delete the lines the children finished — their
+`closed_debt` — and write in the batch's leftovers, every child's `deferred`, one line each, newest
+first, copying `${CLAUDE_PLUGIN_ROOT}/templates/technical_debt.md` if it is not there yet. Commit
+it on the batch's branch, before the pull request, and say the movement in one line of the report:
+nine items, three closed, two added. This is the only step of yours that leaves something behind in
+the repository, and it is the difference between work the project remembers and work that lived in a
+pull request until it was merged.
+
+A child that says it closed an item whose line is still there did not finish it — carry the line
+over untouched and name the feature in the report, rather than deleting on its word.
 
 Then a collapsed block per feature, about eight lines: what it does now in the product's terms, the
 approach in one sentence, where the tests sit, its branch, and the command that opens it as its own

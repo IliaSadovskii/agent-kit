@@ -124,6 +124,10 @@ the test and hands the wording to `blueprint`. That answer is the design; a chil
 What the owner leaves undecided stays marked and stays on the list. Nothing here is ever closed by
 removing a mark alone: an unmarked test that nobody made pass is a promise quietly withdrawn.
 
+A feature taken off the ledger carries its line into the child's `task`, quoted — the child deletes
+that exact line as it does the work, and a paraphrase leaves the run guessing which of nine it was
+sent to close.
+
 ## Write the run files
 
 One directory per feature under `.agent-kit/runs/`, plus one for the batch, all shaped like

@@ -3,6 +3,23 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.31.0
+
+The ledger could be written to and never emptied: 0.30.0 said "closed by deleting the line" in the
+template and nowhere a command would read it. A list that only grows is read once.
+
+- **A finished item is deleted, in the commit that does the work** — so the debt going down shows up
+  in the same diff as the code that paid it. Never a ticked box: a ticked box is a line nobody
+  deletes afterwards, and git already holds every line that ever existed.
+- **`closed_debt` in the run file** names what a run closed, the way `deferred` names what it added.
+  The closing session deletes those lines, writes the new ones, commits both together, and reports
+  the movement — nine items, three closed, two added — instead of leaving the owner to diff a file.
+- **A batch taken off the ledger carries the line into the child verbatim**, so a run knows which of
+  nine it was sent to close; a paraphrase leaves it guessing.
+- **Half-finished is not finished**: the line stays and gains what was learned. And a child that
+  claims an item whose line is still there gets carried over untouched — the ledger is not shortened
+  on a run's word.
+
 ## 0.30.0
 
 - **The ledger is `docs/technical_debt.md`.** `debt.md` sat one letter from `deps.md` in the same

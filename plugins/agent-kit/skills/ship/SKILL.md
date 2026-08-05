@@ -200,13 +200,23 @@ covers what you were about to write — leave a `[found …]` block under that f
 the only route by which the map learns anything, since nothing else goes looking on its own.
 
 **Work you decided not to do goes in `docs/technical_debt.md`**, one line, copied from
-`${CLAUDE_PLUGIN_ROOT}/templates/technical_debt.md` when the file does not exist yet. Not the decisions —
-those are `[assumed …]` blocks — and not the promises the product does not keep, which are marks on
-tests. This is the leftover: a fix resting on an invariant nothing checks, a review's minor that
-belonged to another command, a rename you applied in one place of three. Delivering a batch, write
-it into the run file's `deferred` as well, because the closing session reads run files and not your
-diff. An item recorded nowhere survives in a pull request nobody reopens, which is the same as
+`${CLAUDE_PLUGIN_ROOT}/templates/technical_debt.md` when the file is not there yet. Not the
+decisions — those are `[assumed …]` blocks — and not the promises the product does not keep, which
+are marks on tests. This is the leftover: a fix resting on an invariant nothing checks, a review's
+minor that belonged to another command, a rename you applied in one place of three. Delivering a
+batch, write it into the run file's `deferred` as well: the closing session reads run files, not
+your diff. An item recorded nowhere survives in a pull request nobody reopens, which is the same as
 forgotten.
+
+**And the way back out: an item you finished, you delete** — the line, in the commit that does the
+work, so the diff shows the debt going down beside the code that paid it. Never a ticked box. A
+ticked box is a line nobody deletes afterwards, and a ledger of them stops being read within a
+month; git holds every line that was ever there, and the pull request holds the reasoning. The run
+file names what you closed in `closed_debt`, one line each, which is what lets the batch's report
+say the debt went from nine to six rather than leaving the owner to diff a file.
+
+If the work turns out bigger than its line said, the line stays and gains what you learned. Half an
+item deleted is worse than an item untouched: the next run reads the shorter list and believes it.
 
 Code, identifiers and commit messages in English; anything the owner reads in the project's
 language.
