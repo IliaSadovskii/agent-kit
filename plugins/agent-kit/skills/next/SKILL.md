@@ -16,6 +16,13 @@ open. This one exists for the cold start — a week later, in a new session, wit
 **You change nothing and start nothing.** Not a branch, not a file, not another command. You read,
 you rank, you say one line. The owner runs it.
 
+The single exception is the bookkeeping you just did: when you establish that an audit's box is
+closed — the entry is built, the pull request that closed it is merged — **tick it**, right then:
+`- [x]` with the pull request that closed it, in `docs/audits/<lens>.md`, in the project's
+language. You are the one holding the evidence, and if you
+leave it unticked every later run repeats the same comparison and the list keeps lying. Tick only
+what you verified; a box ticked on a guess costs more than one left open.
+
 ## Read this much and no more
 
 ```bash
@@ -33,8 +40,19 @@ Two things it does not carry, and you read them yourself only when the ladder be
 - `docs/technical_debt.md`, when the debt is what you are about to recommend — the first few lines,
   to name one.
 
-**Read no code, no entries, no transcripts, no run logs.** This command costs seconds or it stops
-being the thing somebody runs before deciding.
+**And one narrow licence beyond that: settling whether a list is stale.** An audit's box may have
+been closed by a batch that never ticked it, so for the items you are about to offer as work, check
+whether they are already done — the entry's state line, or the diff of the pull request that landed
+since the list was written. That is the difference between warning the owner that a list might lie
+and telling them which eight of eleven items are finished, and it is worth the minute it costs.
+
+**Everything else stays shut: no walking the code, no reading entries for their own sake, no
+transcripts, no run logs.** A defect in the product is the audit's find, not yours; going looking
+turns seconds into an afternoon and this into a command nobody runs before deciding.
+
+**Whatever you do name, name it from an open file.** Searching for a word and citing the first file
+it appears in is how a finding lands on the wrong line — the word is in five places and the sentence
+that matters is in one. If you have not opened it, say the thing without the citation.
 
 ## The ladder
 
@@ -65,8 +83,9 @@ Three overrides, because a ladder read literally lies:
 
 Rungs 2, 3 and 9 all have a trap, and it is the same one: **a list can be stale.** A run left at
 `step: build` whose branch is thirty commits behind is not "carry on", it is "start again". An audit
-box may already be closed by a batch that never ticked it — check its entry's state before offering
-it. Say which of these you suspect rather than presenting a stale item as work.
+box may already be closed by a batch that never ticked it — so settle it rather than suspecting it:
+check the entry, tick what is done, and offer the owner the remainder. "Eight of these eleven are
+finished, three are left" is an answer; "some of this may be stale" is homework.
 
 ## What you say
 

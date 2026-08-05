@@ -3,6 +3,23 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.37.0
+
+A second run of `next` on a real project did better than the rule it was following, and worse in one
+way the rule had not thought to forbid.
+
+- **It may settle a stale list, and tick what it settles.** Warning that an audit's boxes might be
+  closed is homework; *eight of these eleven are finished, three are left* is an answer. The licence
+  to check is now explicit — the entry's state, the diff of a pull request that landed since — and
+  so is the one write it may make: tick the box, in the project's language, only for what it
+  verified. Otherwise every later run redoes the same comparison and the list goes on lying.
+- **Everything else stays shut**, and now says so: no walking the code, no reading entries for their
+  own sake. A defect in the product belongs to a lens; a command meant to cost seconds turns into an
+  afternoon the moment it goes looking.
+- **A citation comes from an open file.** The run named a contradiction correctly and put it in the
+  wrong file — the word it searched for appears in five places, and the sentence that mattered was
+  in one. Cite from what you opened, or say the finding without the citation.
+
 ## 0.36.1
 
 Field drift is printed beside the debt rather than filed as a defect. A finished run's file is
