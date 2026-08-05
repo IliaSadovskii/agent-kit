@@ -199,6 +199,15 @@ When you find a ready-made answer the library map in `stack.md` does not name �
 covers what you were about to write — leave a `[found …]` block under that file the same way. It is
 the only route by which the map learns anything, since nothing else goes looking on its own.
 
+**Work you decided not to do goes in `docs/debt.md`**, one line, copied from
+`${CLAUDE_PLUGIN_ROOT}/templates/debt.md` when the file does not exist yet. Not the decisions —
+those are `[assumed …]` blocks — and not the promises the product does not keep, which are marks on
+tests. This is the leftover: a fix resting on an invariant nothing checks, a review's minor that
+belonged to another command, a rename you applied in one place of three. Delivering a batch, write
+it into the run file's `deferred` as well, because the closing session reads run files and not your
+diff. An item recorded nowhere survives in a pull request nobody reopens, which is the same as
+forgotten.
+
 Code, identifiers and commit messages in English; anything the owner reads in the project's
 language.
 

@@ -23,6 +23,8 @@ are canonical, so translate them with the body.
   Tests left marked unmet go here in their own short list — the promise, the test that proves it
   absent, and what would have to change in the product. Never collapsed: a green suite that carries
   unkept promises is exactly the thing a reader will otherwise take for a clean bill.
+  Work left undone goes to `docs/debt.md` in the same branch, and is named here in one line with a
+  pointer to it — a leftover described only in a pull request is forgotten the day it merges.
 - **Review** — the reviewer's findings and how each was closed, and whether the security pass ran or
   was skipped and why. Collapsible, count in the summary line.
 - **Changes** — the key files and their role, as a table. Collapsible.

@@ -262,6 +262,33 @@ class CheckCase(unittest.TestCase):
         self.assertIn("and 5 more", output)
         self.assertEqual(output.count("guest.browse_feed"), 10)
 
+    # ---- the debt ledger -----------------------------------------------------------------------
+
+    def test_open_debt_is_listed_without_failing_the_check(self):
+        (self.root / "docs" / "debt.md").write_text(
+            "# Долг\n\n"
+            "- [ ] Закрепить инвариант «аккаунт всегда с паролем» — на нём держится правка · PR #21\n"
+            "- [ ] Дописать прозу про передачу аккаунта · PR #21\n",
+            encoding="utf-8")
+        code, output = self.run_check()
+        self.assertEqual(code, 0, output)          # a project's own memory is not a defect
+        self.assertIn("Debt (2)", output)
+        self.assertIn("docs/debt.md:3", output)
+
+    def test_a_project_with_no_ledger_says_nothing_about_debt(self):
+        code, output = self.run_check()
+        self.assertEqual(code, 0)
+        self.assertNotIn("Debt", output)
+
+    def test_prose_around_the_items_is_not_counted(self):
+        (self.root / "docs" / "debt.md").write_text(
+            "# Долг\n\nПишут прогоны, читают команды. Формат:\n\n"
+            "```markdown\n- [ ] <что сделать> — <почему> · <прогон>\n```\n\n"
+            "- [ ] Один настоящий пункт · PR #21\n",
+            encoding="utf-8")
+        _code, output = self.run_check()
+        self.assertIn("Debt (1)", output)          # the example inside the fence is indented prose
+
     # ---- a project with no blueprint at all ----------------------------------------------------
 
     def test_a_project_without_knowledge_is_not_a_failure(self):

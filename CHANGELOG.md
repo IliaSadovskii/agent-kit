@@ -3,6 +3,26 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.29.0
+
+A batch closed with two leftovers: an invariant the security fix rested on and nothing checked, and
+two entries whose prose now described the old behaviour. Both were written down — one as an
+`[assumed …]` block, which every command sees, and one in a free-form field of a run file, which
+nothing reads. After the merge the second would have existed only in a pull request nobody reopens.
+
+- **`docs/debt.md`** — the ledger for work a run decided not to do. It is the one thing the kit had
+  nowhere to put: not a decision about the product (`[assumed …]`), not a promise the product does
+  not keep (a marked test), not an unbuilt feature (`state: planned`), not an audit's finding (its
+  own work list). What is left is the leftover a run creates and does not finish.
+- **Written by the runs, not by hand.** `ship` writes the line as it defers the work; inside a batch
+  it also lands in the run file's `deferred`, and the closing session carries every child's into the
+  ledger and commits it on the batch's branch before opening the pull request.
+- **Read before every command.** `check.py` lists the open items and changes no exit code — a
+  project's own memory is not a defect. `sprint` with no theme offers them as a fifth source of
+  candidates, beside planned entries, audits, open notes and unmet promises.
+- **Closed by deleting the line**, in the commit that does the work: a ticked box is a line nobody
+  ever deletes.
+
 ## 0.28.0
 
 0.27.0 shipped the mark with a hand-written file walk behind it, and a review of that release found

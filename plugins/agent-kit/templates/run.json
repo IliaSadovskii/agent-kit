@@ -30,6 +30,8 @@
   "deviations": [],
   "_unmet": "Tests this run left marked `agent-kit:unmet` — a promise of the entry the product does not keep. One line each: the entry, what the code does instead, and what it waits for. The closing session reads only run files, so a mark left out of here does not reach the batch's pull request.",
   "unmet": [],
+  "_deferred": "Work this run decided not to do, one line each — the same lines it wrote into docs/debt.md. Delivering a pull request itself, the run has already written them there; inside a batch, the closing session carries them over.",
+  "deferred": [],
   "blockers": [],
 
   "window": null,

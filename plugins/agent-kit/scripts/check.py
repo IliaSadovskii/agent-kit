@@ -32,6 +32,7 @@ from pathlib import Path
 
 KNOWLEDGE = "docs/knowledge"
 MANIFEST = ".agent-kit/project.yml"
+DEBT = "docs/debt.md"
 MARK = "agent-kit:unmet"
 UNMET_SHOWN = 10
 
@@ -158,6 +159,7 @@ class Report:
         self.notes: list = []
         self.states: list = []
         self.unmet: list = []
+        self.debt: list = []
 
     def add(self, group: str, line: str) -> None:
         self.groups.setdefault(group, []).append(line)
@@ -318,6 +320,25 @@ def collect_unmet(root: Path, manifest: dict, defined: set, report: Report) -> N
         report.unmet.append(f"project.yml has no tests.unmet — what keeps such a test green here")
 
 
+def collect_debt(root: Path, report: Report) -> None:
+    """Work a run decided not to do — the one thing no other record in the kit holds.
+
+    Listed rather than counted, and without an exit code of its own: it is a statement about the
+    project, like an unmet promise, and a run that stopped over it would be stopping over its own
+    memory.
+    """
+    ledger = root / DEBT
+    if not ledger.is_file():
+        return
+    fenced = False
+    for number, line in enumerate(ledger.read_text(encoding="utf-8").splitlines(), 1):
+        item = line.strip()
+        if item.startswith("```"):                 # the file explains its own format in a fence
+            fenced = not fenced
+        elif item.startswith("- [ ]") and not fenced:
+            report.debt.append(f"{DEBT}:{number} {item[5:].strip()[:96]}")
+
+
 def grep(root: Path, needle: str) -> list:
     """Every `path, line number, line` where the needle appears, outside `docs/`."""
     found = subprocess.run(
@@ -462,6 +483,7 @@ def main(argv: list | None = None) -> int:
     check_stack(root, manifest, report)
     check_verdicts(manifest, report)
     collect_unmet(root, manifest, keys(docs), report)
+    collect_debt(root, report)
     collect_notes(docs, report)
 
     if report.states:
@@ -479,6 +501,13 @@ def main(argv: list | None = None) -> int:
         if len(report.unmet) > UNMET_SHOWN:
             print(f"  … and {len(report.unmet) - UNMET_SHOWN} more")
         print("  Not this run's work. They are offered as a batch by /agent-kit:sprint with no theme.")
+
+    if report.debt:
+        print(f"\nDebt ({len(report.debt)}) — work earlier runs decided not to do:")
+        for line in report.debt[:UNMET_SHOWN]:
+            print(f"  {line}")
+        if len(report.debt) > UNMET_SHOWN:
+            print(f"  … and {len(report.debt) - UNMET_SHOWN} more")
 
     if report.clean and not report.notes:
         if options.status:

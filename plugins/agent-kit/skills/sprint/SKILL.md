@@ -84,10 +84,14 @@ what it owes, in four places:
 
 - the entries still **`state: planned`** — described and not built. `--status` names them, so you
   need no entry file to list them;
-- the **open `[assumed …]` notes** and the **promises the product does not keep** — both printed by
-  the same check;
+- the **open `[assumed …]` notes**, the **promises the product does not keep**, and the **debt** in
+  `docs/debt.md` — all three printed by the same check;
 - the **work lists of the audits** in `docs/audits/`. The check does not open those, so read the
   newest file per lens yourself — the unchecked boxes only, never the covered half.
+
+Debt is the cheapest of the five and ages worst: each line is work an earlier run understood well
+enough to describe and left anyway, usually because it belonged to no feature. Offer it as its own
+small batch, or fold a line or two into whatever else is taken.
 
 A work list written before the last batch may already be done — nothing marks an audit's boxes when
 a sprint closes them. Cheapest check there is: the entry's state line. An item whose entry is
