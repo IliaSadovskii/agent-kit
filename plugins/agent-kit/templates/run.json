@@ -1,6 +1,6 @@
 {
   "_": "One run of any command. The same shape for fix, ship, sprint and mvp — what differs is which fields are filled. Written by the run, read by the run that resumes it, by the reviewer, and by whatever launched it. JSON because a script reads it; the owner reads the pull request instead.",
-  "_step": "queued | design | build | verify | deliver | done | blocked | skipped. The last three are terminal: a driver stops watching a run that reaches one, so nothing may leave it there while still working.",
+  "_step": "queued | design | build | verify | deliver | done | blocked | skipped — and building | closing, which only a driver writes on a batch's own file while it works through the children. The last three of the first list are terminal: a driver stops watching a run that reaches one, so nothing may leave it there while still working. The list is closed, and the check names a step outside it.",
   "_parent": "The run this one continues from, when a batch chains its features. Its run file carries the decisions this one inherits; its branch is this one's base.",
   "_deliver": "pr — open one at the end, the default. branch — push and stop, because a batch delivers its features together.",
 

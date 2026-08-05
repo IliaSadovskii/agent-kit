@@ -169,6 +169,17 @@ done < <(grep -rhoE '\$\{CLAUDE_PLUGIN_ROOT\}/[A-Za-z0-9_./-]+' "$PLUGIN" \
            | sed 's|${CLAUDE_PLUGIN_ROOT}/||' | sed 's|[.,)]*$||' | sort -u)
 
 # --------------------------------------------------------------------------------------------
+step "the payload's own markdown is not malformed"
+
+# A single stray ``` turns everything after it into a code block. The file still looks fine in a
+# diff, and the rules below the stray fence are read as a listing rather than as instructions —
+# `blueprint` shipped like that for a release. Counting fences costs a millisecond.
+while IFS= read -r md; do
+  fences="$(grep -c '^```' "$md")"
+  [ $((fences % 2)) -eq 0 ] || fail "${md#"$REPO"/}: $fences code fences — one of them is unclosed"
+done < <(find "$PLUGIN" -name '*.md')
+
+# --------------------------------------------------------------------------------------------
 step "every field of the run file has a writer and a reader"
 
 # Half the defects of the 5 August audit were records with only one side: a field a template

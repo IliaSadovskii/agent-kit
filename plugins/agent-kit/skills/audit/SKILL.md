@@ -10,10 +10,10 @@ disable-model-invocation: true
 Reads existing code, compares it to `docs/knowledge/`, and writes a work list that `ship` and
 `sprint` execute.
 
-**It changes nothing.** Not code, not tests, not the description. Running a suite or a linter is
-reading; writing a single line into the project is not this command's job. The moment an audit
-starts fixing what it finds it loses its stopping condition, which is how a bounded question once
-turned into an afternoon of screenshots.
+**It changes nothing but its own work list.** Not code, not tests, not the knowledge — the one file
+it writes is `docs/audits/<lens>.md`, and that is the whole output. Running a suite or a linter is
+reading. The moment an audit starts fixing what it finds it loses its stopping condition, which is
+how a bounded question once turned into an afternoon of screenshots.
 
 Run it on code nobody watched being written: an inherited project, or a batch an autonomous run
 landed overnight. After `ship` it is redundant — that diff was already reviewed against its entry.
@@ -113,12 +113,6 @@ Read entries the way `ship` does — a section at a time, never the whole file:
 ```bash
 awk -v RS='\n### ' '/`key: developer\.create_offer`/{print "### " $0}' docs/knowledge/actions.md
 ```
-
-
-
-
-
-
 
 ## The lenses themselves
 

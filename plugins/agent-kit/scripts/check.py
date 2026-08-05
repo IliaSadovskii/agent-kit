@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Audit a project's knowledge documents, mechanically.
 
-    check.py [project root] [--status] [--offline]
+    check.py [project root] [--status] [--state] [--sync] [--offline]
     check.py . --run .agent-kit/runs/<slug>      what a run at step done may not leave behind
 
 This is what `/agent-kit:blueprint --check` runs, and what every other command runs before it
@@ -10,7 +10,9 @@ another skill: told to "run blueprint --check", a build command went looking for
 found none, and carried on without the check — silently, in every autonomous run.
 
 It reads. It judges nothing: no quality, no research, no opinion about the prose. The one thing it
-writes is an entry's state line, and only what a merged pull request already decided.
+writes is an entry's state line — only what a merged pull request already decided, and only when
+asked with `--sync`. A preflight that writes is how a command that meant to read left the tree dirty
+for the next one.
 
 Silent when clean, except for tests marked `agent-kit:unmet`: those are listed whenever they exist,
 because nothing else in a run ever mentions them, and they change no exit code — a recorded promise
@@ -53,6 +55,12 @@ ENTRY_POINT_RE = re.compile(r"`entry_point`", re.I)
 STATE_LINE_RE = re.compile(r"(`key:\s*%s\s*`\s*·\s*`state:\s*)building \(pr:\s*(\d+)\)(\s*`)")
 
 SLOTS = ("product", "actors", "entities", "actions", "screens", "integrations", "scenarios", "stack")
+
+# What `step` may hold. The first eight are a run's own; `building` and `closing` are written by the
+# driver on a batch's file. Kept here rather than only in the template's prose, because a value
+# nothing recognises leaves whatever is watching that field waiting for a state that never comes.
+STEPS = ("queued", "design", "build", "verify", "deliver", "done", "blocked", "skipped",
+         "building", "closing")
 
 # What a dependency manifest is called, across the ecosystems a project here might use. Only their
 # names are known — the check reads none of them, it just notices one nobody recorded.
@@ -420,9 +428,16 @@ def collect_notes(docs: list, report: Report) -> None:
             report.notes.append(f"[{kind}{tail}] {doc.path.name}: {text.strip()[:90]}")
 
 
-def sync_states(docs: list, report: Report, offline: bool) -> None:
-    """A merged pull request is the only thing that moves an entry to `built`."""
-    if offline or not shutil.which("gh"):
+def sync_states(docs: list, report: Report, sync: bool) -> None:
+    """A merged pull request is the only thing that moves an entry to `built`.
+
+    Asked for, never assumed. This is the one thing the program writes into the project, and it ran
+    by default until 0.41.0 — so a command that only meant to read its preflight could leave the
+    working tree dirty, which `ship` and `fix` both treat as a blocker, and which contradicts the
+    rule that only `blueprint` rewrites knowledge. `blueprint --check` passes `--sync`; nothing else
+    does.
+    """
+    if not sync or not shutil.which("gh"):
         return
     for doc in docs:
         text = doc.text
@@ -574,11 +589,12 @@ def run_shape() -> set:
 
 
 def check_runs(root: Path, report: Report) -> None:
-    """Keys no reader knows about.
+    """Keys no reader knows about, and steps no reader expects.
 
     A run that needs somewhere to put something and invents a key has written to nobody: every
     reader — the resuming run, the closing session, this program — knows only the template. Free
-    prose belongs in `notes`, and a field the whole kit needs is a finding about the kit.
+    prose belongs in `notes`, and a field the whole kit needs is a finding about the kit. A step
+    outside the vocabulary is the same failure in the one field everything watches.
     """
     known = run_shape()
     if not known:
@@ -589,6 +605,10 @@ def check_runs(root: Path, report: Report) -> None:
             run = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
+        step = run.get("step")
+        if step is not None and step not in STEPS:
+            report.drift.append(f"{path.parent.name} is at step {step!r}, which no reader knows: "
+                                f"a driver watches for a terminal step and would wait for ever")
         for key in run:
             if key not in known and not key.startswith("_"):
                 strays.setdefault(key, 0)
@@ -787,7 +807,11 @@ def main(argv: list | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("root", nargs="?", default=".", type=Path)
     parser.add_argument("--status", action="store_true", help="always print where the project stands")
-    parser.add_argument("--offline", action="store_true", help="do not ask gh about pull requests")
+    parser.add_argument("--offline", action="store_true",
+                        help="ask gh about nothing — the state of the work is then read from git alone")
+    parser.add_argument("--sync", action="store_true",
+                        help="move an entry whose pull request has merged or closed. The only thing "
+                             "this program writes into knowledge; `blueprint --check` asks for it")
     parser.add_argument("--record", action="store_true",
                         help="rewrite every source and dependency hash in place, so no run has to "
                              "copy one by hand")
@@ -854,7 +878,7 @@ def main(argv: list | None = None) -> int:
               else "  every hash was already current")
         return 0
 
-    sync_states(docs, report, options.offline)
+    sync_states(docs, report, options.sync)
     check_fields(docs, report)
     check_references(docs, report)
     check_orphans(docs, report)

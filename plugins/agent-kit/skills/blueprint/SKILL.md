@@ -21,7 +21,7 @@ run.
 |---|---|
 | `blueprint` | continues from wherever the last session stopped: works only on what is empty, stale, or marked by an earlier run. Interactive. |
 | `blueprint <what you want to add or reconsider>` | the owner has something the documents do not hold yet — a feature they have thought through, a part they want reworked, a doubt about whether something is covered. Find the slots it touches, interview about those, write, stop. Without this a finished blueprint has no way in, and the thought turns into work nobody asked for. |
-| `blueprint --check` | audits, mechanically, in seconds, asking nothing. Run the program — `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status` — and put its output in front of the owner with a sentence about what to do next. Two audiences: as another command's preflight it is run without `--status` and prints nothing when clean; **by hand it always prints where the project stands**. That is the raw view of the knowledge; `/agent-kit:next` is the same data ranked into a recommendation. |
+| `blueprint --check` | audits, mechanically, in seconds, asking nothing. Run the program — `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status --sync` — and put its output in front of the owner with a sentence about what to do next. `--sync` is yours alone: it moves an entry whose pull request has merged, which is the one thing this program writes, and a preflight that wrote it would leave the tree dirty under the command that ran it. Two audiences: as another command's preflight it is run bare and prints nothing when clean; **by hand it always prints where the project stands**. That is the raw view of the knowledge; `/agent-kit:next` is the same data ranked into a recommendation. |
 
 Every question you put to the owner follows `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`: options
 rather than prose, the recommendation first, one at a time.
@@ -122,7 +122,6 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --record
 
 A value carried by hand is how the ones written before this program existed came to be invented:
 the rule then said the hash "is that section as you read it", so nothing could recompute them.
-```
 
 ## How a session ends
 

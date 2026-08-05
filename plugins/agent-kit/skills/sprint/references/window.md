@@ -84,16 +84,19 @@ what will raise it again, per `${CLAUDE_PLUGIN_ROOT}/rules/closing.md`:
 
 Nothing there asks for anything, and everything the owner needs in order to intervene is in it.
 
-## The three instructions
+## The two instructions
 
 When the owner wants the run steered, write one line into `control` beside the batch's `run.json`
 and tell them it takes effect after the current feature:
 
 | They want | You write |
 |---|---|
-| finish this feature and stop | `pause` |
 | do not build a particular feature | `skip <that feature's run slug>` |
-| wind up and deliver what exists | `stop` |
+| finish this feature, then wind up and deliver what exists | `stop` |
+
+There is no third word for stopping. A `pause` that delivered nothing would leave the batch as
+branches with no pull request, which is the state a night is lost in — and `stop` is resumable
+anyway: `/agent-kit:sprint --resume` picks up whatever has no pull request yet.
 
 ```bash
 printf 'skip 2026-08-05-offers-03-decline\n' > .agent-kit/runs/<batch>/control
@@ -103,5 +106,5 @@ The driver reads the file at the boundary between features and deletes it. Nothi
 interrupted mid-feature: a half-built feature that is killed leaves the batch harder to reason about
 than one that is finished and unwanted.
 
-Anything the owner wants that is not one of these three is not yours. Say plainly that stopping the
+Anything the owner wants that is not one of these two is not yours. Say plainly that stopping the
 run and doing it themselves is the way, and offer `stop`.

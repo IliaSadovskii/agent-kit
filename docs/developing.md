@@ -41,6 +41,29 @@ reach is a rule an agent decides without. Length is not a reason to move text do
 is what makes a rule executable, and a kit of laws without reasons is what version 0.17.0 died of.
 Move a text down only when a run that does not do this thing never needs to read it at all.
 
+## Who writes what, in a project
+
+Every file the kit puts in somebody's repository, and everything allowed to write it. A new
+mechanism that writes anywhere is checked against this table first — the rule *only `blueprint`
+rewrites knowledge* was true when it was written and had quietly grown four writers by August,
+because each was added on its own and nobody looked at the column.
+
+| File | Who writes it | What they may write |
+|---|---|---|
+| `docs/knowledge/*.md` — prose | `blueprint` | all of it; nothing else touches the prose |
+| `docs/knowledge/*.md` — an entry's `state:` line | `ship`, the closing session, `check.py --sync` | `building (pr: n)` when a pull request opens; `built` or back to `planned` from a merged or closed one |
+| `docs/knowledge/*.md` — `[assumed …]` and `[found …]` blocks | `ship`, `fix` | a block under the entry they stood in for; `blueprint` is what deletes one |
+| `docs/technical_debt.md` | `ship`, `fix`, the closing session | a line appended, or a finished line deleted; never a ticked box |
+| `docs/audits/<lens>.md` | `audit` | the lens's own work list, rewritten whole on each run |
+| `docs/audits/<lens>.md` — the boxes | the closing session, `next` | `- [x]` on an item verified as done, and nothing else in that commit |
+| `.agent-kit/project.yml` | `blueprint` | all of it; no build command edits its own settings |
+| `.agent-kit/runs/<slug>/run.json` | the run it belongs to, and the driver | the run writes its own state; the driver writes `step`, `blockers` and the batch's own file |
+| `.agent-kit/runs/<slug>/run.log` | the driver | when a session started, stalled, waited out a limit, finished |
+
+Two properties are worth keeping as the table grows: **one writer per kind of content**, even where
+a file has several writers overall; and **nothing writes to a project as a side effect of reading
+it** — that is why `check.py` moves a state line only when it is asked with `--sync`.
+
 The kit is being rebuilt. Read [docs/design/kit-v1.md](design/kit-v1.md) before changing anything:
 it records what was removed and why, and adding one of those things back needs an argument rather
 than an oversight. Six commands work, `mvp` is a declared stub, and `scripts/validate.sh` enforces
@@ -67,4 +90,6 @@ validates, commits and tags. Publish with `git push && git push --tags`. A relea
 manual step on the user's side gets a note under `migrations/<version>.md`, referenced from the
 changelog.
 
-Feature commits never touch `CHANGELOG.md`; the release commit does.
+**The changelog goes in with the work, not with the release.** `release.sh` refuses to start on a
+dirty tree and commits only the three version markers, so the section for the version being cut has
+to be committed already — write it as the last edit of the work it describes.

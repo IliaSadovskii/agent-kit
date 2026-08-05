@@ -20,7 +20,7 @@ answer that question first — code built correctly to the wrong design is invis
 Nothing else. Read those in parallel in one message. Exploring the wider repository is what makes a
 review cost more than the feature.
 
-## Answer three questions
+## Answer four questions
 
 **Is this the feature that was approved?** Every line of the entry — what changes, what the
 initiator sees, what others see, what can go wrong — either happens in this diff or is named in the

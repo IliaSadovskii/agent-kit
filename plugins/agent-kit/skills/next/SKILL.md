@@ -40,12 +40,14 @@ needs to approve, it is a fact catching up with itself. Which is exactly why it 
 ## Read this much and no more
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status --state --offline
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status --state
 ```
 
-`--offline` matters: without it the check asks GitHub about every entry marked `building` and
-rewrites the state lines of those whose pull requests have merged. That is `blueprint --check`'s
-job, and a command whose first rung is *uncommitted changes* must not be the one creating them.
+**No `--sync`, and no `--offline` either.** Without `--sync` the check writes nothing, which is what
+a command whose first rung is *uncommitted changes* must not be creating; moving a merged entry to
+`built` is `blueprint --check`'s job. And `--offline` would cut you off from GitHub altogether —
+rungs 3, 4 and 5 are entirely about open pull requests and their CI, so a run that cannot see them
+skips straight past the most urgent thing on the list.
 
 That is the whole mechanical half: the knowledge findings, what is `planned`, the debt, unkept
 promises, open notes — and then branches with their drift, pull requests with their CI, runs left

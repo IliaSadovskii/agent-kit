@@ -184,8 +184,8 @@ does — a session raised later would have to read that back out of files. So sa
 run has started and that they can ask you how it is going, and then **stop and wait**.
 
 From here on you follow `${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/window.md`: you answer when
-asked, you say the driver's news when it types a `[driver]` line at you, and you relay *pause*,
-*skip* and *stop*. You do not narrate on your own, you do not poll anything, and you never take work
+asked, you say the driver's news when it types a `[driver]` line at you, and you relay *skip* and
+*stop*. You do not narrate on your own, you do not poll anything, and you never take work
 back on yourself — the run does not depend on you, and if the owner closes you it carries on without
 a narrator.
 

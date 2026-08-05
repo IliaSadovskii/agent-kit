@@ -3,6 +3,38 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.41.0
+
+A review of the whole kit for contradictions — one command promising what another does differently,
+a rule describing machinery that behaves otherwise. Nine were found; eight are fixed here.
+
+- **The check no longer writes to a project unless it is asked to.** It moved an entry whose pull
+  request had merged by default, and `ship`, `fix` and `sprint` all ran it as their preflight — so a
+  command that meant only to read could leave the working tree dirty, which those same commands call
+  a blocker, and which contradicts the rule that only `blueprint` rewrites knowledge. `--sync` now
+  asks for it, and `blueprint --check` is the only caller that does.
+- **`next` can see pull requests again.** It was given `--offline` in 0.39.0 to stop it writing, but
+  that flag also cuts off `gh` — and rungs 3, 4 and 5 of its ladder are entirely about open pull
+  requests and their CI. It ran blind past the most urgent thing it exists to find. With writing now
+  behind `--sync`, it needs neither flag.
+- **`blueprint` had an unclosed code fence**, so everything below it — how a session ends, what runs
+  leave behind, what the check does — read as a listing rather than as instructions. `validate.sh`
+  now counts fences in every file of the payload.
+- **The run file's `step` had two vocabularies.** The template called its list closed while the
+  driver wrote `building` and `closing`, which are not in it. Both are declared now, and the check
+  names a step no reader knows.
+- **The control window offered `pause` and `stop` as different things**; the driver treats them
+  identically. `pause` is gone rather than invented: a stop that delivered nothing would leave a
+  batch as branches with no pull request, and `--resume` already covers coming back.
+- **`audit` said it writes nothing into the project** and then told itself to write and commit the
+  lens's work list. It changes nothing *but its own work list*, which is what it meant.
+- **The reviewer's four questions** were introduced as three.
+- `docs/developing.md` gains a table of who may write which file in a project — the rule "only
+  `blueprint` rewrites knowledge" was true when written and had grown four writers since — and its
+  release note now describes the order `release.sh` actually enforces.
+- `mvp` stays a stub, and now says what it will be: a layer that composes the entries inside the MVP
+  bounds into batches and runs them the way `sprint` does. Nothing about how a feature is built.
+
 ## 0.40.0
 
 The 5 August audit left five proposals unbuilt and asked that each be checked against the files

@@ -407,7 +407,7 @@ class Driver:
                 target = instruction.split(None, 1)[1].strip() if " " in instruction else slug
                 self.skip.add(target)
                 self.run.event("control", f"skip {target}")
-            elif instruction == "pause" or instruction == "stop":
+            elif instruction == "stop":
                 self.run.event("control", instruction)
                 self.stopping = True
 

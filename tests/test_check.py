@@ -264,12 +264,12 @@ class CheckCase(unittest.TestCase):
         self.assertIn("Promises the product does not keep (15)", output)
         self.assertEqual(output.count("guest.browse_feed"), 15)
 
-    def test_a_merged_pull_request_moves_the_state_without_killing_the_run(self):
-        """The crash this covers took every command's preflight down the day a feature landed."""
+    def with_merged_pr(self, *args):
+        """The check run against a `gh` that says every pull request has merged."""
         import os
         self.write("actions.md", ACTIONS.replace("`state: built`", "`state: building (pr: 7)`"))
         fake = self.root / "bin"
-        fake.mkdir()
+        fake.mkdir(exist_ok=True)
         (fake / "gh").write_text('#!/bin/sh\nprintf \'{"state":"MERGED"}\\n\'\n', encoding="utf-8")
         (fake / "gh").chmod(0o755)
         was = os.environ["PATH"]
@@ -277,12 +277,25 @@ class CheckCase(unittest.TestCase):
         try:
             out = io.StringIO()
             with contextlib.redirect_stdout(out):
-                code = check.main([str(self.root)])
+                code = check.main([str(self.root), *args])
         finally:
             os.environ["PATH"] = was
-        self.assertEqual(code, 0, out.getvalue())
-        self.assertIn("building (pr: 7) → built", out.getvalue())
+        return code, out.getvalue()
+
+    def test_a_merged_pull_request_moves_the_state_without_killing_the_run(self):
+        """The crash this covers took every command's preflight down the day a feature landed."""
+        code, output = self.with_merged_pr("--sync")
+        self.assertEqual(code, 0, output)
+        self.assertIn("building (pr: 7) → built", output)
         self.assertIn("state: built",
+                      (self.root / "docs" / "knowledge" / "actions.md").read_text(encoding="utf-8"))
+
+    def test_the_check_writes_nothing_unless_it_is_asked_to(self):
+        """Every command runs this before it starts; only `blueprint --check` may leave a change."""
+        code, output = self.with_merged_pr()
+        self.assertEqual(code, 0, output)
+        self.assertNotIn("→ built", output)
+        self.assertIn("state: building (pr: 7)",
                       (self.root / "docs" / "knowledge" / "actions.md").read_text(encoding="utf-8"))
 
     # ---- the debt ledger -----------------------------------------------------------------------
@@ -492,6 +505,23 @@ class CheckCase(unittest.TestCase):
         template["step"] = "done"
         template["suite"] = "green"
         self.assertEqual(check.run_defects(template), [])
+
+    def test_a_step_no_reader_knows_is_named(self):
+        directory = self.root / ".agent-kit" / "runs" / "x"
+        directory.mkdir(parents=True)
+        (directory / "run.json").write_text(json.dumps({"slug": "x", "step": "polishing"}),
+                                            encoding="utf-8")
+        _code, output = self.run_check()
+        self.assertIn("step 'polishing'", output)
+
+    def test_the_steps_a_driver_writes_are_not_findings(self):
+        directory = self.root / ".agent-kit" / "runs" / "batch"
+        directory.mkdir(parents=True)
+        (directory / "run.json").write_text(json.dumps({"slug": "batch", "step": "building"}),
+                                            encoding="utf-8")
+        code, output = self.run_check()
+        self.assertEqual(code, 0)
+        self.assertEqual(output, "")
 
     def test_a_run_directory_with_no_file(self):
         code, _output = self.run_check("--run", str(self.root / ".agent-kit" / "runs" / "gone"))
