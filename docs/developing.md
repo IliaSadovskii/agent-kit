@@ -51,7 +51,7 @@ because each was added on its own and nobody looked at the column.
 | File | Who writes it | What they may write |
 |---|---|---|
 | `docs/knowledge/*.md` — prose | `blueprint` | all of it; nothing else touches the prose |
-| `docs/knowledge/*.md` — an entry's `state:` line | `ship`, the closing session, `check.py --sync` | `building (pr: n)` when a pull request opens; `built` or back to `planned` from a merged or closed one |
+| `docs/knowledge/*.md` — an entry's `state:` line | `ship`, the closing session, and `next` via `check.py --sync` | `building (pr: n)` when a pull request opens; `built` or back to `planned` from a merged or closed one. Every run of the check says when a line is behind; only `--sync` moves it |
 | `docs/knowledge/*.md` — `[assumed …]` and `[found …]` blocks | `ship`, `fix` | a block under the entry they stood in for; `blueprint` is what deletes one |
 | `docs/technical_debt.md` | `ship`, `fix`, the closing session | a line appended, or a finished line deleted; never a ticked box |
 | `docs/audits/<lens>.md` | `audit` | the lens's own work list, rewritten whole on each run |

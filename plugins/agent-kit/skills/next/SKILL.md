@@ -16,20 +16,33 @@ open. This one exists for the cold start — a week later, in a new session, wit
 **You change nothing and start nothing.** Not a branch, not a file, not another command. You read,
 you rank, you say one line. The owner runs it.
 
-The single exception is the bookkeeping you just did: when you establish that an audit's box is
-closed — the entry is built, the pull request that closed it is merged — **tick it**, right then:
-`- [x]` with the pull request that closed it, in `docs/audits/<lens>.md`, in the project's language.
-You are the one holding the evidence, and if you leave it unticked every later run repeats the same
-comparison and the list keeps lying. Tick only what you verified; a box ticked on a guess costs more
-than one left open.
+The single exception is bookkeeping that has already happened somewhere else. **Two facts, and only
+these two, you may write down where they belong:**
 
-That tick goes straight to the default branch, with no pull request: it is not a decision anybody
-needs to approve, it is a fact catching up with itself. Which is exactly why it is fenced:
+- **an audit's box whose work is done** — the entry is built, the pull request that closed it is
+  merged. Tick it right then: `- [x]` with that pull request, in `docs/audits/<lens>.md`, in the
+  project's language. Tick only what you verified; a box ticked on a guess costs more than one left
+  open.
+- **an entry still marked `building` whose pull request has merged.** The check names these on
+  every run; moving the line is one command, and until somebody runs it the knowledge says a
+  finished feature is still in flight:
 
-- **only `docs/audits/*`, and only boxes** — not a line of anything else in that commit, or the next
-  run will fix "just one more thing" in the same breath;
-- **its own commit**, message `docs(audits): …`, so it reads as bookkeeping in the history rather
-  than hiding inside work;
+  ```bash
+  python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --sync
+  ```
+
+You are the one holding the evidence in both cases, and if you leave them the next run repeats the
+same comparison and the lists keep lying.
+
+Both go straight to the default branch, with no pull request: neither is a decision anybody needs to
+approve, each is a fact catching up with itself. Which is exactly why they are fenced:
+
+- **only those two things** — the boxes in `docs/audits/*`, and an entry's `state:` line. Not a line
+  of anything else in that commit, or the next run will fix "just one more thing" in the same
+  breath. The prose of an entry is never yours: `blueprint` owns it, and a state line that is right
+  beside stale prose is still worth moving;
+- **its own commit** — `docs(audits): …` or `docs(knowledge): …`, so it reads as bookkeeping in the
+  history rather than hiding inside work;
 - **switch branches only when it costs nothing**: a clean tree and a current branch already merged.
   Otherwise leave the boxes alone and say it — *ten of eleven are closed, I will tick them when the
   tree is free* — because moving somebody off their branch is a bigger intrusion than a stale list;
@@ -43,11 +56,14 @@ needs to approve, it is a fact catching up with itself. Which is exactly why it 
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status --state
 ```
 
-**No `--sync`, and no `--offline` either.** Without `--sync` the check writes nothing, which is what
-a command whose first rung is *uncommitted changes* must not be creating; moving a merged entry to
-`built` is `blueprint --check`'s job. And `--offline` would cut you off from GitHub altogether —
-rungs 3, 4 and 5 are entirely about open pull requests and their CI, so a run that cannot see them
-skips straight past the most urgent thing on the list.
+**Read first, without `--sync`.** This run tells you everything, including which entries are behind
+their merged pull requests — `--sync` comes after, as the fenced bookkeeping above, and only when
+the tree is clean. A command whose first rung is *uncommitted changes* does not start by making
+some.
+
+**And never `--offline`.** It would cut you off from GitHub altogether, and rungs 3, 4 and 5 are
+entirely about open pull requests and their CI — a run that cannot see them walks straight past the
+most urgent thing on the list.
 
 That is the whole mechanical half: the knowledge findings, what is `planned`, the debt, unkept
 promises, open notes — and then branches with their drift, pull requests with their CI, runs left

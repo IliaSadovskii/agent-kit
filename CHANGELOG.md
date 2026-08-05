@@ -3,6 +3,24 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.42.0
+
+Found by running 0.41.0 on a live project: a merged feature sat at `state: building` and nothing
+anywhere said so. Two of these come straight out of yesterday's own changes.
+
+- **The check says when a line is behind, whether or not it may move it.** Making writing explicit
+  in 0.41.0 also made the fact invisible: a preflight that no longer syncs also stopped comparing.
+  Looking is free now and happens on every run — `--sync` still decides whether anything is
+  rewritten, and `--offline` still asks GitHub nothing at all.
+- **`next` may move a state line**, under the fence it already had for an audit's boxes: only that
+  line, its own `docs(knowledge):` commit, only on a clean tree. It is the command for coming back
+  after a break, and this is a fact catching up with itself rather than a decision. Prose stays
+  `blueprint`'s alone — a state line beside stale prose is still worth moving.
+- **`ship` names the destination for prose its own feature made false.** The row existed in the
+  pull-request rules and did not survive 0.41.0's table: a run that changes what is true has nowhere
+  to say the entry now lies, and rewriting it is never the run's own right. It is a line in the
+  ledger naming that entry, and `blueprint` executes it.
+
 ## 0.41.0
 
 A review of the whole kit for contradictions — one command promising what another does differently,

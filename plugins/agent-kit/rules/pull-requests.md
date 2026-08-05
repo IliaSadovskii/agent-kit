@@ -25,6 +25,7 @@ sentence: what will raise it again.
 | an `[assumed …]` block under the entry | the check prints it before every command; `blueprint` closes it |
 | a test marked `agent-kit:unmet` | the check lists it; `sprint` with no theme offers it as a batch |
 | a line in `docs/technical_debt.md` | the check counts it; `sprint` with no theme offers it |
+| a line there saying an entry's prose is now false | `blueprint`, on its next run — the only writer of prose |
 | an item in an audit's work list | that lens on its next run, and `next` when it comes due |
 
 So the sentence reads *recorded in `docs/technical_debt.md`, offered by the next sprint* — a

@@ -186,6 +186,7 @@ reader that acts on it — a finding written anywhere else reaches nobody:
 | the entry promises what the code does not | a test marked `agent-kit:unmet`, and a line in `unmet` | the check lists it; the pull request; `sprint` with no theme offers it as a batch |
 | you departed from the approach that was approved | `deviations`, with its cause | the pull request, as an assumption the code forced |
 | a ready-made answer the library map does not name | a `[found …]` block under `stack.md` | the check prints it; `blueprint` folds it into the map |
+| what you built makes the entry's own prose false — it described the world before this feature | a line in `docs/technical_debt.md` naming that entry | the check counts it; `blueprint` rewrites the entry on its next run, and nothing else may |
 | work you understood and decided not to do | a line in `docs/technical_debt.md` — and in `deferred` when a batch delivers this | the check counts it; `sprint` with no theme offers it |
 | an item of that ledger you finished | delete its line in the commit that does the work; name it in `closed_debt` | the batch's report, for the count |
 | anything with no field of its own | `notes`, in prose | whoever resumes this run, and the closing session |

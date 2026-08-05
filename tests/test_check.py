@@ -298,6 +298,17 @@ class CheckCase(unittest.TestCase):
         self.assertIn("state: building (pr: 7)",
                       (self.root / "docs" / "knowledge" / "actions.md").read_text(encoding="utf-8"))
 
+    def test_a_line_behind_its_merged_pull_request_is_said_out_loud(self):
+        """Writing is asked for; noticing is not. A merged feature stuck at `building` was invisible
+        to every command for one release, which is how it reached a live project."""
+        _code, output = self.with_merged_pr()
+        self.assertIn("pull request 7 has merged", output)
+        self.assertIn("guest.browse_feed", output)
+
+    def test_offline_asks_gh_nothing_at_all(self):
+        _code, output = self.with_merged_pr("--offline")
+        self.assertEqual(output, "")
+
     # ---- the debt ledger -----------------------------------------------------------------------
 
     def test_open_debt_is_listed_without_failing_the_check(self):

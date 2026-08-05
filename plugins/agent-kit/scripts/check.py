@@ -428,16 +428,19 @@ def collect_notes(docs: list, report: Report) -> None:
             report.notes.append(f"[{kind}{tail}] {doc.path.name}: {text.strip()[:90]}")
 
 
-def sync_states(docs: list, report: Report, sync: bool) -> None:
+def sync_states(docs: list, report: Report, sync: bool, offline: bool) -> None:
     """A merged pull request is the only thing that moves an entry to `built`.
 
-    Asked for, never assumed. This is the one thing the program writes into the project, and it ran
-    by default until 0.41.0 — so a command that only meant to read its preflight could leave the
-    working tree dirty, which `ship` and `fix` both treat as a blocker, and which contradicts the
-    rule that only `blueprint` rewrites knowledge. `blueprint --check` passes `--sync`; nothing else
-    does.
+    **Looking is free; writing is asked for.** Every run of this program compares an entry marked
+    `building` against its pull request and says when the line is behind — so any command notices,
+    including the batch being composed over that entry. Only `--sync` rewrites the line, because
+    writing in a preflight leaves the tree dirty under a command that treats a dirty tree as a
+    blocker, and because prose and its machine line have one owner between them.
+
+    Without this split the two failure modes swapped places: it wrote silently until 0.41.0, and
+    then went quiet altogether — a merged feature sat at `building` with nothing anywhere saying so.
     """
-    if not sync or not shutil.which("gh"):
+    if offline or not shutil.which("gh"):
         return
     for doc in docs:
         text = doc.text
@@ -457,6 +460,11 @@ def sync_states(docs: list, report: Report, sync: bool) -> None:
             elif state == "CLOSED":
                 new = "planned"
             else:
+                continue
+            if not sync:
+                report.states.append(
+                    f"{entry.key}: pull request {number} has {state.lower()}, and the line still "
+                    f"says building — /agent-kit:next moves it, or blueprint --check")
                 continue
             text = text.replace(f"`key: {entry.key}` · `state: building (pr: {number})`",
                                 f"`key: {entry.key}` · `state: {new}`")
@@ -878,7 +886,7 @@ def main(argv: list | None = None) -> int:
               else "  every hash was already current")
         return 0
 
-    sync_states(docs, report, options.sync)
+    sync_states(docs, report, options.sync, options.offline)
     check_fields(docs, report)
     check_references(docs, report)
     check_orphans(docs, report)
@@ -891,7 +899,7 @@ def main(argv: list | None = None) -> int:
     collect_notes(docs, report)
 
     if report.states:
-        print("Moved by their pull requests:")
+        print("Entries against their pull requests:")
         for line in report.states:
             print(f"  {line}")
 
