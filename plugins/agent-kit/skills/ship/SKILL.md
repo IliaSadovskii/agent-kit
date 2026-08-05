@@ -134,10 +134,11 @@ printf '%s step=%s event=%s detail=%s\n' "$(date -u +%FT%TZ)" build suite "make 
   >> .agent-kit/runs/<slug>/run.log
 ```
 
-Log a line when a step starts, when a command that matters returns, when you ask something and when
-it is answered, when you take an assumption or hit a blocker, and when the review comes back — with
-its counts. One event per line and nothing resembling prose: this is what someone reads to find out
-where a run spent its afternoon, not a narrative of it.
+Log a line when a step starts and when a command that matters returns — that is all. What was
+assumed, what was asked and answered, what the review found already have fields of their own in the
+state file, and writing them twice buys nothing but shell calls. One event per line and nothing
+resembling prose: this is what someone reads to find out where a run spent its afternoon, not a
+narrative of it.
 
 Both files are working state, not repository content. Add `.agent-kit/runs/` to the project's
 `.gitignore` if it is not there yet.
@@ -169,8 +170,10 @@ and wait. With none, say what you are about to do and start — a gate that alwa
 owner to approve without reading. Under `gate: none` you never wait, and the fork becomes an
 assumption.
 
-Before asking anything, write `waiting_since` and the fork into the run file; when the answer comes,
-clear them and put the question and the answer into `answers`, in the owner's own words. A run that
+Before asking anything, put the fork's own text in `waiting_on` — that field is how a driver, the
+window and `next` know a run is stopped and on what, and it is the only route by which a night's
+question reaches a phone. Then when the answer comes, clear it and put the question and the
+answer into `answers`, in the owner's own words. A run that
 resumes reads that instead of asking a second time, and the pull request quotes it instead of
 recalling it.
 
@@ -238,9 +241,11 @@ language.
    run and the mark is what it decided. Marking a test this feature was supposed to make pass is not
    a result, it is an unbuilt feature with a label on it. Say how many marked tests the run leaves
    and what each is waiting for; that list is the most useful thing in the pull request.
-2. **Run the project's declared suite once**, from `project.yml` → `commands`: tests, types, lint. A
-   type error is a failing test. Fix the product; never weaken an assertion for green output.
-3. **Start the app and exercise what changed**, when the feature has a surface a person can reach. A
+2. **Run the project's declared suite once**, from `project.yml` → `commands` — whatever it
+   declares there: `test`, `lint`, and `types` where the project has one. A type error is a failing
+   test. Fix the product; never weaken an assertion for green output.
+3. **Start the app** with `project.yml` → `commands.run` **and exercise what changed**, when the
+   feature has a surface a person can reach. A
    green suite on an app that does not start is exactly what this catches. Say so when there is no
    such surface. Either way it goes into `suite` beside the test and lint results — what you opened
    and what you saw, or that there was nothing to open. Nobody can tell "checked by hand" from
@@ -250,7 +255,10 @@ Fix what fails, then run the suite once more at the end. Record in the run file 
 returned: the pull request is written from that, not from memory.
 
 Do not run the product's end-to-end scenarios here. They prove the product rather than this feature,
-and belong to whatever integrates a batch.
+and belong to whatever integrates a batch. When the task **is** a scenario — a run composed from the
+scenarios lens — the test carries `agent-kit:scenario <the scenario's heading>` in a comment, which
+is how anything afterwards knows that scenario is covered by something other than a reading of the
+code.
 
 ## Deliver
 

@@ -27,5 +27,10 @@ delete later. Nothing else edits this file: a run appends, a run that finishes a
 
 Keep it in the project's language, like everything else the owner reads.
 
-- [ ] example: pin the invariant the session fix rests on — a new path to an unverified account
-      reopens the hole silently · guest.login_via_provider · 2026-08-05-security-and-deps · PR #21
+```markdown
+- [ ] pin the invariant the session fix rests on — a new path to an unverified account reopens the
+      hole silently · guest.login_via_provider · 2026-08-05-security-and-deps · PR #21
+```
+
+Delete this file's own prose once the first real item is in it, or keep it — the check counts only
+open boxes outside a fenced block, so the example above is not one.

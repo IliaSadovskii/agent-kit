@@ -7,7 +7,8 @@ language: en                      # the language the kit talks to the owner in, 
 commands:                         # the project's real commands; the only place they are recorded
   test:
   lint:
-  run:
+  types:                          # leave empty where the project has no type checker
+  run:                            # what starts the application, for the run that has to click it
 
 tests:
   unmet:                          # a test proving a promise the product does not keep carries the

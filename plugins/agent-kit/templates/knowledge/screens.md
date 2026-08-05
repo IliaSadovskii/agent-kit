@@ -26,5 +26,8 @@ where they leave to, and every action key in a transition exists in actions.md.
 **Purpose:** see the offers on a request
 **On the screen:** offer cards, a status filter, an empty state
 **Arrived from:** `screen.requests`, by opening a request
+
+<!-- A screen the product opens on is arrived from nowhere: write `entry_point` in that field, and
+     the check stops counting it as a screen nothing leads to. -->
 **Leads to:** `screen.offer_detail` through `developer.open_offer`; back to `screen.requests`
 -->

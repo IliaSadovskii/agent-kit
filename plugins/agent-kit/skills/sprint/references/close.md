@@ -69,8 +69,9 @@ over untouched and name the feature in the report, rather than deleting on its w
 
 **Tick what the batch closed in the audits' work lists too**, when it was composed from one:
 `- [x] закрыто PR #<n>` on each item its features finished, in `docs/audits/<lens>.md`, in the same
-commit. Nothing else ever ticks them — the lens rewrites that file only on its next run, which may
-be months out, and until then every command reads the list as though the work were still waiting.
+commit. Only two things ever tick them — this step and `next`, when it has verified an item is
+done — and the lens itself rewrites that file only on its next run, which may be months out. Until
+then every command reads the list as though the work were still waiting.
 Untouched items stay untouched: a box ticked on a guess costs more than one left open.
 
 Then a collapsed block per feature, about eight lines: what it does now in the product's terms, the

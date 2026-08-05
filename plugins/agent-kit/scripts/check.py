@@ -46,6 +46,9 @@ NOTE_RE = re.compile(r"^>\s*\*\*\[(assumed|found)\b([^\]]*)\]\*\*\s*(.*)$", re.M
 REF_RE = re.compile(r"`([a-z][a-z0-9_]*\.[a-z0-9_]+)`")
 # entities and actors are keys without a dot, so the entry part is one or more segments
 MARK_RE = re.compile(re.escape(MARK) + r"[:\s]*([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)*)?")
+# A screen the product opens on is reached from nowhere by design; the entry says so in its own
+# words, in the project's language, so this looks for the marker rather than for a sentence.
+ENTRY_POINT_RE = re.compile(r"`entry_point`", re.I)
 STATE_LINE_RE = re.compile(r"(`key:\s*%s\s*`\s*·\s*`state:\s*)building \(pr:\s*(\d+)\)(\s*`)")
 
 SLOTS = ("product", "actors", "entities", "actions", "screens", "integrations", "scenarios", "stack")
@@ -219,6 +222,8 @@ def check_references(docs: list, report: Report) -> None:
 
 
 def check_orphans(docs: list, report: Report) -> None:
+    """An orphan is something nothing leads to. A screen the product opens on leads from nowhere by
+    definition, so a file that calls one an entry point takes it out of the count."""
     by_slot = {doc.slot: doc for doc in docs}
     everything = "\n".join(doc.text for doc in docs)
 
@@ -239,7 +244,7 @@ def check_orphans(docs: list, report: Report) -> None:
             if doc.commented(entry):
                 continue
             elsewhere = everything.count(f"`{entry.key}`") - entry.body.count(f"`{entry.key}`")
-            if elsewhere == 0:
+            if elsewhere == 0 and not ENTRY_POINT_RE.search(entry.body):
                 report.add("Orphans", f"{doc.path.name}:{entry.line} {entry.key} — named nowhere else")
 
 
@@ -443,6 +448,10 @@ def sync_states(docs: list, report: Report, offline: bool) -> None:
         if text != doc.text:
             doc.path.write_text(text, encoding="utf-8")
             doc.text = text
+            # The entries were parsed from the text this just replaced, and `commented()` locates
+            # one by finding its body in `doc.text` — so every check after this crashed on the day
+            # a feature's pull request merged, which is the one day this branch ever runs.
+            doc.entries = doc._entries()
 
 
 def standing(docs: list) -> list:
@@ -812,12 +821,11 @@ def main(argv: list | None = None) -> int:
     if report.unmet:
         print(f"\nPromises the product does not keep ({len(report.unmet)}) — the entry, and the "
               "test already written for it, waiting for the product to change or the entry to:")
-        # A long list is read before every feature and acted on by none of them, so it is cut to
-        # what fits in a glance; the count above is what the commands actually use.
-        for line in report.unmet[:UNMET_SHOWN]:
+        # Not cut: `ship` is told to read the marked test for the entry it is about to touch, and a
+        # list trimmed to ten can drop exactly that one. The debt below is cut instead — nothing
+        # reads it per-entry.
+        for line in report.unmet:
             print(f"  {line}")
-        if len(report.unmet) > UNMET_SHOWN:
-            print(f"  … and {len(report.unmet) - UNMET_SHOWN} more")
         print("  Not this run's work. They are offered as a batch by /agent-kit:sprint with no theme.")
 
     for line in report.drift:

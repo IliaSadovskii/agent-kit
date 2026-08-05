@@ -40,8 +40,12 @@ needs to approve, it is a fact catching up with itself. Which is exactly why it 
 ## Read this much and no more
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status --state
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status --state --offline
 ```
+
+`--offline` matters: without it the check asks GitHub about every entry marked `building` and
+rewrites the state lines of those whose pull requests have merged. That is `blueprint --check`'s
+job, and a command whose first rung is *uncommitted changes* must not be the one creating them.
 
 That is the whole mechanical half: the knowledge findings, what is `planned`, the debt, unkept
 promises, open notes — and then branches with their drift, pull requests with their CI, runs left
@@ -91,7 +95,9 @@ Three overrides, because a ladder read literally lies:
 
 - **No `docs/knowledge/` at all** — the ladder collapses: the answer is `/agent-kit:blueprint`,
   whatever else is true.
-- **An empty repository** — the answer is `/agent-kit:mvp`, not a single feature.
+- **An empty repository** — the answer is `/agent-kit:blueprint`, then `/agent-kit:sprint` for a
+  skeleton that starts and serves something. `mvp` is the command for this and is not written yet;
+  recommending it would be recommending a stub.
 - **MVP bounds not reached** — rungs 9 and 10 swap: unbuilt entries inside the bounds come before
   debt. Paying down debt in a product that does not exist yet is optimising a thing nobody has run.
 

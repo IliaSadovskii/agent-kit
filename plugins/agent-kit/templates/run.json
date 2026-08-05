@@ -30,7 +30,7 @@
   "deviations": [],
   "_unmet": "Tests this run left marked `agent-kit:unmet` — a promise of the entry the product does not keep. One line each: the entry, what the code does instead, and what it waits for. The closing session reads only run files, so a mark left out of here does not reach the batch's pull request.",
   "unmet": [],
-  "_deferred": "Work this run decided not to do, one line each — the same lines it wrote into docs/technical_debt.md. Delivering a pull request itself, the run has already written them there; inside a batch, the closing session carries them over.",
+  "_deferred": "Work this run decided not to do, one line each — the same lines it wrote into docs/technical_debt.md. Filled inside a batch, where the closing session carries them into the ledger; delivering its own pull request, a run has already written them there and leaves this empty.",
   "deferred": [],
   "_closed_debt": "Items of docs/technical_debt.md this run finished and deleted from the file, one line each. The ledger only shrinks in a commit that does the work, and this is where a batch's report gets the count from.",
   "closed_debt": [],
@@ -39,7 +39,7 @@
   "window": null,
   "_window": "The tmux session the owner briefed this run in, so a driver knows where to put its news. Only a batch has one, and a batch without one simply runs unnarrated.",
 
-  "waiting_since": null,
+  "_waiting_on": "The fork this run is stopped on, in its own words — cleared when the answer lands in `answers`. A driver, the window and `next` all read this to know a run is waiting and on what; it is the only route by which a night's question reaches a phone.",
   "waiting_on": null,
   "_answers": "What the owner was asked and what they answered, verbatim — one entry per question. A run that resumes reads this instead of asking again, and the pull request quotes it instead of remembering it.",
   "answers": [

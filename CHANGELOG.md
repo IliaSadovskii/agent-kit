@@ -3,6 +3,39 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.39.0
+
+An audit of the whole kit — the first since the rewrite reached six working commands — found one
+crash, three records with a reader and no writer, and several places where a rule described a
+mechanism that had since changed underneath it.
+
+- **The check crashed on the day a feature landed.** Moving an entry to `built` rewrote the file
+  while the parsed entries still pointed at the old text, and the next check died with
+  `ValueError: substring not found` — taking the preflight of every command with it. Reproduced,
+  fixed, and covered by a test; none of the 53 before it touched that branch.
+- **`next` was writing to the knowledge it says it never touches.** It ran the check without
+  `--offline`, which asks GitHub about entries marked `building` and rewrites their state lines —
+  leaving uncommitted changes, which is its own ladder's most urgent finding.
+- **The unmet list is no longer cut to ten.** `ship` is told to read the marked test for the entry
+  it is about to touch, and a trimmed list could hide exactly that one.
+- **`waiting_on` had three readers and no writer** — the field a driver, the window and `next` all
+  use to know a run is stopped and on what, and the only route by which a night's question reaches
+  a phone. `ship` now puts the fork's text there. `waiting_since`, which had the reverse problem,
+  is gone.
+- **Nothing produced `agent-kit:scenario`**, so "no scenario has an end-to-end test" was true by
+  construction. `ship` writes it when the task is a scenario.
+- **`commands.types` did not exist and `commands.run` had no reader**, while `ship` was told to run
+  types and to start the app. Both are in the template now, and both are named where they are used.
+- **The debt template seeded a phantom item** — its own example was an open box outside a fence, so
+  every fresh project began one item in debt.
+- **`blueprint` promised a guard that does not exist**, described a `--hash` path that contradicts
+  `--record`, and claimed the check verifies a status against its entity, which the program's own
+  closing line denies. All three corrected.
+- **`run.log` stops duplicating the run file.** Assumptions, answers and review findings have had
+  fields of their own since 0.36.0; logging them again bought shell calls and nothing else.
+- A screen the entry calls an `entry_point` is no longer an orphan, and `close.md` no longer claims
+  to be the only thing that ticks an audit box.
+
 ## 0.38.0
 
 **`fix` is written.** It was a stub from the day the rewrite started, which meant every small repair

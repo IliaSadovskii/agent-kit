@@ -255,13 +255,35 @@ class CheckCase(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(output, "")
 
-    def test_a_long_list_is_cut_to_a_glance(self):
+    def test_the_unmet_list_is_never_cut(self):
+        # ship is told to read the marked test for the entry it is about to touch, so a list cut
+        # to a glance can hide exactly the one that run needed.
         body = "".join(f"// agent-kit:unmet guest.browse_feed\nit('{i}')->todo();\n" for i in range(15))
         self.suite(body)
         _code, output = self.run_check()
         self.assertIn("Promises the product does not keep (15)", output)
-        self.assertIn("and 5 more", output)
-        self.assertEqual(output.count("guest.browse_feed"), 10)
+        self.assertEqual(output.count("guest.browse_feed"), 15)
+
+    def test_a_merged_pull_request_moves_the_state_without_killing_the_run(self):
+        """The crash this covers took every command's preflight down the day a feature landed."""
+        import os
+        self.write("actions.md", ACTIONS.replace("`state: built`", "`state: building (pr: 7)`"))
+        fake = self.root / "bin"
+        fake.mkdir()
+        (fake / "gh").write_text('#!/bin/sh\nprintf \'{"state":"MERGED"}\\n\'\n', encoding="utf-8")
+        (fake / "gh").chmod(0o755)
+        was = os.environ["PATH"]
+        os.environ["PATH"] = f"{fake}:{was}"
+        try:
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                code = check.main([str(self.root)])
+        finally:
+            os.environ["PATH"] = was
+        self.assertEqual(code, 0, out.getvalue())
+        self.assertIn("building (pr: 7) → built", out.getvalue())
+        self.assertIn("state: built",
+                      (self.root / "docs" / "knowledge" / "actions.md").read_text(encoding="utf-8"))
 
     # ---- the debt ledger -----------------------------------------------------------------------
 

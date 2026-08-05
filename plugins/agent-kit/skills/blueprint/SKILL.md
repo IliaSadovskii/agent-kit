@@ -21,7 +21,7 @@ run.
 |---|---|
 | `blueprint` | continues from wherever the last session stopped: works only on what is empty, stale, or marked by an earlier run. Interactive. |
 | `blueprint <what you want to add or reconsider>` | the owner has something the documents do not hold yet — a feature they have thought through, a part they want reworked, a doubt about whether something is covered. Find the slots it touches, interview about those, write, stop. Without this a finished blueprint has no way in, and the thought turns into work nobody asked for. |
-| `blueprint --check` | audits, mechanically, in seconds, asking nothing. Run the program — `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status` — and put its output in front of the owner with a sentence about what to do next. Two audiences: as another command's preflight it is run without `--status` and prints nothing when clean; **by hand it always prints where the project stands**. That is the status view, and it needs no command of its own. |
+| `blueprint --check` | audits, mechanically, in seconds, asking nothing. Run the program — `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status` — and put its output in front of the owner with a sentence about what to do next. Two audiences: as another command's preflight it is run without `--status` and prints nothing when clean; **by hand it always prints where the project stands**. That is the raw view of the knowledge; `/agent-kit:next` is the same data ranked into a recommendation. |
 
 Every question you put to the owner follows `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`: options
 rather than prose, the recommendation first, one at a time.
@@ -112,12 +112,16 @@ confident around a wrong answer.
 answers and points at the owner's document: `source: docs/DEVELOPER.md#offers @a3f1c9d`. Their prose
 stays theirs and is not duplicated; when they edit it the hash diverges and the check says so.
 
-**Never write that hash by hand.** Ask the program that verifies it, or the two will disagree
-forever — which is exactly what happened while the algorithm was left to whoever was reading:
+**Never write that hash by hand, and never copy a printed one either.** One command records every
+hash in the project — sources and dependency manifests both — and it is the only way any of them
+should ever be written:
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --hash docs/DEVELOPER.md offers
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --hash composer.json   # for checks.deps
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --record
+```
+
+A value carried by hand is how the ones written before this program existed came to be invented:
+the rule then said the hash "is that section as you read it", so nothing could recompute them.
 ```
 
 ## How a session ends
@@ -149,7 +153,7 @@ a project the kit has just adopted is the owner's news, not this command's work.
 remote. No pull request of its own: the owner settled every slot out loud as it was written, so
 there is nothing a reviewer would catch, and an interview that may span days cannot leave the
 knowledge on an unmerged branch where the other commands cannot see it. Usually that branch is the
-default one and the guard asks once — the owner is present, that is their confirmation. Started
+default one, and the owner being here is the confirmation — nothing asks a second time. Started
 mid-feature, the knowledge lands on that feature's branch and travels with its pull request, which
 is where the gap surfaced. Only if the default branch is protected does blueprint fall back to a
 branch and a pull request, and it says so.
@@ -192,8 +196,10 @@ enough to run ahead of everything.
 - **Fields.** Every record has the `fields:` its file's header declares, each with content. A field
   runs until the next field or the next heading, so one whose answer is a list on the lines below it
   is filled — reading only the label's own line reports every scenario in the file as empty.
-- **References.** Every key resolves: the actor exists, the entity exists, a status an action sets
-  is in that entity's states, an action named in a screen transition or a scenario step exists.
+- **References.** Every key resolves: the actor exists, the entity exists, an action named in a
+  screen transition or a scenario step exists. Whether a status an action sets is one the entity
+  declares is **not** checked — the program says so in its own closing line, and reading it as
+  checked is how a wrong status survives.
 - **Orphans.** An actor with no action, an entity nothing creates, a screen nothing leads to and
   which is not an entry point.
 - **Sources.** For every `source:`, the file and heading exist and the hash still matches.
