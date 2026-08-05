@@ -171,6 +171,11 @@ on, and you are the only one who may resolve it. Three kinds, and each has its o
 The check prints all three before every command. **Deleting the block is the resolution**; there is
 no `resolved` field anywhere, and nothing else in the kit removes one.
 
+**And a ledger line whose work you have just done, you delete** — in `docs/technical_debt.md`, in
+the same commit, exactly as any run does when it finishes an item. A line asking for prose to be
+rewritten has no other closer: `ship` and `fix` may not touch prose, so if you leave it the work is
+done and the line stays for ever. Only the ones you actually closed, and nothing else in that file.
+
 **A recorded assumption is the decision of record until the owner changes it.** A later run hitting
 the same gap follows it rather than inventing a second reading — that is what keeps features
 consistent with each other.

@@ -3,6 +3,14 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.43.1
+
+- **`blueprint` deletes a ledger line whose work it has just done.** The rule was already the
+  ledger's own — closed by whoever does the work, in the same commit — but `blueprint` was never
+  told it may touch that file, and a line asking for prose to be rewritten has no other closer.
+  Projects that recorded prose work in the ledger before `[stale …]` existed are cleared by the next
+  `blueprint` run rather than by hand.
+
 ## 0.43.0
 
 The whole payload read against one graph of who records, who reminds and who resolves — written

@@ -52,8 +52,8 @@ because each was added on its own and nobody looked at the column.
 |---|---|---|
 | `docs/knowledge/*.md` — prose | `blueprint` | all of it; nothing else touches the prose |
 | `docs/knowledge/*.md` — an entry's `state:` line | `ship`, the closing session, and `next` via `check.py --sync` | `building (pr: n)` when a pull request opens; `built` or back to `planned` from a merged or closed one. Every run of the check says when a line is behind; only `--sync` moves it |
-| `docs/knowledge/*.md` — `[assumed …]` and `[found …]` blocks | `ship`, `fix` | a block under the entry they stood in for; `blueprint` is what deletes one |
-| `docs/technical_debt.md` | `ship`, `fix`, the closing session | a line appended, or a finished line deleted; never a ticked box |
+| `docs/knowledge/*.md` — `[assumed …]`, `[found …]` and `[stale …]` blocks | `ship`, `fix` | a block under the entry they stood in for; `blueprint` is what deletes one |
+| `docs/technical_debt.md` | `ship`, `fix`, the closing session, and `blueprint` for a line whose work was prose | a line appended, or a finished line deleted; never a ticked box |
 | `docs/audits/<lens>.md` | `audit` | the lens's own work list, rewritten whole on each run |
 | `docs/audits/<lens>.md` — the boxes | the closing session, `next` | `- [x]` on an item verified as done, and nothing else in that commit |
 | `.agent-kit/project.yml` | `blueprint` | all of it; no build command edits its own settings |
@@ -96,8 +96,8 @@ that a command is either behavior or a stub marked as such in the plugin README.
 ## Versioning
 
 Semver from the perspective of a project that installed the kit. A command removed or renamed is a
-breaking change; a command added is a minor. `1.0.0` is reserved for the release where all five
-commands work — until then the rewrite ships as `0.x` so the version never claims more than exists.
+breaking change; a command added is a minor. `1.0.0` is reserved for the release where every
+command works — until then the rewrite ships as `0.x` so the version never claims more than exists.
 
 `scripts/release.sh <version>` bumps `VERSION`, `plugin.json` and `marketplace.json` together,
 validates, commits and tags. Publish with `git push && git push --tags`. A release that needs a
