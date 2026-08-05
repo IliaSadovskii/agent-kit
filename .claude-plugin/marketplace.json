@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "A development kit for building software with long-running Claude Code sessions.",
-    "version": "0.36.0"
+    "version": "0.36.1"
   },
   "plugins": [
     {
