@@ -150,8 +150,8 @@ the day it merges.
 ## Working in a repository
 
 The kit works on branches and never merges a pull request — that decision is the owner's, on
-every command. A `PreToolUse` hook will return in v1 to enforce it mechanically rather than by
-instruction.
+every command. It holds by instruction, not by machinery: v1 ships no hooks, and the design's
+argument for reinstating two is on hold rather than in progress.
 
 Two writes are the exception, and both are bookkeeping rather than change: `--check` moves an
 entry's state line when the pull request behind it merges, and `next` ticks an audit box once it
