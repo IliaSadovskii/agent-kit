@@ -3,6 +3,13 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.36.1
+
+Field drift is printed beside the debt rather than filed as a defect. A finished run's file is
+history — nobody edits it to add a key the template has since gained — so as a finding it would
+have sat there forever, unclosable, holding the exit code at 1 on a project whose knowledge is
+otherwise clean.
+
 ## 0.36.0
 
 Runs were inventing fields. `review`, `fork_resolved`, `notes`, `commits` — none of them in the
