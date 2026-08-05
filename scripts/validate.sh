@@ -179,6 +179,31 @@ while IFS= read -r md; do
   [ $((fences % 2)) -eq 0 ] || fail "${md#"$REPO"/}: $fences code fences — one of them is unclosed"
 done < <(find "$PLUGIN" -name '*.md')
 
+# HTML comments do not nest: an inner `-->` closes the outer block, and everything the author meant
+# to hide from there on is rendered. The knowledge templates are all comment, so this is where it
+# bites — and it shipped that way in screens.md.
+python3 - "$PLUGIN" <<'PY'
+import sys
+from pathlib import Path
+
+errors = []
+for path in sorted(Path(sys.argv[1]).rglob("*.md")):
+    depth, text = 0, path.read_text(encoding="utf-8", errors="replace")
+    for index, token in enumerate(part for part in text.split("<!--")):
+        if index and depth:
+            errors.append(f"{path}: a comment opens inside another one — the first `-->` ends both")
+            break
+        depth = 1 if index else 0
+        depth = 0 if "-->" in token else depth
+    if depth:
+        errors.append(f"{path}: a comment is never closed")
+
+for e in errors:
+    print(f"ERROR: {e}", file=sys.stderr)
+sys.exit(1 if errors else 0)
+PY
+[ $? -eq 0 ] || fail "a markdown comment in the payload is malformed"
+
 # --------------------------------------------------------------------------------------------
 step "every field of the run file has a writer and a reader"
 

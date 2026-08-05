@@ -174,6 +174,16 @@ class CheckCase(unittest.TestCase):
         self.assertIn("Open notes", output)
         self.assertIn("assumed", output)
 
+    def test_a_stale_block_is_listed_like_the_other_two(self):
+        """A feature can make an entry's prose false, and only blueprint may rewrite it — so the
+        block under the entry is the whole of the run's move, and the check is what raises it."""
+        self.write("actions.md", ACTIONS + "\n> **[stale 2026-08-05 · claude/x]** Says the driver "
+                                           "is `log`; mail goes out over SMTP now.\n")
+        code, output = self.run_check()
+        self.assertEqual(code, 1)
+        self.assertIn("Open notes", output)
+        self.assertIn("stale", output)
+
     # ---- promises the product does not keep ----------------------------------------------------
 
     MARKED = ("// agent-kit:unmet guest.browse_feed\n"

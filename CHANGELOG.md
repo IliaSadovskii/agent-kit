@@ -3,6 +3,35 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.43.0
+
+The whole payload read against one graph of who records, who reminds and who resolves — written
+down as [docs/design/the-loop.md](docs/design/the-loop.md), because the kit had four partial maps of
+this and no complete one. Seven places where the loop did not close.
+
+- **A third kind of block: `[stale …]`.** Prose an entry carries that the feature just shipped has
+  made false. It went into the ledger yesterday, which was wrong twice over: `blueprint` is the only
+  one who may rewrite the prose and the only one who never deletes ledger lines, so the line would
+  have outlived its own answer; and a block under the entry is read by the next run that opens it,
+  which a line in a ledger is not.
+- **`blueprint` carries one table for all three block kinds**, each with its own ending. Only
+  `[assumed …]` had a written procedure; what a `[found …]` becomes in the library map was nowhere.
+- **A parked feature built from a `task` no longer disappears.** Its entry would have stayed
+  `planned` and raised it again — but a task has no entry, and `check.py` does not list runs at a
+  terminal step. The closing session writes it a ledger line.
+- **The scenarios lens no longer instructs a reader it does not have.** It told whoever was reading
+  to record an untestable step in the ledger; the only reader is `audit`, which may write nothing
+  but its own work list.
+- **The actions template stopped claiming nobody else writes the state line.** Five files state that
+  rule and this was the one left behind when `next` gained the right to move it.
+- **The screens template nested one HTML comment inside another**, so the inner `-->` closed the
+  outer block and two lines of its example rendered as text. `validate.sh` now refuses a nested or
+  unclosed comment anywhere in the payload, beside the code-fence check added yesterday.
+- **Every record now names who may close it** — in the plugin README's table, and as the fourth
+  question every new mechanism has to answer in `docs/developing.md`. Half of the 5 August defects
+  were records with no writer or no reader; the ones found the day after were records nobody was
+  allowed to remove.
+
 ## 0.42.0
 
 Found by running 0.41.0 on a live project: a merged feature sat at `state: building` and nothing

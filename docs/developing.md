@@ -64,6 +64,20 @@ Two properties are worth keeping as the table grows: **one writer per kind of co
 a file has several writers overall; and **nothing writes to a project as a side effect of reading
 it** — that is why `check.py` moves a state line only when it is asked with `--sync`.
 
+The lifecycle of each record — who records it, what raises it again, who may close it, and who
+removes it — is [docs/design/the-loop.md](design/the-loop.md), which is the map the tables here, in
+the plugin README, in `ship` and in `rules/pull-requests.md` all have to agree with.
+
+## Every mechanism arrives with four answers
+
+Who writes it, who reads it, **who may close it**, and what becomes impossible without it. No fourth
+answer, no mechanism.
+
+The third question is the one that was missing. Half the defects of the 5 August audit were records
+with no writer or no reader; the ones found the day after were records nobody was allowed to remove
+— a ledger line whose resolver could not delete it, a merged feature no command was permitted to
+mark. A record with no closer is not a slow leak, it is a list that grows until it stops being read.
+
 The kit is being rebuilt. Read [docs/design/kit-v1.md](design/kit-v1.md) before changing anything:
 it records what was removed and why, and adding one of those things back needs an argument rather
 than an oversight. Six commands work, `mvp` is a declared stub, and `scripts/validate.sh` enforces

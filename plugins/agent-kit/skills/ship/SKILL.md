@@ -186,7 +186,7 @@ reader that acts on it — a finding written anywhere else reaches nobody:
 | the entry promises what the code does not | a test marked `agent-kit:unmet`, and a line in `unmet` | the check lists it; the pull request; `sprint` with no theme offers it as a batch |
 | you departed from the approach that was approved | `deviations`, with its cause | the pull request, as an assumption the code forced |
 | a ready-made answer the library map does not name | a `[found …]` block under `stack.md` | the check prints it; `blueprint` folds it into the map |
-| what you built makes the entry's own prose false — it described the world before this feature | a line in `docs/technical_debt.md` naming that entry | the check counts it; `blueprint` rewrites the entry on its next run, and nothing else may |
+| what you built makes the entry's own prose false — it described the world before this feature | a `[stale …]` block under that entry | the check prints it; `blueprint` rewrites the entry and deletes the block, and nothing else may |
 | work you understood and decided not to do | a line in `docs/technical_debt.md` — and in `deferred` when a batch delivers this | the check counts it; `sprint` with no theme offers it |
 | an item of that ledger you finished | delete its line in the commit that does the work; name it in `closed_debt` | the batch's report, for the count |
 | anything with no field of its own | `notes`, in prose | whoever resumes this run, and the closing session |
@@ -200,7 +200,10 @@ decision of record for every later run — which is what keeps features consiste
 ```
 
 `[found …]` is written the same way under `stack.md`, and is the only route by which the library map
-learns anything, since nothing else goes looking on its own.
+learns anything, since nothing else goes looking on its own. `[stale …]` is written the same way
+under the entry whose prose your feature has just made false — what it still says, and what is true
+now. Rewriting that prose is never yours, and a block under the entry is read by the next run that
+opens it, which a line in a ledger is not.
 
 The ledger is the third file you may write, and it carries its own format and its own rules in its
 header: copy `${CLAUDE_PLUGIN_ROOT}/templates/technical_debt.md` to `docs/technical_debt.md` when

@@ -45,7 +45,7 @@ KEY_RE = re.compile(r"^`key:\s*([^`·]+?)\s*`(?:\s*·\s*`state:\s*([^`]+?)\s*`)?
 HEADING_RE = re.compile(r"^###\s+(.+)$", re.M)
 FIELDS_RE = re.compile(r"^fields:\s*(.+)$", re.M)
 SOURCE_RE = re.compile(r"`source:\s*([^#`]+)#([^@`]+?)\s*@([0-9a-f]+)`")
-NOTE_RE = re.compile(r"^>\s*\*\*\[(assumed|found)\b([^\]]*)\]\*\*\s*(.*)$", re.M)
+NOTE_RE = re.compile(r"^>\s*\*\*\[(assumed|found|stale)\b([^\]]*)\]\*\*\s*(.*)$", re.M)
 REF_RE = re.compile(r"`([a-z][a-z0-9_]*\.[a-z0-9_]+)`")
 # entities and actors are keys without a dot, so the entry part is one or more segments
 MARK_RE = re.compile(re.escape(MARK) + r"[:\s]*([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)*)?")
@@ -944,7 +944,7 @@ def main(argv: list | None = None) -> int:
         print("\n  Every source looks changed — most likely they were recorded before this program "
               "owned the hash. Re-record them with blueprint rather than reading each document.")
     if report.notes:
-        print(f"\nOpen notes ({len(report.notes)}) — each is a decision waiting for the owner:")
+        print(f"\nOpen notes ({len(report.notes)}) — each is waiting for blueprint: a decision to confirm, a library to record, or prose a feature has made false:")
         for note in report.notes:
             print(f"  {note}")
 

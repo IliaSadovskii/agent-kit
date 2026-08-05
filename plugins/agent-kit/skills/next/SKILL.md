@@ -103,7 +103,7 @@ alone, not what is most interesting.
 | 4 | CI failing — on a pull request or on the default branch | it breaks whatever starts next | `/agent-kit:fix` |
 | 5 | a pull request with conflicts, or one never reviewed | it looks finished and is not | resolve, or review it |
 | 6 | somebody is waiting: a run's `waiting_on`, open `[assumed …]` on entries about to be built | the answer is cheapest while the context is warm | answer it, or `/agent-kit:blueprint` |
-| 7 | knowledge not ready: a slot `open_question`, empty fields, a stale `source:` | a run over that entry invents the missing half | `/agent-kit:blueprint` |
+| 7 | knowledge not ready: a slot `open_question`, empty fields, a stale `source:`, a `[stale …]` block saying an entry's prose is now false | a run over that entry believes what it reads, and invents the missing half | `/agent-kit:blueprint` |
 | 8 | a blind spot: a lens that never ran, or ran long ago; scenarios with no end-to-end test | not knowing what is broken is not the same as nothing being broken | `/agent-kit:audit <lens>` |
 | 9 | debt, unkept promises, unticked audit boxes | it only gets more expensive | `/agent-kit:sprint` with no theme |
 | 10 | entries still `planned` | the product is unfinished | `/agent-kit:sprint` or `/agent-kit:ship <key>` |

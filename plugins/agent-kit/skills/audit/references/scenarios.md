@@ -68,9 +68,10 @@ goes through the queue, the worker, the schedule and the browser at once, which 
 suite over green units breaks.
 
 Where a step cannot honestly live in a test — a paid call to a real third party, something only a
-person can judge — the test covers the rest and the exception goes to `docs/technical_debt.md`,
-naming the step and why. What must not happen is a scenario quietly counted as proven because its
-trace came out clean.
+person can judge — the test covers the rest, and the run that writes that test records the exception
+in `docs/technical_debt.md`, naming the step and why. Say it in the work list so that run knows;
+this lens writes nothing but its own file. What must not happen is a scenario quietly counted as
+proven because its trace came out clean.
 
 Three verdicts, and no fourth may be invented: a scenario whose every step is cited and reachable
 `walks`; one with a break is `breaks at step N` (all of them, listed); one with a step whose

@@ -32,6 +32,11 @@ last successful tip and push it.
 A child that was parked mid-feature keeps its branch pushed, out of the chain, and is named in the
 report as unfinished work rather than merged silently.
 
+**A parked child built from a `task` rather than an entry also gets a line in the ledger** — what it
+was for, how far it got, and its branch. An entry that was not built stays `planned` and the next
+command sees it; a task has no such line anywhere, so without this the only work in the kit with no
+home in the knowledge is also the only work that disappears the day this pull request merges.
+
 ## The pull request
 
 One for the batch, base the default branch, per `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md` —

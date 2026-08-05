@@ -159,24 +159,30 @@ branch and a pull request, and it says so.
 
 ## Notes left by runs
 
-A run that lacks knowledge does not stop and does not ask. It decides, continues, and leaves an
-`[assumed …]` block under the entry it stood in for — what the knowledge did not say, what it took,
-and why being wrong there is expensive. A run that finds a better answer than the library map holds
-leaves `[found …]` under `stack.md` the same way. The check prints both before every command; the
-build commands own their shape, and you own what becomes of them.
+A run never stops over the knowledge and never asks it to be rewritten. It leaves a block, carries
+on, and you are the only one who may resolve it. Three kinds, and each has its own ending:
+
+| Block | What it means | What you do with it |
+|---|---|---|
+| `[assumed …]` under the entry | the knowledge did not say, the run decided | ask it as a yes-or-no — *"I took it that an offer goes to `withdrawn`; right?"* — write the answer into the entry, delete the block |
+| `[found …]` under `stack.md` | a ready-made answer the library map does not name | confirm it belongs, add the package and what it covers to the library map, delete the block |
+| `[stale …]` under the entry | the feature that shipped made the entry's prose false | nothing to ask: rewrite the prose to what is true now, delete the block |
+
+The check prints all three before every command. **Deleting the block is the resolution**; there is
+no `resolved` field anywhere, and nothing else in the kit removes one.
 
 **A recorded assumption is the decision of record until the owner changes it.** A later run hitting
 the same gap follows it rather than inventing a second reading — that is what keeps features
 consistent with each other.
 
 Blueprint's work list is exactly these blocks plus what `--check` flags, so a second run costs
-minutes, not hours: ask the block as a yes-or-no — *"I took it that an offer goes to `withdrawn`;
-right?"* — then rewrite the entry and **delete the block**. Deleting it is the resolution; there is
-no `resolved` field anywhere.
+minutes rather than hours.
 
-Notes are only left where being wrong is expensive — data model, permissions, money, a public
+Blocks are only left where being wrong is expensive — data model, permissions, money, a public
 contract — or where the run's own confidence was low. Everything else stays in the run file as
-history. Without that filter the documents silt up after one sprint.
+history. Without that filter the documents silt up after one sprint. A `[stale …]` has no such bar:
+prose that contradicts the product is always worth a block, because every later run reads it as
+true.
 
 ## What `--check` does
 
@@ -200,7 +206,7 @@ enough to run ahead of everything.
 - **Sources.** For every `source:`, the file and heading exist and the hash still matches.
 - **Stack age.** The direct dependency manifests against their recorded hash; and
   `stack_researched` past six months, named once.
-- **Notes.** Count the `[assumed …]` and `[found …]` blocks and list them.
+- **Notes.** Count the `[assumed …]`, `[found …]` and `[stale …]` blocks and list them.
 - **Verdicts.** Slots with no verdict in `project.yml`.
 - **Unmet promises.** Every test carrying `agent-kit:unmet` outside `docs/`, with the entry it
   names — flagging a key no entry defines, and a project that has marks but no `tests.unmet`.

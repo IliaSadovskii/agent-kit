@@ -132,20 +132,22 @@ visible what was weighed. It changes nothing and starts nothing.
 ## What the kit remembers between runs
 
 A command finishes, its session closes, and everything it knew is gone. Six records survive that,
-and every command reads them before it starts:
+and every command reads them before it starts. Each names who may close it, because a record nobody
+is allowed to remove is a record that grows for ever:
 
-| Record | Holds | Written by | Read by |
+| Record | Holds | Written by | Closed by |
 |---|---|---|---|
-| `docs/knowledge/` | what the product is, one file per slot; each entry's state — `planned`, `building (pr: n)`, `built` | `blueprint`; the state line also by `--check`, from merged pull requests | every command |
-| `[assumed …]` blocks | a decision a run had to take without you, under the entry it stood in for | any build command | the check prints them; `blueprint` closes them |
-| `agent-kit:unmet` on a test | a promise the entry makes and the product does not keep — the test is written and marked so the suite stays green | `ship`, when the entry and the code contradict each other | the check lists them; `sprint` offers them as work |
-| `docs/technical_debt.md` | work a run understood and did not do | `ship`, and the session that closes a batch | the check counts them; `sprint` offers them |
-| `docs/audits/*.md` | a lens's work list, boxes ticked as they are closed | `audit` writes; a batch and `next` tick | `sprint` composes batches from them |
-| `.agent-kit/runs/*/run.json` | one run's memory: approach, tasks, assumptions, review, answers, what it left behind | the run itself | whatever resumes it, the closing session, `next` |
+| `docs/knowledge/` | what the product is, one file per slot; each entry's state — `planned`, `building (pr: n)`, `built` | `blueprint` writes the prose; a build command sets `building`, and the line moves on from there once its pull request merges | the state line is bookkeeping; the prose is `blueprint`'s alone |
+| `[assumed …]`, `[found …]`, `[stale …]` blocks | what a run had to decide without you, a library it found, or prose its own feature has made false | any build command, under the entry or under `stack.md` | `blueprint`, by rewriting and deleting the block — nothing else removes one |
+| `agent-kit:unmet` on a test | a promise the entry makes and the product does not keep — the test is written and marked so the suite stays green | `ship`, when the entry and the code contradict each other | you choose the side; then the product changes or the entry does |
+| `docs/technical_debt.md` | work a run understood and did not do | `ship`, `fix`, and the session that closes a batch | whoever does the work, deleting the line in the same commit |
+| `docs/audits/*.md` | a lens's work list, boxes ticked as they are closed | `audit` writes; a batch and `next` tick | that lens's next run, which rewrites the file |
+| `.agent-kit/runs/*/run.json` | one run's memory: approach, tasks, assumptions, review, answers, what it left behind | the run itself, and the driver | nobody — it is history, and everything meant to outlive the branch is in one of the records above |
 
 The rule underneath all six: **anything a run leaves undone names the record it now lives in, and
 nothing is left as a message to a person.** A leftover described only in a pull request is forgotten
-the day it merges.
+the day it merges. The whole graph — who records, who reminds, who resolves —
+is [docs/design/the-loop.md](../../docs/design/the-loop.md).
 
 ## Working in a repository
 
@@ -153,6 +155,7 @@ The kit works on branches and never merges a pull request — that decision is t
 every command. It holds by instruction, not by machinery: v1 ships no hooks, and the design's
 argument for reinstating two is on hold rather than in progress.
 
-Two writes are the exception, and both are bookkeeping rather than change: `--check` moves an
-entry's state line when the pull request behind it merges, and `next` ticks an audit box once it
-has verified the work behind it is done. Neither touches code, and both go in their own commit.
+Two kinds of write are the exception, and both are bookkeeping rather than change: an entry's state
+line moves when the pull request behind it merges, and an audit's box is ticked once the work behind
+it is verified done. `blueprint --check` and `next` are what do them. Neither touches code, neither
+decides anything, and both go in their own commit.
