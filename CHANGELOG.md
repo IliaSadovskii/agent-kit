@@ -22,7 +22,7 @@ reviewer found — was living in a chat window.
 - **The reviewer reads the run file.** It could judge whether the code was good and whether the
   entry was covered, but not whether this was the feature that was designed — nothing in the kit
   compared the diff to the approach the run committed to.
-- **Invented keys are a finding, and `notes` is where prose goes.** The field list is closed because
+- **Invented keys are said, not filed as a defect, and `notes` is where prose goes.** The field list is closed because
   readers are fixed; free context now has a home, so nothing has to mint a key to keep it. `check`
   names run files carrying unknown fields — on the project this was built against it found
   `commits` in seven of them.

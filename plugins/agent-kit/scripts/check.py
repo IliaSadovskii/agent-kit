@@ -168,6 +168,7 @@ class Report:
         self.states: list = []
         self.unmet: list = []
         self.debt: list = []
+        self.drift: list = []
 
     def add(self, group: str, line: str) -> None:
         self.groups.setdefault(group, []).append(line)
@@ -583,9 +584,12 @@ def check_runs(root: Path, report: Report) -> None:
                 strays.setdefault(key, 0)
                 strays[key] += 1
     if strays:
+        # Not a finding: a finished run's file is history, and nobody is going to edit it. It is
+        # said so that the drift is visible while it is still happening, and so that a field the
+        # kit keeps needing gets noticed — `deferred` was invented by three runs before it existed.
         named = ", ".join(f"{k} ({n})" for k, n in sorted(strays.items()))
-        report.add("Runs", f"run files carry fields the template does not: {named} — nothing reads "
-                           f"them; free prose goes in `notes`, a field the kit needs is a finding")
+        report.drift.append(f"run files carry fields the template does not: {named} — nothing reads "
+                            f"them; prose goes in `notes`, and a field the kit needs is a finding")
 
 
 def open_runs(root: Path) -> list:
@@ -815,6 +819,9 @@ def main(argv: list | None = None) -> int:
         if len(report.unmet) > UNMET_SHOWN:
             print(f"  … and {len(report.unmet) - UNMET_SHOWN} more")
         print("  Not this run's work. They are offered as a batch by /agent-kit:sprint with no theme.")
+
+    for line in report.drift:
+        print(f"\n  {line}")
 
     if report.debt:
         print(f"\nDebt ({len(report.debt)}) — work earlier runs decided not to do:")
