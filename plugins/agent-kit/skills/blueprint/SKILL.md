@@ -29,7 +29,7 @@ change what the product must do — that is the sentence this rule exists for.
 | `blueprint --check` | audits, mechanically, in seconds, asking nothing. Run the program — `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status --sync` — and put its output in front of the owner with a sentence about what to do next. `--sync` is yours alone: it moves an entry whose pull request has merged, which is the one thing this program writes, and a preflight that wrote it would leave the tree dirty under the command that ran it. Two audiences: as another command's preflight it is run bare and prints nothing when clean; **by hand it always prints where the project stands**. That is the raw view of the knowledge; `/agent-kit:next` is the same data ranked into a recommendation. |
 
 Every question you put to the owner follows `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`: options
-rather than prose, the recommendation first, one at a time.
+rather than prose, the recommendation first, and everything independent in one round.
 
 ## What this command does not do
 

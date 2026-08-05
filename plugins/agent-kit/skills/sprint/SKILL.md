@@ -74,9 +74,10 @@ What is worth asking, when it applies:
 5. **Whether the owner is reachable while it runs.** This is the only thing that decides whether a
    child waits on an expensive fork or takes it as an assumption.
 
-Ask per `${CLAUDE_PLUGIN_ROOT}/rules/asking.md` — with options, the recommendation first, one at a
-time. Then present the batch and its order as one screen, with what you take as given. Do not sketch
-the features: the owner sees each design in the pull request, not before the run.
+Ask per `${CLAUDE_PLUGIN_ROOT}/rules/asking.md` — with options, the recommendation first, and
+everything that does not depend on another answer in one round. Then present the batch and its
+order as one screen, with what you take as given. Do not sketch the features: the owner sees each
+design in the pull request, not before the run.
 
 ### With no theme
 
@@ -100,8 +101,9 @@ head:
 **Ask which pile first, before naming a single candidate.** Two options — *close what is owed* and
 *build what is missing* — each carrying its count, so the choice is made on size rather than on
 mood. Then, and only then, put the chosen pile up as one screen, a line per candidate with what it
-would cost, and ask which of them the batch takes. Two questions, one at a time, per
-`${CLAUDE_PLUGIN_ROOT}/rules/asking.md` — not one screen holding both.
+would cost, and ask which of them the batch takes. These two are the case that may not travel
+together, per `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`: the second is a list you cannot write until
+the first is answered.
 
 Skip the first question when one pile is empty: nothing owed goes straight to what is missing, and
 a project with nothing planned goes straight to the debt. A question with one real answer is not a

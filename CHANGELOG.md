@@ -3,6 +3,14 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.45.0
+
+- **Questions go up in one round.** The rule said one question per call, and `blueprint` said the
+  opposite two files away — batch the independent ones. The owner reads from a phone, where the
+  expensive part is the return trip, not the number of taps, so everything that does not depend on
+  another answer travels together. What still may not: a question whose answer would change or
+  remove another. Ask the one that decides the road first, then put up whatever still stands.
+
 ## 0.44.0
 
 A record that can only be closed by a command the owner has to start for that purpose makes every

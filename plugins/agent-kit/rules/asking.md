@@ -17,14 +17,19 @@ It also forces the question to be answerable. Writing three options is what reve
 all lead to the same work, and a question whose answers do not differ is one you should not be
 asking. Options give the owner something to disagree with; open prose gives them homework.
 
-**One question, two to four options.** If you have several, ask the one that blocks you — the rest
-usually resolve themselves once it is answered, and a queue of questions is how a five-minute gate
-becomes an evening.
+**Two to four options each, and everything you can ask at once, you ask at once.** The tool takes
+several questions in one call; independent ones go there together. Answering four taps in a row
+costs the owner seconds, and a drip feed of one question per round costs them a return trip each
+time — on a phone, that is the expensive part, not the number of questions.
 
-One question means **one question in the call**, not one topic per screen. The tool takes a list,
-and putting two there is the same wall of text the rule exists to prevent: the owner now has to hold
-both, and the second one is answered on the way past. Ask the blocker, take the answer, and ask the
-next only if it survived — usually it did not, because the first answer named the road.
+**What may not travel together is a question whose answer would change another.** Ask the one that
+decides the road, take the answer, and put the rest up once you know which of them still stand —
+usually fewer, and differently worded. Sending both at once gets the second answered against a road
+that no longer exists.
+
+Ask only what is worth the owner's attention: a fork whose answers lead to different work. Padding a
+round with the cheap decisions you could have taken yourself is what teaches them to tap through
+without reading.
 
 ## Say what you would do, and why it is a fork
 
