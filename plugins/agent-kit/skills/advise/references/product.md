@@ -1,5 +1,10 @@
 # Lens: product
 
+**The question: is this the right product, and who else could it be for?** What a user cannot finish
+because a step was never built. What exists and serves nobody. What people like these expect from a
+product like this and do not get here. Who is nearly a user already. And what to drop, because a
+narrower product is often the better one.
+
 Reference: the scenarios and the actions, and then the domain itself. Walks: every scenario end to
 end, then every action — and after that, the people.
 

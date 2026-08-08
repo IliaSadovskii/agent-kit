@@ -1,16 +1,19 @@
 ---
 name: advise
-description: Propose what the project's own description does not say — features and reach the product is missing or carrying for nothing, approaches that will not survive the volume ahead, and where the money leaks. Reads, proposes, and writes only what the owner accepts in front of it.
+description: Look the project over and say where it is weak and where it could grow — in the product itself (what users cannot finish, what nobody needs, who is nearly served and is not), in the code (what stops working as it grows, what would be simpler or faster to change), and in the money (what is given away that costs per use, what people would pay for). Proposes; the owner decides at the end; whatever they accept is written down while they are still there.
 argument-hint: "[product|code|money] [area] — or what you are wondering about"
 disable-model-invocation: true
 ---
 
 # Advise
 
-Every other command in the kit takes the description as true. `blueprint` writes down what the owner
-means; `audit` measures code against it; the build commands make it real. **Nothing asks whether the
-description is worth building, and nothing asks whether the approach under it will hold.** That is
-this command.
+**Look the project over and say where it is weak and where it could grow.** Not whether the code
+matches the description — that is `audit`. This is the description itself, and the approach under it,
+put in question.
+
+Every other command in the kit takes the knowledge as true: `blueprint` writes down what the owner
+means, `audit` measures code against it, the build commands make it real. So a mediocre idea gets
+built carefully and audited as correct. This command is the one that doubts it.
 
 It proposes. The owner decides, in one round at the end, and what they accept is written down while
 they are still there.

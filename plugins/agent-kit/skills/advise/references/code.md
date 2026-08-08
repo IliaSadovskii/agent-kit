@@ -1,5 +1,10 @@
 # Lens: code
 
+**The question: will this hold as the project grows, and what would make it simpler, harder to break
+and faster to change?** Where the present approach quietly stops working and at what number. What is
+written by hand that the ecosystem already answers. Where the product loses data or lies quietly. And
+how long the developer waits — on the tests, on the environment — which is the cost nobody measures.
+
 Reference: `stack.md`, the volumes stated in `product.md`, and what this ecosystem treats as the
 standard answer. Walks: every action that reads or writes at volume, and every homegrown mechanism.
 

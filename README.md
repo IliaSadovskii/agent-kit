@@ -7,9 +7,9 @@ A Claude Code plugin. You describe the project once, and the commands build from
 The description lives in `docs/knowledge/`, one file per slot: what the product is and deliberately
 is not, the actors, the entities and their states, the actions, the screens, the integrations, the
 scenarios, the stack — and what is in the first version. `blueprint` writes it. `ship`, `fix`,
-`sprint` and `mvp` read it and write code. `audit` compares the code back to it. `advise` is the one
-command that doubts it: it proposes what the description does not say, and writes down what you
-accept.
+`sprint` and `mvp` read it and write code. `audit` compares the code back to it. And `advise` looks
+the whole thing over — the product, the code and the money — and says where it is weak and where it
+could grow.
 
 ## Install
 
@@ -55,24 +55,35 @@ application, and it does not restate documents you already have — it links to 
 
 ### `advise [product | code | money] [area]`
 
-Proposes what the description does not say, and writes down what you accept. The only command that
-doubts the description instead of building from it.
+**A look over the whole project: where it is weak, and where it could grow.** Not whether the code
+matches the description — that is `audit`. This one questions the idea itself and the way it is
+built.
 
-- `product` — what a scenario is missing to finish, what nothing touches and could go, what this
-  audience expects and does not find, who is standing next to it unserved
-- `code` — where an approach stops holding at a named volume, and what would make the thing simpler,
-  more reliable, or faster to change
-- `money` — what is given away that costs per use, which limits exist on paper and nowhere in the
-  code, what somebody would pay for
+Three areas, run separately or all at once:
 
-Each lens walks the files and cites them, then steps away and reads the domain — with research
-delegated after that reading, never before. Every row says what it rests on: the files, the domain,
-or research with a link and a date. Nothing already `planned`, already in an audit, already in the
-ledger or already refused is raised again.
+| | What it looks for |
+|---|---|
+| `product` | the idea and the people using it — what a user cannot finish because a step is missing, what is built and nobody needs, what people like these expect from a product like this and do not find here, who is one field away from being served, and what to drop because a narrower product is the better one |
+| `code` | how it is built — where the present approach quietly stops working as the project grows and at what number, and what would make it simpler, harder to break and faster to change, including how long you wait on the tests and the environment |
+| `money` | what it costs to run and what it could earn — what is given away that costs you per use, limits that exist in the plan and nowhere in the code, and what people would pay for that there is no way to pay for |
 
-You decide in one round at the end. What you accept is written while you are there — an entry, a
-stance, or a line in the ledger; what you refuse is recorded with the reason, and a refusal that
-rested on a number can be reconsidered when the number moves.
+Each area is looked at twice. Once close up, walking your own files and citing them. Once from a step
+back, thinking about the product the way an outsider would — including a look at what similar
+products do now, on the live web, with links and dates. **Every line in the report says which of the
+two it came from**, so judgement is never dressed up as evidence.
+
+It does not tell you what you already know: nothing already planned, already found by an audit,
+already in the debt list, or already refused in an earlier run.
+
+At the end it walks you through the findings and you say yes, no, or later:
+
+- **yes** — it is written down properly right there, while you are still in the room: a full entry in
+  the description with its fields filled in, a rule in the stack, or a line in the debt list. From
+  that moment `ship` and `sprint` can build it like anything else;
+- **no** — recorded with your reason, so it never comes up again. If you refused it over a number —
+  *not worth it at four hundred rows* — that number is kept, and the next run checks whether it has
+  moved;
+- **later** — the line stays open and comes back as an old question, not as a fresh idea.
 
 ### `ship <action key | what to build>`
 
@@ -150,8 +161,7 @@ runs leave it alone.
 overnight. After `ship` it is redundant.
 
 `advise` pays best at two moments: straight after `blueprint`, while nothing is built and changing
-the description is free; and after a sprint, when the product is real enough to judge. It is the one
-command that questions the description rather than building from it.
+your mind is free; and after a sprint, when the product is real enough to be judged honestly.
 
 `ship`, `fix` and `sprint` work with no blueprint at all, from a written task — a project's first
 command should not be an hour of interview. `mvp` requires one, because bounds are what tell it when

@@ -17,7 +17,7 @@ the result back against it, and **orienting** when you have lost the thread.
 | Command | Role | What it does |
 |---|---|---|
 | `/agent-kit:blueprint` | know | the project's knowledge layer: an interview that writes what the project knows, and `--check` that audits it mechanically |
-| `/agent-kit:advise` | know | propose what the description does not say — features, reach, approaches, money — and write down what you accept |
+| `/agent-kit:advise` | know | where the project is weak and where it could grow — the product, the code, the money — and what you accept is written down |
 | `/agent-kit:fix` | build | something is wrong and it is small: find the cause, prove it with a failing test, change the least that works |
 | `/agent-kit:ship` | build | one feature end to end: design against the blueprint, build, verify, review, pull request |
 | `/agent-kit:sprint` | build | a batch of features: brief them in one sitting, then a driver builds each unattended |
@@ -55,31 +55,41 @@ what the product must do on its own.
 
 ## Advise
 
-Every other command takes the description as true: blueprint writes down what you mean, audit
-measures the code against it, the build commands make it real. Nothing asks whether the description
-is worth building, or whether the approach under it will hold. That is this one.
+A look over the whole project: **where it is weak, and where it could grow.** Every other command
+takes your description as true — blueprint writes down what you mean, audit measures the code against
+it, the build commands make it real — so a mediocre idea gets built carefully and audited as correct.
+This is the one that doubts it.
 
-Three lenses, one reference file each. **`product`** — what a scenario is missing to finish, what
-nothing touches and could go, and, stepping away from the files, what this audience expects, who is
-standing next to it unserved, and who should stop being served. **`code`** — where an approach stops
-holding at a named volume, and what would make the thing simpler, more reliable, or faster to change.
-**`money`** — what is given away that costs per use, what limits exist on paper and nowhere in the
-code, and what somebody would pay for.
+Three lenses, one reference file each:
 
-Each lens has a close half that walks the files and cites them, and a wide half that reads the domain
-and proposes what is not written anywhere — with research delegated after that reading, never before
-it. Every row is tagged with what it rests on: the files, the domain, or research with a link and a
-date. Judgement is never mixed silently into evidence.
+- **`product`** — the idea and the people using it. What a user cannot finish because a step is
+  missing. What is built and nobody needs. What people like these expect from a product like this and
+  do not find here. Who is one field away from being served. And who to stop serving, because a
+  narrower product is often the better one.
+- **`code`** — how it is built. Where the present approach quietly stops working as the project
+  grows, and at what number. What would make it simpler, harder to break and faster to change,
+  including how long you wait on the tests and on the environment coming up — the thing that actually
+  slows a developer down and that nobody measures.
+- **`money`** — what it costs to run and what it could earn. What is given away that costs you per
+  use, limits that exist in the plan and nowhere in the code, and what people would pay for that
+  there is no way to pay for.
 
-Nothing is proposed that was already decided: what is `planned`, what the audits already found, what
-the ledger holds, what you refused last time — and what `product.md` says the product deliberately
-does not do, which may be reopened only by naming what changed since.
+Each lens looks twice: **close up**, walking your files and citing them, and **from a step back**,
+thinking about the product the way an outsider would — with research on the live web delegated after
+that reading rather than before it, so the reading is something the search can be checked against
+instead of a summary of the first page of results. Every row is tagged with what it rests on: the
+files, the domain, or research with a link and a date. Judgement is never mixed silently into
+evidence.
 
-You decide in one round at the end, and what you accept is written while you are there: an entry with
-its fields answered, a stance in `stack.md`, or a line in the ledger when it is work rather than a
-rule. What you refuse is recorded with the reason, so the next run does not raise it again — and a
-refusal about volume or cost records the number it rested on, so it can be reconsidered when the
-number moves.
+Nothing is proposed that was already decided: what is `planned`, what the audits found, what the
+ledger holds, what you refused last time — and what `product.md` says the product deliberately does
+not do, which may be reopened only by naming what changed since.
+
+You decide in one round at the end. **What you accept is written down while you are still there** —
+an entry with its fields answered, a stance in `stack.md`, or a line in the ledger when it is work
+rather than a rule — so the next `ship` or `sprint` can build it like anything else. What you refuse
+is recorded with your reason and never raised again; a refusal that rested on a number keeps the
+number, so the next run can see whether it has moved.
 
 The reasoning, and the alternatives rejected on the way:
 [docs/design/advise.md](../../docs/design/advise.md).

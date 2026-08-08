@@ -1,5 +1,9 @@
 # Lens: money
 
+**The question: what does this cost to run, and what could it earn?** What is given away that costs
+per use. Which limits exist in the plan and nowhere in the code. Which bill will dominate at the
+volumes ahead. And what people would pay for that there is currently no way to pay for.
+
 Reference: how the product earns and what it costs to run. Walks: every action and integration that
 costs money to serve, and then the market.
 
