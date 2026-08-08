@@ -3,6 +3,20 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.49.0
+
+Two merges, in the two halves of the kit that do not touch each other.
+
+- **`rules/preflight.md`: what the check found, and what you do about it.** `ship` and `sprint` each
+  carried their own version of that table, written in different words, and when a third kind of
+  block was added one of them did not learn about it — its runs met a record they had no instruction
+  for. It is one rule now, shared, and `fix` reacts to the check for the first time: it ran it and
+  was told nothing about what to do with what came back.
+- **The two developer-facing maps became one.** `docs/developing.md` held *per file, who may write
+  it* and `docs/design/the-loop.md` held *per record, who may close it* — the same graph, the same
+  reader, the same moment, two places to disagree. The graph holds both views now; `developing.md`
+  points at it. Neither is shipped: no run has ever read either, and the page says so.
+
 ## 0.48.0
 
 **The first hook.** Never merging a pull request, never force-pushing and never pushing to the

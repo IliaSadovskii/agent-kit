@@ -68,17 +68,13 @@ finding, and leaves the exit code alone:
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" .
 ```
 
-Then:
+Then react to it per `${CLAUDE_PLUGIN_ROOT}/rules/preflight.md`, which every build command shares —
+plus the two findings that mean something particular here:
 
 | What it found | What you do |
 |---|---|
-| a slot in scope unsettled, or the entry incomplete | stop, name what is missing, offer `/agent-kit:blueprint` — the owner is here and closes it in a minute |
 | promises the product does not keep, on an entry you are about to touch | read that test before you design: it is the shape the promise will take when it is kept, and building over it is how a feature and a marked test end up contradicting each other. On any other entry, ignore the list — it belongs to whoever composes the next batch. It is never a reason to stop, whatever else it says about a missing `tests.unmet` or an entry that no longer exists |
-| no `docs/knowledge/` at all | **carry on.** Work from the task as written, with `entries` empty and `task` describing it, and say once that without an entry the tests can only aim at what the task says done means. A project's first command should not be an hour of interview |
-| `[assumed …]` blocks on the entries you will touch | with `gate: owner`, show them and offer to settle them now — this is the last moment anyone is here. **When they answer, write it into the entry and delete the block**, in its own `docs(knowledge):` commit before you start: you are transcribing their answer, not deciding, and a block left open is a question asked twice. With `gate: none`, follow them as written |
-| `[stale …]` blocks on those entries | an earlier feature outdated a sentence and could not correct it. The block says what the entry claims and what is true now, so with `gate: owner` apply it — the same commit, the same rule: transcribe, never decide. With `gate: none` leave it and read the entry as the block corrects it |
 | the entry is already `built` | say so and ask whether this is a change to it |
-| nothing | continue without a word about it |
 
 Then read, in one message: `.agent-kit/project.yml`, the entry and the entities it names,
 `docs/knowledge/stack.md`. **Read nothing else yet.** Everything you read is re-read on every

@@ -1,11 +1,14 @@
 # The loop: who records, who reminds, who resolves
 
 Built by reading every file of the payload, not from memory; each row was checked against the lines
-cited beside it. It exists because the kit had four partial maps of this and no complete one — the
-plugin README lists what survives a run, `docs/developing.md` lists who may write which file,
-`ship`'s Build table lists where a finding goes, and `rules/pull-requests.md` lists what raises one
-again. None of the four names **who is allowed to close it**, which is the question that was missing
-when a merged feature sat at `building` for a week.
+cited beside it. It exists because the kit had four partial maps of this and no complete one, and none of the four
+named **who is allowed to close a record** — the question that was missing when a merged feature sat
+at `building` for a week.
+
+This page is the whole of it, for whoever changes the kit. It is not shipped and no run ever reads
+it. What a run reads is two tables that come out of this one: where a finding goes, in `ship`, and
+what raises a record again, in `rules/pull-requests.md`. Those must agree with this page; the plugin
+README describes the same thing for a reader in prose, and owes it nothing row by row.
 
 ## The actors
 
@@ -42,6 +45,32 @@ until 0.44.0.
 | a feature delivered | `ship` or the closing session | `state: building (pr: n)` on the entry | the check compares against the pull request on every run | `next` or `blueprint --check`, with `--sync` | in their own `docs(knowledge):` commit |
 | a fork nobody was there to answer | `ship` | `waiting_on` in the run file | the window, the driver, `next` | the run itself, when the answer lands in `answers` | in the run that asked |
 | everything else a run learned | the run | `deviations`, `notes`, `blockers`, `review`, `suite`, `answers` | the closing session, into the pull request | **nobody — this is history by design**, and it dies with the branch | — |
+
+## The same graph, by file
+
+Every file the kit puts in somebody's repository, and everything allowed to write it. A new
+mechanism that writes anywhere is checked against this table first — the rule *only `blueprint`
+rewrites knowledge* was true when it was written and had quietly grown four writers by August,
+because each was added on its own and nobody looked at the column.
+
+| File | Who writes it | What they may write |
+|---|---|---|
+| `docs/knowledge/*.md` — prose | `blueprint` decides it. `ship`, `sprint` and a batch's closing session may transcribe: the owner's answer to an open block, or a `[stale …]` block that already states both halves | never a change to what an entry requires — that is the decision the rule exists to protect |
+| `docs/knowledge/*.md` — an entry's `state:` line | `ship`, the closing session, and `next` via `check.py --sync` | `building (pr: n)` when a pull request opens; `built` or back to `planned` from a merged or closed one. Every run of the check says when a line is behind; only `--sync` moves it |
+| `docs/knowledge/*.md` — `[assumed …]`, `[found …]` and `[stale …]` blocks | `ship`, `fix` | a block under the entry they stood in for; deleted by whoever applies it — `blueprint`, a preflight with the owner present, or the closing session for a `[stale …]` |
+| `docs/technical_debt.md` | `ship`, `fix`, the closing session, and `blueprint` for a line whose work was prose | a line appended, or a finished line deleted; never a ticked box |
+| `docs/audits/<lens>.md` | `audit` | the lens's own work list, rewritten whole on each run |
+| `docs/audits/<lens>.md` — the boxes | the closing session, `next` | `- [x]` on an item verified as done, and nothing else in that commit |
+| `.agent-kit/project.yml` | `blueprint` | all of it; no build command edits its own settings |
+| `.agent-kit/runs/<slug>/run.json` | the run it belongs to, and the driver | the run writes its own state; the driver writes `step`, `blockers` and the batch's own file |
+| `.agent-kit/runs/<slug>/run.log` | the driver | when a session started, stalled, waited out a limit, finished |
+
+Three properties are worth keeping as the table grows. **One decider per kind of content**, even
+where a file has several writers overall — the others transcribe what the decider settled. **Nothing
+writes to a project as a side effect of reading it**, which is why `check.py` moves a state line
+only when asked with `--sync`. And **a record is closed inside work that was happening anyway**: a
+record whose only closing place is a command the owner has to start for that purpose turns every
+batch into a chore, and the reminder to run it stops being read.
 
 ## The cycles
 

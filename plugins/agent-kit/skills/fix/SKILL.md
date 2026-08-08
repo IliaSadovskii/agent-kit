@@ -41,7 +41,8 @@ The knowledge check, same as every command — mechanical, seconds:
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" .
 ```
 
-You need less of it than `ship` does. Read the entry that covers the broken behaviour, if there is
+React to what it found per `${CLAUDE_PLUGIN_ROOT}/rules/preflight.md`, the same as every build
+command. You need less of the rest than `ship` does. Read the entry that covers the broken behaviour, if there is
 one, as its own section rather than by opening the file; read nothing else until the cause is found.
 Without knowledge at all, carry on: the symptom is the specification.
 
