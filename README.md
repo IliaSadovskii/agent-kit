@@ -9,10 +9,6 @@ is not, the actors, the entities and their states, the actions, the screens, the
 scenarios, the stack — and what is in the first version. `blueprint` writes it. `ship`, `fix`,
 `sprint` and `mvp` read it and write code. `audit` compares the code back to it.
 
-> Version 1: all seven commands are written and the shape is complete. `blueprint`, `ship`,
-> `sprint`, `audit` and `next` have run on a real project; `fix` and `mvp` have not yet, and a
-> command that has not run is a hypothesis however carefully it reads.
-
 ## Install
 
 ```text
