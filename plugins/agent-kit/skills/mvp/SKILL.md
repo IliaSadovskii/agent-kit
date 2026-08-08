@@ -76,10 +76,16 @@ what the gate settled — the lenses, the wave cap, the batches already delivere
 reads `finish` instead of asking again**, so anything the gate decided that is not in there is a
 question the owner will be asked twice.
 
-`model` on this run and on every child is **the model you are running on**, unless the owner named
-another at the gate — say which, in the screen, beside the price. It is the one setting that moves
-the price of the whole run rather than trimming its edges, and a child started without it takes the
-install's default, which may be neither what you are on nor what they asked for.
+`model` is the one setting that moves the price of a run rather than trimming its edges, so say
+which you took in the screen, beside the price. Default it to **the model you are running on**; a
+session started without one takes the install's default, which may be neither what you are on nor
+what they asked for.
+
+**A model the owner names goes to the children and not to this run's own file.** The children are
+effectively the whole cost — on a real night the closing session was 2M of 73M — while this file's
+model is what your `--advance` sessions and each batch's closing session run on, and those are the
+ones deciding what follows and what the pull request says. Cheap where the work is, unchanged where
+the judgement is.
 
 Each batch is an ordinary sprint run file — `command: "sprint"`, `parent` naming this run, children
 with `deliver: "branch"`, `gate: "none"`, chained off each other. Write **only the batch you are

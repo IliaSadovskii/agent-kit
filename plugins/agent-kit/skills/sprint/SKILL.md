@@ -160,9 +160,15 @@ Each feature — `.agent-kit/runs/<batch>-NN-<feature>/run.json`:
   `parent: null`.
 - `deliver: "branch"` — a feature inside a batch pushes and stops; the batch gets one pull request.
 - `step: "queued"`.
-- `model` — **the model you are running on**, unless the owner named another. A child started
-  without one takes whatever this install defaults to, which may be neither. Say which you wrote in
-  the screen you put up, so a batch composed on Opus is not quietly built by something else.
+- `model` — **the model you are running on**, unless the owner named another, in the invocation or
+  in answer to the screen. A child started without one takes whatever this install defaults to,
+  which may be neither; say which you wrote, so a batch composed on one model is not quietly built
+  by another.
+
+  **A named model goes to the children and not to the batch's own file.** The children are where
+  effectively all of the cost is — measured on a real night, the closing session was 2M of 73M — and
+  that session writes the pull request and decides what counts as *did not happen*. Leave it on the
+  model the owner is on. If they want it cheaper too, they will say so.
 
 **Every child chains to the previous one.** That is what makes integration a property instead of a
 step: the last branch already holds the batch, and each child's suite runs on everything before it.
