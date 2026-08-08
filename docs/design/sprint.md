@@ -346,12 +346,13 @@ Both of the questions this section carried are closed. The launcher uses `claude
 the PATH and plain tmux otherwise, so the server's helper is an optimisation rather than a
 dependency; `rules/pull-requests.md` now describes batches instead of stacked features.
 
-What is left is not a design question but the only thing that settles one: **none of this has run.**
-`ship` has never run either, so the first sprint's first child is `ship`'s first live run, and it
-should be watched by hand rather than started at midnight. Measure it with `scripts/measure.py`,
-check a sample of what it claims, and expect the corrections to be about the seams between the
-pieces — a child that does not close its run file, a launcher that races its own session — rather
-than about the shape above.
+What was left was not a design question but the only thing that settles one: **none of this had
+run.** It has now — several batches on a live project, most recently five children in one night that
+gave eleven scenarios their first end-to-end tests. The corrections were where this section expected
+them, at the seams rather than in the shape: a child whose run file said less than its branch, a
+preflight that dirtied the tree it was about to require clean, findings written as prose that the
+closing check could not read. `scripts/measure.py` is what measures a night; that one cost about
+73M tokens for five features, against 27M for a single feature at 0.17.0.
 
 The driver's own tests cover what it decides: they already found an unbounded wait on a closing
 session that never returns, and a dead session waited out as though it were merely quiet. What they
