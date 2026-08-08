@@ -172,12 +172,10 @@ is [docs/design/the-loop.md](../../docs/design/the-loop.md).
 stalled run rescuable by hand and an account limit recoverable by typing one line into a session
 whose context is intact. Headless children were rejected for exactly that reason.
 
-Nothing else is assumed. `claude-new` is used when it happens to be on the PATH, because it registers
-a session and names it for the app, and plain `tmux` is the fallback — the kit ships no dependency on
-any particular machine.
-
-What each machine costs you — a server, a laptop, a laptop without `tmux` — is in the repository's
-own [README](../../README.md#where-it-runs).
+Those two run for a night or a day and wait out account limits by sleeping until the reset, so they
+want a machine that does not sleep either. Nothing else is assumed: `claude-new` is used when it
+happens to be on the PATH, plain `tmux` is the fallback, and the kit ships no dependency on any
+particular machine.
 
 ## Working in a repository
 

@@ -27,7 +27,14 @@ For a whole repository, in `.claude/settings.json`:
 }
 ```
 
-Needs `git` and `python3`, plus `gh` for pull requests. `sprint` and `mvp` also need `tmux`: they build each feature in its own visible session.
+Needs `git` and `python3`, plus `gh` for pull requests. The other five commands stop there;
+`sprint` and `mvp` also need `tmux`, because they give each feature its own live session.
+
+Those two run for a night or a day and wait out account limits by sleeping until the reset, so they
+want a machine that does not sleep either — any server will do. If you would rather not arrange one,
+[agent-vps](https://github.com/IliaSadovskii/agent-vps) is a server already set up for this: sessions
+survive reboots and are reachable from the mobile app. The kit does not need it and knows nothing
+about it.
 
 ## Commands
 
@@ -106,33 +113,6 @@ Every run also checks the code for surfaces the description does not have, and t
 carry the file and line proving them, so a verdict can be checked in ten seconds. The list lives in
 `docs/audits/<lens>.md`, grouped into batches of one `ship` run each; mark an item declined and later
 runs leave it alone.
-
-## Where it runs
-
-The kit is prompts, two Python scripts and a hook. What differs between machines is one thing: can
-it give every feature its own live session.
-
-| Where | What works | What it costs you |
-|---|---|---|
-| a server left running | all seven commands | you need a machine that stays up |
-| your own machine, with `tmux` | all seven commands | the run stops when the machine sleeps, and you are the one watching it |
-| your own machine without `tmux`, or Windows | five: `blueprint`, `ship`, `fix`, `audit`, `next` | no `sprint`, no `mvp` — features go one at a time |
-
-**Why a server suits the unattended half.** A sprint is a night and an `mvp` can be a day. When the
-account limit is reached the driver reads the reset time, sleeps until it, and types one line into
-the session, whose context is still intact — that costs the wait and nothing else, but only if the
-machine is awake. A laptop that sleeps turns the same limit into a run you restart by hand.
-
-**What you keep, wherever it runs.** Every feature is built in a real session you can attach to,
-read, and type into — that is what makes a stalled run rescuable and a question at two in the
-morning answerable. Headless children would drop the `tmux` requirement and take all of that with
-them, which is why they were rejected.
-
-**Nothing else is assumed.** A logged-in Claude Code, `git`, `python3`, `gh`, and `tmux` for the two
-unattended commands. If you would rather not assemble that yourself, the server this kit was built
-on is a separate project of its own: [IliaSadovskii/agent-vps](https://github.com/IliaSadovskii/agent-vps) — it
-keeps sessions alive across reboots and reachable from the mobile app. The kit neither needs it nor
-knows about it.
 
 ## Order of work
 
