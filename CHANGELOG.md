@@ -3,6 +3,36 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 1.2.1
+
+- **The reviewer no longer caps its report at ten findings.** The audits' own rule, stated twice in
+  the payload, is that a check which caps its own survey is lying about coverage — and the reviewer
+  was doing exactly that. On the day a diff has eleven findings the eleventh went silently, and the
+  result read exactly like a report that had ten. Sorting by severity was already there and is the
+  better lever: it lets the reader stop early and costs nothing when the guess about where they stop
+  is wrong. The severity floor stays, because the usual advice for it — report everything, sift
+  downstream — assumes a downstream pass this kit deliberately does not have; it is now stated as a
+  filter rather than a definition, and the closing line says it was applied.
+
+- **`advise` says what it is for in words a person can use.** All three READMEs described the command
+  the way its design note argues for it — *the one command that doubts the description instead of
+  building from it* — which is an argument for the kit's own author and tells a reader nothing about
+  what they would get. What they get is a look over the whole project that says where it is weak and
+  where it could grow, in the product, in the code and in the money. The skill and its three lens
+  files now open with the question they answer, before the reference and the walk.
+
+- **The lenses state their goal instead of enumerating the questions to think about.** They carried
+  seven prescribed questions and a fence around three of them; step-by-step choreography for
+  judgment work costs output quality on current models, and a prohibition against a failure the
+  model was not going to make anchors it toward that failure. What stayed is everything that
+  constrains the *report* rather than the thinking — the number rule, the amount rule, the three
+  lines of who / instead / changes, the class-of-bugs bar, the migration path, the complete walk,
+  the link and date. Two moves that do not happen by default are now explicit permissions rather
+  than list items: proposing removal and narrowing in `product`, and asking about quiet data loss
+  and the developer's feedback loop in `code`. `money` gains the constraint it was missing — a way
+  to earn that makes the product worse to use is not a proposal, and where the tension is real the
+  row says so instead of hiding the owner's choice inside a price.
+
 ## 1.2.0
 
 - **`advise` — the first command that doubts the description instead of building from it.** Until now
