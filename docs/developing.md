@@ -11,6 +11,7 @@ plugins/agent-kit/                the plugin — everything that ships
   skills/<name>/references/       what one command needs on one step and not before
   rules/                          what several commands share: asking, pull requests, closing
   agents/                         the subagents a command may start
+  hooks/                          the one guard: what no run may do, enforced outside the model
   scripts/                        check.py, orchestrate.py — what must not depend on remembering
   templates/knowledge/            the shape of each knowledge file blueprint writes
   templates/project.yml           the shape of a project's own corner

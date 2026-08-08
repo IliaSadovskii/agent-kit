@@ -94,16 +94,19 @@ is expensive and prose is unreliable. Two rules:
    unrelated conversations is a tax, and taxes get routed around. This is what P4 was.
 2. Anything a prompt can enforce reliably stays a prompt.
 
-**As of 0.39.0 neither is built, and reinstating them is on hold** — decided 2026-08-05, after an
-audit found `blueprint` relying on a guard the payload does not contain. A rule that leans on
-machinery which does not exist is worse than the same rule standing on its own: the run believes it
-will be stopped and is not. Either the hook exists or no text may refer to it.
+They were on hold from 2026-08-05, after an audit found `blueprint` relying on a guard the payload
+did not contain — a rule that leans on machinery which does not exist is worse than the same rule
+standing on its own, because the run believes it will be stopped and is not. **The first is built
+as of 0.48.0**, `hooks/guard.py`, keyed on a run file at a non-terminal step rather than on a branch
+name, and covered by its own tests. The second is not.
 
 Two hooks were argued for:
 
 - **PreToolUse (Bash)** — refuses `gh pr merge`, force pushes, and pushes to the default branch.
   Irreversible, genuinely forgotten by a long context, and it costs nothing: it runs outside the
-  model's context. Moves over from `main` essentially unchanged.
+  model's context. **Built in 0.48.0.** It has an opinion only while a run of the kit is at a
+  non-terminal step, so the owner's own sessions, `blueprint` and `next` are untouched — and it
+  fails open, saying so, because a broken guard must not stop the work.
 - **PreCompact** — prints one line telling the run to re-read its run file before continuing.
   Compaction is precisely where a long autonomous run loses the thread.
 

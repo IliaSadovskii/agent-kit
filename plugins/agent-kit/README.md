@@ -153,9 +153,11 @@ is [docs/design/the-loop.md](../../docs/design/the-loop.md).
 
 ## Working in a repository
 
-The kit works on branches and never merges a pull request — that decision is the owner's, on
-every command. It holds by instruction, not by machinery: v1 ships no hooks, and the design's
-argument for reinstating two is on hold rather than in progress.
+The kit works on branches and never merges a pull request — that decision is the owner's, on every
+command. Since 0.48.0 that is machinery rather than instruction: a `PreToolUse` guard refuses to
+merge a pull request, to force-push and to push to the default branch, and it runs outside the
+model, where nothing can talk it round. It has an opinion only while a run is at a non-terminal
+step, so your own sessions never meet it.
 
 Two kinds of write are the exception, and both are bookkeeping rather than change: an entry's state
 line moves when the pull request behind it merges, and an audit's box is ticked once the work behind

@@ -3,6 +3,29 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.48.0
+
+**The first hook.** Never merging a pull request, never force-pushing and never pushing to the
+default branch are the kit's oldest rules and were held by instruction alone — which is what a long
+autonomous run loses. Two merge accidents happened before this.
+
+- `hooks/guard.py`, a `PreToolUse` hook on Bash. It refuses those three, outside the model's
+  context, where nothing can talk it round.
+- **It has an opinion only while a run of the kit is at a non-terminal step.** The signal is the
+  kit's own state, not a branch name — the hook that keyed on branch names treated every
+  conversation held on a feature branch as that feature's pipeline and blocked a live session. With
+  no run in flight it exits silently, so the owner's own sessions, `blueprint` and `next` never meet
+  it.
+- It fails open and says so. A guard that breaks must not stop the work, and it must not go quiet
+  either.
+- Fourteen tests of its own, and `validate.sh` refuses a release where the hook is unregistered or
+  cannot answer. A hook that is not wired up is exactly the thing the audit refused to ship: a rule
+  the payload believes in and nothing enforces.
+
+Also: a `CLAUDE.md` at the root of the repository, so the rules for changing the kit — where a new
+rule belongs, the four answers a mechanism owes, why a check may never go quiet — are loaded into
+every session that works here rather than waiting in a file nobody opens.
+
 ## 0.47.0
 
 Found by running 0.46.0 overnight on a live project: five runs wrote their review findings as

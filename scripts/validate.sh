@@ -189,6 +189,23 @@ done < <(grep -rhoE '\$\{CLAUDE_PLUGIN_ROOT\}/[A-Za-z0-9_./-]+' "$PLUGIN" \
            | sed 's|${CLAUDE_PLUGIN_ROOT}/||' | sed 's|[.,)]*$||' | sort -u)
 
 # --------------------------------------------------------------------------------------------
+step "the guard is registered and runs"
+
+# A hook that is not registered is a rule the payload believes in and nothing enforces — the exact
+# shape the audit refused to ship. So the registration is checked, not assumed.
+python3 -c "
+import json, sys
+spec = json.load(open('$PLUGIN/hooks/hooks.json'))
+events = spec.get('hooks') or {}
+if 'PreToolUse' not in events:
+    sys.exit('hooks.json registers no PreToolUse hook')
+" || fail "hooks.json is missing or does not register the guard"
+
+# It must survive being asked about a command it has no opinion on, with no run in flight.
+printf '{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"echo hi\"},\"cwd\":\"/\"}' \
+  | python3 "$PLUGIN/hooks/guard.py" >/dev/null 2>&1 || fail "the guard failed on a harmless command"
+
+# --------------------------------------------------------------------------------------------
 step "the payload's own markdown is not malformed"
 
 # A single stray ``` turns everything after it into a code block. The file still looks fine in a
@@ -277,7 +294,8 @@ step "the driver's own tests"
 
 # orchestrate.py runs unattended overnight; the cheap place to find out it is wrong is here.
 if [ -d tests ]; then
-  python3 -m compileall -q "$PLUGIN/scripts" >/dev/null || fail "python syntax error under $PLUGIN/scripts"
+  python3 -m compileall -q "$PLUGIN/scripts" "$PLUGIN/hooks" >/dev/null \
+    || fail "python syntax error under $PLUGIN/scripts or $PLUGIN/hooks"
   python3 -m unittest discover -s tests -q || fail "tests failed"
 fi
 
