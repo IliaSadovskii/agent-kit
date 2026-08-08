@@ -3,6 +3,14 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 1.1.2
+
+- **Where the kit runs is a note beside the requirements, not a section of its own.** Five commands
+  need `git` and `python3` and nothing else; `sprint` and `mvp` need `tmux` and a machine that does
+  not sleep, because they wait out account limits by sleeping until the reset.
+  [agent-vps](https://github.com/IliaSadovskii/agent-vps) is named as a server already arranged for
+  that — any other will do, and the kit knows nothing about either.
+
 ## 1.1.1
 
 - **A missing `tmux` says so.** The driver raised a traceback on a machine that simply had not
