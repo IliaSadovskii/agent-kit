@@ -130,7 +130,7 @@ them, which is why they were rejected.
 
 **Nothing else is assumed.** A logged-in Claude Code, `git`, `python3`, `gh`, and `tmux` for the two
 unattended commands. If you would rather not assemble that yourself, the server this kit was built
-on is a separate project of its own: [IliaSadovskii/vps](https://github.com/IliaSadovskii/vps) — it
+on is a separate project of its own: [IliaSadovskii/agent-vps](https://github.com/IliaSadovskii/agent-vps) — it
 keeps sessions alive across reboots and reachable from the mobile app. The kit neither needs it nor
 knows about it.
 
