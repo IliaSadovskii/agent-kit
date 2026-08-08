@@ -86,20 +86,17 @@ Completeness differs by half, and the report says so:
 - **The wide half raises what passed a bar**, so it ends with a **considered and rejected** section.
   Without it, five proposals cannot be told apart from a walk that stopped after five.
 
-## The order of a run
+## Three orderings that are load-bearing
 
-1. **Read the previous `docs/advice/<lens>.md`.** Declined rows are not raised again. Rows left open
-   are carried forward as open, not re-proposed as new.
-2. **The close half**, walking its list. Write nothing yet.
-3. **The reading of the domain, into the report** — before a single wide proposal. Who this is
-   really for, what they are really buying, what they do *instead* today, where their time and money
-   go, who stands next to them. Five to seven lines.
-4. **Research, delegated, briefed from that reading.** Search first and the reading becomes a summary
-   of the first page of results; write the reading first and the search can be checked against it —
-   and a disagreement is itself a finding.
-5. **The wide half.**
-6. **Filter everything through the five lists below.**
-7. **Write the file. Then the closing round.**
+How you work is yours. Three sequences are not, because each one is wrong in only one direction:
+
+- **The previous `docs/advice/<lens>.md` is read before anything is proposed.** Declined rows are
+  not raised again; rows left open are carried forward as open rather than presented as new.
+- **The reading of the domain is written down before the research pass is briefed.** Search first
+  and the reading becomes a summary of the first page of results; write it first and the search can
+  be checked against it — and a disagreement is itself a finding.
+- **Everything passes the five lists below before it reaches the report**, and the report is written
+  before the closing round.
 
 ## Nothing is raised that was already decided
 
