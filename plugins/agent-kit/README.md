@@ -1,9 +1,13 @@
 # agent-kit
 
 A development kit for building software with long-running Claude Code sessions. Version 1 is a
-rewrite from scratch: the line before it ended at 0.17.0, where one feature cost 27M tokens and most
-of that went on machinery insuring the kit against its own autonomy. What the rewrite concluded, and
-what it deleted, is in [docs/design/kit-v1.md](../../docs/design/kit-v1.md).
+rewrite from scratch, complete as of 1.0.0: the line before it ended at 0.17.0, where one feature
+cost 27M tokens and most of that went on machinery insuring the kit against its own autonomy. What
+the rewrite concluded, and what it deleted, is in
+[docs/design/kit-v1.md](../../docs/design/kit-v1.md).
+
+Measured against that line: a feature now costs about 15M tokens, and a night of five features
+about 73M.
 
 ## Commands
 

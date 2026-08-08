@@ -3,6 +3,29 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 1.0.0
+
+The rewrite is complete. Seven commands, one knowledge layer they all build from, and no stubs.
+
+What version 1 is, against the line that ended at 0.17.0: **a feature costs about 15M tokens instead
+of 27M**, and a night of five features about 73M. `ship`'s reading set is 9.3k tokens against 13.6k.
+The machinery that insured the kit against its own autonomy is gone — what replaced it is a
+description the code is held to, a reviewer that reads the entry rather than only the diff, and one
+guard outside the model's context.
+
+- **know** — `blueprint` writes what the project is, and `--check` audits it mechanically.
+- **build** — `fix` for a defect, `ship` for a feature, `sprint` for a batch built while nobody
+  watches, `mvp` for everything inside the MVP bounds.
+- **check** — `audit`, six lenses, every verdict carrying a citation.
+- **orient** — `next`, for the session opened a week later.
+
+**What this version does not claim.** `fix` and `mvp` are written and have not met a live run. Five
+of the seven have, on one real project, and every correction the kit carries came from those runs
+rather than from re-reading the text. The number says the shape is finished; the README says which
+parts are proven, because a version that waits for proof stops telling anyone what is in the box.
+
+From here semver means what it says: a command removed or renamed is `2.0.0`.
+
 ## 0.50.0
 
 **`mvp` is written.** The last stub, and the smallest command in the kit: it owns no build, test or

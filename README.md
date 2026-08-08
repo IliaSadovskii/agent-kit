@@ -8,8 +8,9 @@ The description lives in `docs/knowledge/`: actors, entities, actions, screens, 
 scenarios, the stack, and what is in the first version. `blueprint` writes it. `ship`, `fix`,
 `sprint` and `mvp` read it and write code. `audit` compares the code back to it.
 
-> Being rebuilt. All seven commands are written; `fix` and `mvp` have not yet met a live run.
-> The last version of the line before the rewrite is the `v0.17.0` tag.
+> Version 1: all seven commands are written and the shape is complete. `blueprint`, `ship`,
+> `sprint`, `audit` and `next` have run on a real project; `fix` and `mvp` have not yet, and a
+> command that has not run is a hypothesis however carefully it reads.
 
 ## Install
 
