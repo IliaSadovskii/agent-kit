@@ -450,10 +450,33 @@ class Driver:
             self.run.set(step="done")
             self.run.event("done", f"pr={state.get('pr')}")
             self.tell(f"the batch is finished, pull request {state.get('pr')}")
+            self.hand_back(state)
             return
         self.run.set(step="blocked")
         self.run.event("close-failed", why or "no pull request")
         self.tell("the features are built and pushed, but the batch has no pull request — it needs one by hand")
+        self.hand_back(state)
+
+    def hand_back(self, state: dict) -> None:
+        """A batch inside a longer run tells that run it is finished, and this program stops.
+
+        An `mvp` is batches one after another, and something has to decide what the next one is —
+        which is judgement, so it is a session. This launches it and does not watch it: the session's
+        own product is another driver running, and there is no state of its own to wait for. If it
+        dies before starting one, the run stops where it stands and `--resume` picks it up, which is
+        the same recovery every other stall has.
+        """
+        parent = state.get("parent")
+        if not parent:
+            return
+        above = Run(self.run.dir.parent / parent)
+        if above.state().get("command") != "mvp":
+            return
+        name = f"{above.slug}-advance"[:60]
+        self.run.event("hand-back", f"{parent} decides what follows")
+        if not self.launcher.start(name, f"/agent-kit:mvp --advance {above.dir}"):
+            above.event("stalled", "could not start the session that decides the next batch")
+            self.tell(f"{above.slug} needs /agent-kit:mvp --resume — the next batch did not start")
 
 
 # --------------------------------------------------------------------------------------------
@@ -482,7 +505,18 @@ def main(argv: list[str] | None = None) -> int:
 
     run = Run(run_dir)
     cwd = project_root(run_dir)
-    return Driver(run, cwd, options).go()
+
+    # Two drivers over one working tree is how a night ends with commits in the wrong branch. The
+    # previous generation of this program could do it, because liveness was read from a log written
+    # only at exit; a live tmux session is the fact itself.
+    driver = Driver(run, cwd, options)
+    for slug in run.state().get("children") or []:
+        child = Run(run_dir.parent / slug)
+        if child.file.is_file() and not child.terminal() and driver.launcher.alive(slug[:60]):
+            print(f"{slug} still has a live session — another driver is already on this run",
+                  file=sys.stderr)
+            return 1
+    return driver.go()
 
 
 if __name__ == "__main__":

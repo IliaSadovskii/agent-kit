@@ -60,7 +60,9 @@ SLOTS = ("product", "actors", "entities", "actions", "screens", "integrations", 
 # driver on a batch's file. Kept here rather than only in the template's prose, because a value
 # nothing recognises leaves whatever is watching that field waiting for a state that never comes.
 STEPS = ("queued", "design", "build", "verify", "deliver", "done", "blocked", "skipped",
-         "building", "closing")
+         "building", "closing",
+         # an mvp's own phases, written by `mvp` on its own file as it moves between them
+         "gate", "auditing", "proving")
 
 # What a dependency manifest is called, across the ecosystems a project here might use. Only their
 # names are known — the check reads none of them, it just notices one nobody recorded.
@@ -324,6 +326,53 @@ def tracked_manifests(root: Path) -> list:
     if listed.returncode != 0:
         return []
     return sorted(p for p in listed.stdout.splitlines() if Path(p).name in MANIFEST_NAMES)
+
+
+def check_mvp(root: Path, manifest: dict, docs: list, report: Report) -> list:
+    """What `mvp` cannot start without, and nothing more.
+
+    An `mvp` with a thin blueprint has no stopping condition — a sprint with one still delivers five
+    features. So these three are fatal at its gate and are checked here rather than remembered: two
+    real MVP bounds, at least one scenario to prove the end against, and the two commands that start
+    the application and run its suite. Everything smaller becomes an assumption instead of costing a
+    whole run.
+
+    What it does not check is which entries fall inside the bounds. Those are written in prose, in
+    the project's own language, and mapping them to entry keys is judgement — which is exactly the
+    one question the gate puts to the owner.
+    """
+    fatal = []
+    product = next((d for d in docs if d.slot == "product"), None)
+    text = product.text if product else ""
+    section = section_of(text, "MVP bounds") or section_of(text, "Границы MVP")
+    if section is None:
+        found = re.search(r"^#{1,6}\s+.*\bMVP\b.*$", text, re.M | re.I)
+        section = section_of(text, found.group(0).lstrip("# ").strip()) if found else None
+    if not section:
+        fatal.append("product.md has no MVP bounds section — an mvp with no bounds cannot know when "
+                     "it is finished")
+    else:
+        sides = re.findall(r"^\*\*([^*]+):?\*\*[:：]?\s*(.*)$", section, re.M)
+        filled = [name for name, rest in sides if len(rest.strip()) > 3]
+        if len(filled) < 2:
+            fatal.append("the MVP bounds are not two lists — an out-list is what stops a run from "
+                         "helpfully building the rest of the product")
+
+    scenarios = next((d for d in docs if d.slot == "scenarios"), None)
+    body = re.sub(r"<!--.*?-->", "", scenarios.text, flags=re.S) if scenarios else ""
+    if not HEADING_RE.findall(body):
+        fatal.append("no scenarios are described — they are what an mvp proves itself against, and "
+                     "without them its finish line is somebody's opinion")
+
+    commands = manifest.get("commands") or {}
+    for name, what in (("run", "start the application"), ("test", "run the suite")):
+        if not (commands.get(name) or "").strip():
+            fatal.append(f"project.yml has no `commands.{name}` — nothing says how to {what}, and "
+                         f"the finish line is walked against a running application")
+
+    for line in fatal:
+        report.add("MVP", line)
+    return fatal
 
 
 def check_verdicts(manifest: dict, report: Report) -> None:
@@ -894,6 +943,9 @@ def main(argv: list | None = None) -> int:
                              "mid-flight, when each lens last ran")
     parser.add_argument("--hash", nargs="+", metavar="ARG",
                         help="print the digest of a file, or of one heading inside it: --hash FILE [HEADING]")
+    parser.add_argument("--mvp", action="store_true",
+                        help="the gate of /agent-kit:mvp: bounds, scenarios, and the commands that "
+                             "start and test the application. Silent when it may start")
     parser.add_argument("--run", metavar="DIR",
                         help="judge one run file as it closes: what a run at step done may not "
                              "leave behind. Silent when there is nothing")
@@ -951,6 +1003,14 @@ def main(argv: list | None = None) -> int:
         print("\n".join(f"  {line}" for line in written) if written
               else "  every hash was already current")
         return 0
+
+    if options.mvp:
+        fatal = check_mvp(root, manifest, docs, report)
+        if fatal:
+            print("This project cannot start an mvp as it stands:")
+            for line in fatal:
+                print(f"  {line}")
+        return 1 if fatal else 0
 
     sync_states(docs, report, options.sync, options.offline)
     check_fields(docs, report)

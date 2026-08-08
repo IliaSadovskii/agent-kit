@@ -26,8 +26,21 @@ git branch -f sprint/<batch-slug> <last successful child's branch>
 git push -u origin sprint/<batch-slug>
 ```
 
-For an `mvp` the branch already exists and moves forward instead: fast-forward `mvp/<slug>` to the
-last successful tip and push it.
+**Inside an `mvp` the branch already exists and moves forward instead**: fast-forward `mvp/<slug>`
+to the last successful tip and push it. There is one pull request for that whole run, so the first
+batch opens it and every batch after **rewrites its body and adds a comment with its own digest** —
+what this batch built, what it proved, what it decided without the owner. They read one place and
+see what is new since they last looked.
+
+Say once, in the body, how to look at it without breaking the run:
+
+```bash
+git worktree add /tmp/<slug>-preview mvp/<slug>
+```
+
+A `git checkout` in the project's own directory pulls the working tree out from under the children
+still building in it. This line is what stops that at three in the morning; name a free port too if
+the project already has an instance running.
 
 A child that was parked mid-feature keeps its branch pushed, out of the chain, and is named in the
 report as unfinished work rather than merged silently.

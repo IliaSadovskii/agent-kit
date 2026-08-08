@@ -16,12 +16,12 @@ the result back against it, and **orienting** when you have lost the thread.
 | `/agent-kit:fix` | build | something is wrong and it is small: find the cause, prove it with a failing test, change the least that works |
 | `/agent-kit:ship` | build | one feature end to end: design against the blueprint, build, verify, review, pull request |
 | `/agent-kit:sprint` | build | a batch of features: brief them in one sitting, then a driver builds each unattended |
-| `/agent-kit:mvp` | build | from the blueprint to a running prototype — **not written yet** |
+| `/agent-kit:mvp` | build | from the blueprint to a running prototype: the MVP bounds built, audited and proved by the scenarios |
 | `/agent-kit:audit` | check | compare existing code to the description and write a work list |
 | `/agent-kit:next` | orient | where the project stands and which command to run — for the cold start |
 
-All of them work today except `mvp`, which is declared so the shape of the kit is visible and does
-nothing when invoked.
+All seven are written. `fix` and `mvp` have not yet met a live run, and a command that has not is a
+hypothesis however carefully it reads.
 
 ## Blueprint
 
@@ -102,6 +102,19 @@ items, and composes from that.
 
 Why a script driver and not an orchestrating agent, and what a review deleted from the first design:
 [docs/design/sprint.md](../../docs/design/sprint.md).
+
+## MVP
+
+Everything inside the MVP bounds, autonomously, as one pull request. It owns no build, test or
+pull-request logic — it composes batches and the driver, `ship` and the closing session do the rest,
+which is why it is the smallest command in the kit rather than the largest.
+
+One question at the gate: the scope it derived from your bounds, or narrower, with the price of
+each. Then batches of about five features, each a real sprint; after each one the pull request says
+what now works, and you can open the branch in a `git worktree` without touching the run. When the
+in-list is built it audits with the lenses this product needs, fixes what they find in wave after
+wave until they stop finding it, and finishes only when every scenario inside the bounds passes
+against the running application.
 
 ## Audit
 

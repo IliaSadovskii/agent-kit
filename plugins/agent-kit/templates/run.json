@@ -37,6 +37,9 @@
   "closed_debt": [],
   "blockers": [],
 
+  "_finish": "An mvp's own plan, settled at its gate and never asked again — a resumed run reads it instead of putting the same questions a second time. `scope`: the entry keys taken, which is `entries` above; this says which list they came from. `lenses`: the audit lenses this product needs. `waves`: how many times a lens may be re-run after its findings are fixed, before the remainder goes to the report — a lens is never run twice over unchanged code, so a wave is always audit, then the sprints that fix it, then the audit again. `built`: the batches already delivered, so an advance knows where it is.",
+  "finish": null,
+
   "window": null,
   "_window": "The tmux session the owner briefed this run in, so a driver knows where to put its news. Only a batch has one, and a batch without one simply runs unnarrated.",
 

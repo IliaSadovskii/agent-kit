@@ -478,6 +478,55 @@ class CheckCase(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(output, "")
 
+    # ---- the gate of an mvp ---------------------------------------------------------------------
+    #
+    # A sprint with a thin blueprint still delivers five features; an mvp with one has no stopping
+    # condition. These three are what it refuses to start without.
+
+    def ready_for_mvp(self, product=None, scenarios=None, commands=True):
+        self.write("product.md", product if product is not None else
+                   "# Product\n\n## MVP bounds\n\n**In:** sign-in, the composer\n\n"
+                   "**Out:** comments, search\n")
+        self.write("scenarios.md", scenarios if scenarios is not None else
+                   "# Scenarios\n\n### Anna publishes a story\n\n**Who:** Anna\n")
+        if commands:
+            (self.root / ".agent-kit" / "project.yml").write_text(
+                MANIFEST + "commands:\n  test: make test\n  run: make up\n", encoding="utf-8")
+        return self.run_check("--mvp")
+
+    def test_a_project_that_may_start_an_mvp(self):
+        code, output = self.ready_for_mvp()
+        self.assertEqual(code, 0)
+        self.assertEqual(output, "")
+
+    def test_bounds_written_in_another_language_are_still_bounds(self):
+        """The bounds are the owner's prose, in the project's own language — the heading is too."""
+        code, output = self.ready_for_mvp(
+            product="# Продукт\n\n## Границы MVP\n\n**Входит:** вход, композер\n\n"
+                    "**Не входит:** комментарии, поиск\n")
+        self.assertEqual(code, 0, output)
+
+    def test_no_bounds_at_all(self):
+        code, output = self.ready_for_mvp(product="# Product\n\n## What it is for\n\nStories.\n")
+        self.assertEqual(code, 1)
+        self.assertIn("no MVP bounds section", output)
+
+    def test_bounds_with_only_one_side(self):
+        code, output = self.ready_for_mvp(
+            product="# Product\n\n## MVP bounds\n\n**In:** sign-in, the composer\n")
+        self.assertEqual(code, 1)
+        self.assertIn("not two lists", output)
+
+    def test_no_scenarios_to_prove_the_end_against(self):
+        code, output = self.ready_for_mvp(scenarios="# Scenarios\n\nNone yet.\n")
+        self.assertEqual(code, 1)
+        self.assertIn("no scenarios are described", output)
+
+    def test_no_command_that_starts_the_application(self):
+        code, output = self.ready_for_mvp(commands=False)
+        self.assertEqual(code, 1)
+        self.assertIn("commands.run", output)
+
     # ---- what a run may not close with ---------------------------------------------------------
     #
     # These are the two rules that used to hold only if the run remembered them at the end of its

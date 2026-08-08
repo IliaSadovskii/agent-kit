@@ -3,6 +3,37 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.50.0
+
+**`mvp` is written.** The last stub, and the smallest command in the kit: it owns no build, test or
+pull-request logic at all. It composes batches and the driver, `ship` and the closing session do
+everything else — which is what the design predicted when it made a sprint's brief optional.
+
+- **One question, at the gate.** The MVP bounds are the owner's prose, so `mvp` derives which
+  entries fall inside them, orders them from what the scenarios and preconditions require, chooses
+  the audit lenses from what the product is, prices the run — and asks only *this scope, or
+  narrower*. Whether the owner is reachable is not asked: a run that lasts a day cannot wait on a
+  phone, so every child gets `gate: none` and every fork becomes a recorded assumption.
+- **`check.py --mvp` is what it may not start without**: two real MVP bounds, at least one scenario,
+  and the commands that start the application and run its suite. Fatal, mechanical, in the project's
+  own language — it finds `## Границы MVP` as readily as `## MVP bounds`.
+- **Phases live on the run file**, and between them the driver runs rather than a session: gate →
+  building → auditing → proving → done. `orchestrate.py` hands back to `/agent-kit:mvp --advance`
+  when a batch's parent is an mvp, and that session decides one thing, starts it, and ends. Nothing
+  sits watching for hours.
+- **The audit goes in waves**: a lens, the sprints that fix what it found, then that lens again over
+  the changed code — never twice over the same. It stops when a lens returns only minors, and a cap
+  in `finish.waves` stops it regardless, because an audit is never *clean*.
+- **`--resume` asks nothing.** Everything the gate settled is in `finish`, so a run that lost its
+  driver to a restart or a weekly limit picks up where it stood. The driver now refuses to start
+  when a child's session is alive: two drivers over one working tree is how a night ends with
+  commits on the wrong branch.
+- **The pull request prints `git worktree add`**, so the owner can open a batch without a `git
+  checkout` that would pull the tree out from under the children still building in it.
+
+The version stays `0.x`: every command is written now, but `1.0.0` is for the release where every
+command has met a live run, and `fix` and `mvp` have not.
+
 ## 0.49.0
 
 Two merges, in the two halves of the kit that do not touch each other.

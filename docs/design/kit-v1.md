@@ -227,12 +227,13 @@ untested anywhere: a project with a thin `stack.md`, and any stack other than La
 - ~~**What drives a sprint's stages.**~~ Decided 2026-08-04: a script driver, no orchestrating
   agent, one visible session per feature. The reasoning, the question protocol and the limit
   handling are in [sprint.md](sprint.md).
-- **How `mvp` knows it is finished.** "Until the agent decides it works" has no anchor and either
-  stops early or never stops. The intended anchor is blueprint's `mvp_bounds` (an explicit in-list
-  and out-list) plus its scenarios walking end to end against the running app. Also settled in
-  principle: `mvp` composes batches and owns no build, test or PR logic of its own — it calls
-  `sprint`, which calls `ship`. And on an empty project the first batch is a skeleton that starts
-  and serves something, not a feature.
+- ~~**How `mvp` knows it is finished.**~~ Closed in 0.50.0, with the anchor this entry named: the
+  in-list built, then the audit's lenses finding nothing above minor, then every scenario inside the
+  bounds passing against the running application. The one thing that changed on the way is the word
+  *calls* — a command cannot invoke a command, so `mvp` writes the run files a brief would have
+  written and the driver runs them, handing back to `mvp` after each batch. Nothing downstream can
+  tell the difference, which is what [sprint.md](sprint.md) predicted when it made the brief
+  optional.
 - **Screens.** Deferred, to be reconsidered in a much simpler form once blueprint exists.
 - ~~**Five of `audit`'s seven lenses.**~~ Closed: six lenses are written and each has run once. The
   reasoning for each, and the two that were rejected, is in [audit.md](audit.md).

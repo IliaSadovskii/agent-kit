@@ -8,8 +8,8 @@ The description lives in `docs/knowledge/`: actors, entities, actions, screens, 
 scenarios, the stack, and what is in the first version. `blueprint` writes it. `ship`, `fix`,
 `sprint` and `mvp` read it and write code. `audit` compares the code back to it.
 
-> Being rebuilt. Six commands work; `mvp` is declared and does nothing. The last version of the
-> line before the rewrite is the `v0.17.0` tag.
+> Being rebuilt. All seven commands are written; `fix` and `mvp` have not yet met a live run.
+> The last version of the line before the rewrite is the `v0.17.0` tag.
 
 ## Install
 
@@ -69,10 +69,15 @@ Several features briefed in one sitting, then built unattended — each as its o
 one after another, chained so the batch arrives as a single mergeable pull request. A control
 session stands beside the run to say how it is going and to take *skip* and *stop*.
 
-### `mvp` — not written yet
+### `mvp`
 
-Builds everything inside the MVP bounds and keeps going until the scenarios pass against the running
-application.
+Everything inside the MVP bounds, built while nobody watches, then audited, then proved by the
+scenarios against the running application — one pull request you open and click through.
+
+It asks one question, at the start: this scope, or narrower, with the price of each. After that it
+runs in batches — each a sprint of about five features — and after every batch the pull request says
+what now works. It owns no build logic of its own: it composes the batches and the same driver,
+`ship` and closing session do the rest.
 
 ### `next`
 
@@ -108,7 +113,7 @@ runs leave it alone.
 
 | You have | Order |
 |---|---|
-| an idea | `blueprint` → `mvp` → `audit` → `sprint` |
+| an idea | `blueprint` → `mvp` → `sprint` |
 | a half-built skeleton | `blueprint` → `audit` → `ship` / `sprint` |
 | a finished application | `blueprint` → `audit` → `sprint` → `fix` |
 | no idea where you stopped | `next` |
