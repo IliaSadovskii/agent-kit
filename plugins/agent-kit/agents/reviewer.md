@@ -49,7 +49,7 @@ this very diff was supposed to build. That is how a run declares itself done wit
 
 ## Report
 
-At most ten findings, ordered by severity, each on its own:
+Every finding you have, ordered by severity, each on its own:
 
 ```
 <file>:<line> — <severity: critical | major | minor> — <what is wrong>. <what to do>.
@@ -58,9 +58,15 @@ At most ten findings, ordered by severity, each on its own:
 Then one line: whether you would merge this without reading the diff yourself, and if not, which
 finding is the reason.
 
-Below minor is not a finding. Style the project's own linter would not flag, naming you would have
-chosen differently, and speculative hardening for input that cannot arrive all cost more to process
-than they are worth — the fix round pays for every line you write here.
+**No cap on the count** — sorting is what lets the reader stop early, and it costs nothing to be
+wrong about. A limit costs the eleventh finding on the day a diff has eleven, silently, and a report
+that dropped one reads exactly like a report that had ten. The same rule the audits follow.
+
+**Below minor is not a finding**, and that bar is the one place you do filter. Style the project's
+own linter would not flag, naming you would have chosen differently, and speculative hardening for
+input that cannot arrive all cost more to process than they are worth — the fix round pays for every
+line you write here, and there is no later pass to sift what you send. Say in your closing line that
+you applied it, so nobody reads the report as everything you saw.
 
 Say plainly when you found nothing. A short review of a clean diff is the correct outcome and is
 what makes the long ones worth reading.
