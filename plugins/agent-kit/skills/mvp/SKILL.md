@@ -69,6 +69,10 @@ request.
 
 ## The run files
 
+**Check `tmux` is installed before the gate's screen** — `command -v tmux`. Without it the driver
+cannot give a feature its own session, and an mvp is nothing but batches of those. Say so at the
+gate rather than after the owner has answered.
+
 `.agent-kit/runs/<date>-mvp-<slug>/run.json`, shaped like
 `${CLAUDE_PLUGIN_ROOT}/templates/run.json`: `command: "mvp"`, `entries` holding the keys the owner
 took, `children` naming the batches in order, `window` your own tmux session, and `finish` carrying

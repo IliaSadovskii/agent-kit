@@ -165,6 +165,17 @@ nothing is left as a message to a person.** A leftover described only in a pull 
 the day it merges. The whole graph — who records, who reminds, who resolves —
 is [docs/design/the-loop.md](../../docs/design/the-loop.md).
 
+## What it needs
+
+`git` and `python3` for everything, `gh` to open a pull request. `sprint` and `mvp` also need
+`tmux`: the driver gives each feature its own visible session through it, which is what makes a
+stalled run rescuable by hand and an account limit recoverable by typing one line into a session
+whose context is intact. Headless children were rejected for exactly that reason.
+
+Nothing else is assumed. `claude-new` is used when it happens to be on the PATH, because it registers
+a session and names it for the app, and plain `tmux` is the fallback — the kit ships no dependency on
+any particular machine, and the five commands that are one session each need no multiplexer at all.
+
 ## Working in a repository
 
 The kit works on branches and never merges a pull request — that decision is the owner's, on every

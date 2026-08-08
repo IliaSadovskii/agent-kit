@@ -114,7 +114,10 @@ class Launcher:
         self.closer = shutil.which("claude-close")
 
     def _tmux(self, *args: str) -> subprocess.CompletedProcess:
-        return subprocess.run(["tmux", *args], capture_output=True, text=True)
+        try:
+            return subprocess.run(["tmux", *args], capture_output=True, text=True)
+        except FileNotFoundError:                 # checked once in main(); this is the belt
+            return subprocess.CompletedProcess(args, 127, "", "tmux is not installed")
 
     def tmux_name(self, name: str) -> str:
         return f"cc-{name}" if self.helper else f"agent-kit-{name}"
@@ -514,6 +517,15 @@ def main(argv: list[str] | None = None) -> int:
     run_dir = options.run_dir.resolve()
     if not (run_dir / "run.json").is_file():
         print(f"no run file in {run_dir}", file=sys.stderr)
+        return 1
+
+    # One visible session per feature is what makes a stalled child rescuable by hand and a limit
+    # recoverable by typing into it. Without a multiplexer there is no such session, and a traceback
+    # is a poor way to say so on a machine that simply has not installed one.
+    if not shutil.which("tmux"):
+        print("tmux is not installed, and it is what gives every feature its own visible session.\n"
+              "Install it, or build features one at a time with /agent-kit:ship, which needs none.",
+              file=sys.stderr)
         return 1
 
     run = Run(run_dir)

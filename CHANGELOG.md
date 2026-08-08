@@ -3,6 +3,13 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 1.1.1
+
+- **A missing `tmux` says so.** The driver raised a traceback on a machine that simply had not
+  installed one; `sprint` and `mvp` now check before composing anything, and the driver refuses with
+  a sentence instead of a stack. Five of the seven commands are one session each and need no
+  multiplexer at all — the plugin README now says which is which.
+
 ## 1.1.0
 
 - **A run says which model its sessions start on.** `model` in the run file, typed into each session

@@ -131,6 +131,11 @@ sent to close.
 
 ## Write the run files
 
+**Check `tmux` is installed before you write anything** — `command -v tmux`. The driver gives every
+feature its own visible session through it, which is what lets a stalled child be rescued by hand
+and a limit be recovered by typing one line into a session whose context is intact. Without it, say
+so and offer `/agent-kit:ship` per feature instead of composing a batch nothing can run.
+
 One directory per feature under `.agent-kit/runs/`, plus one for the batch, all shaped like
 `${CLAUDE_PLUGIN_ROOT}/templates/run.json`.
 
