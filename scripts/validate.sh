@@ -166,7 +166,8 @@ ru="$(heads README.ru.md)"
 
 # And the front door must agree with what ships. A command missing from it is one nobody finds; a
 # command it still calls unwritten is worse, because the reader believes it.
-for name in $(ls "$PLUGIN/skills"); do
+for path in "$PLUGIN"/skills/*/; do
+  name="$(basename "$path")"
   printf '%s\n' "$en" | grep -qx "$name" || fail "README.md does not document /agent-kit:$name"
 done
 for name in $en; do
@@ -302,9 +303,18 @@ fi
 # --------------------------------------------------------------------------------------------
 step "shell syntax"
 
+# CI has shellcheck and a developer's machine often does not, so a silent skip means the local run
+# says OK for a different set of checks than the one that gates the release. It cost eight red runs
+# in a row before anyone read the log.
+if ! command -v shellcheck >/dev/null 2>&1; then
+  printf 'NOTE: shellcheck is not installed here — CI runs it, so this check is untested locally.\n'
+fi
+
 while IFS= read -r sh; do
   bash -n "$sh" || fail "syntax error: $sh"
-  command -v shellcheck >/dev/null 2>&1 && { shellcheck -S warning "$sh" || fail "shellcheck: $sh"; }
+  if command -v shellcheck >/dev/null 2>&1; then
+    shellcheck -S warning "$sh" || fail "shellcheck: $sh"
+  fi
 done < <(find "$PLUGIN" scripts -name '*.sh' 2>/dev/null)
 
 # --------------------------------------------------------------------------------------------
