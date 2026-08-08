@@ -246,7 +246,10 @@ In this order, because it puts reviewed code in the pull request from its first 
 
 1. Commit and push the branch.
 2. **Review** — see below. Its verdict and every finding go into the run file's `review` **as they
-   come back**, before you fix any of them, with a severity each; then mark what you closed and how.
+   come back**, before you fix any of them — one record each, `severity` and `what`, per the
+   template; then set `closed` and `how` as you close them. A finding written as a sentence is a
+   finding no program can read, and this field is the one thing standing between a run and finishing
+   with a major one open.
    Written afterwards from memory it becomes a summary, and a summary is what a batch's pull request
    already has too much of. A critical or major finding left open is not `step: done`.
 3. **One round of fixes**, then rerun what the fixes put at risk, plus the suite.

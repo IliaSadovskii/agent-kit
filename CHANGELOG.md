@@ -3,6 +3,25 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 0.47.0
+
+Found by running 0.46.0 overnight on a live project: five runs wrote their review findings as
+sentences — `"major — assertMissing cannot fail. Closed by reordering the fixtures."` — where the
+template draws a record. The rule that a run may not finish with an open critical or major finding
+was therefore never applied once all night: the check reads `severity` and `closed`, saw neither,
+and skipped what it could not read without a word.
+
+- **A finding written as a sentence is now a defect the run must fix before it closes.** Not parsed
+  out of the prose: a severity this program guesses at is one it cannot hold anyone to, and
+  salvaging it would teach the next run that the field's shape is a suggestion.
+- **The check names any field of records filled with sentences**, derived from the template rather
+  than from a list — `tasks`, `assumptions`, `answers`, `review.findings`. On the project that
+  prompted this, `assumptions` and `tasks` turned out to be prose in seven and five run files, so
+  the pull request's Assumptions table and its `expensive` flag were prose too.
+- The template says it in one line of its own, and `ship` and `fix` say it where they write the
+  field. Only the top-level key names were ever checked before; nothing looked at a shape one level
+  down.
+
 ## 0.46.0
 
 - **A closing line names what follows from its own work, or it names `/agent-kit:next`.** Every

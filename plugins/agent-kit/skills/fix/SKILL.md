@@ -101,7 +101,8 @@ reverted without taking the refactor with it.
 
 Review with `agent-kit:reviewer` when the change touched the product; a fix inside the tests does
 not need a reviewer to tell it what it did. The verdict and the findings go into `review` as they
-come back — a critical or major one left open is not `step: done`.
+come back, one record each rather than a sentence each — a critical or major one left open is not
+`step: done`, and `severity` and `closed` are what says so.
 
 Then the pull request, per `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md`, with the cause in the
 first lines: what broke, why, since when if you can tell, and which test now stands where nothing

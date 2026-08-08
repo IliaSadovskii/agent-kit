@@ -1,5 +1,6 @@
 {
   "_": "One run of any command. The same shape for fix, ship, sprint and mvp — what differs is which fields are filled. Written by the run, read by the run that resumes it, by the reviewer, and by whatever launched it. JSON because a script reads it; the owner reads the pull request instead.",
+  "_records": "Every field drawn below as `[{ … }]` is a list of records and is read as one — `tasks`, `assumptions`, `answers`, `review.findings`. Filling one with sentences leaves a field that looks answered to a person and is empty to everything that reads it; the check names a run file that does.",
   "_step": "queued | design | build | verify | deliver | done | blocked | skipped — and building | closing, which only a driver writes on a batch's own file while it works through the children. The last three of the first list are terminal: a driver stops watching a run that reaches one, so nothing may leave it there while still working. The list is closed, and the check names a step outside it.",
   "_parent": "The run this one continues from, when a batch chains its features. Its run file carries the decisions this one inherits; its branch is this one's base.",
   "_deliver": "pr — open one at the end, the default. branch — push and stop, because a batch delivers its features together.",
@@ -46,7 +47,7 @@
     { "asked": "", "answered": "", "when": "2026-08-05" }
   ],
 
-  "_review": "What the reviewer found and what became of it. `verdict` is its closing sentence; `findings` carry a severity so a run cannot finish with an open critical or major one. `security` says whether that pass ran, and when it did not, why not.",
+  "_review": "What the reviewer found and what became of it. `verdict` is its closing sentence. `findings` is a list of records, never of sentences: `severity` and `closed` are what holds a run to finishing with no critical or major one open, and a line of prose carrying the same words in it says nothing to the program that checks. `security` says whether that pass ran, and when it did not, why not.",
   "review": {
     "verdict": null,
     "findings": [

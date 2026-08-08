@@ -596,15 +596,50 @@ def work_branches(root: Path, base: str) -> list:
     return out
 
 
-def run_shape() -> set:
-    """The fields a run file may carry — taken from the template that ships beside this program, so
-    the two cannot drift apart."""
-    template = Path(__file__).resolve().parent.parent / "templates" / "run.json"
+def run_template() -> dict:
+    """The template that ships beside this program, so it and the checks cannot drift apart."""
+    path = Path(__file__).resolve().parent.parent / "templates" / "run.json"
     try:
-        shape = json.loads(template.read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return set()
-    return {k for k in shape if not k.startswith("_")}
+        return {}
+
+
+def run_shape() -> set:
+    """The fields a run file may carry."""
+    return {k for k in run_template() if not k.startswith("_")}
+
+
+def record_lists(shape: dict, prefix: str = "") -> dict:
+    """Fields the template shows as a list of records, and the keys one record carries.
+
+    A field whose shape the template draws as `[{...}]` is read by something as a record: `review.
+    findings` by the closing check, `tasks` and `assumptions` by the reviewer and the pull request.
+    Written as sentences instead, they still read like a filled-in field to a person and are opaque
+    to every program — which is how a whole night of runs closed with the rule about open critical
+    findings never once applied.
+    """
+    out: dict = {}
+    for key, value in shape.items():
+        if key.startswith("_"):
+            continue
+        if isinstance(value, list) and value and isinstance(value[0], dict):
+            out[prefix + key] = set(value[0])
+        elif isinstance(value, dict):
+            out.update(record_lists(value, prefix + key + "."))
+    return out
+
+
+def stringly(run: dict, fields: dict) -> list:
+    """Which of those fields this run filled with something other than records."""
+    out = []
+    for path in fields:
+        value = run
+        for step in path.split("."):
+            value = value.get(step) if isinstance(value, dict) else None
+        if isinstance(value, list) and any(not isinstance(item, dict) for item in value):
+            out.append(path)
+    return out
 
 
 def check_runs(root: Path, report: Report) -> None:
@@ -615,15 +650,21 @@ def check_runs(root: Path, report: Report) -> None:
     prose belongs in `notes`, and a field the whole kit needs is a finding about the kit. A step
     outside the vocabulary is the same failure in the one field everything watches.
     """
-    known = run_shape()
+    template = run_template()
+    known = {k for k in template if not k.startswith("_")}
     if not known:
         return
+    records = record_lists(template)
     strays: dict = {}
+    prose: dict = {}
     for path in sorted((root / ".agent-kit" / "runs").glob("*/run.json")):
         try:
             run = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
+        for field in stringly(run, records):
+            prose.setdefault(field, 0)
+            prose[field] += 1
         step = run.get("step")
         if step is not None and step not in STEPS:
             report.drift.append(f"{path.parent.name} is at step {step!r}, which no reader knows: "
@@ -639,6 +680,13 @@ def check_runs(root: Path, report: Report) -> None:
         named = ", ".join(f"{k} ({n})" for k, n in sorted(strays.items()))
         report.drift.append(f"run files carry fields the template does not: {named} — nothing reads "
                             f"them; prose goes in `notes`, and a field the kit needs is a finding")
+
+    if prose:
+        named = ", ".join(f"{k} ({n})" for k, n in sorted(prose.items()))
+        report.drift.append(f"run files fill a field of records with sentences: {named} — the "
+                            f"template draws each of these as `[{{…}}]`, and a program reading them "
+                            f"gets nothing. `review.findings` is the one that costs: `severity` and "
+                            f"`closed` are how a run is held to closing no critical finding open")
 
 
 def run_defects(state: dict) -> list:
@@ -656,7 +704,14 @@ def run_defects(state: dict) -> list:
     out = []
 
     review = state.get("review") or {}
-    for finding in (review.get("findings") or []) if isinstance(review, dict) else []:
+    findings = (review.get("findings") or []) if isinstance(review, dict) else []
+    if any(not isinstance(finding, dict) for finding in findings):
+        # Reported instead of parsed out of the prose. A severity this program has to guess at is a
+        # severity it cannot hold anyone to, and salvaging it would teach the next run that the
+        # field's shape is a suggestion.
+        out.append("a review finding is written as a sentence rather than as a record — `severity` "
+                   "and `closed` are what says no critical one is open, and prose says nothing")
+    for finding in findings:
         if not isinstance(finding, dict):
             continue
         severity = str(finding.get("severity") or "").strip().lower()

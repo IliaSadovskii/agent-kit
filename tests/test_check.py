@@ -517,6 +517,25 @@ class CheckCase(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("`suite` is empty", output)
 
+    def test_a_finding_written_as_a_sentence_is_not_a_finding(self):
+        """Five runs of one night wrote `"major — …, closed by …"` instead of a record, so the rule
+        about closing with an open critical one was never once applied — the check skipped what it
+        could not read, silently."""
+        code, output = self.close(review={"findings": [
+            "major — assertMissing cannot fail. Closed by reordering the fixtures."]})
+        self.assertEqual(code, 1)
+        self.assertIn("written as a sentence", output)
+
+    def test_a_record_field_filled_with_prose_is_named(self):
+        directory = self.root / ".agent-kit" / "runs" / "x"
+        directory.mkdir(parents=True)
+        (directory / "run.json").write_text(json.dumps(
+            {"slug": "x", "step": "build", "tasks": ["write the test", "make it pass"]}),
+            encoding="utf-8")
+        _code, output = self.run_check()
+        self.assertIn("fill a field of records with sentences", output)
+        self.assertIn("tasks (1)", output)
+
     def test_a_run_still_working_is_not_judged(self):
         code, output = self.close(step="build", suite=None, review={"findings": [
             {"severity": "critical", "what": "x", "closed": False}]})
