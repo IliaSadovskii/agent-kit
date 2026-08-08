@@ -24,9 +24,6 @@ the result back against it, and **orienting** when you have lost the thread.
 | `/agent-kit:audit` | check | compare existing code to the description and write a work list |
 | `/agent-kit:next` | orient | where the project stands and which command to run — for the cold start |
 
-All seven are written. `fix` and `mvp` have not yet met a live run, and a command that has not is a
-hypothesis however carefully it reads.
-
 ## Blueprint
 
 Everything the project knows about itself, written before anything is built: what the product is
