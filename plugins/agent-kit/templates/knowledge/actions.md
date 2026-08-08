@@ -13,8 +13,11 @@ answer, against a running application, and on a project the kit adopted they hav
 Who writes this line, and nobody else: a build command sets `building (pr: N)` when it opens the
 pull request, or the session that closes a batch does it for every entry in that batch. Moving it on
 from there is bookkeeping and needs a merged pull request to point at — `blueprint --check` does it,
-and so does `/agent-kit:next` when it finds the line behind. The prose above the line is
-`blueprint`'s alone, whoever moved the line.
+and so does `/agent-kit:next` when it finds the line behind.
+
+The prose above the line is written only with the owner in the room — by `blueprint`, or by `advise`
+writing what they answered about a proposal they just accepted. A run with nobody to ask moves the
+state line and leaves a block; it never writes prose, whatever else it changed.
 
 fields: Who, Trigger, Preconditions, What happens, What changes, Initiator sees, Others see, Can go wrong, Reached from
 

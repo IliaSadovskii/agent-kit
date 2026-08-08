@@ -45,7 +45,7 @@ KEY_RE = re.compile(r"^`key:\s*([^`·]+?)\s*`(?:\s*·\s*`state:\s*([^`]+?)\s*`)?
 HEADING_RE = re.compile(r"^###\s+(.+)$", re.M)
 FIELDS_RE = re.compile(r"^fields:\s*(.+)$", re.M)
 SOURCE_RE = re.compile(r"`source:\s*([^#`]+)#([^@`]+?)\s*@([0-9a-f]+)`")
-NOTE_RE = re.compile(r"^>\s*\*\*\[(assumed|found|stale)\b([^\]]*)\]\*\*\s*(.*)$", re.M)
+NOTE_RE = re.compile(r"^>\s*\*\*\[(assumed|found|stale|accepted)\b([^\]]*)\]\*\*\s*(.*)$", re.M)
 REF_RE = re.compile(r"`([a-z][a-z0-9_]*\.[a-z0-9_]+)`")
 # entities and actors are keys without a dot, so the entry part is one or more segments
 MARK_RE = re.compile(re.escape(MARK) + r"[:\s]*([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)*)?")
@@ -180,6 +180,7 @@ class Report:
         self.groups: dict = {}
         self.notes: list = []
         self.stale: list = []
+        self.accepted: list = []
         self.states: list = []
         self.unmet: list = []
         self.debt: list = []
@@ -473,7 +474,7 @@ def grep(root: Path, needle: str) -> list:
 
 
 def collect_notes(docs: list, report: Report) -> None:
-    """Blocks a run left under an entry — and the two kinds are not equally urgent.
+    """Blocks a run left under an entry — and the four kinds are not equally urgent.
 
     `[assumed …]` and `[found …]` are questions the owner has not answered, so they are findings and
     they change the exit code. A `[stale …]` is not a question: the run wrote both what the entry
@@ -481,11 +482,17 @@ def collect_notes(docs: list, report: Report) -> None:
     the correction along with the prose it corrects. Nobody is misled while it is open. Reported as
     a statement, like a promise the product does not keep, or every command after a batch reports
     knowledge as broken and every `next` recommends the same command.
+
+    An `[accepted …]` is not a question either, and for the opposite reason: it is already answered.
+    The owner accepted a proposal in front of `advise` and left the record's fields for later, so
+    what is outstanding is an interview, not a decision. Nothing downstream is misled — there is no
+    entry yet to be wrong about — so it is a statement too, and only `blueprint` turns it into one.
     """
     for doc in docs:
         for kind, tail, text in NOTE_RE.findall(doc.text):
             line = f"[{kind}{tail}] {doc.path.name}: {text.strip()[:90]}"
-            (report.stale if kind == "stale" else report.notes).append(line)
+            bucket = {"stale": report.stale, "accepted": report.accepted}.get(kind, report.notes)
+            bucket.append(line)
 
 
 def sync_states(docs: list, report: Report, sync: bool, offline: bool) -> None:
@@ -1047,6 +1054,14 @@ def main(argv: list | None = None) -> int:
         print("  Applied by whoever next builds in that entry, with the owner present, or by "
               "/agent-kit:blueprint. Not a reason to run either.")
 
+    if report.accepted:
+        print(f"\nAccepted and not yet written up ({len(report.accepted)}) — the owner said yes and "
+              "the record's fields are outstanding:")
+        for line in report.accepted:
+            print(f"  {line}")
+        print("  Written up by /agent-kit:blueprint, which interviews the fields and deletes the "
+              "block. Already decided — do not ask again whether it is wanted.")
+
     for line in report.drift:
         print(f"\n  {line}")
 
@@ -1057,7 +1072,7 @@ def main(argv: list | None = None) -> int:
         if len(report.debt) > UNMET_SHOWN:
             print(f"  … and {len(report.debt) - UNMET_SHOWN} more")
 
-    if report.clean and not report.notes:      # `stale` is a statement, not a finding
+    if report.clean and not report.notes:      # `stale` and `accepted` are statements, not findings
         if options.status:
             print("Knowledge is clean. " + ", ".join(standing(docs)))
             print_planned(docs)

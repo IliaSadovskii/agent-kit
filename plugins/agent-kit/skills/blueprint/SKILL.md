@@ -8,7 +8,9 @@ disable-model-invocation: true
 # Blueprint
 
 Everything the project knows about itself, in one place, written before anything is built.
-`fix`, `ship`, `sprint` and `mvp` read it; none of them write prose into it.
+`fix`, `ship`, `sprint` and `mvp` read it and never write prose into it. `advise` writes what the
+owner answered in front of it, and nothing else — see
+`${CLAUDE_PLUGIN_ROOT}/rules/knowledge-writing.md`, which is the half both of you share.
 
 **One decider, one trigger.** Only blueprint decides what an entry *requires*, and only the owner
 starts blueprint. Rules the build follows must not change under a run.
@@ -19,6 +21,10 @@ one, writes the owner's answer into the entry and deletes the block while they a
 the session closing a batch applies a block that already states both halves. None of them settles
 anything, and each change rides in a pull request the owner reads. What none of them may do is
 change what the product must do — that is the sentence this rule exists for.
+
+That is also the whole difference between you and `advise`: it may transcribe a decision the owner
+made in front of it, and it may not make one. What an entry *requires* — its fields, its bar, what
+counts as settled — stays here.
 
 ## How it is invoked
 
@@ -48,20 +54,13 @@ and in the code are somebody else's.
 
 ## Where it writes
 
-`docs/knowledge/`, one file per slot, copied from `${CLAUDE_PLUGIN_ROOT}/templates/knowledge/` on
-first use and filled in. The templates carry the shape of a record and the bar for the file being
-done — read the one you are working on rather than recalling its fields.
-
-`.agent-kit/project.yml`, from `${CLAUDE_PLUGIN_ROOT}/templates/project.yml`: the language, the
-project's commands, the verdict per slot.
-
-Prose is written in the project's language. Translate a template's headings, its field labels and
-its `fields:` line together, so the file stays self-describing; keys, statuses and state names stay
-English.
+`docs/knowledge/`, one file per slot, and `.agent-kit/project.yml` from
+`${CLAUDE_PLUGIN_ROOT}/templates/project.yml`: the language, the project's commands, the verdict per
+slot. The verdicts are yours alone; the rest of how a record is written —
+templates, the project's language, `state: planned`, the commit per slot, hashes, the check
+afterwards — is `${CLAUDE_PLUGIN_ROOT}/rules/knowledge-writing.md`, which `advise` follows too.
 
 ## The interview
-
-**Write each slot to disk and commit it as it is settled.** A session that dies costs one slot.
 
 Order, because each step feeds the next:
 
@@ -115,18 +114,8 @@ confident around a wrong answer.
 
 **When knowledge already exists elsewhere**, do not restate it. The entry keeps the structured
 answers and points at the owner's document: `source: docs/DEVELOPER.md#offers @a3f1c9d`. Their prose
-stays theirs and is not duplicated; when they edit it the hash diverges and the check says so.
-
-**Never write that hash by hand, and never copy a printed one either.** One command records every
-hash in the project — sources and dependency manifests both — and it is the only way any of them
-should ever be written:
-
-```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --record
-```
-
-A value carried by hand is how the ones written before this program existed came to be invented:
-the rule then said the hash "is that section as you read it", so nothing could recompute them.
+stays theirs and is not duplicated; when they edit it the hash diverges and the check says so. The
+hash is recorded by the program and never written by hand — see the shared rule.
 
 ## How a session ends
 
@@ -153,28 +142,27 @@ point is narrow: you recorded that command, and every later command depends on i
 found here rather than in the middle of a build. Report the result and never fix it — a red suite on
 a project the kit has just adopted is the owner's news, not this command's work.
 
-**Commit onto the branch that is checked out**, one commit per slot, and push when there is a
-remote. No pull request of its own: the owner settled every slot out loud as it was written, so
-there is nothing a reviewer would catch, and an interview that may span days cannot leave the
-knowledge on an unmerged branch where the other commands cannot see it. Usually that branch is the
-default one, and the owner being here is the confirmation — nothing asks a second time. Started
-mid-feature, the knowledge lands on that feature's branch and travels with its pull request, which
-is where the gap surfaced. Only if the default branch is protected does blueprint fall back to a
-branch and a pull request, and it says so.
+Committing and pushing follow `${CLAUDE_PLUGIN_ROOT}/rules/knowledge-writing.md`: one commit per
+slot as it is settled, onto the branch that is checked out, and no pull request of its own.
 
 ## Notes left by runs
 
 A run never stops over the knowledge and never asks it to be rewritten. It leaves a block, carries
-on, and you are the only one who may resolve it. Three kinds, and each has its own ending:
+on, and you are the only one who may resolve it. Four kinds, and each has its own ending:
 
 | Block | What it means | What you do with it |
 |---|---|---|
 | `[assumed …]` under the entry | the knowledge did not say, the run decided | ask it as a yes-or-no — *"I took it that an offer goes to `withdrawn`; right?"* — write the answer into the entry, delete the block |
 | `[found …]` under `stack.md` | a ready-made answer the library map does not name | confirm it belongs, add the package and what it covers to the library map, delete the block |
 | `[stale …]` under the entry | the feature that shipped made the entry's prose false | nothing to ask: rewrite the prose to what is true now, delete the block |
+| `[accepted …]` in the slot it names | `advise` proposed it, the owner said yes, and the fields were left for later | nothing to decide — it is already agreed. Interview the fields the record declares, write the entry, delete the block |
 
-The check prints all three before every command. **Deleting the block is the resolution**; there is
+The check prints all four before every command. **Deleting the block is the resolution**; there is
 no `resolved` field anywhere, and nothing else in the kit removes one.
+
+`[accepted …]` is the one that arrives already answered, so do not re-open it: asking again whether
+the owner wants what they accepted last week is how a list stops being read. If they have changed
+their mind, they will say so in a sentence and the block goes without an entry.
 
 **And a ledger line whose work you have just done, you delete** — in `docs/technical_debt.md`, in
 the same commit, exactly as any run does when it finishes an item. A line asking for prose to be
@@ -216,7 +204,8 @@ enough to run ahead of everything.
 - **Sources.** For every `source:`, the file and heading exist and the hash still matches.
 - **Stack age.** The direct dependency manifests against their recorded hash; and
   `stack_researched` past six months, named once.
-- **Notes.** Count the `[assumed …]`, `[found …]` and `[stale …]` blocks and list them.
+- **Notes.** Count the `[assumed …]`, `[found …]`, `[stale …]` and `[accepted …]` blocks and list
+  them.
 - **Verdicts.** Slots with no verdict in `project.yml`.
 - **Unmet promises.** Every test carrying `agent-kit:unmet` outside `docs/`, with the entry it
   names — flagging a key no entry defines, and a project that has marks but no `tests.unmet`.

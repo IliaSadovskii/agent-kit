@@ -11,12 +11,13 @@ about 73M.
 
 ## Commands
 
-Seven commands in four roles: **knowing** what the project is, **building** from that, **checking**
+Eight commands in four roles: **knowing** what the project is, **building** from that, **checking**
 the result back against it, and **orienting** when you have lost the thread.
 
 | Command | Role | What it does |
 |---|---|---|
 | `/agent-kit:blueprint` | know | the project's knowledge layer: an interview that writes what the project knows, and `--check` that audits it mechanically |
+| `/agent-kit:advise` | know | propose what the description does not say — features, reach, approaches, money — and write down what you accept |
 | `/agent-kit:fix` | build | something is wrong and it is small: find the cause, prove it with a failing test, change the least that works |
 | `/agent-kit:ship` | build | one feature end to end: design against the blueprint, build, verify, review, pull request |
 | `/agent-kit:sprint` | build | a batch of features: brief them in one sitting, then a driver builds each unattended |
@@ -51,6 +52,37 @@ blueprint. A build command leaves a marked block where it had to assume somethin
 feature outdated a sentence — and when you are sitting there, the next command settles the block with
 you and writes your answer in rather than sending you off to run another command. Nothing revises
 what the product must do on its own.
+
+## Advise
+
+Every other command takes the description as true: blueprint writes down what you mean, audit
+measures the code against it, the build commands make it real. Nothing asks whether the description
+is worth building, or whether the approach under it will hold. That is this one.
+
+Three lenses, one reference file each. **`product`** — what a scenario is missing to finish, what
+nothing touches and could go, and, stepping away from the files, what this audience expects, who is
+standing next to it unserved, and who should stop being served. **`code`** — where an approach stops
+holding at a named volume, and what would make the thing simpler, more reliable, or faster to change.
+**`money`** — what is given away that costs per use, what limits exist on paper and nowhere in the
+code, and what somebody would pay for.
+
+Each lens has a close half that walks the files and cites them, and a wide half that reads the domain
+and proposes what is not written anywhere — with research delegated after that reading, never before
+it. Every row is tagged with what it rests on: the files, the domain, or research with a link and a
+date. Judgement is never mixed silently into evidence.
+
+Nothing is proposed that was already decided: what is `planned`, what the audits already found, what
+the ledger holds, what you refused last time — and what `product.md` says the product deliberately
+does not do, which may be reopened only by naming what changed since.
+
+You decide in one round at the end, and what you accept is written while you are there: an entry with
+its fields answered, a stance in `stack.md`, or a line in the ledger when it is work rather than a
+rule. What you refuse is recorded with the reason, so the next run does not raise it again — and a
+refusal about volume or cost records the number it rested on, so it can be reconsidered when the
+number moves.
+
+The reasoning, and the alternatives rejected on the way:
+[docs/design/advise.md](../../docs/design/advise.md).
 
 ## Fix
 
@@ -153,8 +185,8 @@ is allowed to remove is a record that grows for ever:
 
 | Record | Holds | Written by | Closed by |
 |---|---|---|---|
-| `docs/knowledge/` | what the product is, one file per slot; each entry's state — `planned`, `building (pr: n)`, `built` | `blueprint` writes the prose; a build command sets `building`, and the line moves on from there once its pull request merges | the state line is bookkeeping; the prose is `blueprint`'s alone |
-| `[assumed …]`, `[found …]`, `[stale …]` blocks | what a run had to decide without you, a library it found, or prose its own feature has made false | any build command, under the entry or under `stack.md` | `blueprint` — or the next command that builds in that entry, which settles it with you in its first minute |
+| `docs/knowledge/` | what the product is, one file per slot; each entry's state — `planned`, `building (pr: n)`, `built` | `blueprint` writes the prose, and `advise` writes what you answered in front of it; a build command sets `building`, and the line moves on from there once its pull request merges | the state line is bookkeeping; the prose is written only with you in the room |
+| `[assumed …]`, `[found …]`, `[stale …]`, `[accepted …]` blocks | what a run had to decide without you, a library it found, prose its own feature has made false, or a proposal you accepted whose fields are still outstanding | any build command, under the entry or under `stack.md`; the last by `advise` | `blueprint` — or the next command that builds in that entry, which settles it with you in its first minute |
 | `agent-kit:unmet` on a test | a promise the entry makes and the product does not keep — the test is written and marked so the suite stays green | `ship`, when the entry and the code contradict each other | you choose the side; then the product changes or the entry does |
 | `docs/technical_debt.md` | work a run understood and did not do | `ship`, `fix`, and the session that closes a batch | whoever does the work, deleting the line in the same commit |
 | `docs/audits/*.md` | a lens's work list, boxes ticked as they are closed | `audit` writes; a batch and `next` tick | that lens's next run, which rewrites the file |

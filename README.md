@@ -7,7 +7,9 @@ A Claude Code plugin. You describe the project once, and the commands build from
 The description lives in `docs/knowledge/`, one file per slot: what the product is and deliberately
 is not, the actors, the entities and their states, the actions, the screens, the integrations, the
 scenarios, the stack — and what is in the first version. `blueprint` writes it. `ship`, `fix`,
-`sprint` and `mvp` read it and write code. `audit` compares the code back to it.
+`sprint` and `mvp` read it and write code. `audit` compares the code back to it. `advise` is the one
+command that doubts it: it proposes what the description does not say, and writes down what you
+accept.
 
 ## Install
 
@@ -50,6 +52,27 @@ and come back.
 
 On an existing codebase it reads the code and brings you a draft to correct. It does not start your
 application, and it does not restate documents you already have — it links to them.
+
+### `advise [product | code | money] [area]`
+
+Proposes what the description does not say, and writes down what you accept. The only command that
+doubts the description instead of building from it.
+
+- `product` — what a scenario is missing to finish, what nothing touches and could go, what this
+  audience expects and does not find, who is standing next to it unserved
+- `code` — where an approach stops holding at a named volume, and what would make the thing simpler,
+  more reliable, or faster to change
+- `money` — what is given away that costs per use, which limits exist on paper and nowhere in the
+  code, what somebody would pay for
+
+Each lens walks the files and cites them, then steps away and reads the domain — with research
+delegated after that reading, never before. Every row says what it rests on: the files, the domain,
+or research with a link and a date. Nothing already `planned`, already in an audit, already in the
+ledger or already refused is raised again.
+
+You decide in one round at the end. What you accept is written while you are there — an entry, a
+stance, or a line in the ledger; what you refuse is recorded with the reason, and a refusal that
+rested on a number can be reconsidered when the number moves.
 
 ### `ship <action key | what to build>`
 
@@ -118,19 +141,24 @@ runs leave it alone.
 
 | You have | Order |
 |---|---|
-| an idea | `blueprint` → `mvp` → `sprint` |
+| an idea | `blueprint` → `advise` → `mvp` → `sprint` |
 | a half-built skeleton | `blueprint` → `audit` → `ship` / `sprint` |
-| a finished application | `blueprint` → `audit` → `sprint` → `fix` |
+| a finished application | `blueprint` → `audit` → `advise` → `sprint` → `fix` |
 | no idea where you stopped | `next` |
 
 `audit` is for code nobody watched being written — an inherited project, or a batch that landed
 overnight. After `ship` it is redundant.
 
+`advise` pays best at two moments: straight after `blueprint`, while nothing is built and changing
+the description is free; and after a sprint, when the product is real enough to judge. It is the one
+command that questions the description rather than building from it.
+
 `ship`, `fix` and `sprint` work with no blueprint at all, from a written task — a project's first
 command should not be an hour of interview. `mvp` requires one, because bounds are what tell it when
 to stop. `audit` requires one too, with a single exception: the `deps` lens has the registries as its
-reference and needs no description. And `next` will run, but with nothing to rank it will only tell
-you to write the blueprint.
+reference and needs no description. `advise` requires one as well — with nothing written down, there
+is nothing for it to be about. And `next` will run, but with nothing to rank it will only tell you to
+write the blueprint.
 
 ## Files
 

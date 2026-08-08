@@ -3,6 +3,47 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 1.2.0
+
+- **`advise` — the first command that doubts the description instead of building from it.** Until now
+  `blueprint` wrote down what the owner meant and everything else treated that as true: `audit`'s six
+  lenses measure code against the knowledge, which makes the knowledge their reference by
+  construction. So a mediocre description was built carefully, tested against itself, and audited as
+  correct. Three lenses: `product` (what a scenario is missing to finish, what nothing touches,
+  what this audience expects and does not find, who is standing next to it unserved), `code` (where
+  an approach stops holding at a named volume, and what would make the thing simpler, more reliable
+  or faster to change), `money` (what is given away that costs per use, which limits exist on paper
+  and nowhere in the code, what somebody would pay for).
+
+  Each lens walks the files and cites them, then steps away and reads the domain — research delegated
+  after that reading, never before it, so the reading is something the search can be checked against
+  rather than a summary of the first page of results. Every row carries what it rests on: the files,
+  the domain, or research with a link and a date. Nothing already `planned`, already in an audit,
+  already in the ledger or already refused is raised twice, and what `product.md` says the product
+  deliberately does not do may be reopened only by naming what changed.
+
+  The owner decides in one round, and **what they accept is written while they are there** — the
+  entry with its fields answered, a stance in `stack.md`, or a line in the ledger when it is work
+  rather than a rule. The alternative, a marker for a later `blueprint` session, was rejected: it
+  spends the owner's context at the moment it has already evaporated, and leaves a record whose
+  closer is a command somebody has to remember to run. Two questions are asked that are not the
+  entry's own fields — which scenario covers it, and whether it is inside the MVP bounds — because
+  without them `mvp` builds the feature and proves nothing about it.
+
+  Design, with the alternatives rejected on the way: [docs/design/advise.md](docs/design/advise.md).
+
+- **A fourth block kind, `[accepted …]`,** for a proposal the owner agreed to whose fields were left
+  for later. Counted and listed by the check like the other three, resolved only by `blueprint`,
+  closed by deletion. It is a statement rather than a finding — the decision is made, only the
+  interview is outstanding — so it does not turn the check red. `next` treats an open one as work
+  rather than noise: unlike the other three it sits under no entry, so no later run arrives to settle
+  it in passing.
+
+- **`rules/knowledge-writing.md`**, extracted from `blueprint` rather than written twice, now that
+  two commands write into `docs/knowledge/`. The rule underneath both is stated where it can be read:
+  what separates them from every other command is the owner's presence, not the command's name — a
+  run with nobody to ask moves a state line and leaves a block, and never writes prose.
+
 ## 1.1.2
 
 - **Where the kit runs is a note beside the requirements, not a section of its own.** Five commands

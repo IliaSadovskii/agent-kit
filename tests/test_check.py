@@ -193,6 +193,28 @@ class CheckCase(unittest.TestCase):
         code, _output = self.run_check()
         self.assertEqual(code, 1)
 
+    def test_an_accepted_block_is_a_statement_and_not_a_finding(self):
+        """The owner already said yes, so nothing is outstanding but an interview. Counting it as a
+        defect would make every command red between accepting an idea and writing it up."""
+        self.write("actions.md", ACTIONS + "\n> **[accepted 2026-08-09 · advise/product]** Импорт "
+                                           "каталога одним файлом. Владелец: да, в границы MVP.\n")
+        code, output = self.run_check()
+        self.assertEqual(code, 0)
+        self.assertIn("Accepted and not yet written up (1)", output)
+        self.assertIn("каталога", output)
+        self.assertNotIn("Open notes", output)
+
+    def test_an_accepted_block_is_listed_apart_from_a_stale_one(self):
+        """Two statements with different closers: one is rewritten prose, the other an interview.
+        Merging their sections would send the owner to the wrong command."""
+        self.write("actions.md", ACTIONS
+                   + "\n> **[stale 2026-08-05 · claude/x]** Says the driver is `log`; SMTP now.\n"
+                   + "\n> **[accepted 2026-08-09 · advise/code]** Статусы вынести в перечисление.\n")
+        code, output = self.run_check()
+        self.assertEqual(code, 0)
+        self.assertIn("Prose a feature has already outdated (1)", output)
+        self.assertIn("Accepted and not yet written up (1)", output)
+
     # ---- promises the product does not keep ----------------------------------------------------
 
     MARKED = ("// agent-kit:unmet guest.browse_feed\n"

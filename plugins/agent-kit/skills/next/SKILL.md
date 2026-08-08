@@ -117,6 +117,13 @@ settled by the next command that builds in that entry, with the owner present, a
 them there. Report the count in *Where it stands* and go on down the ladder — unless the entry you
 were about to recommend is the one carrying the block, which is rung 7.
 
+**`[accepted …]` is the exception, and it is one because nothing else will ever reach it.** The other
+three sit under an entry, so the next run that builds there settles them in passing. This one is
+waiting *for* an entry: the owner agreed to something and its fields were left for later, so there is
+nothing to build in and no command that arrives by accident. Left alone it stays for ever, and the
+work it stands for is invisible to `sprint`, to `mvp` and to rung 10. Treat any open one as rung 9
+work and name `/agent-kit:blueprint`, saying how many and from which lens.
+
 Three overrides, because a ladder read literally lies:
 
 - **No `docs/knowledge/` at all** — the ladder collapses: the answer is `/agent-kit:blueprint`,
