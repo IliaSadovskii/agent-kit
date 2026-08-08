@@ -154,10 +154,30 @@ PY
 [ $? -eq 0 ] || fail "manifest or frontmatter checks failed"
 
 # The two READMEs are the kit's front door in two languages; one of them going stale is worse than
-# not having it, and the command list is what a reader decides on.
-en="$(grep -oE '/agent-kit:[a-z-]+' README.md | sort -u)"
-ru="$(grep -oE '/agent-kit:[a-z-]+' README.ru.md | sort -u)"
+# not having it, and the command list is what a reader decides on. They head each command with
+# `### \`name …\``, not with the `/agent-kit:` form — so the earlier version of this check compared
+# two empty lists and passed for as long as it existed, while the storefront called `fix` unwritten
+# and never mentioned `next` at all.
+heads() { grep -oE '^### `[a-z-]+' "$1" | sed 's/^### `//' | sort -u; }
+en="$(heads README.md)"
+ru="$(heads README.ru.md)"
+[ -n "$en" ] || fail "README.md documents no commands — the heading form this check reads has changed"
 [ "$en" = "$ru" ] || fail "README.md and README.ru.md document different commands"
+
+# And the front door must agree with what ships. A command missing from it is one nobody finds; a
+# command it still calls unwritten is worse, because the reader believes it.
+for name in $(ls "$PLUGIN/skills"); do
+  printf '%s\n' "$en" | grep -qx "$name" || fail "README.md does not document /agent-kit:$name"
+done
+for name in $en; do
+  [ -d "$PLUGIN/skills/$name" ] || fail "README.md documents $name, which is not a skill"
+  stub_readme="$(grep -hE "^### \`$name\b.*(not written|не написана)" README.md README.ru.md | wc -l)"
+  if grep -q "Not written yet." "$PLUGIN/skills/$name/SKILL.md"; then
+    [ "$stub_readme" -eq 2 ] || fail "$name is a stub; both READMEs must say so in its heading"
+  else
+    [ "$stub_readme" -eq 0 ] || fail "$name is written, and a README still calls it unwritten"
+  fi
+done
 
 # --------------------------------------------------------------------------------------------
 step "internal references resolve"

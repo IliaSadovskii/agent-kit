@@ -8,8 +8,8 @@ The description lives in `docs/knowledge/`: actors, entities, actions, screens, 
 scenarios, the stack, and what is in the first version. `blueprint` writes it. `ship`, `fix`,
 `sprint` and `mvp` read it and write code. `audit` compares the code back to it.
 
-> Being rebuilt. `blueprint`, `ship` and `audit` work today; the rest are declared and do nothing.
-> The last complete version is the `v0.17.0` tag.
+> Being rebuilt. Six commands work; `mvp` is declared and does nothing. The last version of the
+> line before the rewrite is the `v0.17.0` tag.
 
 ## Install
 
@@ -56,20 +56,29 @@ assumed and what was proven.
 
 Also works with no blueprint, from a written task.
 
-### `fix <what is wrong>` · `fix --pr <n>` — not written yet
+### `fix <what is wrong>` · `fix --pr <n>`
 
-A small change: something you describe, a failure you hit, or a round of review comments.
+A small change: something you describe, a failure you hit, or a round of review comments. The cause
+is found first, then proved by a test that fails before the change and passes after — and the fix is
+undone once to watch that test fail again. It changes the least that makes it pass; the tidy-up next
+to it goes to the ledger.
 
 ### `sprint <theme>`
 
 Several features briefed in one sitting, then built unattended — each as its own visible session,
 one after another, chained so the batch arrives as a single mergeable pull request. A control
-session stands beside the run to say how it is going and to take *pause*, *skip* and *stop*.
+session stands beside the run to say how it is going and to take *skip* and *stop*.
 
 ### `mvp` — not written yet
 
 Builds everything inside the MVP bounds and keeps going until the scenarios pass against the running
 application.
+
+### `next`
+
+For a session opened after a break: where the project stands, what is in the way, and the one command
+to run, with the reason. Reads branches, pull requests and their CI, runs left mid-flight, the debt
+and the audits; changes nothing but the bookkeeping it has just verified.
 
 ### `audit [lens] [area]`
 
@@ -102,6 +111,7 @@ runs leave it alone.
 | an idea | `blueprint` → `mvp` → `audit` → `sprint` |
 | a half-built skeleton | `blueprint` → `audit` → `ship` / `sprint` |
 | a finished application | `blueprint` → `audit` → `sprint` → `fix` |
+| no idea where you stopped | `next` |
 
 `audit` is for code nobody watched being written — an inherited project, or a batch that landed
 overnight. After `ship` it is redundant.
