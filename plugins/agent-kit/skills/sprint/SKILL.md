@@ -160,6 +160,9 @@ Each feature — `.agent-kit/runs/<batch>-NN-<feature>/run.json`:
   `parent: null`.
 - `deliver: "branch"` — a feature inside a batch pushes and stops; the batch gets one pull request.
 - `step: "queued"`.
+- `model` — **the model you are running on**, unless the owner named another. A child started
+  without one takes whatever this install defaults to, which may be neither. Say which you wrote in
+  the screen you put up, so a batch composed on Opus is not quietly built by something else.
 
 **Every child chains to the previous one.** That is what makes integration a property instead of a
 step: the last branch already holds the batch, and each child's suite runs on everything before it.

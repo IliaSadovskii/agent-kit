@@ -119,20 +119,23 @@ class Launcher:
     def tmux_name(self, name: str) -> str:
         return f"cc-{name}" if self.helper else f"agent-kit-{name}"
 
-    def start(self, name: str, prompt: str) -> bool:
+    def start(self, name: str, prompt: str, model: str | None = None) -> bool:
         if self.helper:
             done = subprocess.run([self.helper, name, str(self.cwd)], capture_output=True, text=True)
             if done.returncode != 0:
                 return False
         else:
             command = ["claude", "--dangerously-skip-permissions", "--remote-control"]
-            if self.model:
-                command += ["--model", self.model]
             done = self._tmux("new-session", "-d", "-s", self.tmux_name(name), "-c", str(self.cwd),
                               " ".join(command))
             if done.returncode != 0:
                 return False
         time.sleep(5)                             # the session has to reach its prompt before it can be typed into
+        # Typed rather than passed as a flag: `claude-new` takes no model, and losing it would cost
+        # the session its registration and its name in the app. `/model` is what a person would use.
+        model = model or self.model               # `--model` is the whole run's default
+        if model and self.send(name, f"/model {model}"):
+            time.sleep(2)
         return self.send(name, prompt)
 
     def send(self, name: str, text: str) -> bool:
@@ -258,6 +261,12 @@ class Driver:
 
     # ---- watching one session ----------------------------------------------------------------
 
+    @staticmethod
+    def model_for(state: dict) -> str | None:
+        """A run's own model, if it named one. Absent means the install's default."""
+        model = (state or {}).get("model")
+        return model.strip() if isinstance(model, str) and model.strip() else None
+
     def watch(self, name: str, run: Run, prompt: str) -> str:
         """Run a session until its run file goes terminal. Returns '' or why it did not.
 
@@ -265,10 +274,11 @@ class Driver:
         unbounded wait on a session that quietly died is how a night is lost without anyone
         noticing.
         """
-        if not self.launcher.start(name, prompt):
+        model = self.model_for(run.state())
+        if not self.launcher.start(name, prompt, model):
             return "could not start a session"
 
-        run.event("session-start", name)
+        run.event("session-start", f"{name}{' on ' + model if model else ''}")
         launched = time.time() - 1
         transcript = None
         restarts = 0
@@ -281,7 +291,7 @@ class Driver:
             self.launcher.stop(name)
             transcript = None
             launched = time.time() - 1
-            if not self.launcher.start(name, prompt):
+            if not self.launcher.start(name, prompt, self.model_for(run.state())):
                 return False
             run.event("restarted", why)
             return True
@@ -474,7 +484,8 @@ class Driver:
             return
         name = f"{above.slug}-advance"[:60]
         self.run.event("hand-back", f"{parent} decides what follows")
-        if not self.launcher.start(name, f"/agent-kit:mvp --advance {above.dir}"):
+        if not self.launcher.start(name, f"/agent-kit:mvp --advance {above.dir}",
+                                   self.model_for(above.state())):
             above.event("stalled", "could not start the session that decides the next batch")
             self.tell(f"{above.slug} needs /agent-kit:mvp --resume — the next batch did not start")
 
@@ -495,7 +506,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--poll", type=int, default=60, help="seconds between looks at the run file")
     parser.add_argument("--hang", type=int, default=30, help="minutes of transcript silence before a session is treated as stuck")
     parser.add_argument("--max-wait", type=float, default=6, help="hours: a reset further away than this is a weekly limit, and the run stops")
-    parser.add_argument("--model", default=None, help="model for the children, when the launcher takes one")
+    parser.add_argument("--model", default=None,
+                        help="model for every session this run starts, unless its run file names "
+                             "one of its own")
     options = parser.parse_args(argv)
 
     run_dir = options.run_dir.resolve()

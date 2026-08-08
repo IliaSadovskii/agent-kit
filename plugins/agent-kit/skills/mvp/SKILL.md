@@ -76,6 +76,11 @@ what the gate settled — the lenses, the wave cap, the batches already delivere
 reads `finish` instead of asking again**, so anything the gate decided that is not in there is a
 question the owner will be asked twice.
 
+`model` on this run and on every child is **the model you are running on**, unless the owner named
+another at the gate — say which, in the screen, beside the price. It is the one setting that moves
+the price of the whole run rather than trimming its edges, and a child started without it takes the
+install's default, which may be neither what you are on nor what they asked for.
+
 Each batch is an ordinary sprint run file — `command: "sprint"`, `parent` naming this run, children
 with `deliver: "branch"`, `gate: "none"`, chained off each other. Write **only the batch you are
 about to start**: a batch composed three phases ahead would be composed against code that does not

@@ -3,6 +3,19 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 1.1.0
+
+- **A run says which model its sessions start on.** `model` in the run file, typed into each session
+  as `/model <alias>` before its task — rather than passed as a flag, because the launcher this
+  server uses takes none and losing it would cost the session its registration and its name in the
+  app. `sprint` and `mvp` write the model they are themselves running on unless the owner names
+  another, so children inherit the choice made when the session was opened instead of the install's
+  default. `orchestrate.py --model` is the whole run's fallback.
+
+  Why it is worth having: measured on a real feature, the kit's own prose is 9.3k tokens of a 139k
+  median context — two per cent. The model is the only setting that moves the price of a run rather
+  than trimming its edges.
+
 ## 1.0.0
 
 The rewrite is complete. Seven commands, one knowledge layer they all build from, and no stubs.

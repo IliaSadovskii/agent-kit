@@ -33,7 +33,7 @@ class FakeLauncher:
         self.typed = []
         self.told = []
 
-    def start(self, name, prompt):
+    def start(self, name, prompt, model=None):
         return True
 
     def send(self, name, text):
@@ -134,7 +134,7 @@ class DriverCase(unittest.TestCase):
         case = self
 
         class Launcher(FakeLauncher):
-            def start(self, name, prompt):
+            def start(self, name, prompt, model=None):
                 if first in name:
                     case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
                 if name.endswith("-close"):
@@ -193,7 +193,7 @@ class DriverCase(unittest.TestCase):
         case = self
 
         class Launcher(FakeLauncher):
-            def start(self, name, prompt):
+            def start(self, name, prompt, model=None):
                 if name.endswith("-close"):
                     case.write("b", {"slug": "b", "children": [first, second], "step": "done", "pr": 9})
                 return True
@@ -209,7 +209,7 @@ class DriverCase(unittest.TestCase):
         case = self
 
         class Launcher(FakeLauncher):
-            def start(self, name, prompt):
+            def start(self, name, prompt, model=None):
                 if first in name:
                     case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
                 return True                        # the closing session writes nothing, ever
@@ -229,7 +229,7 @@ class DriverCase(unittest.TestCase):
         case = self
 
         class Launcher(FakeLauncher):
-            def start(self, name, prompt):
+            def start(self, name, prompt, model=None):
                 if first in name:
                     case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
                 if name.endswith("-close"):
@@ -247,7 +247,7 @@ class DriverCase(unittest.TestCase):
         case = self
 
         class Launcher(FakeLauncher):
-            def start(self, name, prompt):
+            def start(self, name, prompt, model=None):
                 if first in name:
                     case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
                 if name.endswith("-close"):
@@ -272,3 +272,14 @@ class DriverCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ModelCase(unittest.TestCase):
+    """Which model a session is started on — the run file's, the run's default, or the install's."""
+
+    def test_a_run_that_names_one(self):
+        self.assertEqual(orch.Driver.model_for({"model": "sonnet"}), "sonnet")
+
+    def test_a_run_that_does_not(self):
+        for state in ({}, {"model": None}, {"model": "   "}, None):
+            self.assertIsNone(orch.Driver.model_for(state), state)
