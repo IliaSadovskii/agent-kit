@@ -164,6 +164,15 @@ ru="$(heads README.ru.md)"
 [ -n "$en" ] || fail "README.md documents no commands — the heading form this check reads has changed"
 [ "$en" = "$ru" ] || fail "README.md and README.ru.md document different commands"
 
+# The command list is not where they actually drift: a row went missing from one *table* and the
+# check above was happy, because both files still named seven commands. Structure is the cheapest
+# proxy — same sections, same number of table rows.
+for shape in '^## ' '^| '; do
+  a="$(grep -c "$shape" README.md)"
+  b="$(grep -c "$shape" README.ru.md)"
+  [ "$a" = "$b" ] || fail "README.md and README.ru.md differ in structure: $a vs $b lines matching '$shape'"
+done
+
 # And the front door must agree with what ships. A command missing from it is one nobody finds; a
 # command it still calls unwritten is worse, because the reader believes it.
 for path in "$PLUGIN"/skills/*/; do

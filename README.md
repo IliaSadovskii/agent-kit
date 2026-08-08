@@ -4,8 +4,9 @@
 
 A Claude Code plugin. You describe the project once, and the commands build from that description.
 
-The description lives in `docs/knowledge/`: actors, entities, actions, screens, integrations,
-scenarios, the stack, and what is in the first version. `blueprint` writes it. `ship`, `fix`,
+The description lives in `docs/knowledge/`, one file per slot: what the product is and deliberately
+is not, the actors, the entities and their states, the actions, the screens, the integrations, the
+scenarios, the stack — and what is in the first version. `blueprint` writes it. `ship`, `fix`,
 `sprint` and `mvp` read it and write code. `audit` compares the code back to it.
 
 > Version 1: all seven commands are written and the shape is complete. `blueprint`, `ship`,
@@ -30,7 +31,7 @@ For a whole repository, in `.claude/settings.json`:
 }
 ```
 
-Needs `git`, plus `gh` for pull requests.
+Needs `git` and `python3`, plus `gh` for pull requests. `sprint` and `mvp` also need `tmux`: they build each feature in its own visible session.
 
 ## Commands
 
@@ -122,7 +123,11 @@ runs leave it alone.
 `audit` is for code nobody watched being written — an inherited project, or a batch that landed
 overnight. After `ship` it is redundant.
 
-Only `mvp` requires a blueprint. The rest work without one.
+`ship`, `fix` and `sprint` work with no blueprint at all, from a written task — a project's first
+command should not be an hour of interview. `mvp` requires one, because bounds are what tell it when
+to stop. `audit` requires one too, with a single exception: the `deps` lens has the registries as its
+reference and needs no description. And `next` will run, but with nothing to rank it will only tell
+you to write the blueprint.
 
 ## Files
 
@@ -132,12 +137,15 @@ Only `mvp` requires a blueprint. The rest work without one.
 | `.agent-kit/project.yml` | language, the project's commands, one verdict per slot | yes |
 | `.agent-kit/runs/<slug>/` | run state and event log | no |
 
-The kit works on branches and never merges a pull request.
+The kit works on branches and never merges a pull request, and since 1.0.0 that is machinery
+rather than instruction: while a run is in flight, a hook outside the model refuses to merge, to
+force-push, and to push to the default branch. Your own sessions never meet it.
 
 ## Developing the kit
 
-`scripts/validate.sh` checks layout, manifests, versions and internal references; CI runs the same
-script. `scripts/measure.py <project>` reports what runs cost, by session or by branch. Design notes
+`scripts/validate.sh` checks layout, manifests, versions, internal references, the shape of a run
+file, the payload's own markdown, the guard's registration, and that both READMEs match the commands
+that ship; CI runs the same script. `scripts/measure.py <project>` reports what runs cost, by session or by branch. Design notes
 in [docs/design/](docs/design/), releases in [CHANGELOG.md](CHANGELOG.md).
 
 MIT.
