@@ -81,6 +81,25 @@ with no writer or no reader; the ones found the day after were records nobody wa
 — a ledger line whose resolver could not delete it, a merged feature no command was permitted to
 mark. A record with no closer is not a slow leak, it is a list that grows until it stops being read.
 
+## A check that does not understand its input says so
+
+Silence means *nothing is wrong*. A check that also goes quiet when it cannot read what it was
+given makes those two indistinguishable, and the one it is really reporting is the second — which
+is worse than having no check at all, because the run believes it is covered.
+
+Twice in two days:
+
+- `--offline` was given to `next` so it would stop writing, and it also stopped `gh` being asked
+  anything — so three rungs of its ladder, all of them about open pull requests, silently never
+  fired again. The flag did what it said; nothing said what it cost.
+- five runs wrote `review.findings` as sentences, and the closing check skipped every item it could
+  not read as a record. The rule about not finishing with an open critical finding was never applied
+  once, and reported nothing at all.
+
+So: when a program of this kit meets input it cannot judge, it **names it and takes it as unjudged**
+— never as clean. Do not guess the meaning out of prose either: a value guessed at is a value nobody
+can be held to, and salvaging it teaches the next run that the shape was optional.
+
 The kit is being rebuilt. Read [docs/design/kit-v1.md](design/kit-v1.md) before changing anything:
 it records what was removed and why, and adding one of those things back needs an argument rather
 than an oversight. Six commands work, `mvp` is a declared stub, and `scripts/validate.sh` enforces
