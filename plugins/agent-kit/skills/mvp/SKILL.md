@@ -125,6 +125,11 @@ Close per `${CLAUDE_PLUGIN_ROOT}/rules/closing.md`, then stay as the window —
 `${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/window.md`, unchanged. The owner steers with the
 same two words, and closing you costs the run nothing but its narrator.
 
+**Read that file before you close, not when the driver first pokes you.** By then hours have passed,
+the context has been compacted at least once, and what remains of this instruction is a path — which
+is how a live run came to review a finished batch on its own and put a question to the owner in the
+middle of the night. The rule it never read is the one that says a window reports and never asks.
+
 ## `--advance`: what follows a batch
 
 The driver starts you when a batch has closed. Read this run's file and the batch's, and do one

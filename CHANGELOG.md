@@ -3,6 +3,24 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 1.2.5
+
+- **The driver reminds the window what a window is, with the first news it sends.** Found on a live
+  `mvp`: at half past eleven at night the owner's session read a batch that had just closed,
+  reviewed it on its own initiative, and put a question to them — *the scenario promises `ok`, the
+  product gives `seen`; which is wrong?*
+
+  That shape is already forbidden, and emphatically: `window.md` has a section called *You report;
+  you do not ask*, and it says only a child may ask, because only a child can act on the answer.
+  The session had never opened the file. It was pointed at it once, at a gate eleven hours and one
+  compaction earlier, and what survived of that instruction was a path — which is not a rule.
+
+  So the rule now rides with the news. The first line a driver sends any window carries what a
+  window is and where the rule lives; every line after it is the plain notice it always was. One
+  line per batch, arriving at the moment it applies rather than the moment it was decided. `mvp`
+  also now says to read the file **before** handing off, while the gate's context is still whole —
+  that part is the prose backstop, and the driver's line is what holds when prose is gone.
+
 ## 1.2.4
 
 - **The driver never types into a session it did not just create.** Found on a live `mvp`: the

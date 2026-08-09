@@ -272,10 +272,27 @@ class Driver:
     # already exactly that, and it knows why the batch looks the way it does — so it records its own
     # tmux name in the run file and stays. If it is gone, the run carries on without a narrator.
 
+    WINDOW_RULE = ("[driver] you are this run's window: turn the lines below into one sentence for "
+                   "the owner, decide nothing, investigate nothing, and never put a question to "
+                   "them — the rule is skills/sprint/references/window.md, read it before you "
+                   "answer anything")
+
     def tell(self, message: str) -> None:
+        """News for the owner's window — and, once per driver, what a window is.
+
+        The window was told its job hours ago, at a gate that has been compacted since; what
+        survives is a path to a file, and a path is not a rule. A run reached this point, read the
+        finished batch on its own initiative and asked the owner which of two things was wrong —
+        the one shape `window.md` forbids, in the file it never opened. The reminder rides with the
+        first news instead, where it costs one line and arrives at the moment it applies.
+        """
         window = self.run.state().get("window")
-        if window and self.launcher.alive_at(window):
-            self.launcher.send_to(window, f"[driver] {message}")
+        if not (window and self.launcher.alive_at(window)):
+            return
+        if not getattr(self, "_reminded", False):
+            self._reminded = True
+            self.launcher.send_to(window, self.WINDOW_RULE)
+        self.launcher.send_to(window, f"[driver] {message}")
 
     # ---- watching one session ----------------------------------------------------------------
 

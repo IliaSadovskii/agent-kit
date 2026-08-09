@@ -330,3 +330,34 @@ class LauncherCase(unittest.TestCase):
             self.assertTrue(made.start("batch-advance", "/agent-kit:mvp --advance x"))
         self.assertIsNone(made.reclaimed)
         self.assertNotIn("stop", [c[0] for c in made.calls])
+
+
+class WindowNoticeCase(unittest.TestCase):
+    """What the driver says to the owner's window.
+
+    The window is told its job at a gate that may be hours and one compaction behind by the time
+    the first news arrives — a live run reviewed a finished batch on its own and asked the owner a
+    question, out of a rule file it had never opened. The reminder rides with the first line.
+    """
+
+    def driver(self, window):
+        made = orch.Driver.__new__(orch.Driver)
+        made.launcher = FakeLauncher()
+        made.run = types.SimpleNamespace(state=lambda: {"window": window})
+        return made
+
+    def test_the_first_news_carries_the_rule_and_later_news_does_not(self):
+        made = self.driver("ccp-proj")
+        made.tell("the batch is finished, pull request 12")
+        made.tell("starting the next feature")
+        sent = [text for _target, text in made.launcher.told]
+        self.assertEqual(len(sent), 3)
+        self.assertIn("never put a question", sent[0])
+        self.assertIn("window.md", sent[0])
+        self.assertEqual(sent[1], "[driver] the batch is finished, pull request 12")
+        self.assertEqual(sent[2], "[driver] starting the next feature")
+
+    def test_a_run_with_no_window_is_told_nothing(self):
+        made = self.driver(None)
+        made.tell("the batch is finished")
+        self.assertEqual(made.launcher.told, [])
