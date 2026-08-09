@@ -58,15 +58,21 @@ and a hash nobody can recompute proves nothing.
 
 ## Write it, commit it, then check it
 
-**Commit each slot as it is settled**, onto the branch that is checked out, one commit per slot. A
-session that dies then costs one slot rather than the whole sitting. Push when there is a remote.
+**Commit each slot as it is settled**, one commit per slot. A session that dies then costs one slot
+rather than the whole sitting. Push when there is a remote.
 
-No pull request of its own: the owner settled it out loud as it was written, so there is nothing a
-reviewer would catch, and knowledge left on an unmerged branch is invisible to every other command.
-Usually the branch is the default one and the owner being present is the confirmation. Started
-mid-feature, the knowledge lands on that feature's branch and travels with its pull request. Only if
-the default branch is protected does the write fall back to a branch and a pull request, and it says
-so.
+**Where those commits land is not shared, and each command says it itself.** Which branch, and
+whether the work travels in a pull request, differs between the two — because what the owner
+actually approved differs. In `blueprint` they dictated every slot as it was written, over a sitting
+that may span days; in `advise` they said yes to a proposal of one line and the command composed the
+record's fields around it. The first has nothing a reviewer would catch and cannot afford to sit on
+an unmerged branch; the second is prose worth reading before it becomes the thing every later run
+builds from.
+
+**Never assume the branch that is checked out is the right one.** It is whatever the last command
+left behind — after a sprint, a spent feature branch whose pull request has already merged. A run
+that committed there without looking put six commits on a dead branch and pushed them, and only the
+owner asking caught it.
 
 **Then run the check**, and read what it says before closing:
 

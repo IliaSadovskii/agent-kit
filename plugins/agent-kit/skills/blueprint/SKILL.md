@@ -142,8 +142,19 @@ point is narrow: you recorded that command, and every later command depends on i
 found here rather than in the middle of a build. Report the result and never fix it — a red suite on
 a project the kit has just adopted is the owner's news, not this command's work.
 
-Committing and pushing follow `${CLAUDE_PLUGIN_ROOT}/rules/knowledge-writing.md`: one commit per
-slot as it is settled, onto the branch that is checked out, and no pull request of its own.
+Committing follows `${CLAUDE_PLUGIN_ROOT}/rules/knowledge-writing.md` — one commit per slot as it is
+settled — and **where it lands is yours to state, because it differs from `advise`.**
+
+**Onto the branch that is checked out, and no pull request of its own.** The owner settled every slot
+out loud as it was written, so there is nothing a reviewer would catch, and an interview that may
+span days cannot leave the knowledge on an unmerged branch where the other commands cannot see it.
+Usually that branch is the default one, and the owner being here is the confirmation — nothing asks a
+second time. Started mid-feature, the knowledge lands on that feature's branch and travels with its
+pull request, which is where the gap surfaced. Only if the default branch is protected does blueprint
+fall back to a branch and a pull request, and it says so.
+
+**Look at the branch before the first commit rather than assuming.** On a spent feature branch —
+one whose pull request has already merged — say so and branch from the default instead.
 
 ## Notes left by runs
 

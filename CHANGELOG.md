@@ -3,6 +3,32 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 1.2.2
+
+- **`advise` writes on a branch of its own and opens a pull request.** Found by its first live run,
+  which committed six commits of knowledge onto `sprint/2026-08-06-scenarios` — a spent branch whose
+  pull request had already merged — pushed them there, and corrected itself only when the owner
+  asked where the pull request was.
+
+  Two mistakes, one inherited and one assumed. The inherited one: `advise` was told to commit the way
+  `blueprint` does, onto the checked-out branch with no pull request of its own. That rule is right
+  for `blueprint` and its reasons do not carry — an interview may span days and cannot sit unmerged,
+  and the owner dictated every slot as it was written. A round of `advise` takes one sitting, and the
+  owner accepted proposals of one sentence while the command composed nine fields around each. That
+  prose becomes what every later run builds from, and a pull request is the only moment anybody reads
+  it as a diff. The assumed one: *the branch that is checked out is usually the default one*. It is
+  whatever the last command left behind — and right after a sprint, which is one of the two best
+  moments to run this command, that is a dead feature branch.
+
+  So the destination left the shared rule and now belongs to each command, which states it and its
+  reason: `blueprint` unchanged, `advise` branching from the default branch and opening one knowledge
+  pull request per round — no **Proven**, no **Review**, but every field it derived rather than took
+  from the owner listed under **Assumptions**. Its closing line now names merging that pull request,
+  because until it lands nothing downstream can see the entries in it.
+
+- **Both knowledge writers look at the branch before the first commit** rather than assuming, and say
+  so when it is a spent one.
+
 ## 1.2.1
 
 - **The reviewer no longer caps its report at ten findings.** The audits' own rule, stated twice in

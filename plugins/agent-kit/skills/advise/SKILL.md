@@ -63,6 +63,11 @@ The tree must be clean before the closing round, because that round commits into
 Check it there rather than here — a run that refused to read a project over uncommitted work would
 be refusing to do the only part that costs nothing.
 
+**Note which branch you are on while you are looking anyway**, and say it in the report if it is not
+the default one. The round branches off the default whatever is checked out, so this changes nothing
+about the writing — it is worth a line because a spent feature branch left behind by the last sprint
+is a fact the owner usually wants to hear about.
+
 ## Each lens has two halves, and every row says which it came from
 
 **The close half** walks the files and finds what they omit or contradict. **The wide half** steps
@@ -222,6 +227,38 @@ run's first act is to check whether it moved.
 The moment its entry, its block or its ledger line is written. From then the fact lives in the
 knowledge or in the ledger, and two homes for one fact is what this kit keeps paying for.
 
+### Where the writing lands: a branch of its own, and one pull request
+
+**Branch from the default branch before the first commit — never onto whatever is checked out.**
+After a sprint that is a spent feature branch whose pull request has already merged, and right after
+a sprint is one of the two best moments to run this command. `docs/advise-<date>` off the default
+branch, one commit per item as each is settled, so a round that dies costs one item.
+
+**Then one pull request for the round**, per `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md`, opened
+after the round rather than during it. Not because anything in it is in doubt — the owner accepted
+every line — but because they accepted proposals of one sentence and you wrote the record's fields
+around them. That prose becomes what every later run builds from, and this is the only moment
+anybody reads it as a diff.
+
+It is a knowledge pull request, so most of that file's sections have nothing to say: no **Proven**,
+no **Review**, no **What was hard**. What it carries instead:
+
+- **What & why** — what the owner accepted, and what changed in the description because of it.
+- **Manual actions** — normally "None.", and that file's bar still applies: nothing here is written
+  as a task for the owner.
+- **Assumptions** — every field you derived rather than took from them in the round. The one place a
+  wrong reading can hide is then the first thing they read.
+- **Changes** — slot by slot, as a table.
+
+Say in the closing line that the pull request is open, and that the entries in it are invisible to
+`ship` and `sprint` until it merges. That is the one cost of this shape, and it should not be a
+surprise a week later.
+
+`blueprint` commits differently — onto the branch that is checked out, with no pull request — and its
+reason is in its own file. **Do not copy it here.** It rests on an interview that may span days and
+on the owner having dictated every slot; neither is true of a round that took twenty minutes and
+composed nine fields around a one-line yes.
+
 ### Nobody in the room: write the list and stop
 
 No entry, no block, no ledger line, nothing accepted — and the closing line says the round is
@@ -237,5 +274,8 @@ accepted it, the date and the row it came from — and `blueprint` finishes it.
 
 Per `${CLAUDE_PLUGIN_ROOT}/rules/closing.md`: what is thin — which halves could not run for missing
 knowledge, what the search could not reach, where the domain is outside what you know — then the one
-line naming what to run next. Usually that is the next lens, or `ship` on what was just written, or
-`blueprint` if blocks were left.
+line naming what to run next.
+
+When the round wrote anything, that line is **merge the pull request** — nothing downstream can see
+an entry until it lands, so naming `ship` on what was just written would name a command that cannot
+find it yet. Otherwise it is the next lens, or `blueprint` if blocks were left.
