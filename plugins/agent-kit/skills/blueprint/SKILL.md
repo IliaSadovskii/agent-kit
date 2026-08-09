@@ -79,6 +79,14 @@ Order, because each step feeds the next:
    test off the red in this project, for the day a test has to prove a promise the product does not
    keep. The template says what to look for, and a project with several suites gets a line each.
    Leaving it blank costs a build command an invented answer at midnight.
+
+   **And ask what runs the scenarios end to end** — the one testing question a draft cannot answer.
+   Everything else in the testing section is derived: the layers, the seams, the bar all come from
+   the code and the manifests. A harness that does not exist yet is invisible to that, so silence
+   here is read by every later run as a decision nobody made — and `mvp` stops on *every scenario
+   passes*, so it is the one gap that decides whether that command can finish at all. Name the tool
+   and where it runs, or write plainly that there is none and the scenarios are proved by hand. Both
+   are legitimate; neither may be left to be inferred.
 3. **`product`** — what it is for, and what it deliberately does not do. The second is worth more
    to an autonomous run than the first.
 4. **`actors`**, then **`entities`**, then **`actions`**. Actions are the bulk: take one actor at a

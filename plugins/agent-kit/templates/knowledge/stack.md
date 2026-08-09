@@ -40,7 +40,15 @@ patterns to follow, where to look for a ready-made answer, and what this project
 ## Testing
 
 <!-- Which layers this project tests, at which seams, and where a test has to be proven able to
-     fail. State the bar, so runs neither skip it nor gold-plate it. -->
+     fail. State the bar, so runs neither skip it nor gold-plate it.
+
+     One line here is not derived like the rest: WHAT RUNS THE SCENARIOS END TO END. The layers,
+     the seams and the bar all come from the code and the manifests; a harness nobody has built
+     yet comes from nowhere, so it has to be asked. Name the tool and where it runs — or write
+     that there is none and the scenarios are proved by hand. Both are legitimate; the absence of
+     either is not. `mvp` finishes only when every scenario inside the bounds passes, so a run
+     that finds this silent reads it as "not done here" and builds a whole product before anyone
+     notices. -->
 
 ## What we do not do
 

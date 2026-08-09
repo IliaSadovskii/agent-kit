@@ -3,6 +3,31 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 1.2.3
+
+- **The harness that runs the scenarios is now asked about, and seen at the gate.** Found on an
+  `mvp` run that reached its third feature before the owner noticed nobody had planned browser
+  tests, and the run had written that they would check the result by hand.
+
+  Nothing was broken; three things were merely never joined. `blueprint` derives the whole testing
+  section from the code and the manifests — which can only ever describe the layers that already
+  exist. On that project it produced four careful bullets and no line about end-to-end tests,
+  because no harness was installed for one to be derived from. Every later run then read the
+  enumeration as complete and the silence as a decision. The command asked the owner fifteen
+  questions that day, none of them about testing: what gets asked is what some file names, and the
+  harness was named nowhere `blueprint` reads. It now asks, alongside `tests.unmet` and for the same
+  reason — the runner is already in front of it — and the `stack.md` template marks that one line as
+  the part of the section a draft cannot supply. *There is none and the scenarios are proved by
+  hand* is a legitimate answer; leaving it to be inferred is not.
+
+  `mvp`'s gate now runs `--status --state` rather than `--status`, for one line of output the
+  program was already computing: *scenarios: N described, M with an end-to-end test*. Until now
+  nothing read that before the finish phase, which is the worst moment to learn it — a harness is
+  infrastructure that shapes how features are built, and by then they are built, so a missing one
+  became "one more sprint" after the fact. The gate now says what will prove the finish line as part
+  of the finish line, and when nothing claims a scenario yet it says so, prices building one as a
+  batch, and lets the owner settle it inside the single scope question the run already asks.
+
 ## 1.2.2
 
 - **`advise` writes on a branch of its own and opens a pull request.** Found by its first live run,

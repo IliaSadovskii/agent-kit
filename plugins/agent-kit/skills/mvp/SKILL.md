@@ -32,13 +32,20 @@ condition at all.
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --mvp
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status --state
 ```
 
 The first is fatal or silent: no MVP bounds, no scenarios, or no `commands.run` / `commands.test`
 and this run does not start — say what is missing and offer `/agent-kit:blueprint`. The second is
 the usual preflight, per `${CLAUDE_PLUGIN_ROOT}/rules/preflight.md`; open blocks on entries you are
 about to build are settled here, because this is the last moment anyone can answer.
+
+**`--state` is here for one line of its output**, and it is the most consequential fact the gate can
+learn: *scenarios: N described, M with an end-to-end test*. That number decides how this run ends,
+and until now nothing read it before the finish phase — which is the worst possible moment, because
+a harness is infrastructure that shapes how features get built and by then they are built. On a
+project where **M is zero**, no harness exists yet, and the run is heading for a finish it cannot
+reach mechanically. Say so at the gate, in the finish line below.
 
 Then the work only this gate can do.
 
@@ -58,9 +65,18 @@ owner can click after the first few hours.
 **Price it.** A feature costs roughly 15M tokens on a real project, so nineteen entries is about
 280M and the better part of a day. Say the number.
 
-Then **one screen, one question**: the finish line said back in words, the batches in order, the
-lenses, the price — and *this scope, or narrower?* Two or three options with counts, per
-`${CLAUDE_PLUGIN_ROOT}/rules/asking.md`. That is the only question this run ever asks.
+**Say what will prove it.** The finish line is *every scenario inside the bounds passes against the
+running application*, and something has to run them. Name it from `stack.md` and from the count
+above: the harness that exists, or — when nothing claims a scenario yet — that there is none, what
+building one would cost as a batch of its own, and that without it the finish is the owner's hands
+on a phone rather than a green suite. **Never leave that to be discovered later.** It is one line
+here and a rebuilt plan later, and the owner is standing right there.
+
+Then **one screen, one question**: the finish line said back in words — including what proves it —
+the batches in order, the lenses, the price, and *this scope, or narrower?* Two or three options
+with counts, per `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`. That is the only question this run ever
+asks, so a harness that has to be decided is decided as part of the scope rather than in a question
+of its own.
 
 **Nothing else is asked, deliberately.** Whether the owner is reachable is not worth asking of a run
 that lasts a day — every child gets `gate: "none"`, so an expensive fork becomes a recorded
