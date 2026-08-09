@@ -112,6 +112,7 @@ class Launcher:
         self.model = model
         self.helper = shutil.which("claude-new")
         self.closer = shutil.which("claude-close")
+        self.reclaimed: str | None = None         # set by start() when it took a name back
 
     def _tmux(self, *args: str) -> subprocess.CompletedProcess:
         try:
@@ -123,6 +124,20 @@ class Launcher:
         return f"cc-{name}" if self.helper else f"agent-kit-{name}"
 
     def start(self, name: str, prompt: str, model: str | None = None) -> bool:
+        """Create a session and type the prompt into it — never into one that was already there.
+
+        A helper can report "that name is taken" as success: `claude-new` prints it and exits 0.
+        Trusting the exit code then sends the prompt to whatever is sitting at that name, appended
+        to anything half-typed in its box. The hand-back session is where this bites — its name
+        comes from the run above, so it is the same name on every batch, and the second batch would
+        type its instruction into the first one's leftovers. A name that is alive here is a session
+        whose work is behind it: take it back rather than write into it, and say that you did.
+        """
+        self.reclaimed = None
+        if self.alive(name):
+            self.stop(name)
+            self.reclaimed = name
+            time.sleep(1)                         # tmux frees the name a moment after the kill
         if self.helper:
             done = subprocess.run([self.helper, name, str(self.cwd)], capture_output=True, text=True)
             if done.returncode != 0:
@@ -487,8 +502,11 @@ class Driver:
             return
         name = f"{above.slug}-advance"[:60]
         self.run.event("hand-back", f"{parent} decides what follows")
-        if not self.launcher.start(name, f"/agent-kit:mvp --advance {above.dir}",
-                                   self.model_for(above.state())):
+        started = self.launcher.start(name, f"/agent-kit:mvp --advance {above.dir}",
+                                      self.model_for(above.state()))
+        if self.launcher.reclaimed:
+            above.event("reclaimed", f"{name} was still up from an earlier batch — closed it first")
+        if not started:
             above.event("stalled", "could not start the session that decides the next batch")
             self.tell(f"{above.slug} needs /agent-kit:mvp --resume — the next batch did not start")
 

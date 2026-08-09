@@ -3,6 +3,25 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 1.2.4
+
+- **The driver never types into a session it did not just create.** Found on a live `mvp`: the
+  session that decides what follows a batch was still standing hours after its decision, with a
+  half-typed sentence in its box. The next batch would have appended its instruction to that.
+
+  Three things lined up. The hand-back session's name comes from the run *above*, so it is the same
+  name on every batch. `claude-new` prints "that name is taken" and **exits 0**, and the launcher
+  read the exit code as proof it had a fresh session. And nothing closed the old one: the driver
+  that started it exits at the hand-back, and the driver it starts is watching its own children.
+  So the launcher now takes a live name back — closes it, waits for tmux to free it, then creates
+  its own — and records that it did, because a driver quietly writing into somebody else's session
+  is the class of failure this kit says a check must never have. Two tests cover it.
+
+- **`mvp --advance` closes its own session** once the batch it started is under way. *Then end* was
+  already written there and read as obvious; ending a turn is not ending a session, and nothing
+  else was going to. Left standing it is merely idle now rather than harmful — the launcher reclaims
+  the name — but a session per batch on a shared machine is worth the one line that prevents it.
+
 ## 1.2.3
 
 - **The harness that runs the scenarios is now asked about, and seen at the gate.** Found on an

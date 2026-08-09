@@ -139,6 +139,19 @@ thing:
 
 Then end. You are one decision and its consequence, not a supervisor.
 
+**And ending your turn does not end your session** — that is the part which reads as obvious and is
+not. Nothing else closes you: the driver that started you exits at the hand-back, and the driver you
+just started is watching its own children. So close yourself as the last thing you do, once the
+batch is under way:
+
+```bash
+tmux kill-session -t "$(tmux display-message -p '#S')" 2>/dev/null || true
+```
+
+Left standing, you idle until the next batch reclaims the name — the driver takes it back rather
+than typing into you, so nothing breaks, but a session per batch sits on a machine that is usually
+shared. Do it last: your session dies with the command, so anything after it never happens.
+
 **A batch that ended blocked does not stop the run.** Its features' entries stay `planned`, they are
 named in the pull request as what did not happen, and the next batch starts. A run that stopped on
 the first failure would lose everything behind it — but say it plainly, because a hole in an mvp is

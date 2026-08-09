@@ -32,6 +32,7 @@ class FakeLauncher:
         self.helper = None
         self.typed = []
         self.told = []
+        self.reclaimed = None
 
     def start(self, name, prompt, model=None):
         return True
@@ -283,3 +284,49 @@ class ModelCase(unittest.TestCase):
     def test_a_run_that_does_not(self):
         for state in ({}, {"model": None}, {"model": "   "}, None):
             self.assertIsNone(orch.Driver.model_for(state), state)
+
+
+class LauncherCase(unittest.TestCase):
+    """A session name that is already taken.
+
+    `claude-new` prints "that name is taken" and exits 0, so a launcher that trusted the exit code
+    believed it had a fresh session and typed the prompt into whatever was standing there — a real
+    mvp run left its hand-back session idle with half a sentence in its box, and the next batch
+    would have appended its instruction to that. The name is taken back instead.
+    """
+
+    def setUp(self):
+        self._time = orch.time
+        orch.time = types.SimpleNamespace(sleep=lambda _s: None, time=time.time)
+
+    def tearDown(self):
+        orch.time = self._time
+
+    def launcher(self, alive: bool):
+        made = orch.Launcher.__new__(orch.Launcher)
+        made.cwd = Path(".")
+        made.model = None
+        made.helper = None
+        made.closer = None
+        made.reclaimed = None
+        made.calls = []
+        made.alive = lambda _name: alive
+        made.stop = lambda name: made.calls.append(("stop", name))
+        made._tmux = lambda *args: types.SimpleNamespace(returncode=0, stdout="", stderr="")
+        made.send = lambda name, text: made.calls.append(("send", text)) or True
+        return made
+
+    def test_a_taken_name_is_closed_before_anything_is_typed(self):
+        made = self.launcher(alive=True)
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertTrue(made.start("batch-advance", "/agent-kit:mvp --advance x"))
+        self.assertEqual(made.reclaimed, "batch-advance")
+        self.assertEqual(made.calls[0], ("stop", "batch-advance"))
+        self.assertIn(("send", "/agent-kit:mvp --advance x"), made.calls)
+
+    def test_a_free_name_is_left_alone(self):
+        made = self.launcher(alive=False)
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertTrue(made.start("batch-advance", "/agent-kit:mvp --advance x"))
+        self.assertIsNone(made.reclaimed)
+        self.assertNotIn("stop", [c[0] for c in made.calls])
