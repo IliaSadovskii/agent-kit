@@ -45,6 +45,9 @@ class FakeLauncher:
     def alive(self, _name):
         return True
 
+    def tmux_name(self, name):
+        return f"cc-{name}"
+
     def stop(self, _name):
         pass
 

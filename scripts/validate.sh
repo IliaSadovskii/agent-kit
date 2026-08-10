@@ -199,21 +199,29 @@ done < <(grep -rhoE '\$\{CLAUDE_PLUGIN_ROOT\}/[A-Za-z0-9_./-]+' "$PLUGIN" \
            | sed 's|${CLAUDE_PLUGIN_ROOT}/||' | sed 's|[.,)]*$||' | sort -u)
 
 # --------------------------------------------------------------------------------------------
-step "the guard is registered and runs"
+step "both hooks are registered and run"
 
 # A hook that is not registered is a rule the payload believes in and nothing enforces — the exact
-# shape the audit refused to ship. So the registration is checked, not assumed.
+# shape the audit refused to ship. So the registration is checked, not assumed. Every file under
+# hooks/ must be registered too: one added and never wired in would look like protection.
 python3 -c "
-import json, sys
+import json, pathlib, sys
 spec = json.load(open('$PLUGIN/hooks/hooks.json'))
 events = spec.get('hooks') or {}
-if 'PreToolUse' not in events:
-    sys.exit('hooks.json registers no PreToolUse hook')
-" || fail "hooks.json is missing or does not register the guard"
+for event in ('PreToolUse', 'Stop'):
+    if event not in events:
+        sys.exit('hooks.json registers no ' + event + ' hook')
+wired = json.dumps(events)
+for path in pathlib.Path('$PLUGIN/hooks').glob('*.py'):
+    if path.name not in wired:
+        sys.exit(path.name + ' is not registered in hooks.json')
+" || fail "hooks.json is missing, or a hook in hooks/ is not registered"
 
-# It must survive being asked about a command it has no opinion on, with no run in flight.
+# Each must survive being asked about something it has no opinion on, with no run in flight.
 printf '{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"echo hi\"},\"cwd\":\"/\"}' \
   | python3 "$PLUGIN/hooks/guard.py" >/dev/null 2>&1 || fail "the guard failed on a harmless command"
+printf '{\"hook_event_name\":\"Stop\",\"cwd\":\"/\"}' \
+  | python3 "$PLUGIN/hooks/stop.py" >/dev/null 2>&1 || fail "the stop hook failed outside a project"
 
 # --------------------------------------------------------------------------------------------
 step "the payload's own markdown is not malformed"

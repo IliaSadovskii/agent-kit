@@ -3,6 +3,33 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 1.3.0
+
+- **A second hook: a turn may not end while this session's own run is mid-step.** The defect it
+  closes was measured on a live `mvp` — a child pushed its branch, took its review, ran its security
+  pass, and stopped with `step: "deliver"` still in its run file. That field is what the driver
+  judges a child by, so the run read as mid-flight; the only thing that noticed was the stall timer,
+  thirty minutes later, and its answer was a restart that discarded a warm and correct context.
+  Ending a turn and finishing a run are separate events, and nothing in the harness tied them
+  together.
+
+  The hook refuses the stop and returns where the run actually is; the session finishes the step or
+  records a blocker, both of which it already knows how to do.
+
+  **Whose run it is, is the whole design.** Blocking on any run in flight would trap the owner's own
+  session for most of a night, so the driver now writes the child's session name into its run file —
+  it already wrote exactly this for a batch's control window — and the hook matches on that field
+  and nothing else. A session the kit did not start owns no run here and gets no opinion, which is
+  what leaves `blueprint`, `next` and every side conversation untouched by construction rather than
+  by a list of exceptions. `window` is never matched: it holds the owner's session.
+
+  It refuses once — `stop_hook_active` hands the session back to the driver on the second try — it
+  never blocks on a step it could not read, and it fails open out loud. Eleven tests, and the
+  reasoning is in [docs/design/stop-hook.md](docs/design/stop-hook.md).
+
+- **`validate.sh` checks that every hook in `hooks/` is registered**, not just that one is. A hook
+  added and never wired in looks exactly like protection.
+
 ## 1.2.6
 
 Both found on one live `mvp`, watching a child that had gone quiet.

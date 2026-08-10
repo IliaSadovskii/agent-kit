@@ -339,6 +339,9 @@ class Driver:
         if not self.launcher.start(name, prompt, model):
             return "could not start a session"
 
+        # The stop hook matches a session to its run on this field and on nothing else, which is
+        # what keeps it silent in every session the kit did not start. See docs/design/stop-hook.md.
+        run.set(session=self.launcher.tmux_name(name))
         run.event("session-start", f"{name}{' on ' + model if model else ''}")
         launched = time.time() - 1
         transcript = None
