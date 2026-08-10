@@ -8,6 +8,7 @@ the cheap way to find out it is wrong is not the first live sprint.
 """
 
 import contextlib
+import datetime as dt
 import importlib.util
 import io
 import json
@@ -151,6 +152,34 @@ class DriverCase(unittest.TestCase):
         self.assertEqual(self.step(first), "done")
         self.assertEqual(self.step(second), "blocked")
         self.assertEqual(self.step(third), "skipped")
+
+    def test_a_live_but_silent_session_is_nudged_before_it_is_restarted(self):
+        """Ending a turn and finishing a run are different things, and nothing in the harness ties
+        them together: a live child stopped one step short of `done`, branch pushed, context
+        intact. Restarting throws away everything it read, so it gets one word first."""
+        first, = self.batch("one")
+        case = self
+        starts = []
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                starts.append(name)
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first], "step": "done", "pr": 7})
+                return True
+
+            def send(self, name, text):
+                self.typed.append(text)
+                if text == "continue" and first in name:
+                    case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
+                return True
+
+        driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.step(first), "done")
+        self.assertIn("continue", driver.launcher.typed)
+        self.assertEqual([n for n in starts if first in n], [first])
+        self.assertIn("nudged", (self.runs / first / "run.log").read_text(encoding="utf-8"))
 
     def test_a_limit_is_waited_out_and_the_session_resumes(self):
         first, second = self.batch("one", "two")
@@ -361,3 +390,33 @@ class WindowNoticeCase(unittest.TestCase):
         made = self.driver(None)
         made.tell("the batch is finished")
         self.assertEqual(made.launcher.told, [])
+
+
+class SilenceCase(unittest.TestCase):
+    """How long a session has actually been quiet.
+
+    The driver read the transcript's mtime, and a live run was measured with its child silent for
+    44 minutes while the driver saw 24 — the harness had touched the file once, for reasons of its
+    own, and bought the stalled child twenty-one free minutes. The records carry their own
+    timestamps; those are the answer.
+    """
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.path = self.tmp / "session.jsonl"
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_the_last_record_is_what_counts_not_the_last_touch(self):
+        self.path.write_text(
+            '{"type":"assistant","timestamp":"2026-08-10T17:40:00.000Z"}\n'
+            '{"type":"system","timestamp":"2026-08-10T17:59:34.232Z"}\n', encoding="utf-8")
+        spoke = orch.last_spoke(self.path)
+        self.assertEqual(
+            dt.datetime.fromtimestamp(spoke, dt.timezone.utc).strftime("%H:%M:%S"), "17:59:34")
+
+    def test_a_tail_with_no_timestamps_falls_back_to_mtime(self):
+        self.path.write_text('not json at all\n{"type":"assistant"}\n', encoding="utf-8")
+        self.assertIsNone(orch.last_spoke(self.path))
+

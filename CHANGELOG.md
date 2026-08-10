@@ -3,6 +3,26 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 1.2.6
+
+Both found on one live `mvp`, watching a child that had gone quiet.
+
+- **Silence is measured from the last thing the session said, not the last time its file was
+  touched.** The driver read the transcript's mtime. On the measured run the child's last real
+  record was 17:59 and the file was touched at 18:20 by the harness, for reasons of its own — so a
+  child silent for 44 minutes read as 24, and the stall check would not fire for another six. Every
+  record carries an ISO timestamp and the tail is already read to tell a limit from a hang, so the
+  answer was in a string the driver had in hand. mtime remains the fallback for a tail that carries
+  no timestamps.
+
+- **A session that is still up gets one word before it gets rebuilt.** Ending a turn and finishing
+  a run are different things, and nothing in the harness ties them together: the child had pushed
+  its branch, reviewed it, and stopped one step short of writing `step: "done"` — the line the
+  driver judges a child by. The old answer was a restart, which throws away a session whose context
+  is intact and correct. The kit already had the cheaper move and used it only for account limits:
+  type `continue` into the live session. It is tried once now, and a restart follows only if that
+  does not move it.
+
 ## 1.2.5
 
 - **The driver reminds the window what a window is, with the first news it sends.** Found on a live

@@ -200,6 +200,32 @@ def newest_transcript(cwd: Path, after: float) -> Path | None:
     return max(fresh, key=lambda p: p.stat().st_mtime, default=None)
 
 
+def last_spoke(path: Path) -> float | None:
+    """When the session last actually wrote something, from the transcript's own timestamps.
+
+    A file's mtime is not that. It moves when the harness touches the file for reasons of its own,
+    and a live run was measured with its child silent for 44 minutes while the driver, reading
+    mtime, saw 24 — twenty-one of them bought by one empty touch. On a night of thirty features
+    that lag is hours of a watcher believing it is watching.
+
+    The records carry ISO timestamps, so the tail already read for limit detection answers this
+    exactly. Returns None when the tail carries none, and the caller falls back to mtime.
+    """
+    newest = None
+    for line in read_tail(path, lines=200).splitlines():
+        found = re.search(r'"timestamp"\s*:\s*"(\d{4}-\d\d-\d\dT[\d:.]+Z)"', line)
+        if not found:
+            continue
+        try:
+            when = dt.datetime.strptime(
+                found.group(1)[:19], "%Y-%m-%dT%H:%M:%S").replace(
+                    tzinfo=dt.timezone.utc).timestamp()
+        except ValueError:
+            continue
+        newest = when if newest is None else max(newest, when)
+    return newest
+
+
 def read_tail(path: Path, lines: int = 40) -> str:
     """Last lines of a file, without reading a transcript that can be hundreds of megabytes."""
     try:
@@ -317,6 +343,7 @@ class Driver:
         launched = time.time() - 1
         transcript = None
         restarts = 0
+        nudged = False                            # one word before a restart, once per session
 
         def restart(why: str) -> bool:
             nonlocal transcript, launched, restarts
@@ -326,6 +353,7 @@ class Driver:
             self.launcher.stop(name)
             transcript = None
             launched = time.time() - 1
+            nudged = False
             if not self.launcher.start(name, prompt, self.model_for(run.state())):
                 return False
             run.event("restarted", why)
@@ -344,7 +372,8 @@ class Driver:
                         return "no transcript — the session cannot be watched"
                     continue
 
-            idle = time.time() - transcript.stat().st_mtime
+            spoke = last_spoke(transcript)
+            idle = time.time() - (spoke if spoke is not None else transcript.stat().st_mtime)
             gone = not self.launcher.alive(name)
             if idle < self.opt.hang * 60 and not gone:
                 continue
@@ -378,6 +407,19 @@ class Driver:
                 continue
 
             why = "session died" if gone else f"no progress for {idle / 60:.0f}m"
+
+            # A session that is still up has simply ended its turn — most often one step short of
+            # the terminal one, because ending a turn and finishing a run are different things and
+            # nothing in the harness ties them together. Its context is intact, so the same line
+            # that resumes a session after a limit resumes this one: one word against a restart
+            # that throws away everything it read. Only a session that will not move on that word,
+            # or one that is gone, is worth rebuilding from nothing.
+            if not gone and not nudged and self.launcher.send(name, "continue"):
+                nudged = True
+                run.event("nudged", f"{why} — typed into the live session")
+                time.sleep(self.opt.poll)
+                continue
+
             run.event("stalled", why)
             if restart(why):
                 continue
