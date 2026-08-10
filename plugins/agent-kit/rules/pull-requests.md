@@ -39,9 +39,20 @@ what is thin, and that nothing they just read depends on them remembering it.
 
 - **What & why** — five lines or fewer. Which blueprint entry this builds, what it now does, and
   anything unusual about how.
-- **Manual actions** — everything the owner must do by hand: new secrets and where they go, access
-  grants, third-party accounts, a migration to run, a CI change. One line each — what, where, why,
-  when. Never collapsed; this is the section they act on. "None." when there is nothing.
+- **Manual actions** — **only what needs hands *and* access**: a secret and where it goes, an
+  account somewhere, a store's requirement, a device to hold, a production environment to fill in.
+  One line each — what, where, why — grouped by **when**: before it will run at all, before this
+  merges, before it ships. Never collapsed; this is the section they act on. "None." when there is
+  nothing.
+
+  Two things that look like manual actions and are not, because a list that holds them stops being
+  read. **Anything a script can do belongs in the script**: a migration to apply, a build argument,
+  a port, a file mode. If you did it by hand, fold it into `commands.run` and say you did.
+  **A setting that already works is an assumption, not an action** — a limit somebody chose a
+  default for, a threshold in a config file: it belongs in the Assumptions table, where a decision
+  taken without the owner is what the reader is looking for. Measured on one run, a list of nineteen
+  actions held six that genuinely needed a person, five a script should have done, and four settings
+  that were working fine — and the six that mattered were unfindable among them.
 - **Assumptions** — every decision taken without them, from the run file, as a table of decision and
   why. Never collapsed: an assumption the owner does not see defeats the point of recording it.
   Mark the ones also written into blueprint as `[assumed …]` blocks, so they know where to answer.

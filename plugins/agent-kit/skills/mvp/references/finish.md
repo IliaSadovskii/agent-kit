@@ -67,6 +67,30 @@ a join, which no test written at the level of one feature can see.
 over an application that does not boot is exactly what this step exists to catch, and it is the last
 moment anyone checks before the owner does.
 
+**Start it in a worktree of the branch, never in the tree the run built in**, and this is the whole
+point of the step rather than a detail of it:
+
+```bash
+git worktree add /tmp/<slug>-preview mvp/<slug>
+```
+
+The tree the run built in has everything already done to it — dependencies installed, migrations
+applied, `.env` filled in, files owned by the right user, images built. Starting there proves that
+an application already running still runs. A fresh checkout is what the owner will have after the
+merge, and it is the only place the question *does one command bring this up* has an answer.
+
+**Then everything you had to do by hand to get it up belongs in one of two places, and there is no
+third.** Either it goes **into `commands.run`** — a migration, a build argument, a port, a file
+mode: anything a script can do, a script does — or it is named in Manual actions with the reason a
+script cannot. Measured on one run, five mechanical steps ended up in a list of nineteen for the
+owner to carry out: applying the migrations, rebuilding through the right target, a port into
+`.env`, a `chown`, and running the browser suite. None of the five needed a person; they were
+merely done by hand once and written down.
+
+Nothing here writes deployment. A server, a domain, a production environment stay the owner's, and
+say so. What this settles is narrower and is the thing they will do first: clone, one command, click
+through it.
+
 ## Finishing
 
 **`building (pr: <n>)` on every entry this run built is the finish, not a defect in it.** An entry

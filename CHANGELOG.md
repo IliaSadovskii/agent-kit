@@ -3,6 +3,28 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 1.4.2
+
+- **A run proves its application starts from a clean checkout, not from the tree it built in.** The
+  finish has always been told to start the app with `commands.run`; it started it where every
+  dependency was installed, every migration applied, `.env` filled and the images built — which
+  proves that an application already running still runs. It now starts in a worktree of the branch,
+  which is what the owner has after the merge, and is the only place *does one command bring this
+  up* has an answer.
+
+  And whatever had to be done by hand to get it up goes into `commands.run` — a migration, a build
+  argument, a port, a file mode — or is named with the reason a script cannot do it. There is no
+  third place. Measured on one run, five mechanical steps had been written down for the owner to
+  carry out instead: applying the migrations, rebuilding through the right target, a port into
+  `.env`, a `chown`, and running the browser suite. Deployment is still nobody's here: a server and
+  a domain stay the owner's, and say so.
+
+- **Manual actions holds only what needs hands *and* access**, grouped by when — before it will run,
+  before it merges, before it ships. Anything a script can do belongs in the script; a setting that
+  already works is an assumption, not an action. The same measured run listed nineteen: six needed a
+  person, five were a script's job, four were working defaults — and the six were unfindable among
+  them.
+
 ## 1.4.1
 
 - **A finished run does not ask for its diff to be reviewed again.** `close.md` has always said a
