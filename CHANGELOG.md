@@ -3,6 +3,112 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 1.4.0
+
+Everything here was measured on one live `mvp` — thirty-one hours, thirty-three features, 1.8 billion
+tokens — and every number below comes from its transcripts rather than from an estimate.
+
+- **`/agent-kit:accept` — taking delivery of a run.** A run that lasted a day ends with a pull
+  request its owner cannot read: measured, 157 000 characters over 40 000 lines, seventy decisions
+  taken without them, two questions waiting, one test deliberately red. All recorded honestly, none
+  of it findable. It reads the description, the run files and the mechanical state — **never the
+  diff**, which was reviewed per feature and again per batch — and answers in the order a person
+  acts: can this be merged, what needs hands and how to tell each step worked, what is waiting on a
+  decision and which side to take, the expensive assumptions by name and the rest by count, what is
+  not proven or was never exercised at all, and how to open it without disturbing anything. It
+  changes nothing but the two facts of bookkeeping `next` may also write.
+
+- **`mvp` takes a scope, and its finish line changes with it.** The MVP bounds when nothing is said,
+  which is what it is named after; run it again once those are built and it offers what is still
+  `planned`, what the project owes, or a list the owner names. *Planned* has no scenarios of its own
+  to prove, so what it must not do is break the ones that pass — and that is what its finish says.
+  No ninth command: the machinery is the same one, and only the source of the list differs.
+
+- **A run's pull request is a run document, not eleven batch reports end to end.** Every rule about
+  sections applied to whichever batch was writing, so the body grew with the number of batches
+  rather than with the product. Measured: a quarter of it was every sentence the run changed in the
+  knowledge, a fifth was seventy assumptions in one uncollapsed table, and *What was hard* — three
+  to five lines by the rule — was a hundred and eighty-seven. Four sections are now held to a size
+  that does not depend on how many batches there have been, and what a batch knows beyond that is
+  already in its digest comment and in `docs/runs/<slug>.json`.
+
+- **A feature is handed from one session to the next before its context makes it expensive.** A
+  session re-sends its whole context on every turn, so its price is the sum of that context over its
+  turns: one measured feature reached 340k over 340 turns and spent 70M tokens, most of it on
+  re-reading itself. The driver now measures each child — a session cannot see its own size — and
+  types one line when it crosses `--ceiling`, 120k by default. The session finishes the task it is
+  on, closes it, fills `handoff` and stops; the driver starts the next one with the same
+  `--run`, which is the path a limit already recovered through.
+
+  Simulated against the real context curves of all thirty-eight children, that is **41% of what they
+  cost**. The ceiling was chosen from the curve rather than picked: the cheapest point is near 90k,
+  the curve is flat from 80k to 120k, and the conservative end of it halves the number of handoffs —
+  each of which is a chance to lose something the model does not price.
+
+  `handoff` answers four questions under 2000 characters and is overwritten, never accumulated. What
+  goes in it is what is nowhere else: **what was tried and did not work**, and what was settled
+  silently. `check.py --run` now judges a run file at that moment too, so a handoff whose file
+  cannot stand on its own does not happen; and the stop hook lets a session with a note stop
+  mid-step, because that is the one instruction it was given.
+
+- **`check.py --brief <key>` — everything a run reads before it designs, in one call.** The project's
+  corner, the entry, every entry it names, the library map. It pulls sections, never whole files.
+  The instruction to send independent reads together already exists in two places and was followed
+  **nought times out of 6443 turns** on the measured run, which is not an instruction but a wish.
+
+- **The driver's queue is live, and it can start something that is not a `ship`.** `children` is read
+  again before every child rather than snapshotted, so the session between batches can reorder what
+  is left, drop it, or add to it. A child with `prompt` in its run file is started with that instead.
+  Before this, a run that wanted an audit between two rounds of fixes wrote itself a shell script
+  into the run directory and had a session execute it — a mechanism nothing declared, in the one
+  directory nothing tracks, knowing nothing about limits or stalls.
+
+  With it, `mvp` stops choosing its lenses at the gate. They are chosen by the `--advance` that
+  reaches the audit and has seen the product built, where the gate had only prose; the gate keeps the
+  wave ceiling, which is what makes the run terminate. Fixes are one batch per wave rather than one
+  per lens: six lens-shaped batches cost six closing sessions and six hand-backs for batches of two.
+
+- **`wait <hours> <question>` in the control file.** A run under `gate: none` records an expensive
+  fork as an assumption rather than losing a night on a phone nobody is holding, and that is right
+  almost always. Almost: the measured run never called its real model once, because the key was a
+  manual action and everything after that point was proved against a stand-in. The deadline is what
+  keeps it from being the old mistake again — time out, and the question is already in `waiting_on`
+  for the pull request to carry.
+
+- **A batch inside an `mvp` is no longer read as finished because it carries the run's pull request
+  number.** One pull request covers a whole `mvp`, so every batch after the first holds a number that
+  was already there — and may hold it before it has done anything. Twice on one night the driver
+  read that as a closed batch and killed the session that was closing it; both times the branch, the
+  body and the digest were put right by hand the next morning. `pr` now counts only when opening it
+  was this run's own job.
+
+- **What a run costs is measured, in the units an owner can use.** The driver writes `spent` —
+  hours, features, sessions — and the closing session carries it into `docs/runs/<slug>.json`, the
+  first thing a batch leaves in the repository. Everything else a run knows lives in
+  `.agent-kit/runs/`, which is git-ignored, so it dies with the machine. The gate prices its scope in
+  hours from those files instead of from a figure in prose that was measured **four times under**.
+
+- **`rules/channels.md`: every channel the kit has, with its writer, its reader, its closer and where
+  it lives.** Only what a program checks is in it, so it cannot drift from what is true — and
+  `check.py` now settles two of those: a file in a run directory that is none of the three a run
+  owns, and an audit item ticked without naming the pull request that closed it. On the measured
+  project those two find the shell script above and thirty-five unsigned ticks.
+
+- **An `[assumed …]` is reported as what it is.** The check called seventy-four of them "waiting for
+  the owner" while `next` and `ship` both say a block is a decision already taken that every later
+  run follows. It is still a finding, but it is now printed as a count and the entries carrying it,
+  which is what a command needs — it only settles the ones where it is about to build.
+
+- **A run that changed only tests, fixtures, lock files or documentation skips the reviewer and the
+  security pass.** The reviewer answers whether this is the feature that was approved, and there is
+  no feature; `fix` has said so since it was written. On the measured run eight of thirty-eight
+  children qualified, each carrying about twenty dollars of passes that had nothing to look at.
+
+- **Two smaller things the same run paid for.** `building (pr: n)` on every entry is the finish of an
+  `mvp`, not a defect in it — a run carried that misreading through four `--advance` sessions with
+  nothing to do about it. And `tasks` or `assumptions` written as sentences now stop a run closing,
+  the same as `review.findings` already did.
+
 ## 1.3.0
 
 - **A second hook: a turn may not end while this session's own run is mid-step.** The defect it

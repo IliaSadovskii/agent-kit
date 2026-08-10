@@ -69,6 +69,15 @@
   "pr": null,
   "children": [],
 
+  "_prompt": "What the driver types into this child's session. Left out, it is `/agent-kit:ship --run <this directory>`, which is what a feature is. A batch may hold a child that is not a ship — an audit between two rounds of fixes, a review — and this is how it says so. Everything else is unchanged: the child keeps this run file, and a terminal `step` is still the only signal the driver watches, so a command with no run file of its own must be told here to close one.",
+  "prompt": null,
+
+  "_spent": "What this run cost, written by the driver and by nothing else: `hours` of wall-clock, `features` built, `sessions` started. In these units and not in tokens or money, because those are what an owner can hold against a plan — and because a gate that prices a scope out of prose was measured four times under with nothing to correct it. A batch resumed adds to what it already spent rather than replacing it.",
+  "spent": null,
+
+  "_handoff": "What one session of this run leaves for the next one, when the driver asks it to hand over — everything else it knew is in the fields above, in the commits, or was never worth carrying. Four answers and nothing else, under 2000 characters: where you stopped (which task, what is committed, what is still in the tree); what you tried that did not work, and why; what you decided silently that no field holds; what you were about to do next. The session that picks it up moves anything durable into the field that owns it, then overwrites this — it carries one handoff, never a history of them, or the note outgrows the file it lives in.",
+  "handoff": null,
+
   "_notes": "Anything this run wants to leave behind that no field above holds — context for whoever picks it up, a dead end worth not repeating, a suspicion. Free prose, read by people and by the closing session. It exists so that no run invents a key of its own: an invented key is one nothing will ever read, because every reader knows only this shape.",
   "notes": null
 }

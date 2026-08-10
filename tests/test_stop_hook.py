@@ -86,6 +86,18 @@ class StopHookCase(unittest.TestCase):
         self.run_file("a-batch", window="cc-a-feature", step="building")
         self.assertIsNone(self.verdict())
 
+    def test_a_run_handed_over_is_allowed_to_stop_mid_step(self):
+        """The driver asked for the handoff, the note is written, and the next session carries on
+        from the same file. Refusing here would hold the session open against its one instruction."""
+        self.run_file("a-feature", session="cc-a-feature", step="build",
+                      handoff="stopped after task 2; the queue seam deadlocks")
+        self.assertIsNone(self.verdict())
+
+    def test_an_empty_note_is_not_a_handoff(self):
+        for note in (None, "", "   "):
+            self.run_file("a-feature", session="cc-a-feature", step="build", handoff=note)
+            self.assertIsNotNone(self.verdict(), repr(note))
+
     def test_a_project_with_no_runs_is_not_judged(self):
         self.assertIsNone(self.verdict())
 

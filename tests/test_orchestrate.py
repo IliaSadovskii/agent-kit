@@ -111,7 +111,7 @@ class DriverCase(unittest.TestCase):
 
     def drive(self, launcher_class, **overrides):
         orch.Launcher = launcher_class
-        options = types.SimpleNamespace(poll=60, hang=30, max_wait=6, model=None)
+        options = types.SimpleNamespace(poll=60, hang=30, max_wait=6, model=None, ceiling=120)
         for key, value in overrides.items():
             setattr(options, key, value)
         driver = orch.Driver(orch.Run(self.runs / "b"), self.cwd, options)
@@ -301,6 +301,280 @@ class DriverCase(unittest.TestCase):
 
         _driver, _code = self.drive(Launcher)
         self.assertEqual(self.step(first), "done")
+
+    def test_a_batch_carrying_the_run_s_own_pull_request_is_not_closed_on_that_alone(self):
+        """The trap, from the live run: one pull request covers a whole `mvp`, so a batch can hold
+        its number before it has done anything. Read as proof, it ends the closing session a minute
+        after it starts — twice, on one night."""
+        first, = self.batch("one")
+        (self.runs / "m").mkdir()
+        self.write("m", {"slug": "m", "command": "mvp", "pr": 12, "children": ["b"]})
+        self.write("b", {"slug": "b", "command": "sprint", "base": "main", "children": [first],
+                         "parent": "m", "pr": 12})
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if first in name:
+                    case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
+                return True                        # the closing session writes nothing, ever
+
+            def alive(self, _name):
+                return False
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.step("b"), "blocked")
+
+
+class LiveQueueCase(DriverCase):
+    """`children` is the queue, and a session between features may change what is left of it."""
+
+    def test_a_feature_added_while_the_batch_runs_is_built(self):
+        first, = self.batch("one")
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if first in name:                  # the first feature adds one behind itself
+                    case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
+                    (case.runs / "b-02-late").mkdir(exist_ok=True)
+                    case.write("b-02-late", {"slug": "b-02-late", "command": "ship",
+                                             "step": "queued", "branch": "claude/late"})
+                    batch = json.loads((case.runs / "b" / "run.json").read_text(encoding="utf-8"))
+                    batch["children"] = [first, "b-02-late"]
+                    case.write("b", batch)
+                if "late" in name:
+                    case.write("b-02-late", {"slug": "b-02-late", "step": "done",
+                                             "branch": "claude/late"})
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first, "b-02-late"],
+                                     "step": "done", "pr": 9})
+                return True
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.step("b-02-late"), "done")
+
+    def test_a_feature_dropped_from_the_queue_is_never_started(self):
+        first, second = self.batch("one", "two")
+        case = self
+
+        class Launcher(FakeLauncher):
+            started = []
+
+            def start(self, name, prompt, model=None):
+                Launcher.started.append(name)
+                if first in name:
+                    case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
+                    batch = json.loads((case.runs / "b" / "run.json").read_text(encoding="utf-8"))
+                    batch["children"] = [first]     # the second is taken off the list
+                    case.write("b", batch)
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first], "step": "done", "pr": 9})
+                return True
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertNotIn(second, Launcher.started)
+
+    def test_a_child_that_is_not_a_ship_is_started_by_the_prompt_it_carries(self):
+        first, = self.batch("one")
+        state = json.loads((self.runs / first / "run.json").read_text(encoding="utf-8"))
+        state["prompt"] = "/agent-kit:audit security"
+        self.write(first, state)
+        case = self
+
+        class Launcher(FakeLauncher):
+            prompts = []
+
+            def start(self, name, prompt, model=None):
+                Launcher.prompts.append(prompt)
+                if first in name:
+                    case.write(first, {"slug": first, "step": "done"})
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first], "step": "done", "pr": 9})
+                return True
+
+        self.drive(Launcher)
+        self.assertIn("/agent-kit:audit security", Launcher.prompts)
+
+    def test_wait_stands_still_and_then_carries_on(self):
+        first, = self.batch("one")
+        (self.runs / "b" / "control").write_text("wait 2 the OpenRouter key is not in .env",
+                                                 encoding="utf-8")
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if first in name:
+                    case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first], "step": "done", "pr": 9})
+                return True
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertGreaterEqual(self.waited(), 2 * 3600, "it waited the hours it was given")
+        self.assertEqual(self.step(first), "done", "and then built the feature anyway")
+
+    def test_a_wait_with_no_hours_in_it_is_ignored_rather_than_guessed_at(self):
+        first, = self.batch("one")
+        (self.runs / "b" / "control").write_text("wait for the key", encoding="utf-8")
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if first in name:
+                    case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first], "step": "done", "pr": 9})
+                return True
+
+        _driver, _code = self.drive(Launcher)
+        self.assertLess(self.waited(), 3600)
+
+    def test_what_a_batch_spent_is_written_down(self):
+        first, = self.batch("one")
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if first in name:
+                    case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
+                if name.endswith("-close"):
+                    batch = json.loads((case.runs / "b" / "run.json").read_text(encoding="utf-8"))
+                    batch.update({"step": "done", "pr": 9})
+                    case.write("b", batch)
+                return True
+
+        self.drive(Launcher)
+        spent = json.loads((self.runs / "b" / "run.json").read_text(encoding="utf-8"))["spent"]
+        self.assertEqual(spent["features"], 1)
+        self.assertGreaterEqual(spent["sessions"], 1)
+        self.assertIn("hours", spent)
+
+
+class HandoverCase(DriverCase):
+    """A feature outlasting one session, handed to the next instead of paying for its own history."""
+
+    BIG = ('{"message":{"usage":{"input_tokens":4,"cache_creation_input_tokens":2000,'
+           '"cache_read_input_tokens":200000,"output_tokens":40}}}')
+    SMALL = ('{"message":{"usage":{"input_tokens":4,"cache_creation_input_tokens":1000,'
+             '"cache_read_input_tokens":40000,"output_tokens":40}}}')
+
+    def test_the_size_is_read_off_the_transcript_a_record_at_a_time(self):
+        self.assertEqual(orch.context_size(self.SMALL + "\n" + self.BIG), 202004)
+        self.assertEqual(orch.context_size("nothing here"), 0)
+
+    def test_a_session_over_the_ceiling_is_asked_once_and_carried_on_by_a_fresh_one(self):
+        first, = self.batch("one")
+        case = self
+        state = {"over": True, "alive": True, "starts": 0}
+        orch.read_tail = lambda path, lines=40: case.BIG if state["over"] else case.SMALL
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if first in name:
+                    state["starts"] += 1
+                    state["alive"] = True
+                    if state["starts"] == 2:       # the session that took the handoff finishes it
+                        case.write(first, {"slug": first, "step": "done",
+                                           "branch": f"claude/{first}"})
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first], "step": "done", "pr": 4})
+                return True
+
+            def send(self, name, text):
+                self.typed.append(text)
+                if text is orch.HANDOFF_LINE or "hand this run over" in text:
+                    # the session finishes its task, writes the note and stops
+                    run = json.loads((case.runs / first / "run.json").read_text(encoding="utf-8"))
+                    run["handoff"] = "stopped after task 2; tried the queue seam, it deadlocks"
+                    case.write(first, run)
+                    state["over"], state["alive"] = False, False
+                return True
+
+            def alive(self, _name):
+                return state["alive"]
+
+        driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertEqual(state["starts"], 2, "the run should have been carried on exactly once")
+        self.assertEqual(self.step(first), "done")
+        asks = [t for t in driver.launcher.typed if "hand this run over" in t]
+        self.assertEqual(len(asks), 1, "asked once per session, not once per poll")
+
+    def test_a_session_that_ignores_the_ask_is_still_treated_as_stuck(self):
+        first, = self.batch("one")
+        case = self
+        orch.read_tail = lambda path, lines=40: case.BIG
+
+        class Launcher(FakeLauncher):
+            def alive(self, _name):
+                return False                       # gone, and it never wrote a note
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.step(first), "blocked")
+
+    def test_the_ceiling_can_be_switched_off(self):
+        first, = self.batch("one")
+        case = self
+        orch.read_tail = lambda path, lines=40: case.BIG
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if first in name:
+                    case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first], "step": "done", "pr": 4})
+                return True
+
+        driver, _code = self.drive(Launcher, ceiling=0)
+        self.assertEqual([t for t in driver.launcher.typed if "hand this run over" in t], [])
+
+
+class InheritedPullRequestCase(unittest.TestCase):
+    """`pr` is evidence a run finished only when opening it was that run's own job."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.runs = self.tmp / "runs"
+        self.runs.mkdir(parents=True)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def write(self, slug, state):
+        (self.runs / slug).mkdir(exist_ok=True)
+        (self.runs / slug / "run.json").write_text(json.dumps(state), encoding="utf-8")
+        return orch.Run(self.runs / slug)
+
+    def test_a_pull_request_this_run_opened_is_terminal(self):
+        run = self.write("solo", {"slug": "solo", "pr": 7, "step": "deliver"})
+        self.assertEqual(run.own_pr(), 7)
+        self.assertTrue(run.terminal())
+
+    def test_a_number_inherited_from_the_run_above_is_not(self):
+        self.write("m", {"slug": "m", "command": "mvp", "pr": 12})
+        run = self.write("b", {"slug": "b", "parent": "m", "pr": 12, "step": "closing"})
+        self.assertIsNone(run.own_pr())
+        self.assertFalse(run.terminal())
+
+    def test_a_second_pull_request_under_the_same_parent_still_counts(self):
+        self.write("m", {"slug": "m", "command": "mvp", "pr": 12})
+        run = self.write("b", {"slug": "b", "parent": "m", "pr": 13, "step": "closing"})
+        self.assertEqual(run.own_pr(), 13)
+
+    def test_the_step_alone_closes_a_batch_with_an_inherited_number(self):
+        self.write("m", {"slug": "m", "command": "mvp", "pr": 12})
+        run = self.write("b", {"slug": "b", "parent": "m", "pr": 12, "step": "done"})
+        self.assertTrue(run.terminal())
+
+    def test_a_parent_that_is_not_there_leaves_the_number_this_run_s_own(self):
+        run = self.write("b", {"slug": "b", "parent": "gone", "pr": 5, "step": "deliver"})
+        self.assertEqual(run.own_pr(), 5)
 
 
 if __name__ == "__main__":

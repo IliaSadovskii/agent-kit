@@ -110,13 +110,24 @@ session stands beside the run to say how it is going and to take *skip* and *sto
 
 ### `mvp`
 
-Everything inside the MVP bounds, built while nobody watches, then audited, then proved by the
-scenarios against the running application — one pull request you open and click through.
+A whole scope, built while nobody watches, then audited, then proved — one pull request you open and
+click through. The MVP bounds the first time; run it again once those are built and it offers what
+is still planned, or what the project owes, each with its own finish line.
 
-It asks one question, at the start: this scope, or narrower, with the price of each. After that it
-runs in batches — each a sprint of about five features — and after every batch the pull request says
+It asks one question, at the start: this scope, or narrower, with the price in hours of each. After
+that it runs in batches — each a sprint of about five features — and after every batch the pull request says
 what now works. It owns no build logic of its own: it composes the batches and the same driver,
 `ship` and closing session do the rest.
+
+### `accept [pull request number]`
+
+For the moment a long run has ended and its pull request is too big to read. It reads the
+description, the run files and the state — never the diff, which was reviewed twice already — and
+answers in the order you act: can this be merged, what needs your hands and how to tell each step
+worked, what is still waiting on you and which side to take, what was decided without you, what is
+not proven or was never exercised at all, and how to open it without disturbing anything.
+
+Changes nothing. Run it before merging, and again after, when it becomes the list of what to go and do.
 
 ### `next`
 

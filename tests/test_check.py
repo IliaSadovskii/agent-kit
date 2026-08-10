@@ -84,6 +84,56 @@ class CheckCase(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("built: 1", output)
 
+    # ---- the channels a program can check ------------------------------------------------------
+
+    def test_a_file_in_a_run_directory_that_belongs_to_nothing_is_named(self):
+        directory = self.root / ".agent-kit" / "runs" / "x"
+        directory.mkdir(parents=True)
+        (directory / "run.json").write_text('{"slug": "x"}', encoding="utf-8")
+        (directory / "run.log").write_text("", encoding="utf-8")
+        _code, output = self.run_check()
+        self.assertNotIn("not a run's own", output)
+        (directory / "advance.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+        _code, output = self.run_check()
+        self.assertIn("x/advance.sh", output)
+
+    def test_an_audit_box_ticked_without_its_pull_request_is_named(self):
+        audits = self.root / "docs" / "audits"
+        audits.mkdir(parents=True)
+        (audits / "tests.md").write_text(
+            "# Tests\n\n- [x] closed by PR #21\n- [ ] still open\n- [x] done, honest\n",
+            encoding="utf-8")
+        _code, output = self.run_check()
+        self.assertIn("tests.md:5", output)
+        self.assertNotIn("tests.md:3", output)
+
+    # ---- the brief: what a run reads before it designs, in one call ---------------------------
+
+    def test_a_brief_carries_the_entry_the_corner_and_the_map(self):
+        self.write("stack.md", "# Stack\n\nLaravel, and no ORM tricks.\n")
+        code, output = self.run_check("--brief", "guest.browse_feed")
+        self.assertEqual(code, 0)
+        self.assertIn("Guest reads the feed", output)
+        self.assertIn("newest first", output)
+        self.assertIn("knowledge:", output)            # the project's own corner
+        self.assertIn("no ORM tricks", output)         # the library map
+
+    def test_a_brief_pulls_in_what_the_entry_names(self):
+        self.write("stack.md", "# Stack\n")
+        _code, output = self.run_check("--brief", "guest.browse_feed")
+        self.assertIn("A guest", output, "the actor the entry names comes with it")
+
+    def test_a_brief_says_what_it_could_not_find(self):
+        _code, output = self.run_check("--brief", "guest.browse_feed")
+        self.assertIn("does not exist", output, "a missing library map is said, not left out")
+
+    def test_an_unknown_key_names_the_near_miss_instead_of_guessing(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            code, _output = self.run_check("--brief", "guest.browse_fee")
+        self.assertEqual(code, 2)
+        self.assertIn("guest.browse_feed", err.getvalue())
+
     # ---- one rule at a time --------------------------------------------------------------------
 
     def test_an_empty_field_is_a_finding(self):
@@ -166,13 +216,18 @@ class CheckCase(unittest.TestCase):
 
     # ---- notes -------------------------------------------------------------------------------
 
-    def test_an_open_assumption_is_listed(self):
+    def test_an_open_assumption_is_named_by_the_entry_it_stands_under(self):
+        """A run took the decision and every later run in that entry follows it, so what a command
+        needs is which entries carry one — it only settles the blocks where it is about to build.
+        One `mvp` left seventy-four, and printing each of them before every command buries the
+        findings that are real."""
         self.write("actions.md", ACTIONS + "\n> **[assumed 2026-08-04 · claude/x]** Nothing says "
                                            "where it is stored. Took: beside the post.\n")
         code, output = self.run_check()
         self.assertEqual(code, 1)
-        self.assertIn("Open notes", output)
-        self.assertIn("assumed", output)
+        self.assertIn("Decisions taken without the owner (1) in 1 entry", output)
+        self.assertIn("guest.browse_feed", output)
+        self.assertNotIn("beside the post", output, "the count and the entry, not every line")
 
     def test_a_stale_block_is_a_statement_and_not_a_finding(self):
         """The block sits under the entry it corrects, so no run is misled while it stands. Counting
@@ -607,6 +662,12 @@ class CheckCase(unittest.TestCase):
         self.assertIn("fill a field of records with sentences", output)
         self.assertIn("tasks (1)", output)
 
+    def test_records_written_as_sentences_stop_a_run_closing(self):
+        for field in ("tasks", "assumptions"):
+            code, output = self.close(**{field: ["did the thing", "did the other"]})
+            self.assertEqual(code, 1, field)
+            self.assertIn(f"`{field}` is written as sentences", output)
+
     def test_a_run_still_working_is_not_judged(self):
         code, output = self.close(step="build", suite=None, review={"findings": [
             {"severity": "critical", "what": "x", "closed": False}]})
@@ -617,6 +678,48 @@ class CheckCase(unittest.TestCase):
         code, output = self.close(step="blocked", suite=None)
         self.assertEqual(code, 0)
         self.assertEqual(output, "")
+
+    # ---- the handoff, the other moment a run file has to stand on its own ----------------------
+
+    def handover(self, **fields):
+        state = {"slug": "x", "command": "ship", "step": "build", "suite": None,
+                 "approach": "the endpoint, then the screen",
+                 "tasks": [{"id": 1, "what": "the endpoint", "done": True}],
+                 "handoff": "stopped after task 1; the queue seam deadlocks under sqlite"}
+        state.update(fields)
+        directory = self.root / ".agent-kit" / "runs" / "x"
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "run.json").write_text(json.dumps(state), encoding="utf-8")
+        return self.run_check("--run", str(directory))
+
+    def test_a_handoff_that_stands_on_its_own_says_nothing(self):
+        code, output = self.handover()
+        self.assertEqual(code, 0)
+        self.assertEqual(output, "")
+
+    def test_a_note_that_outgrew_the_field_is_named(self):
+        code, output = self.handover(handoff="x" * (check.HANDOFF_MAX + 1))
+        self.assertEqual(code, 1)
+        self.assertIn("against a ceiling", output)
+
+    def test_a_handoff_with_no_approach_would_be_designed_twice(self):
+        code, output = self.handover(approach="")
+        self.assertEqual(code, 1)
+        self.assertIn("design this feature a second time", output)
+
+    def test_a_handoff_whose_tasks_are_prose_says_nothing_about_what_is_left(self):
+        code, output = self.handover(tasks=["the endpoint", "the screen"])
+        self.assertEqual(code, 1)
+        self.assertIn("`done` is how the next session tells", output)
+        code, output = self.handover(tasks=[])
+        self.assertEqual(code, 1)
+        self.assertIn("which task the handoff stopped after", output)
+
+    def test_no_note_means_no_handoff_to_judge(self):
+        for note in (None, "", "  "):
+            code, output = self.handover(handoff=note, approach="", tasks=[])
+            self.assertEqual(code, 0, repr(note))
+            self.assertEqual(output, "", repr(note))
 
     def test_the_template_itself_closes_nothing(self):
         """The shipped template carries a placeholder severity; it must not read as a finding."""

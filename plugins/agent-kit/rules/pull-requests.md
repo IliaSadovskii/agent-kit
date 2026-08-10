@@ -84,3 +84,29 @@ nothing reached it at all — and a review plugin that declines drafts silently 
 The sections above are then composed across features rather than written per feature: one **Manual
 actions** list in the order they must be done, one **Assumptions** table with a column for which
 feature took each, and a **What did not happen** section — parked features and why — before either.
+
+## A run's pull request, rewritten by every batch
+
+An `mvp` has one pull request and eleven batches rewrite its body, so **every rule above applies to
+the run, not to the batch that happens to be writing.** Written per batch and appended, the body
+grows with the number of batches instead of with the size of the product. Measured on one real run:
+157 000 characters, of which a quarter was a list of every sentence the run changed in the
+knowledge, a fifth was seventy assumptions in one uncollapsed table, and *What was hard* — three to
+five lines by the rule above — was a hundred and eighty-seven.
+
+So a batch inside a run **replaces** the body rather than adding to it, and four sections are held
+to a size that does not depend on how many batches there have been:
+
+- **What & why** — one line per batch, naming what the product can now do. Not the batch's report:
+  that is its digest comment, which is where a reader goes for *what is new since I last looked*.
+- **What was hard** — the five hardest things in the whole run, chosen again each time. Five per
+  batch is the same rule applied eleven times, which is not the same rule.
+- **Assumptions** — the expensive ones uncollapsed, by name: stored data, permissions, money, a
+  public contract. The rest as one collapsed table with its count. Seventy uncollapsed rows defeat
+  the reason the section is uncollapsed at all.
+- **Knowledge this run corrected** — one line per entry: which entry, what it now says. What it said
+  before goes in the collapsed half. A pull request that edits the description it is judged against
+  must make *that it did* the easiest thing to see, which a six-hundred-line list does not.
+
+Everything a batch knows that does not fit those is already written down twice — in its digest
+comment and in `docs/runs/<slug>.json` — so nothing is lost by keeping it out of the body.

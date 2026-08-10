@@ -76,20 +76,21 @@ plus the two findings that mean something particular here:
 | promises the product does not keep, on an entry you are about to touch | read that test before you design: it is the shape the promise will take when it is kept, and building over it is how a feature and a marked test end up contradicting each other. On any other entry, ignore the list — it belongs to whoever composes the next batch. It is never a reason to stop, whatever else it says about a missing `tests.unmet` or an entry that no longer exists |
 | the entry is already `built` | say so and ask whether this is a change to it |
 
-Then read, in one message: `.agent-kit/project.yml`, the entry and the entities it names,
-`docs/knowledge/stack.md`. **Read nothing else yet.** Everything you read is re-read on every
-remaining step, so a file costs its size times the steps left.
-
-**Pull the entry's own section, do not open the file it lives in.** A real project's `actions.md`
-runs to tens of thousands of characters, and opening it to read one of forty entries carries the
-other thirty-nine through the whole run:
+Then read what this feature is, in **one** call — the project's corner, the entry, every entry it
+names, and the library map:
 
 ```bash
-awk -v RS='\n### ' '/`key: developer\.create_offer`/{print "### " $0}' docs/knowledge/actions.md
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --brief developer.create_offer
 ```
 
-Measured on a real project that is one entry out of thirty-five: 1.6 KB against 44 KB. The same
-goes for every entity and screen you need — a section each, not the file.
+It pulls sections, never whole files: a real project's `actions.md` runs to tens of thousands of
+characters, and opening it to read one of forty entries carries the other thirty-nine through the
+whole run — measured, 1.6 KB against 44 KB. And it is one turn rather than five, which is the same
+saving again, because a turn costs the entire context a second time.
+
+**Read nothing else yet.** Everything you read is re-read on every remaining step, so a file costs
+its size times the steps left. Building from a `task` rather than an entry, there is no key to pass:
+read `.agent-kit/project.yml` and `docs/knowledge/stack.md` together, in one message.
 
 The working tree must be clean — a dirty tree is a blocker to report, not to work around. Create
 `claude/<slug>` from a freshly pulled default branch, unless the run file already names a branch and
@@ -122,6 +123,38 @@ twice buys nothing but shell calls.
 
 The run directory is working state, not repository content. Add `.agent-kit/runs/` to the project's
 `.gitignore` if it is not there yet.
+
+## Handing over
+
+A feature can outlast one session, and it costs more the longer it does: every turn re-sends the
+whole context, so a session that grew to 340k over 340 turns spent 70M tokens on re-reading itself.
+The driver measures that — a session cannot see its own size — and types one line when it is time to
+hand over. **Nothing about this is yours to judge except how.**
+
+Finish the task you are on, to its commit. Then close it in the run file, write `handoff`, and stop.
+
+- **Do not start the next task.** Half a task is the one thing the next session cannot pick up: the
+  commit is the boundary that carries its own verification.
+- **Do not finish the run to get out of it.** `step: "done"` on an unbuilt feature buys a quiet
+  night and delivers nothing; the driver would take it and move on.
+- **A run file that cannot stand on its own is not handed over.** Write the note, then run the
+  check; what it names is what you put right before you stop, not what you leave for the note.
+
+  ```bash
+  python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --run .agent-kit/runs/<slug>
+  ```
+
+`handoff` answers four questions and nothing else, under 2000 characters — its shape is in the
+template. Everything you would otherwise write there is already somewhere: the approach, the seams
+and the tasks are fields, the code is in the commits, the decisions worth keeping are `assumptions`
+and `deviations`. What is nowhere else is **what you tried that did not work** — the code shows the
+answer and never the two answers before it — and what you settled silently on the way.
+
+**Coming in on a handoff**: read it, move anything durable into the field that owns it, overwrite
+`handoff` with your own when your turn comes, and carry on from `step`. You are continuing a run,
+not reviewing one: do not re-read the diff behind you, do not revisit the approach, do not design
+anything that is already designed. Design is skipped for exactly this reason when the file carries
+an approach and tasks.
 
 ## Design
 
@@ -279,9 +312,22 @@ naming what to run next.
 
 ## Review
 
-**Always: the `agent-kit:reviewer` agent.** Give it the base branch to diff against, the run file's
-path, and the entries. It answers what nothing else can — whether this is the feature that was
-approved — because it is the only pass that reads the entry.
+**The `agent-kit:reviewer` agent, whenever the diff touched the product.** Give it the base branch
+to diff against, the run file's path, and the entries. It answers what nothing else can — whether
+this is the feature that was approved — because it is the only pass that reads the entry.
+
+Look at what you changed before you start it:
+
+```bash
+git diff --name-only <base>...HEAD
+```
+
+**A run that changed only tests, fixtures, lock files or documentation has no feature to judge**, so
+the reviewer is asked to compare a product change that is not there. `fix` has said this since it
+was written; it costs about as much as the whole of a one-line run, and audit batches are full of
+them. Skip it, write in `review.verdict` that you did and what the diff touched — silence there
+reads as a pass that happened. The same line decides the security pass: its triggers are all
+product surfaces, so a diff with none of them meets none of them.
 
 **On a trigger: `/security-review`.** Run it when the diff touches authentication or permissions,
 parsing of untrusted input, money, files or processes, a data migration, or an outbound call.

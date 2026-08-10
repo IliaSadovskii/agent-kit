@@ -21,8 +21,9 @@ the result back against it, and **orienting** when you have lost the thread.
 | `/agent-kit:fix` | build | something is wrong and it is small: find the cause, prove it with a failing test, change the least that works |
 | `/agent-kit:ship` | build | one feature end to end: design against the blueprint, build, verify, review, pull request |
 | `/agent-kit:sprint` | build | a batch of features: brief them in one sitting, then a driver builds each unattended |
-| `/agent-kit:mvp` | build | from the blueprint to a running prototype: the MVP bounds built, audited and proved by the scenarios |
+| `/agent-kit:mvp` | build | a whole scope built, audited and proved, as one pull request: the MVP bounds first, then whatever is still planned or still owed |
 | `/agent-kit:audit` | check | compare existing code to the description and write a work list |
+| `/agent-kit:accept` | check | take delivery of a finished run: can this be merged, and what needs your hands, in what order |
 | `/agent-kit:next` | orient | where the project stands and which command to run — for the cold start |
 
 ## Blueprint
@@ -171,6 +172,20 @@ the file and line that proves it, because a verdict without one can only be beli
 
 The reasoning for each lens, and the two that were rejected:
 [docs/design/audit.md](../../docs/design/audit.md).
+
+## Accept
+
+For the moment a long run has ended and its pull request is too big to read. Measured on one: 157 000
+characters of description over 40 000 lines of diff, seventy decisions taken without the owner, two
+questions still waiting, one test deliberately red. All of it recorded honestly, none of it findable.
+
+It reads the pull request, the run files and the mechanical state — **never the diff**, which was
+already reviewed per feature and again per batch — and answers in six blocks, in the order a person
+acts on them: can this be merged, what needs hands and how to tell each step worked, what is waiting
+on a decision and which side to take, the expensive assumptions by name and the rest by count, what
+is not proven or was never exercised at all, and how to open it without disturbing the run.
+
+It changes nothing but the two facts of bookkeeping `next` may also write.
 
 ## Next
 

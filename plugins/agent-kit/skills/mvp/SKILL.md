@@ -1,14 +1,15 @@
 ---
 name: mvp
-description: From the blueprint to a running prototype — build everything inside the MVP bounds autonomously, audit it, and prove it with the scenarios against the running application, delivered as one pull request.
+description: From the blueprint to a running prototype — build a whole scope autonomously, audit it, and prove it, delivered as one pull request. The MVP bounds the first time; run again once they are built and it offers what is still planned or still owed.
 argument-hint: "[--advance <run dir> | --resume <run dir>]"
 disable-model-invocation: true
 ---
 
 # MVP
 
-Everything inside the MVP bounds, built, audited and proved, as one pull request the owner can open
-and click through.
+A whole scope — built, audited and proved, as one pull request the owner can open and click through.
+The MVP bounds are the scope it is named after and the one it takes when nothing is said; run it
+again after those are built and it offers what is still planned, or what the project owes.
 
 **It owns no build, test or pull-request logic.** It composes batches and hands each to the driver;
 the driver runs `ship` per feature and the closing session per batch. Everything those already do
@@ -17,7 +18,7 @@ knowing when it is finished.
 
 | Invocation | You are |
 |---|---|
-| `/agent-kit:mvp` | the gate — the one conversation this run has. Then start the first batch and stop |
+| `/agent-kit:mvp` | the gate — the one conversation this run has. Then start the first batch and stop. Run again once the bounds are built and it offers what is left instead: see *Derive the in-list* |
 | `/agent-kit:mvp --advance <run dir>` | started by the driver when a batch finished: decide what follows, start it, stop |
 | `/agent-kit:mvp --resume <run dir>` | the run stalled and nobody restarted it. Work out where it is and carry on — see *Coming back* |
 
@@ -49,32 +50,58 @@ reach mechanically. Say so at the gate, in the finish line below.
 
 Then the work only this gate can do.
 
-**Derive the in-list.** The bounds are written in the owner's own prose — *"registration and sign-in,
-email confirmation, the composer, moderation with a fallback"* — not as entry keys. Read the bounds
-section and the entry headings, and map one to the other. Take only what is not already `built`.
+**Derive the in-list, from the scope this run is for.** Typed with nothing, the scope is the MVP
+bounds — which is what this command is named after and what it is for the first time. **Once nothing
+inside the bounds is left to build, that is not an error and not a finished conversation**: the same
+machinery runs any list, and the gate says so rather than stopping. Offer, with the count of each:
+
+| scope | the in-list | and its finish line |
+|---|---|---|
+| the MVP bounds | entries inside them not yet `built` | every scenario inside the bounds passes against the running application |
+| what is planned | every entry still `state: planned` | all of them built, the lenses quiet, and no scenario test that passed before has gone red |
+| what is owed | the debt, the audits' open items, the promises the product does not keep | the list empty, or what is left named one by one |
+| a list the owner names | what they name | as for *planned* |
+
+The finish line changes with the scope and is not negotiable afterwards, because the gate's whole
+job is to make it real. *Planned* has no scenarios of its own to prove — the ones that exist were
+proved by the run that built them — so what it must not do is break them, and that is what its
+finish says.
+
+The bounds are written in the owner's own prose — *"registration and sign-in, email confirmation,
+the composer, moderation with a fallback"* — not as entry keys. Read the bounds section and the
+entry headings, and map one to the other. For every scope, take only what is not already `built`.
 
 **Order it.** Scenario steps name action keys and entries carry their preconditions, so the order is
 derived, not chosen: what must exist before what. Group the result into batches of about five, each
 batch one topic, and put the batch that makes a whole scenario walkable first — that is what the
 owner can click after the first few hours.
 
-**Choose the lenses.** From the product, not from a menu: tests and scenarios always; `deps` always;
-`security` where there are people, permissions or money; `performance` is premature here and
-`conventions` optional. Say which you took and why in one line.
+**Do not choose the lenses.** They are chosen later, by the `--advance` that reaches the audit,
+which has seen the product built and can say what it is made of — where a gate can only guess from
+prose. What the gate settles is the ceiling: **three waves**, and that number is what makes the run
+terminate, so it is not raised later by anything.
 
-**Price it.** A feature costs roughly 15M tokens on a real project, so nineteen entries is about
-280M and the better part of a day. Say the number.
+**Price it, in hours.** Not in tokens and not in money: an owner cannot forecast either, and a
+number they cannot use is a number that gets approved without being read. Hours they can.
 
-**Say what will prove it.** The finish line is *every scenario inside the bounds passes against the
-running application*, and something has to run them. Name it from `stack.md` and from the count
+Take the rate from what this project has already measured — `docs/runs/*.json`, `spent`, written by
+every batch that has closed here — and say which runs it came from. With none yet, the measured
+figure elsewhere is **about an hour per feature end to end**, so twenty-one entries is a day and a
+night; say that it is a figure from another project until this one has its own.
+
+**And price the audit separately, because it is not small.** Measured on one real `mvp`: the lenses
+and the batches that fixed what they found came to as much as building the product did. It is a
+choice, so it goes in the screen as one — two waves against one, with what each costs.
+
+**Say what will prove it.** Whatever this scope's finish line is, something has to run it. Name it from `stack.md` and from the count
 above: the harness that exists, or — when nothing claims a scenario yet — that there is none, what
 building one would cost as a batch of its own, and that without it the finish is the owner's hands
 on a phone rather than a green suite. **Never leave that to be discovered later.** It is one line
 here and a rebuilt plan later, and the owner is standing right there.
 
-Then **one screen, one question**: the finish line said back in words — including what proves it —
-the batches in order, the lenses, the price, and *this scope, or narrower?* Two or three options
-with counts, per `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`. That is the only question this run ever
+Then **one screen, one question**: the scope and its finish line said back in words — including what
+proves it — the batches in order, the price in hours, what the audit adds, and *this scope, or
+narrower?* Two or three options with counts, per `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`. That is the only question this run ever
 asks, so a harness that has to be decided is decided as part of the scope rather than in a question
 of its own.
 
@@ -143,6 +170,37 @@ thing:
 | the scenarios pass | set `step: "done"` and say so in the pull request |
 
 Then end. You are one decision and its consequence, not a supervisor.
+
+### What you may change about the run that is left
+
+The gate settled the scope and the wave ceiling. Everything below that is yours, because you have
+seen the product built and the gate had only prose to go on. `children` **is** the queue — the
+driver reads it again before every feature, so editing it is how all of this is done, and there is
+no second file to disagree with it. What has already run is left alone.
+
+| What you may do | How |
+|---|---|
+| reorder what is left | move the slugs in `children` |
+| drop a feature | take its slug out and set its own `step: "skipped"`; its entry stays `planned` and the pull request names it |
+| add a feature, a round of fixes, a review | write its run file and put its slug in `children` |
+| add work that is not a `ship` — an audit between two waves | the same, with `prompt` in its run file. This is why the driver reads that field |
+| stand still and ask the owner | write `wait <hours> <question>` into the batch's `control` file |
+| stop the run | `stop` in the same file |
+
+Three ceilings, and they are what keeps a run that can extend itself finite. None of them is a
+judgement call:
+
+- **three waves of audit**, from the gate. A lens that found nothing is not re-run at all;
+- **an inserted child inserts nothing itself.** Work you added because a feature went badly is one
+  level deep, never a chain that grows while it is being worked through;
+- **one `wait` per batch.** A run that stops twice for one absent owner has lost the night the
+  deadline was there to save.
+
+`wait` is the one that undoes a rule this command otherwise keeps — that nobody is waited for. Use it
+only where the answer changes everything after it, not merely something: a measured run never called
+its real model once, because the key was a manual action and every feature after that point was
+proved against a stand-in. That is what it is for. The deadline is what makes it safe: when it runs
+out the question is already in `waiting_on`, the pull request carries it, and the run goes on.
 
 **And ending your turn does not end your session** — that is the part which reads as obvious and is
 not. Nothing else closes you: the driver that started you exits at the hand-back, and the driver you

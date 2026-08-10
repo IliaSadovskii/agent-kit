@@ -14,11 +14,25 @@ Until then the run is not finished, however green the suite looks.
 A wave is **audit → the sprints that fix what it found → audit again**. Never twice over unchanged
 code: between two runs of a lens there is always work that answered the first one.
 
-**One sprint per lens.** The lens already groups its findings into units of work, and a batch should
-be about one thing.
+**One batch per wave, not one per lens.** The lens already groups its findings into units of work,
+so a batch takes the units of every lens in the wave, in the order the lenses themselves imply — one
+unit, one child. Measured: six lens-shaped batches on one run cost six closing sessions and six
+hand-backs on top of the work, for batches of two and three children. Split a wave only where one
+lens's findings genuinely have to land before another's can be built, and say which and why.
 
-**Only the lenses `finish.lenses` names**, chosen at the gate from what this product is. Not the
-full set: a sweep with every lens on every wave costs more than the features did.
+**The audit itself is a child of the batch**, with `prompt` in its run file naming the lens and
+telling it to close that file when it is done. It is not a `ship`, which is why the driver reads
+that field — before it did, a live run wrote itself a shell script to launch the audit and another
+to hand control back, neither of them tracked, neither of them knowing anything about limits or
+stalls.
+
+**The lenses are chosen here, not at the gate.** You have read what was built; the gate had only the
+owner's prose. Take them from what this product is made of — `tests` and `scenarios` always, `deps`
+always, `security` wherever there are people, permissions or money, `performance` only once there
+are users to be slow for, `conventions` only if nothing else already holds the diff to a standard.
+Write them into `finish.lenses`, with the one line of why, and do not take the full set: measured on
+a real run, the lenses and the batches that fixed what they found cost as much as building the
+product did.
 
 **On the second wave, only the lenses that found something.** A lens that came back clean has
 nothing to re-check — the code moved for the sake of another lens, not for it.
@@ -54,6 +68,12 @@ over an application that does not boot is exactly what this step exists to catch
 moment anyone checks before the owner does.
 
 ## Finishing
+
+**`building (pr: <n>)` on every entry this run built is the finish, not a defect in it.** An entry
+becomes `built` when its pull request merges, and `check.py --sync` is what moves it — nothing in a
+run may, because the merge has not happened. A live run read `--status` saying *building: 21* as
+work its finish still owed, carried that through four sessions of `--advance`, and there was never
+anything to do.
 
 Set `step: "done"` on the run file, and write the pull request's closing summary: what the product
 now does, which scenarios are proved and by which tests, what the audit left, every assumption taken

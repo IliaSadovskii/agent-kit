@@ -38,6 +38,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check import run_defects                     # noqa: E402 - the path above is what makes it work
 
 TERMINAL_STEPS = {"done", "blocked", "skipped"}
+HANDOFF_LINE = ("[driver] your context has grown past what one session should carry — hand this run "
+                "over: finish the task you are on, close it in the run file, fill `handoff`, and "
+                "stop. The rule is the Handing over section of skills/ship/SKILL.md. Do not start "
+                "the next task, and do not finish the run to get out of it.")
 LIMIT_MARKER = '"apiErrorStatus":429'
 OVERLOADED_MARKER = '"apiErrorStatus":529'
 RESET_RE = re.compile(r"resets\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:\(([^)]+)\))?", re.I)
@@ -92,9 +96,32 @@ class Run:
             fh.write(line)
         print(line.rstrip(), flush=True)
 
+    def own_pr(self, state: dict | None = None) -> int | None:
+        """This run's pull request, when opening it was this run's own job.
+
+        `pr` is the driver's second signal that a run finished: a session can die between opening
+        the pull request and writing its step, and the world is the better witness. But inside an
+        `mvp` **one** pull request covers the whole run, so every batch after the first carries a
+        number that was already there — and a batch may carry it before it has done anything.
+
+        Measured twice on one live run: the number was written into a batch's file in advance, this
+        returned true a minute after the closing session started, and the driver killed the session
+        that was closing the batch. Both times the branch, the pull request body and the digest were
+        put right by hand the next morning. A number inherited from the run above says nothing about
+        this run, so it is not read as evidence of anything.
+        """
+        state = self.state() if state is None else state
+        pr = state.get("pr")
+        if not pr:
+            return None
+        parent = state.get("parent")
+        if parent and Run(self.dir.parent / parent).state().get("pr") == pr:
+            return None
+        return pr
+
     def terminal(self) -> bool:
         state = self.state()
-        return bool(state.get("pr")) or state.get("step") in TERMINAL_STEPS
+        return state.get("step") in TERMINAL_STEPS or bool(self.own_pr(state))
 
 
 # --------------------------------------------------------------------------------------------
@@ -239,6 +266,29 @@ def read_tail(path: Path, lines: int = 40) -> str:
         return ""
 
 
+USAGE_RE = re.compile(r'"(?:cache_read_input_tokens|cache_creation_input_tokens|input_tokens)"\s*:\s*(\d+)')
+
+
+def context_size(text: str) -> int:
+    """How big this session's context has grown, from the usage its own transcript records.
+
+    Every turn re-sends the whole context, so a session's price is the sum of its context over its
+    turns — measured on a live run, one feature reached 340k over 340 turns and cost 70M tokens.
+    Cutting the same work into segments that each start near the floor is worth ~40% of it, and the
+    session cannot see its own size: only the transcript carries it. So the program measures and the
+    session judges what to do about it, which is the split this driver already keeps everywhere else.
+
+    Zero when the tail carries no usage record — a number that cannot be read is not a small one,
+    and the caller must not treat it as room to grow.
+    """
+    largest = 0
+    for line in text.splitlines():                # one record per line, so one usage per line
+        found = USAGE_RE.findall(line)
+        if found:
+            largest = max(largest, sum(int(number) for number in found))
+    return largest
+
+
 def limit_reset(text: str) -> tuple[str, float | None]:
     """Classify the tail of a transcript: ('limit', when) | ('overloaded', None) | ('', None)."""
     if LIMIT_MARKER in text:
@@ -291,6 +341,8 @@ class Driver:
         self.launcher = Launcher(cwd, options.model)
         self.skip: set[str] = set()
         self.stopping = False
+        self.sessions = 0
+        self.began = time.time()
 
     # ---- the control window -----------------------------------------------------------------
     #
@@ -338,6 +390,7 @@ class Driver:
         model = self.model_for(run.state())
         if not self.launcher.start(name, prompt, model):
             return "could not start a session"
+        self.sessions += 1
 
         # The stop hook matches a session to its run on this field and on nothing else, which is
         # what keeps it silent in every session the kit did not start. See docs/design/stop-hook.md.
@@ -347,20 +400,28 @@ class Driver:
         transcript = None
         restarts = 0
         nudged = False                            # one word before a restart, once per session
+        asked = False                             # the handoff has been asked for, once per session
 
-        def restart(why: str) -> bool:
-            nonlocal transcript, launched, restarts
-            restarts += 1
-            if restarts > 1:
-                return False
+        def fresh(why: str, event: str) -> bool:
+            """Start this run's next session. Everything counted per session starts again with it."""
+            nonlocal transcript, launched, nudged, asked
             self.launcher.stop(name)
             transcript = None
             launched = time.time() - 1
             nudged = False
+            asked = False
             if not self.launcher.start(name, prompt, self.model_for(run.state())):
                 return False
-            run.event("restarted", why)
+            self.sessions += 1
+            run.event(event, why)
             return True
+
+        def restart(why: str) -> bool:
+            nonlocal restarts
+            restarts += 1
+            if restarts > 1:
+                return False
+            return fresh(why, "restarted")
 
         while True:
             time.sleep(self.opt.poll)
@@ -378,11 +439,28 @@ class Driver:
             spoke = last_spoke(transcript)
             idle = time.time() - (spoke if spoke is not None else transcript.stat().st_mtime)
             gone = not self.launcher.alive(name)
+            tail = read_tail(transcript)
+
+            # The handoff the session was asked for has landed: its note is written, and it has
+            # stopped. Take it on to a session that starts near the floor again.
+            if asked and (run.state().get("handoff") or "").strip() and (gone or idle > self.opt.poll):
+                if fresh(f"{run.slug} carried on in a new session", "handed-off"):
+                    continue
+                return "could not start the session that takes the handoff"
+
             if idle < self.opt.hang * 60 and not gone:
+                # A healthy session, and its context has grown past what a session should carry.
+                # One line, once: what to hand over and how is the session's own business, in
+                # skills/ship/SKILL.md — this program only says when.
+                size = context_size(tail)
+                if not asked and size > self.opt.ceiling * 1000:
+                    if self.launcher.send(name, HANDOFF_LINE):
+                        asked = True
+                        run.event("handoff-asked", f"context {size // 1000}k")
                 continue
 
             # Something stopped. Silence alone means nothing — ask the transcript why.
-            kind, when = limit_reset(read_tail(transcript))
+            kind, when = limit_reset(tail)
 
             if kind == "limit":
                 wait = (when - time.time()) if when else self.opt.poll * 5
@@ -433,13 +511,13 @@ class Driver:
     def build(self, child: Run) -> str:
         # The child's slug already carries the batch's, and it is what the owner sees in the app.
         name = child.slug[:60]
-        why = self.watch(name, child, f"/agent-kit:ship --run {child.dir}")
+        why = self.watch(name, child, self.prompt_for(child))
         self.launcher.stop(name)
 
         # Judge by the world, not by the exit: a limit at the tail of a feature looks exactly like a
         # crash while the work is already done.
         state = child.state()
-        if state.get("pr") or state.get("step") == "done":
+        if child.own_pr(state) or state.get("step") == "done":
             self.audit(child, state)
             child.event("built", state.get("branch") or "")
             return "built"
@@ -451,6 +529,23 @@ class Driver:
         child.set(step="blocked")
         child.event("blocked", why or "no terminal state")
         return "blocked"
+
+    @staticmethod
+    def prompt_for(child: Run) -> str:
+        """What gets typed into this child's session.
+
+        `ship` unless the run file says otherwise. It said otherwise for the first time on a live
+        `mvp`: the audit is not a `ship`, so the driver could not start it, and the session that
+        wanted one wrote a shell script into the run directory to launch it by hand and another to
+        hand control back. A mechanism nobody declared, in a directory nothing tracks — and every
+        limit, stall and restart this program handles was outside it.
+
+        A child that is not a `ship` keeps everything else: its own run file, and a terminal `step`
+        as the signal it finished. Whoever writes `prompt` writes that instruction into it, because
+        a command with no run file of its own will not close one by accident.
+        """
+        prompt = (child.state().get("prompt") or "").strip()
+        return prompt or f"/agent-kit:ship --run {child.dir}"
 
     def audit(self, child: Run, state: dict) -> None:
         """What a child closed with that it should not have.
@@ -486,7 +581,20 @@ class Driver:
         self.run.event("window", window or "none — the run will have no narrator")
 
         built = 0
-        for slug in children:
+        seen: set = set()
+        while True:
+            # `children` is the queue, and it is read again here rather than taken as a snapshot:
+            # a session between features may reorder what is left, drop something, or add a batch
+            # of fixes it decided is needed. Nothing else is the queue — there is no second file to
+            # disagree with this one. What has already run is remembered here instead, so a list
+            # that changed under the loop cannot make it build the same feature twice.
+            children = self.run.state().get("children") or []
+            remaining = [slug for slug in children if slug not in seen]
+            if not remaining:
+                break
+            slug = remaining[0]
+            seen.add(slug)
+
             child = Run(self.run.dir.parent / slug)
             if not child.file.is_file():
                 self.run.event("missing", f"{slug} has no run file")
@@ -497,6 +605,8 @@ class Driver:
                 target = instruction.split(None, 1)[1].strip() if " " in instruction else slug
                 self.skip.add(target)
                 self.run.event("control", f"skip {target}")
+            elif instruction.startswith("wait"):
+                self.wait_out(instruction)
             elif instruction == "stop":
                 self.run.event("control", instruction)
                 self.stopping = True
@@ -525,9 +635,62 @@ class Driver:
                 self.skip.add(slug)
 
         self.run.set(step="closing")
-        self.run.event("children-done", f"{built}/{len(children)} built")
+        self.run.event("children-done", f"{built}/{len(seen)} built")
+        self.record_spend(built)
         self.close()
         return 0
+
+    def wait_out(self, instruction: str) -> None:
+        """`wait <hours> <question>` — stand still, ask, and then carry on either way.
+
+        A run under `gate: none` records an expensive fork as an assumption rather than losing the
+        night on a phone nobody is holding, and that is right almost always. Almost: one live run
+        never called the real model once, because the key it needed was a manual action and every
+        feature after that point was proved against a stand-in. Some answers change everything
+        after them, and for those the wait is worth its hours.
+
+        The deadline is what keeps it from being the old mistake in new clothes. Time runs out, the
+        question is already in `waiting_on` for the pull request to carry, and the run goes on.
+        """
+        parts = instruction.split(None, 2)
+        try:
+            hours = min(float(parts[1]), self.opt.max_wait)
+        except (IndexError, ValueError):
+            self.run.event("control", f"wait with no hours in it, ignored: {instruction[:60]}")
+            return
+        question = parts[2].strip() if len(parts) > 2 else "no question was written down"
+        self.run.set(waiting_on=question)
+        self.run.event("waiting", f"{hours:.1f}h — {question[:80]}")
+        self.tell(f"{self.run.slug} is waiting {hours:.1f}h for an answer: {question}")
+        deadline = time.time() + hours * 3600
+        while time.time() < deadline:
+            time.sleep(self.opt.poll)
+            if not (self.run.state().get("waiting_on") or "").strip():
+                self.run.event("answered", "the window cleared the question")
+                return
+            if take_control(self.run) == "stop":
+                self.stopping = True
+                return
+        self.run.set(waiting_on=None)
+        self.run.event("waited-out", "no answer — carrying on with what the run decided itself")
+        self.tell(f"{self.run.slug}: nobody answered in {hours:.1f}h, carrying on")
+
+    def record_spend(self, built: int) -> None:
+        """What this batch cost in the units an owner can use: hours, features, sessions.
+
+        The gate of an `mvp` prices its scope out of a number written in prose, and on the run this
+        was added for that number was four times under. Nothing fed a measurement back into it,
+        because nothing measured. This does — accumulating, so a batch picked up by `--resume` adds
+        to what the first pass spent rather than replacing it.
+
+        Not tokens and not money: the owner cannot forecast either, and said so. Wall-clock and the
+        count of what was built are what a person can hold against a plan.
+        """
+        before = self.run.state().get("spent") or {}
+        hours = float(before.get("hours") or 0) + (time.time() - self.began) / 3600
+        self.run.set(spent={"hours": round(hours, 1),
+                            "features": int(before.get("features") or 0) + built,
+                            "sessions": int(before.get("sessions") or 0) + self.sessions})
 
     def close(self) -> None:
         """A pull request is judgement, so a session writes it — not this program."""
@@ -535,16 +698,20 @@ class Driver:
         why = self.watch(name, self.run, f"/agent-kit:sprint --close {self.run.dir}")
         self.launcher.stop(name)
 
+        # Judge the closing session by its step first. Inside an `mvp` the batch's `pr` is the run's
+        # one pull request, which the closing session rewrites rather than opens — so it is there
+        # whether or not this batch was closed, and reading it as proof is what killed two closings.
         state = self.run.state()
-        if state.get("pr"):
+        if state.get("step") in TERMINAL_STEPS or self.run.own_pr(state):
             self.run.set(step="done")
             self.run.event("done", f"pr={state.get('pr')}")
             self.tell(f"the batch is finished, pull request {state.get('pr')}")
             self.hand_back(state)
             return
         self.run.set(step="blocked")
-        self.run.event("close-failed", why or "no pull request")
-        self.tell("the features are built and pushed, but the batch has no pull request — it needs one by hand")
+        self.run.event("close-failed", why or "the closing session left no terminal step")
+        self.tell("the features are built and pushed, but the batch was never closed — its branch, "
+                  "its pull request body and its digest need finishing by hand")
         self.hand_back(state)
 
     def hand_back(self, state: dict) -> None:
@@ -588,6 +755,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("run_dir", type=Path, help=".agent-kit/runs/<slug>/ of the batch")
     parser.add_argument("--poll", type=int, default=60, help="seconds between looks at the run file")
     parser.add_argument("--hang", type=int, default=30, help="minutes of transcript silence before a session is treated as stuck")
+    parser.add_argument("--ceiling", type=int, default=120,
+                        help="thousands of tokens: a session past this is asked to hand its run "
+                             "over to a fresh one. 0 turns it off")
     parser.add_argument("--max-wait", type=float, default=6, help="hours: a reset further away than this is a weekly limit, and the run stops")
     parser.add_argument("--model", default=None,
                         help="model for every session this run starts, unless its run file names "

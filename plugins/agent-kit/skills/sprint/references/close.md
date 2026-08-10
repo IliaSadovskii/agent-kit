@@ -136,6 +136,31 @@ Two limits, and outside them the block stays and travels to `blueprint`:
 `[assumed …]` blocks are not touched. They are questions nobody has answered, they are already in
 the Assumptions section of this pull request, and answering them is the owner's.
 
+## The one thing this batch leaves in the repository
+
+`.agent-kit/runs/` is working state and is in the project's `.gitignore`, so every run file, every
+driver log and everything a child left in `notes` lives on one machine and dies with it. What
+survives a batch today is the pull request's prose — which no program can read, and which nobody can
+read either once it has been rewritten eleven times by an `mvp`.
+
+So write **`docs/runs/<batch slug>.json`**, in the same commit as the ledger, and keep it small — a
+few kilobytes, records rather than sentences:
+
+```json
+{ "slug": "2026-08-05-offers", "command": "sprint", "pr": 21, "branch": "sprint/2026-08-05-offers",
+  "entries": ["developer.create_offer"], "children": 4, "spent": { "hours": 6.2, "features": 4, "sessions": 9 },
+  "suite": "make test → 0, 118 passed", "assumptions": 3, "unmet": 1, "debt": { "closed": 2, "added": 3 },
+  "review": { "findings": 37, "open": 0 }, "blocked": [] }
+```
+
+Counts, not copies: what each of those *says* is already in the pull request and in the knowledge,
+and duplicating it here would give one fact two places to disagree with itself. `spent` is copied
+from the run file as the driver left it — the only measurement of what a run costs that outlives the
+machine it ran on, and the only thing a later gate can price a scope from.
+
+**Who may remove one:** nobody, and that is deliberate — it is history, one file per batch, and it
+is the smallest durable record the kit has.
+
 ## Close the run file
 
 Set `pr`, `branch`, `suite`, any `blockers`, and `step: "done"`. The driver is watching this file;

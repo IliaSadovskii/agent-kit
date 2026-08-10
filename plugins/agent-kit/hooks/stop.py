@@ -65,6 +65,11 @@ def my_run(root: Path, session: str) -> tuple[str, str] | None:
             continue
         if not isinstance(state, dict) or state.get("session") != session:
             continue
+        # A handed-over run stops mid-step on purpose: the driver asked for it, the note is written,
+        # and the next session carries on from the same file. Refusing here would hold the session
+        # open against the one instruction it was given.
+        if isinstance(state.get("handoff"), str) and state["handoff"].strip():
+            return None
         step = state.get("step")
         if isinstance(step, str) and step not in TERMINAL:
             return path.parent.name, step

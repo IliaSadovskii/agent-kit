@@ -40,6 +40,7 @@ MARK = "agent-kit:unmet"
 SCENARIO_MARK = "agent-kit:scenario"
 DIGEST_LEN = 8
 UNMET_SHOWN = 10
+HANDOFF_MAX = 2000
 
 KEY_RE = re.compile(r"^`key:\s*([^`·]+?)\s*`(?:\s*·\s*`state:\s*([^`]+?)\s*`)?", re.M)
 HEADING_RE = re.compile(r"^###\s+(.+)$", re.M)
@@ -179,6 +180,7 @@ class Report:
     def __init__(self):
         self.groups: dict = {}
         self.notes: list = []
+        self.assumed: list = []
         self.stale: list = []
         self.accepted: list = []
         self.states: list = []
@@ -489,10 +491,20 @@ def collect_notes(docs: list, report: Report) -> None:
     entry yet to be wrong about — so it is a statement too, and only `blueprint` turns it into one.
     """
     for doc in docs:
-        for kind, tail, text in NOTE_RE.findall(doc.text):
-            line = f"[{kind}{tail}] {doc.path.name}: {text.strip()[:90]}"
-            bucket = {"stale": report.stale, "accepted": report.accepted}.get(kind, report.notes)
-            bucket.append(line)
+        # Which entry a block sits under is what a command needs: it only settles the ones on the
+        # entries it is about to build. Blocks outside any entry — `[found …]` under the library
+        # map — are named by their file, which is the whole address they have.
+        under = {}
+        for entry in doc.entries:
+            for found in NOTE_RE.finditer(entry.body):
+                under[found.group(0)] = entry.key
+        for found in NOTE_RE.finditer(doc.text):
+            kind, tail, text = found.groups()
+            where = under.get(found.group(0), doc.path.name)
+            line = f"[{kind}{tail}] {where}: {text.strip()[:90]}"
+            bucket = {"stale": report.stale, "accepted": report.accepted,
+                      "assumed": report.assumed}.get(kind, report.notes)
+            bucket.append((where, line))
 
 
 def sync_states(docs: list, report: Report, sync: bool, offline: bool) -> None:
@@ -652,6 +664,58 @@ def work_branches(root: Path, base: str) -> list:
     return out
 
 
+def brief(root: Path, docs: list, key: str) -> int:
+    """Everything a feature needs before it designs, printed in one call.
+
+    `ship` reads four or five things at the start of every run: the project's corner, the entry, the
+    entities the entry names, the library map. Read one at a time that is four or five turns, and a
+    turn costs the whole context again — measured on a live run, not one assistant turn in 6443 ever
+    carried two tool calls, though both the harness and the command ask for it. An instruction that
+    is followed nought times out of 6443 is not an instruction, so this is a command instead.
+
+    Prints what it could not find rather than leaving it out: a brief that silently drops the entity
+    an entry depends on reads exactly like one where the entry depends on nothing.
+    """
+    entries = {entry.key: (doc, entry) for doc in docs for entry in doc.entries
+               if not doc.commented(entry)}
+    if key not in entries:
+        near = sorted(k for k in entries if key.split(".")[-1] in k)
+        print(f"no entry with key {key!r} in {KNOWLEDGE}/", file=sys.stderr)
+        if near:
+            print("did you mean: " + ", ".join(near[:5]), file=sys.stderr)
+        return 2
+
+    doc, entry = entries[key]
+    parts = [(f"{MANIFEST}", (root / MANIFEST).read_text(encoding="utf-8")
+              if (root / MANIFEST).is_file() else None),
+             (f"{doc.path.name} — {entry.heading}", entry.body.strip())]
+
+    # The actor is in the key itself — `developer.create_offer` is the developer's — and the rest is
+    # whatever the entry names in backticks and the knowledge defines: the entities it stores in,
+    # the screens it is reached from, the actions it hands to. Its own key is not one of them.
+    named = [key.split(".")[0]] if "." in key else []
+    named += re.findall(r"`([a-z][a-z0-9_.]*)`", entry.body)
+    named = [k for k in dict.fromkeys(named) if k in entries and k != key]
+    for other in named:
+        other_doc, other_entry = entries[other]
+        parts.append((f"{other_doc.path.name} — {other_entry.heading}", other_entry.body.strip()))
+
+    stack = root / KNOWLEDGE / "stack.md"
+    parts.append(("stack.md", stack.read_text(encoding="utf-8") if stack.is_file() else None))
+
+    missing = []
+    for title, body in parts:
+        print(f"\n{'=' * 78}\n== {title}\n{'=' * 78}")
+        if body is None:
+            missing.append(title)
+            print(f"[not in this project — {title} does not exist]")
+        else:
+            print(body)
+    if missing:
+        print(f"\nnot found, and read nowhere else: {', '.join(missing)}", file=sys.stderr)
+    return 0
+
+
 def run_template() -> dict:
     """The template that ships beside this program, so it and the checks cannot drift apart."""
     path = Path(__file__).resolve().parent.parent / "templates" / "run.json"
@@ -745,6 +809,47 @@ def check_runs(root: Path, report: Report) -> None:
                             f"`closed` are how a run is held to closing no critical finding open")
 
 
+def check_channels(root: Path, report: Report) -> None:
+    """The two ways a channel of this kit goes wrong that a program can see.
+
+    Every record here has a writer, a reader and somebody allowed to close it — the table is in
+    `rules/channels.md`, and only what this can check is in it, so the table cannot quietly drift
+    from what is true. These two were both paid for:
+
+    - a live run needed to start a command the driver could not, so it wrote itself a shell script
+      into a run directory and told a session to execute it. A mechanism with no writer named, no
+      reader named and nothing tracking it, in the one directory nothing tracks;
+    - an audit's box is ticked by the batch that closed the work and by `next` when it verified one,
+      and both are required to name the pull request. A tick with no number is a claim nobody can
+      check, on the list `sprint` composes its next batch from.
+    """
+    runs = root / ".agent-kit" / "runs"
+    strays = []
+    if runs.is_dir():
+        for directory in sorted(p for p in runs.iterdir() if p.is_dir()):
+            for path in sorted(directory.iterdir()):
+                if path.name not in ("run.json", "run.log", "control"):
+                    strays.append(f"{directory.name}/{path.name}")
+    if strays:
+        named = ", ".join(strays[:5]) + (f" … and {len(strays) - 5} more" if len(strays) > 5 else "")
+        report.drift.append(f"run directories carry files that are not a run's own ({len(strays)}): "
+                            f"{named} — a run keeps run.json, run.log and control, and anything else "
+                            f"there is a mechanism nothing declared and nothing tracks")
+
+    audits = root / "docs" / "audits"
+    blind = []
+    if audits.is_dir():
+        for path in sorted(audits.glob("*.md")):
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if re.match(r"\s*[-*]\s*\[[xX]\]", line) and not re.search(r"#\d+", line):
+                    blind.append(f"{path.name}:{number}")
+    if blind:
+        named = ", ".join(blind[:5]) + (f" … and {len(blind) - 5} more" if len(blind) > 5 else "")
+        report.drift.append(f"audit items are ticked without naming the pull request that closed "
+                            f"them ({len(blind)}): {named} — the next sprint composes its batch from "
+                            f"this list and cannot check a tick nobody signed")
+
+
 def run_defects(state: dict) -> list:
     """What a run may not close with.
 
@@ -753,11 +858,44 @@ def run_defects(state: dict) -> list:
     itself, and by the driver before it calls a feature built — and nowhere else: a finished run's
     file is history, and telling the next command about it reaches nobody who can act.
 
-    Only `done` is judged. A run that stopped at `blocked` is already saying so.
+    Only `done` is judged — and the one other moment a run file has to stand on its own, which is
+    the handoff to the session that continues this run. A run that stopped at `blocked` is already
+    saying so.
     """
-    if state.get("step") != "done":
-        return []
     out = []
+
+    note = state.get("handoff")
+    if isinstance(note, str) and note.strip():
+        # Everything the next session gets, it gets from this file. The three ways it arrives
+        # useless are all countable, so none of them is left to the outgoing session to notice.
+        if len(note) > HANDOFF_MAX:
+            out.append(f"`handoff` is {len(note)} characters against a ceiling of {HANDOFF_MAX} — "
+                       f"the next session re-reads it on every step it takes, and what belongs to "
+                       f"a field of its own is not a note")
+        if not str(state.get("approach") or "").strip():
+            out.append("`approach` is empty and this run is being handed over — the session that "
+                       "takes it skips Design because the file carries one, so it would design this "
+                       "feature a second time")
+        tasks = state.get("tasks") or []
+        if not tasks:
+            out.append("`tasks` is empty and this run is being handed over — nothing says which "
+                       "task the handoff stopped after, or what is left")
+        elif any(not isinstance(task, dict) for task in tasks):
+            out.append("`tasks` is written as sentences rather than records — `done` is how the "
+                       "next session tells what is finished, and prose says nothing")
+
+    if state.get("step") != "done":
+        return out
+
+    # A field of records filled with sentences reads as answered to a person and is empty to the
+    # closing session, the reviewer and this program. Named across the project as drift; here, on
+    # the one run that is closing, it is something to put right rather than to notice.
+    for field in ("tasks", "assumptions"):
+        value = state.get(field) or []
+        if isinstance(value, list) and any(not isinstance(item, dict) for item in value):
+            out.append(f"`{field}` is written as sentences rather than as records — the template "
+                       f"draws it as `[{{…}}]`, and the pull request is composed from it by a "
+                       f"session that reads run files and never the code")
 
     review = state.get("review") or {}
     findings = (review.get("findings") or []) if isinstance(review, dict) else []
@@ -953,6 +1091,9 @@ def main(argv: list | None = None) -> int:
     parser.add_argument("--mvp", action="store_true",
                         help="the gate of /agent-kit:mvp: bounds, scenarios, and the commands that "
                              "start and test the application. Silent when it may start")
+    parser.add_argument("--brief", metavar="KEY",
+                        help="everything a run reads before it designs, in one call: the project's "
+                             "corner, the entry, the entries it names, the library map")
     parser.add_argument("--run", metavar="DIR",
                         help="judge one run file as it closes: what a run at step done may not "
                              "leave behind. Silent when there is nothing")
@@ -1005,6 +1146,9 @@ def main(argv: list | None = None) -> int:
     manifest = read_manifest(root / MANIFEST)
     report = Report()
 
+    if options.brief:
+        return brief(root, docs, options.brief.strip())
+
     if options.record:
         written = record(root, docs, root / MANIFEST)
         print("\n".join(f"  {line}" for line in written) if written
@@ -1027,6 +1171,7 @@ def main(argv: list | None = None) -> int:
     check_stack(root, manifest, report)
     check_verdicts(manifest, report)
     check_runs(root, report)
+    check_channels(root, report)
     collect_unmet(root, manifest, keys(docs), report)
     collect_debt(root, report)
     collect_notes(docs, report)
@@ -1049,7 +1194,7 @@ def main(argv: list | None = None) -> int:
     if report.stale:
         print(f"\nProse a feature has already outdated ({len(report.stale)}) — the entry carries "
               "the correction under it, so nothing is misled while it stands:")
-        for line in report.stale:
+        for _where, line in report.stale:
             print(f"  {line}")
         print("  Applied by whoever next builds in that entry, with the owner present, or by "
               "/agent-kit:blueprint. Not a reason to run either.")
@@ -1057,7 +1202,7 @@ def main(argv: list | None = None) -> int:
     if report.accepted:
         print(f"\nAccepted and not yet written up ({len(report.accepted)}) — the owner said yes and "
               "the record's fields are outstanding:")
-        for line in report.accepted:
+        for _where, line in report.accepted:
             print(f"  {line}")
         print("  Written up by /agent-kit:blueprint, which interviews the fields and deletes the "
               "block. Already decided — do not ask again whether it is wanted.")
@@ -1072,7 +1217,9 @@ def main(argv: list | None = None) -> int:
         if len(report.debt) > UNMET_SHOWN:
             print(f"  … and {len(report.debt) - UNMET_SHOWN} more")
 
-    if report.clean and not report.notes:      # `stale` and `accepted` are statements, not findings
+    # `stale` and `accepted` are statements; an `[assumed …]` is still a finding, because the run
+    # that took it had nobody to ask and the owner has still not seen it.
+    if report.clean and not report.notes and not report.assumed:
         if options.status:
             print("Knowledge is clean. " + ", ".join(standing(docs)))
             print_planned(docs)
@@ -1092,9 +1239,21 @@ def main(argv: list | None = None) -> int:
     if len(sources) > 2 and all("changed" in line for line in sources):
         print("\n  Every source looks changed — most likely they were recorded before this program "
               "owned the hash. Re-record them with blueprint rather than reading each document.")
+    if report.assumed:
+        # Not "waiting for the owner": a run took the decision, and every later run in that entry
+        # follows it — that is what keeps features consistent with each other. One `mvp` leaves
+        # dozens, and printing each of them before every command buries the findings that are real.
+        # The entries are what a command needs, because it only cares about the ones it builds in.
+        where = sorted({at for at, _line in report.assumed})
+        entries = f"{len(where)} entry" if len(where) == 1 else f"{len(where)} entries"
+        print(f"\nDecisions taken without the owner ({len(report.assumed)}) in {entries} — every "
+              f"later run in them follows the block as written; only `blueprint` rewrites one. "
+              f"Read the ones under the entries you are about to build:")
+        print("  " + ", ".join(where))
+
     if report.notes:
         print(f"\nOpen notes ({len(report.notes)}) — each is a decision waiting for the owner:")
-        for note in report.notes:
+        for _where, note in report.notes:
             print(f"  {note}")
 
     if options.state:
