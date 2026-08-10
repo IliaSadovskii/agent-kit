@@ -110,8 +110,16 @@ lost. The same for **Assumptions**, whose owner-answered forks come from `answer
 
 **Review and CI.** The batch pull request is where a repository-wide pass is worth its price, so
 this is the one place the `/code-review` fan belongs — offer it to the owner in the closing line
-rather than running it, since it cannot be started by an agent. Wait for `gh pr checks` within a
-reasonable window; fix what is yours (formatting, lint, a flake, the workflow's own configuration)
+rather than running it, since it cannot be started by an agent. That holds while a batch is what it
+says — a few thousand lines on one topic.
+
+**Inside an `mvp`, do not offer it at all.** Eleven batches offering it into a body each of them
+rewrites is how it came to be offered nought times on a measured run — but that is the small reason.
+The large one is that a run's diff is tens of thousands of lines already read twice with context
+nothing else has: by `agent-kit:reviewer` against each entry, and by the audit's lenses over the
+whole branch. A third pass, cold, returns a list nobody can act on before merging.
+
+Wait for `gh pr checks` within a reasonable window; fix what is yours (formatting, lint, a flake, the workflow's own configuration)
 and report anything that needs a feature's design changed. Never merge.
 
 ## Knowledge

@@ -3,6 +3,23 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 1.4.1
+
+- **A finished run does not ask for its diff to be reviewed again.** `close.md` has always said a
+  batch offers `/code-review` on its pull request, and for a batch — a few thousand lines, one topic
+  — that is right. A run's diff is tens of thousands of lines that have already been read twice with
+  context nothing else has: by `agent-kit:reviewer` against the entry each feature was built from,
+  and by the audit's lenses over the whole branch, grouping what they found into work. Measured on
+  one run: forty-six reviewer passes, two hundred and twenty-eight findings, two audit waves. A
+  third pass, cold, returns a list nobody can act on before merging, and turns a merge decision into
+  a triage project. The pass with the run's context is the audit, and it already happened.
+
+- **What the finish names instead is what no reviewer of any kind reached.** The suite on a machine
+  other than the one that wrote the code — a project with no CI has never had one, so *green* means
+  green where it was written. And every seam that was proved against a stand-in, by name: measured
+  on one run, the real model was never called once in thirty hours. `accept` reports both in *What
+  is not proven*.
+
 ## 1.4.0
 
 Everything here was measured on one live `mvp` — thirty-one hours, thirty-three features, 1.8 billion

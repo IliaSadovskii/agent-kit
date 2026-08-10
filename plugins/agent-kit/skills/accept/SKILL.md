@@ -65,6 +65,21 @@ the bounds with no end-to-end test and why; and — the one nobody writes down �
 exercised at all**. A run whose every proof went through a stand-in has proved the stand-in. Say
 which parts of the product have never run against the real thing.
 
+Two things belong in this block by name, because both are the owner's to settle and both are
+routinely absent from a run that reports itself green:
+
+- **the suite on a machine other than the one that wrote it.** A project with no CI has never had
+  its tests run anywhere else, and *green* then means green where it was written. Name it as
+  unproven, and the worktree in block 6 is where it is settled.
+- **every seam that was proved against a stand-in.** Name them one by one: the gateway, the sign-in,
+  the clock, the delivery. Measured on one run, the real model was never called once in thirty hours.
+
+**Do not send them to review the diff.** It was read by `agent-kit:reviewer` against the entry each
+feature was built from, and by the audit's lenses over the whole branch with the knowledge in hand.
+A third pass, cold, over tens of thousands of lines returns a list nobody can act on before merging.
+Where a run's diff really is small — one batch, one topic — its own pull request already offered
+that, and this is not the place to offer it again.
+
 **6. How to look at it.** The worktree command, so the tree the run shares is not pulled out from
 under it, a free port if the project already has an instance, and the first scenario to click
 through. One walk, not a tour.
