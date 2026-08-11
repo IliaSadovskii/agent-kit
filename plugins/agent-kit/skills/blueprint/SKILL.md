@@ -30,7 +30,7 @@ counts as settled — stays here.
 
 | Invocation | What it does |
 |---|---|
-| `blueprint` | continues from wherever the last session stopped: works only on what is empty, stale, or marked by an earlier run. Interactive. |
+| `blueprint` | continues from wherever the last session stopped: works only on what is empty, stale, marked by an earlier run — **or written by an older kit**, which is the one nobody can spot by reading. Interactive. |
 | `blueprint <what you want to add or reconsider>` | the owner has something the documents do not hold yet — a feature they have thought through, a part they want reworked, a doubt about whether something is covered. Find the slots it touches, interview about those, write, stop. Without this a finished blueprint has no way in, and the thought turns into work nobody asked for. |
 | `blueprint <what did not match, after using it>` | the same door, arrived at from the other side: the owner has clicked through what a run built and can say what is wrong. See below — it is one fork per complaint, and half of them are not blueprint's work at all. |
 | `blueprint --recall [part]` | tells the owner what the project already says, in their language and out loud, so they never open a file to find out. Changes nothing until they ask for a change — see *Reading it back*. |
@@ -180,6 +180,35 @@ confident around a wrong answer.
 answers and points at the owner's document: `source: docs/DEVELOPER.md#offers @a3f1c9d`. Their prose
 stays theirs and is not duplicated; when they edit it the hash diverges and the check says so. The
 hash is recorded by the program and never written by hand — see the shared rule.
+
+### Knowledge written by an older kit
+
+A project carried across a year of releases has files whose shape stopped matching what the commands
+expect. Nobody can see that by reading: each file declares its own `fields:` line and is checked
+against **that**, so an entry missing a field the templates gained years later passes every check
+there is. The owner cannot be asked to remember release notes either.
+
+So the check does it. `check.py` compares this project's knowledge and `.agent-kit/project.yml`
+against the templates that ship beside it — how many fields a record declares, how many sections a
+file has, which keys the manifest holds — and prints what is behind. **Structure only**: the
+templates are in English and the files are in the project's language, so it counts and never
+compares words, and it never says *which* field is missing, because pairing two lists across
+languages is a guess.
+
+Pairing them is yours, with the owner there, and it is the reason this arrives as a plain
+`blueprint` rather than a flag nobody remembers:
+
+- **a field the records do not have** — put the two lists up, agree which is new, then fill it for
+  the entries that matter. Not all of them at once: an old project with forty entries and a new
+  field is a batch of work, so take the ones the owner is about to build in and say the rest is
+  outstanding;
+- **a section a file does not have** — usually one interview step that did not exist when the file
+  was written. `Parts` is exactly that: a project from before it has no record of what its parts
+  are and nobody has walked any of them, which is what `epic` reports at its gate;
+- **a key the manifest is missing** — settle it the same way the interview settles it new.
+
+**It is a statement, not a defect**, and it changes no exit code: an older project is not broken, it
+is behind, and only a session with the owner in it can move it forward.
 
 ### A document is a witness, not the truth
 

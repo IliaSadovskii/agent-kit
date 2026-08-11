@@ -3,6 +3,25 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.3.0
+
+- **The check says when a project's knowledge was written by an older kit.** Every other rule asks
+  whether the knowledge agrees with itself and with the code. This one answers a question nobody
+  could without remembering release notes: each file declares its own `fields:` line and is checked
+  against *that*, so a field the templates gained two versions later is invisible to every check
+  there is, for ever. It compares the project's knowledge and `.agent-kit/project.yml` against the
+  templates that ship beside the commands — how many fields a record declares, how many sections a
+  file has, which keys the manifest holds.
+
+  **Structure, never text**: the templates are in English and a project's files are in its own
+  language, so it counts and does not compare words — and it never says *which* field is missing,
+  because pairing two lists across languages is a guess. It prints both lists; `blueprint` pairs
+  them with the owner in the room.
+
+  A statement, not a defect: it changes no exit code, because a project that is behind is not broken.
+  And it arrives on a plain `/agent-kit:blueprint` rather than behind a flag, which is the point —
+  the whole failure was that nobody could know to look.
+
 ## 2.2.0
 
 - **`blueprint --recall [part]` — the project read back to you, out loud.** The owner works through a

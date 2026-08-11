@@ -187,6 +187,7 @@ class Report:
         self.unmet: list = []
         self.debt: list = []
         self.drift: list = []
+        self.shape: list = []
 
     def add(self, group: str, line: str) -> None:
         self.groups.setdefault(group, []).append(line)
@@ -809,6 +810,56 @@ def check_runs(root: Path, report: Report) -> None:
                             f"`closed` are how a run is held to closing no critical finding open")
 
 
+def check_shape(root: Path, docs: list, manifest: dict, report: Report) -> None:
+    """What this project's knowledge is missing against the kit that ships today.
+
+    Every other check asks whether the knowledge agrees with itself and with the code. This one asks
+    a question nobody could answer without remembering release notes: **was this written by an older
+    kit?** A project carried across a year of versions has files whose shape stopped matching what
+    the commands now expect — a field the templates gained, a section that did not exist — and
+    nothing anywhere says so, because each file declares its own `fields:` line and is checked
+    against that.
+
+    Structure, never text: the templates are in English and a project's files are in its own
+    language, so what compares is how many fields a record declares and how many sections a file
+    has, and in what order. That survives translation and catches exactly what a version gained.
+
+    A statement, not a finding. An older project is not broken — it is behind, and only `blueprint`
+    can move it, with the owner there.
+    """
+    templates = Path(__file__).resolve().parent.parent / "templates"
+    for doc in docs:
+        model = templates / "knowledge" / doc.path.name
+        if not model.is_file():
+            continue
+        text = model.read_text(encoding="utf-8")
+        found = FIELDS_RE.search(text)
+        wanted = [f.strip() for f in found.group(1).split(",")] if found else []
+        if wanted and len(doc.fields) < len(wanted):
+            # Which of them is missing is not said: the names here are in the project's language and
+            # the template's are in English, so pairing them is a guess — and a guessed value holds
+            # nobody to anything. The two lists are printed instead, and blueprint pairs them with
+            # the owner in the room.
+            report.shape.append(f"{doc.path.name} declares {len(doc.fields)} fields per record, the "
+                                f"kit's template {len(wanted)}. Template: {', '.join(wanted)}. "
+                                f"Here: {', '.join(doc.fields)}")
+        theirs = re.findall(r"^##\s+(.+)$", doc.text, re.M)
+        ours = re.findall(r"^##\s+(.+)$", text, re.M)
+        if ours and len(theirs) < len(ours):
+            report.shape.append(f"{doc.path.name} has {len(theirs)} sections, the kit's template "
+                                f"{len(ours)}. Template: {', '.join(ours)}")
+
+    model = read_manifest(templates / "project.yml")
+    for key, value in model.items():
+        if key not in manifest:
+            report.shape.append(f"{MANIFEST} has no `{key}` — the template does, so nothing here "
+                                f"answers what it records")
+        elif isinstance(value, dict) and isinstance(manifest.get(key), dict):
+            gone = [k for k in value if k not in manifest[key]]
+            if gone:
+                report.shape.append(f"{MANIFEST} → `{key}` is missing {', '.join(gone)}")
+
+
 def check_channels(root: Path, report: Report) -> None:
     """The two ways a channel of this kit goes wrong that a program can see.
 
@@ -1172,6 +1223,7 @@ def main(argv: list | None = None) -> int:
     check_verdicts(manifest, report)
     check_runs(root, report)
     check_channels(root, report)
+    check_shape(root, docs, manifest, report)
     collect_unmet(root, manifest, keys(docs), report)
     collect_debt(root, report)
     collect_notes(docs, report)
@@ -1219,6 +1271,12 @@ def main(argv: list | None = None) -> int:
 
     # `stale` and `accepted` are statements; an `[assumed …]` is still a finding, because the run
     # that took it had nobody to ask and the owner has still not seen it.
+    if report.shape:
+        print(f"\nWritten by an older kit ({len(report.shape)}) — the shape the commands expect has "
+              f"moved on, and only /agent-kit:blueprint can bring this forward, with you there:")
+        for line in report.shape:
+            print(f"  {line}")
+
     if report.clean and not report.notes and not report.assumed:
         if options.status:
             print("Knowledge is clean. " + ", ".join(standing(docs)))

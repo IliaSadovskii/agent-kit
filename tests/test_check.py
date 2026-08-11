@@ -50,6 +50,29 @@ fields: Who, What happens, Can go wrong
 MANIFEST = "knowledge:\n" + "".join(f"  {slot}: filled\n" for slot in check.SLOTS)
 
 
+def without_shape(text):
+    """Drop the "written by an older kit" statement.
+
+    These fixtures are deliberately minimal — two slots, three fields — so they are behind the
+    shipped templates by construction, and that block would appear in every assertion about every
+    other rule. It is orthogonal to all of them and has tests of its own, which keep it.
+    """
+    if "Written by an older kit" not in text:
+        return text
+    kept, dropping = [], False
+    for line in text.splitlines(keepends=True):
+        if line.startswith("Written by an older kit"):
+            dropping = True
+            if kept and kept[-1] == "\n":
+                kept.pop()
+            continue
+        if dropping and (line.startswith("  ") or line == "\n"):
+            continue
+        dropping = False
+        kept.append(line)
+    return "".join(kept)
+
+
 class CheckCase(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
@@ -66,11 +89,18 @@ class CheckCase(unittest.TestCase):
     def write(self, name, text):
         (self.root / "docs" / "knowledge" / name).write_text(text, encoding="utf-8")
 
-    def run_check(self, *args):
+    def run_check(self, *args, keep_shape=False):
+        """Run the check, and by default drop the "written by an older kit" block.
+
+        These fixtures are deliberately minimal — two slots, three fields — so they are behind the
+        shipped templates by construction, and that statement would appear in every assertion about
+        every other rule. It is orthogonal to all of them and has its own tests, which ask for it.
+        """
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             code = check.main([str(self.root), "--offline", *args])
-        return code, out.getvalue()
+        text = out.getvalue()
+        return code, text if keep_shape else without_shape(text)
 
     # ---- the baseline has to be silent, or nothing below means anything -----------------------
 
@@ -83,6 +113,38 @@ class CheckCase(unittest.TestCase):
         code, output = self.run_check("--status")
         self.assertEqual(code, 0)
         self.assertIn("built: 1", output)
+
+    # ---- knowledge written by an older kit -----------------------------------------------------
+
+    def test_a_record_declaring_fewer_fields_than_the_template_is_named(self):
+        """Each file is checked against its own `fields:` line, so a field the templates gained
+        later is invisible to every other check there is."""
+        self.write("actions.md", ACTIONS.replace("fields: Who, What happens, Can go wrong",
+                                                 "fields: Who, What happens"))
+        code, output = self.run_check(keep_shape=True)
+        self.assertEqual(code, 0, "behind is not broken")
+        self.assertIn("Written by an older kit", output)
+        self.assertIn("actions.md declares 2 fields per record", output)
+
+    def test_it_names_neither_side_as_the_missing_one(self):
+        """The template is in English and the files are in the project's language, so pairing them
+        is a guess — both lists are printed and the pairing is done with the owner."""
+        self.write("actions.md", ACTIONS.replace("fields: Who, What happens, Can go wrong",
+                                                 "fields: Кто, Что происходит"))
+        _code, output = self.run_check(keep_shape=True)
+        self.assertIn("Template:", output)
+        self.assertIn("Here: Кто, Что происходит", output)
+
+    def test_a_project_matching_the_templates_says_nothing(self):
+        for name in ("product", "actors", "entities", "actions", "screens", "integrations",
+                     "scenarios", "stack"):
+            model = ROOT / "plugins" / "agent-kit" / "templates" / "knowledge" / f"{name}.md"
+            self.write(f"{name}.md", model.read_text(encoding="utf-8"))
+        (self.root / ".agent-kit" / "project.yml").write_text(
+            (ROOT / "plugins" / "agent-kit" / "templates" / "project.yml").read_text(encoding="utf-8"),
+            encoding="utf-8")
+        _code, output = self.run_check(keep_shape=True)
+        self.assertNotIn("Written by an older kit", output)
 
     # ---- the channels a program can check ------------------------------------------------------
 
@@ -376,7 +438,7 @@ class CheckCase(unittest.TestCase):
                 code = check.main([str(self.root), *args])
         finally:
             os.environ["PATH"] = was
-        return code, out.getvalue()
+        return code, without_shape(out.getvalue())
 
     def test_a_merged_pull_request_moves_the_state_without_killing_the_run(self):
         """The crash this covers took every command's preflight down the day a feature landed."""
