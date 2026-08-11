@@ -69,6 +69,14 @@ Say the count before you start on any of it. *"Four things are behind, two slots
 parts of nine you have never walked — that is about an hour"* is a sentence they can act on; opening
 with the first question is not.
 
+**And on that same screen, name the other door in one line** — *"or, if you came with something
+else: say what did not match and I will take it point by point"*. Typing the command with nothing is
+what an owner does when they have something to say and do not know which flag says it, so the work
+list you just printed is the answer to a question they may not have asked. One line costs nothing
+and is the only place they will see it: the doors are written in
+`${CLAUDE_PLUGIN_ROOT}/skills/blueprint/references/doors.md`, which nobody but you reads. It is a
+line, not a question — do not turn the start of every session into a menu.
+
 ## What this command does not do
 
 It writes knowledge. It does not build anything, start or instrument the application, write scripts,
@@ -168,6 +176,20 @@ six — the walks come after"* is the difference between an answer and a guess.
    **The telling, in the owner's own words back at them.** Not *"tell me about the lesson"* but
    *"you said a lesson is a conversation with the model — take me through one, start to finish"*.
    Their vocabulary is what makes the question answerable.
+
+   **This move is an open question and stays one.** `rules/asking.md` is about forks and says so;
+   choices here can only be written from what you have already read, so they ask about what you
+   already know and the walk produces nothing. It is also the cheap path — options are generated in
+   a second, a telling has to be waited for — and on a live project it was taken: four
+   multiple-choice questions where the owner had a list of things that did not match.
+
+   **Where the part is already built and the owner has used it, the telling is a different
+   question.** They cannot describe it as an intention — they have clicked it. Ask for the
+   difference instead: *"you have used this — what did not match?"*, dictated in any order, nothing
+   sorted. Then take their points one at a time, each with the same fork and your reading of it:
+   the prose is wrong and you rewrite it, or the product is wrong and it is not yours — a line for
+   `fix`, or the entry back to `planned` for a build command to take. A part whose entries are
+   `built` is in this case, and it is the common one on any project older than its first epic.
 
    **Then what is still open, as choices.** Two to four options each, several questions on a screen,
    per `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`. Derived from what they just said, never from a

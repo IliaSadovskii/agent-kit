@@ -31,6 +31,21 @@ Ask only what is worth the owner's attention: a fork whose answers lead to diffe
 round with the cheap decisions you could have taken yourself is what teaches them to tap through
 without reading.
 
+## Choices are for forks — and a telling is not a fork
+
+This rule governs **questions**: places where you have the answers and need one picked. It does not
+govern the moments a command asks the owner to *say* something — the telling that opens an
+interview, the walk through one part, a list of what did not match. There you have no options to
+offer, and inventing three is the failure this rule exists to prevent, one level up: options written
+from what you already read can only ask about what you already know.
+
+Measured on a live project: a walk that owed the owner *"take me through a lesson"* opened with four
+multiple-choice questions instead, because this file says *never a paragraph ending in a question
+mark* and says it on every step. The owner had a list of things that did not match and no way in.
+
+So where a command names a move as a telling, **the open question is the move** and choices come
+after it, from what was said. Everywhere else, this file stands.
+
 ## Say what you would do, and why it is a fork
 
 The recommended option comes first and says what you would take. Below it, one line on what makes

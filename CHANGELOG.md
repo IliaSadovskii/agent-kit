@@ -3,6 +3,33 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.7.1
+
+Found on a live `blueprint`, in the first session after 2.7.0: a walk that owed the owner *"take me
+through a lesson"* opened with four multiple-choice questions instead, on a part they had built and
+clicked and had a list of complaints about.
+
+- **A telling is not a fork, and `rules/asking.md` now says which it governs.** That file is read on
+  every step of every command and says *never a paragraph ending in a question mark*; the walk's
+  first move is exactly such a paragraph. Two rules met and the one repeated more often won. It was
+  also the cheap path — options are written in a second from what was already read, so they can only
+  ask about what is already known, while a telling has to be waited for. Choices are for places
+  where you have the answers and need one picked; where a command names a move as a telling, the
+  open question **is** the move.
+
+- **A part the owner has already used is walked by asking what did not match.** They cannot describe
+  a built part as an intention — they have clicked it. So the walk asks for the difference, dictated
+  in any order, and each point takes the same fork: the prose is wrong and `blueprint` rewrites it,
+  or the product is wrong and it is not `blueprint`'s — a line for `fix`, or the entry back to
+  `planned`. On any project older than its first epic this is the common case, and it was written
+  for the other one.
+
+- **The plain run names the other door.** Typed with nothing is what an owner does when they have
+  something to say and do not know which flag says it — and the work list that comes back is then
+  the answer to a question they never asked. One line on the same screen now says they can dictate
+  what did not match instead. The doors were written in `references/doors.md`, which only the
+  command itself ever reads.
+
 ## 2.7.0
 
 Out of a session that asked what this kit's architecture looks like to somebody who did not build
