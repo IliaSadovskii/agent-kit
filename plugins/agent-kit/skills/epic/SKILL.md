@@ -136,9 +136,13 @@ gate rather than after the owner has answered.
 `.agent-kit/runs/<date>-epic-<slug>/run.json`, shaped like
 `${CLAUDE_PLUGIN_ROOT}/templates/run.json`: `command: "epic"`, `entries` holding the keys the owner
 took, `children` naming the batches in order, `window` your own tmux session, and `finish` carrying
-what the gate settled — the lenses, the wave cap, the batches already delivered. **A resumed run
+what the gate settled — the scope, the wave cap, the batches already delivered. **A resumed run
 reads `finish` instead of asking again**, so anything the gate decided that is not in there is a
 question the owner will be asked twice.
+
+`finish.lenses` is **not** the gate's and stays empty until the audit begins: the `--advance` that
+reaches it writes them, having seen the product built. Empty there means not yet chosen, never
+*nobody decided* — a resumed run before the audit reads it that way and asks nothing.
 
 `model` is the one setting that moves the price of a run rather than trimming its edges, so say
 which you took in the screen, beside the price. Default it to **the model you are running on**; a

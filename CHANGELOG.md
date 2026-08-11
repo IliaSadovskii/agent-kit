@@ -3,6 +3,36 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.4.1
+
+Six contradictions this day's own releases introduced, found by a fresh pass that had not taken part
+in the reasoning. Each is one rule changed in one place out of two or three.
+
+- **Which lenses the audit takes, and who chooses them.** 2.1.0 moved the choice from the gate to
+  the `--advance` that reaches the audit — in one file of three. `epic`'s run-file section and the
+  run template still said `finish` carries the lenses the gate settled, so a resumed run would read
+  `finish.lenses: null` and conclude the gate had left a question open. Empty now means *not chosen
+  yet*, said in both.
+
+- **`accept` broke two rules that counted to two.** An audit's box may be ticked only by things that
+  verified the work, and both `close.md` and the check's own reasoning named exactly two of them.
+  There are three. `channels.md` — which declares itself the complete table — did not carry the new
+  command at all, nor `blueprint` putting an entry back to `planned`, which `doors.md` tells it to do.
+
+- **`--sync` is not blueprint's alone**, and had not been since `next` gained it. Said plainly, with
+  the fence that matters: never as a preflight, and never by a build command.
+
+- **Who drafts and who is asked.** 2.4.0 settled it by the kind of answer — what exists may be
+  drafted, intent may not — and left the older paragraph saying the difference was between an empty
+  repository and an inherited one. Two readings of one decision, and the cheaper one wins. An
+  inherited repository now changes only *how much of the first two phases you can draft*.
+
+- **Where a repository-wide `/code-review` belongs is settled in one place.** `ship` said an agent
+  may run the plugin's fan over a batch; `close.md` said no agent can start it, so only offer it. One
+  thing at once available and unavailable — with the net effect that on a measured run nobody ran it
+  at all. `rules/pull-requests.md` now answers it for a feature, a batch and a run; the other three
+  files point there.
+
 ## 2.4.0
 
 - **`blueprint` drafts what the code can witness and asks what it cannot** — and which applies is

@@ -80,6 +80,20 @@ A Mermaid diagram when the change alters a flow — GitHub renders it. Tables fo
 enumerable. `<details>` for supporting evidence, with the conclusion in the `<summary>` line, so the
 collapsed view still tells the whole story.
 
+## Who may run a review over the whole diff
+
+Settled here, once, because three files used to answer it and two of them disagreed — with the net
+effect that nobody ran it at all.
+
+- **A feature** never does. It was reviewed against its entry as it was built, and a second pass over
+  the same diff is what the measurement above rules out.
+- **A batch** offers `/code-review` on its pull request in its closing line, and never runs it: no
+  agent can start that one. A few thousand lines on one topic is where it pays.
+- **A run of many batches** does not offer it either. Its diff has been read twice with context
+  nothing else has — by the reviewer against each entry, and by the audit's lenses over the whole
+  branch — and a third pass, cold, over tens of thousands of lines returns a list nobody can act on
+  before merging.
+
 ## Batches
 
 A batch — a sprint, or one of an `epic`'s — opens **one** pull request, based on the default branch,

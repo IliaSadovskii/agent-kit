@@ -333,10 +333,12 @@ product surfaces, so a diff with none of them meets none of them.
 parsing of untrusted input, money, files or processes, a data migration, or an outbound call.
 Otherwise skip it, and say in the pull request that you did and why.
 
-Never run the `code-review` plugin's fan here: measured on one feature it cost 6.7M tokens for two
-findings against the reviewer's 0.66M for twelve. Its place is once over a whole batch, which is not
-this command's business. Claude Code's own `/code-review` is stronger than either and can only be
-started by a person typing it, so it is not part of this pipeline.
+**Never a third pass over the same diff.** The `code-review` plugin's fan cost 6.7M tokens for two
+findings on one feature, against this reviewer's 0.66M for twelve — and Claude Code's own
+`/code-review` is stronger than either and can only be started by a person typing it. Neither is
+part of this pipeline, and neither is offered from here: where a repository-wide pass belongs is
+settled once, in `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md`, so that a batch and a run do not
+answer it differently.
 
 Then **one round of fixes**: everything critical or major, everything that departs from the entry,
 and every security finding. Record the rest as deliberately deferred rather than building

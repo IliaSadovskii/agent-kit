@@ -34,7 +34,7 @@ counts as settled — stays here.
 | `blueprint <what you want to add or reconsider>` | the owner has something the documents do not hold yet — a feature they have thought through, a part they want reworked, a doubt about whether something is covered. Find the slots it touches, interview about those, write, stop. Without this a finished blueprint has no way in, and the thought turns into work nobody asked for. |
 | `blueprint <what did not match, after using it>` | the same door from the other side: the owner has clicked through what a run built and can say what is wrong. One fork per complaint, and half of them are not blueprint's work — `${CLAUDE_PLUGIN_ROOT}/skills/blueprint/references/doors.md` |
 | `blueprint --recall [part]` | tells the owner what the project already says, in their language and out loud, so they never open a file to find out. Changes nothing until they ask for a change — `${CLAUDE_PLUGIN_ROOT}/skills/blueprint/references/doors.md` |
-| `blueprint --check` | audits, mechanically, in seconds, asking nothing. Run the program — `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status --sync` — and put its output in front of the owner with a sentence about what to do next. `--sync` is yours alone: it moves an entry whose pull request has merged, which is the one thing this program writes, and a preflight that wrote it would leave the tree dirty under the command that ran it. Two audiences: as another command's preflight it is run bare and prints nothing when clean; **by hand it always prints where the project stands**. That is the raw view of the knowledge; `/agent-kit:next` is the same data ranked into a recommendation. |
+| `blueprint --check` | audits, mechanically, in seconds, asking nothing. Run the program — `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status --sync` — and put its output in front of the owner with a sentence about what to do next. `--sync` moves an entry whose pull request has merged — the one thing this program writes, and never as a preflight, which would leave the tree dirty under the command that ran it. `next` and `accept` may run it too, under the same fence; a build command may not. Two audiences: as another command's preflight it is run bare and prints nothing when clean; **by hand it always prints where the project stands**. That is the raw view of the knowledge; `/agent-kit:next` is the same data ranked into a recommendation. |
 
 Every question you put to the owner follows `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`: options
 rather than prose, the recommendation first, and everything independent in one round.
@@ -277,9 +277,11 @@ The third is the one that looks safest and is not: *why* and *what next* are exa
 contradict, so a stale intention survives every mechanical check the kit has and is followed by every
 run for months.
 
-This is the whole difference between an empty repository and an inherited one. On an inherited one
-phases 1 and 2 — the telling and the parts — you propose from the code and the documents and the
-owner corrects by tapping. Phases 4 to 6 are the same either way.
+What an inherited repository changes is only **how much of phases 1 and 2 you can draft** — the
+telling and the parts come as a proposal from the code and the documents, and the owner corrects by
+tapping. It changes nothing about which answers may be drafted at all: that is decided by the kind
+of answer, in *Draft what the code can witness*, and the third row of that table holds on the
+best-documented project there is.
 
 ## How a session ends
 

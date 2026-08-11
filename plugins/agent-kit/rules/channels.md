@@ -25,11 +25,11 @@ kinds of durability, and half the surprises come from a run assuming the wrong o
 | `[found …]` under `stack.md` | `ship` | `blueprint` | `blueprint`, folding it into the map | git |
 | `[stale …]` under an entry | `ship` | every later run that reads that entry | the closing session, transcribing it; or `blueprint` | git |
 | `[accepted …]` | `advise` | `next`, which raises it | `blueprint`, writing up the record | git |
-| an entry's `state:` line | `ship`, the closing session, `next --sync` | `check.py`, every command | `check.py --sync`, once the pull request merges | git |
+| an entry's `state:` line | `ship`, the closing session, `next --sync`, `accept --sync`; and `blueprint`, putting one back to `planned` when the owner says the build was wrong | `check.py`, every command | `check.py --sync`, once the pull request merges | git |
 | `agent-kit:unmet <key>` beside a test | `ship` | `check.py`, `sprint` with no theme | `sprint`, once the owner says which side is wrong | git |
 | `agent-kit:scenario <heading>` beside a test | `ship` | `check.py --state`, an `epic`'s finish | never — it is the proof itself | git |
 | `docs/technical_debt.md` | `ship`, the closing session | `check.py`, `sprint`, `next` | the commit that does the work, deleting its line | git |
-| `docs/audits/<lens>.md` | that lens | `sprint`, `epic`, `next` | the closing session or `next`, ticking a box **with its pull request number** | git |
+| `docs/audits/<lens>.md` | that lens | `sprint`, `epic`, `next`, `accept` | the closing session, `next` or `accept`, ticking a box **with its pull request number** | git |
 | `docs/runs/<slug>.json` | the closing session | a later gate; a person | never — it is the durable record of a batch | git |
 | the pull request body and its comments | the closing session | the owner | the merge | GitHub |
 

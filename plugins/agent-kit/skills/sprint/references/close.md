@@ -87,8 +87,8 @@ over untouched and name the feature in the report, rather than deleting on its w
 
 **Tick what the batch closed in the audits' work lists too**, when it was composed from one:
 `- [x] закрыто PR #<n>` on each item its features finished, in `docs/audits/<lens>.md`, in the same
-commit. Only two things ever tick them — this step and `next`, when it has verified an item is
-done — and the lens itself rewrites that file only on its next run, which may be months out. Until
+commit. Only three things ever tick them — this step, `next` and `accept`, each
+only when it has verified an item is done — and the lens itself rewrites that file only on its next run, which may be months out. Until
 then every command reads the list as though the work were still waiting.
 Untouched items stay untouched: a box ticked on a guess costs more than one left open.
 
@@ -108,16 +108,9 @@ verdict, then the findings that were closed and how, then any that were not — 
 carried to the end without closing is the batch's most important line, and paraphrase is how it gets
 lost. The same for **Assumptions**, whose owner-answered forks come from `answers` word for word.
 
-**Review and CI.** The batch pull request is where a repository-wide pass is worth its price, so
-this is the one place the `/code-review` fan belongs — offer it to the owner in the closing line
-rather than running it, since it cannot be started by an agent. That holds while a batch is what it
-says — a few thousand lines on one topic.
-
-**Inside an `epic`, do not offer it at all.** Eleven batches offering it into a body each of them
-rewrites is how it came to be offered nought times on a measured run — but that is the small reason.
-The large one is that a run's diff is tens of thousands of lines already read twice with context
-nothing else has: by `agent-kit:reviewer` against each entry, and by the audit's lenses over the
-whole branch. A third pass, cold, returns a list nobody can act on before merging.
+**Review and CI.** Whether a repository-wide `/code-review` belongs on this pull request is settled
+in `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md`, and nowhere else — a batch offers it in its
+closing line and never runs it; a batch inside an `epic` does not offer it at all.
 
 Wait for `gh pr checks` within a reasonable window; fix what is yours (formatting, lint, a flake, the workflow's own configuration)
 and report anything that needs a feature's design changed. Never merge.

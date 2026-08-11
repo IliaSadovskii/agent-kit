@@ -103,16 +103,9 @@ Set `step: "done"` on the run file, and write the pull request's closing summary
 now does, which scenarios are proved and by which tests, what the audit left, every assumption taken
 without the owner, and what did not happen.
 
-**Do not offer a fresh review of the whole diff.** `close.md` asks a batch to offer `/code-review`
-on its pull request, and that is right for a batch: a few thousand lines, one topic. A run's diff is
-tens of thousands of lines that have already been read twice with context nothing else has — by
-`agent-kit:reviewer` against the entry each feature was built from, and by the audit's lenses
-against the knowledge, over the whole branch, grouping what they found into work. Measured on one
-run: forty-six reviewer passes, two hundred and twenty-eight findings, and two audit waves.
-
-A third pass, cold, over that much code returns a list nobody can act on before merging, and turns
-a merge decision into a triage project. **The pass with the run's context already happened, and it
-is the audit.**
+**Do not offer a fresh review of the whole diff** — `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md`
+settles that, and for a run the answer is no: this diff has been read twice with context nothing
+else has, by the reviewer against each entry and by the audit's lenses over the whole branch.
 
 **Name what no reviewer of any kind reached.** That is the finish's own job, and it is where the
 real unknown is:

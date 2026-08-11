@@ -870,8 +870,8 @@ def check_channels(root: Path, report: Report) -> None:
     - a live run needed to start a command the driver could not, so it wrote itself a shell script
       into a run directory and told a session to execute it. A mechanism with no writer named, no
       reader named and nothing tracking it, in the one directory nothing tracks;
-    - an audit's box is ticked by the batch that closed the work and by `next` when it verified one,
-      and both are required to name the pull request. A tick with no number is a claim nobody can
+    - an audit's box is ticked by the batch that closed the work, by `next` and by `accept` when
+      either verified one, and all three are required to name the pull request. A tick with no number is a claim nobody can
       check, on the list `sprint` composes its next batch from.
     """
     runs = root / ".agent-kit" / "runs"
