@@ -32,8 +32,8 @@ counts as settled — stays here.
 |---|---|
 | `blueprint` | continues from wherever the last session stopped: works only on what is empty, stale, marked by an earlier run — **or written by an older kit**, which is the one nobody can spot by reading. Interactive. |
 | `blueprint <what you want to add or reconsider>` | the owner has something the documents do not hold yet — a feature they have thought through, a part they want reworked, a doubt about whether something is covered. Find the slots it touches, interview about those, write, stop. Without this a finished blueprint has no way in, and the thought turns into work nobody asked for. |
-| `blueprint <what did not match, after using it>` | the same door, arrived at from the other side: the owner has clicked through what a run built and can say what is wrong. See below — it is one fork per complaint, and half of them are not blueprint's work at all. |
-| `blueprint --recall [part]` | tells the owner what the project already says, in their language and out loud, so they never open a file to find out. Changes nothing until they ask for a change — see *Reading it back*. |
+| `blueprint <what did not match, after using it>` | the same door from the other side: the owner has clicked through what a run built and can say what is wrong. One fork per complaint, and half of them are not blueprint's work — `${CLAUDE_PLUGIN_ROOT}/skills/blueprint/references/doors.md` |
+| `blueprint --recall [part]` | tells the owner what the project already says, in their language and out loud, so they never open a file to find out. Changes nothing until they ask for a change — `${CLAUDE_PLUGIN_ROOT}/skills/blueprint/references/doors.md` |
 | `blueprint --check` | audits, mechanically, in seconds, asking nothing. Run the program — `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status --sync` — and put its output in front of the owner with a sentence about what to do next. `--sync` is yours alone: it moves an entry whose pull request has merged, which is the one thing this program writes, and a preflight that wrote it would leave the tree dirty under the command that ran it. Two audiences: as another command's preflight it is run bare and prints nothing when clean; **by hand it always prints where the project stands**. That is the raw view of the knowledge; `/agent-kit:next` is the same data ranked into a recommendation. |
 
 Every question you put to the owner follows `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`: options
@@ -59,7 +59,7 @@ Then take what it printed, in this order, and stop at the first that applies:
 | What it says | What you do |
 |---|---|
 | no `docs/knowledge/` | this is a first interview. Go to *The interview* |
-| **written by an older kit** | say it in one screen — what the shape is missing and what it is for — and offer to bring it forward. See below. Do this before any other work: the interview that follows writes into the new shape, and doing it the other way round means writing every entry twice |
+| **written by an older kit** | say it in one screen — what the shape is missing and what it is for — and offer to bring it forward — *Knowledge written by an older kit*, below. Do this before any other work: the interview that follows writes into the new shape, and doing it the other way round means writing every entry twice |
 | a slot with no verdict, empty fields, an open `[assumed …]`, a stale `source:` | that is the work list. Say how much of it there is, and start |
 | entries the owner has never walked — parts marked derived | offer the walk, part by part. It is the one gap the check can see and cannot fix |
 | nothing | **say so in one line and stop.** Then name what to run instead — usually `/agent-kit:next`, or `/agent-kit:epic` when there are entries still `planned`. An interview invented to fill the silence is the one thing an owner cannot check |
@@ -188,11 +188,27 @@ Six phases:
 6. **MVP bounds** — last, because before the walks they cannot be drawn honestly. Two explicit
    lists.
 
-**Propose, don't interrogate.** An open question is for what a draft cannot cover. *"Here are the
-nine things a developer can do, taken from the code and the request flow — what is wrong, what is
-missing?"* costs the owner less than nine questions and costs fewer tokens than the ping-pong.
-Batch independent decisions into one structured round with a recommendation on each; a question
-whose answer would moot another goes in a later round.
+**Draft what the code can witness; ask what it cannot.** Both are right, and which applies is decided
+by the answer's kind rather than by whether the project is new — a repository full of code and
+documents still cannot say why any of it is there.
+
+| The answer is about | Who goes first |
+|---|---|
+| what exists — routes, screens, stored shapes, states, the calls it makes | the draft. *"Here are the nine things a developer can do, taken from the code — what is wrong, what is missing?"* costs the owner less than nine questions, and on an inherited project it is most of the work |
+| what it is for, what it deliberately does not do, why, what is coming | the owner. No code witnesses intent, and a document claiming it is a witness rather than the truth |
+| **what a thing ends with, what may never happen, where the bounds are** | the owner, always — even where the documents look complete |
+
+The last row is the one worth the extra minute, and it has a test of its own: **can the code be wrong
+about this without anyone noticing?** A screen's existence, no — it is there or it is not. A
+scenario's ending, yes, for months: on a measured run six endings were drafted rather than asked,
+the product contradicted every one of them, and it cost that run its finish.
+
+Batch independent decisions into one structured round with a recommendation on each; a question whose
+answer would moot another goes in a later round.
+
+**Going fast is allowed, and it is recorded rather than hidden.** A part drafted and confirmed
+without a walk stays marked derived in `product.md`, and `epic` says so at its gate. That is what
+makes the speed safe: the owner chose it and can see they did.
 
 **Check every slot against the owner's own telling.** It is short, so re-read it as you open each
 slot and name what it mentions that no entry covers: *"you mentioned agencies and a moderator — the
@@ -230,7 +246,10 @@ Pairing them is yours, with the owner there, and it is the reason this arrives a
 - **a field the records do not have** — put the two lists up, agree which is new, then fill it for
   the entries that matter. Not all of them at once: an old project with forty entries and a new
   field is a batch of work, so take the ones the owner is about to build in and say the rest is
-  outstanding;
+  outstanding. **A field you fill without asking gets an `[assumed …]` block** — the knowledge did
+  not say and you decided, which is what that block is for, and it is the difference between forty
+  records answered and forty records inferred. Filling them silently would leave every check in the
+  kit quiet, which reads as done;
 - **a section a file does not have** — usually one interview step that did not exist when the file
   was written. `Parts` is exactly that: a project from before it has no record of what its parts
   are and nobody has walked any of them, which is what `epic` reports at its gate;
@@ -261,54 +280,6 @@ run for months.
 This is the whole difference between an empty repository and an inherited one. On an inherited one
 phases 1 and 2 — the telling and the parts — you propose from the code and the documents and the
 owner corrects by tapping. Phases 4 to 6 are the same either way.
-
-## Reading it back
-
-The owner works through a session, not through a text editor. So when they have forgotten what a
-part says, or doubt it, or want to rework it, **the answer is not "open `docs/knowledge/actions.md`"**
-— it is you, retelling it.
-
-`--recall` with nothing names the parts, one line each, and asks which to open. `--recall <part>`
-tells that one:
-
-- what it is for, in a sentence;
-- who does what in it, and what the person sees;
-- what happens when it does not work;
-- what is **not** built yet — `planned` entries, open blocks, promises the product does not keep;
-- and what is thin: fields nobody filled, and whether the owner ever walked this part or it was
-  derived.
-
-**A retelling, never the file.** Reading the entries out is the same wall of text they came here to
-avoid, and it is what makes them stop asking. One screenful per part; if it will not fit, the part
-is too big and say so.
-
-Then one round of choices: *right as it stands* · *change this* · *rework the part*. The first ends
-the session. The second and third are the ordinary interview, on that part alone, and everything
-about how it is written and committed is unchanged.
-
-**It decides nothing and writes nothing on its own.** That is what separates it from `--check`,
-which is mechanical and silent when clean: this one always speaks, in prose, and is for a person.
-
-## After the owner has used it
-
-The first run of anything is wrong somewhere, and the owner finds out by clicking through it rather
-than by reading. That is a different input from an interview: not what they imagine, what they saw.
-It arrives as a list of complaints, in their words, in no order.
-
-**Every complaint is one fork, and it is a fork the kit already knows** — the same one a build hits
-when an entry promises what the code does not:
-
-| What is wrong | Where it goes |
-|---|---|
-| **the description** — the product behaves correctly and is described wrongly | yours: rewrite the prose, which nothing else may |
-| **the product** — the description is right and the build is not | not yours: a line for `fix`, or an entry back to `state: planned` for a build command |
-
-Put that fork up per complaint, with your reading first. Do not resolve it by rewriting the entry to
-match the code — that is how a product decision gets made by whoever typed last, and the entry stops
-being something the build can be held to.
-
-This is where `accept` hands over: it says what to open and what to click, and this takes what was
-seen there.
 
 ## How a session ends
 
@@ -352,78 +323,25 @@ one whose pull request has already merged — say so and branch from the default
 ## Notes left by runs
 
 A run never stops over the knowledge and never asks it to be rewritten. It leaves a block, carries
-on, and you are the only one who may resolve it. Four kinds, and each has its own ending:
+on, and you are the only one who may resolve it — `[assumed …]`, `[found …]`, `[stale …]`,
+`[accepted …]`. **Deleting the block is the resolution**; nothing else in the kit removes one.
+What each means and how each ends, when the check names one:
+`${CLAUDE_PLUGIN_ROOT}/skills/blueprint/references/blocks.md`.
 
-| Block | What it means | What you do with it |
-|---|---|---|
-| `[assumed …]` under the entry | the knowledge did not say, the run decided | ask it as a yes-or-no — *"I took it that an offer goes to `withdrawn`; right?"* — write the answer into the entry, delete the block |
-| `[found …]` under `stack.md` | a ready-made answer the library map does not name | confirm it belongs, add the package and what it covers to the library map, delete the block |
-| `[stale …]` under the entry | the feature that shipped made the entry's prose false | nothing to ask: rewrite the prose to what is true now, delete the block |
-| `[accepted …]` in the slot it names | `advise` proposed it, the owner said yes, and the fields were left for later | nothing to decide — it is already agreed. Interview the fields the record declares, write the entry, delete the block |
-
-The check prints all four before every command. **Deleting the block is the resolution**; there is
-no `resolved` field anywhere, and nothing else in the kit removes one.
-
-`[accepted …]` is the one that arrives already answered, so do not re-open it: asking again whether
-the owner wants what they accepted last week is how a list stops being read. If they have changed
-their mind, they will say so in a sentence and the block goes without an entry.
-
-**And a ledger line whose work you have just done, you delete** — in `docs/technical_debt.md`, in
-the same commit, exactly as any run does when it finishes an item. A line asking for prose to be
-rewritten has no other closer: `ship` and `fix` may not touch prose, so if you leave it the work is
-done and the line stays for ever. Only the ones you actually closed, and nothing else in that file.
-
-**A recorded assumption is the decision of record until the owner changes it.** A later run hitting
-the same gap follows it rather than inventing a second reading — that is what keeps features
-consistent with each other.
-
-Blueprint's work list is exactly these blocks plus what `--check` flags, so a second run costs
+Blueprint's work list is exactly these blocks plus what the check flags, so a second run costs
 minutes rather than hours.
-
-Blocks are only left where being wrong is expensive — data model, permissions, money, a public
-contract — or where the run's own confidence was low. Everything else stays in the run file as
-history. Without that filter the documents silt up after one sprint. A `[stale …]` has no such bar:
-prose that contradicts the product is always worth a block, because every later run reads it as
-true.
 
 ## What `--check` does
 
-`scripts/check.py`, and this section describes it rather than instructing you: the rules live in the
-program, which is why every command can run them and why the same rule cannot mean two things.
+Mechanical only, in seconds: states, fields, references, orphans, sources, stack age, the four kinds
+of block, verdicts, unmet promises, debt, and whether this project's knowledge is behind the shape
+the templates ship. Silent when clean, exit code 1 when not — except unmet promises and the older-kit
+statement, which are listed whenever they exist and change no code, because neither is a defect in
+the knowledge. `epic` refuses to start when a slot in its scope is unsettled; the others report and
+carry on.
 
-Mechanical only. No reading for quality, no grader, no research — that is what makes it cheap
-enough to run ahead of everything.
-
-- **States.** For every entry marked `building`, read its pull request: merged makes it `built`,
-  closed unmerged puts it back to `planned`.
-- **Fields.** Every record has the `fields:` its file's header declares, each with content. A field
-  runs until the next field or the next heading, so one whose answer is a list on the lines below it
-  is filled — reading only the label's own line reports every scenario in the file as empty.
-- **References.** Every key resolves: the actor exists, the entity exists, an action named in a
-  screen transition or a scenario step exists. Whether a status an action sets is one the entity
-  declares is **not** checked — the program says so in its own closing line, and reading it as
-  checked is how a wrong status survives.
-- **Orphans.** An actor with no action, an entity nothing creates, a screen nothing leads to and
-  which is not an entry point.
-- **Sources.** For every `source:`, the file and heading exist and the hash still matches.
-- **Stack age.** The direct dependency manifests against their recorded hash; and
-  `stack_researched` past six months, named once.
-- **Notes.** Count the `[assumed …]`, `[found …]`, `[stale …]` and `[accepted …]` blocks and list
-  them.
-- **Verdicts.** Slots with no verdict in `project.yml`.
-- **Unmet promises.** Every test carrying `agent-kit:unmet` outside `docs/`, with the entry it
-  names — flagging a key no entry defines, and a project that has marks but no `tests.unmet`.
-- **Hashes it can compute itself.** `--record` rewrites every `source:` and every dependency hash in
-  place. Use it rather than copying a printed value into a file: a hash carried by hand is how the
-  pre-4-August ones came to be invented, and a value nobody can recompute proves nothing. A recorded
-  hash shorter than eight characters is from that era — re-record and move on, no document changed.
-- **Debt.** The open items of `docs/technical_debt.md` — work earlier runs decided not to do.
-
-Silent when clean, exit code 1 when not — with one exception: unmet promises are listed whenever
-they exist and change no exit code, because a recorded promise is a statement about the product, not
-a defect in the knowledge. Otherwise one screen: what is open, what is stale, what does not line up,
-and what it could not see. `epic` refuses to start when a slot in its scope is not settled; the other
-three report and carry on.
+The rules are in `scripts/check.py`, which is what lets every command run them and keeps one rule
+from meaning two things. Rule by rule: [docs/design/check.md](../../../../docs/design/check.md).
 
 Your job around it is the part a program cannot do: say which of its findings matter for what the
 owner is about to do, and offer to fix them here and now.

@@ -3,6 +3,36 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.4.0
+
+- **`blueprint` drafts what the code can witness and asks what it cannot** — and which applies is
+  decided by the kind of answer, not by whether the project is new. What exists (routes, screens,
+  stored shapes, the calls it makes) comes as a draft to correct, which on an inherited project is
+  most of the work. What it is for, what it deliberately does not do and why comes from the owner,
+  because no code witnesses intent. And a third row that is worth the extra minute either way: what
+  a thing ends with, what may never happen, where the bounds are — with a test for the ambiguous
+  case, *can the code be wrong about this without anyone noticing?* A screen's existence, no. A
+  scenario's ending, yes, for months: six were drafted rather than asked on a measured run and cost
+  it its finish. Going fast is allowed and recorded — a part confirmed without a walk stays marked
+  derived, and `epic` says so.
+
+  This replaces *propose, don't interrogate*, which after 2.1.0 stood against the phase above it and
+  was the cheaper of the two readings.
+
+- **A field filled without asking carries an `[assumed …]` block.** Bringing an old project's records
+  up to a field the templates gained is forty entries of work, and the cheapest way through is to
+  infer them from the code — after which every check in the kit goes quiet, which reads as done. The
+  block is what the kit already has for *the knowledge did not say and a run decided*: counted,
+  printed before every command, and closable only here.
+
+- **`blueprint`'s reading set is back under the ceiling this kit sets for itself.** Today's work took
+  it to about 13k tokens against the 12k in `CLAUDE.md`, so three things left the command for files
+  read on the step that needs them: what the check does rule by rule, to
+  [docs/design/check.md](docs/design/check.md); the two doors that are not an interview — `--recall`
+  and the complaints after using it — and the four kinds of block, to
+  `skills/blueprint/references/`. A plain interview reads none of the three. 429 lines to 347, and
+  the set to 11.6k.
+
 ## 2.3.1
 
 - **A plain `/agent-kit:blueprint` runs the check, first, before anything else.** It never did:
