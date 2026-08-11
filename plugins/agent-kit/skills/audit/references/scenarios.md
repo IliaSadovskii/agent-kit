@@ -73,9 +73,15 @@ in `docs/technical_debt.md`, naming the step and why. Say it in the work list so
 this lens writes nothing but its own file. What must not happen is a scenario quietly counted as
 proven because its trace came out clean.
 
-Three verdicts, and no fourth may be invented: a scenario whose every step is cited and reachable
-`walks`; one with a break is `breaks at step N` (all of them, listed); one with a step whose
-implementation you could not find is `unfollowable` — which is not `walks`. The end-to-end test is
+This lens walks scenarios rather than entries, so its verdicts are its own — three of them, and no
+fourth may be invented: a scenario whose every step is cited and reachable `walks`; one with a break
+is `breaks at step N` (all of them, listed); one with a step whose implementation you could not find
+is `unfollowable` — which is not `walks`. They are marked the way every verdict here is, in
+backticks beside the words the owner reads, and they are what this lens counts:
+
+```
+<!-- agent-kit:audit lens=scenarios walked=10 walks=7 breaks=2 unfollowable=1 -->
+``` The end-to-end test is
 recorded beside the verdict, as a citation or as `no end-to-end test`: a scenario can walk today and
 have nothing standing guard over it tomorrow, and those are two different facts about it.
 

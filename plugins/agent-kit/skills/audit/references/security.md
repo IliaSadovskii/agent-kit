@@ -8,6 +8,10 @@ migration. Write the whole table, including the ones you excluded. A lens that q
 own scope produces a clean report about five actions and says nothing about the thirty it never
 looked at, and nobody can tell which happened.
 
+`walked` in this file's counters is **every entry you marked**, in or out — the whole table, not the
+subset you took. What you excluded is the half of this lens's completeness that nothing else can
+see.
+
 **Half of this lens is about rules no scanner can know.** Every entry's *must never* lines and its
 actor's — "a developer never sees another developer's offers", "the author is not shown the report
 count" — are this product's own authorization rules. **Every one of them appears in the report**,

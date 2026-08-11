@@ -206,9 +206,64 @@ class CheckCase(unittest.TestCase):
         audits = self.root / "docs" / "audits"
         audits.mkdir(parents=True)
         (audits / "tests.md").write_text(
-            "# Tests\n\n- [x] declined: `guest.open_post` — visual only\n", encoding="utf-8")
+            "# Tests\n\n- [x] `declined`: `guest.open_post` — visual only\n", encoding="utf-8")
         _code, output = self.run_check()
         self.assertNotIn("ticked without naming the pull request", output)
+
+    # ---- what a lens says it walked ------------------------------------------------------------
+
+    def audit(self, name, text):
+        audits = self.root / "docs" / "audits"
+        audits.mkdir(parents=True, exist_ok=True)
+        (audits / f"{name}.md").write_text(text, encoding="utf-8")
+
+    def test_a_lens_whose_own_numbers_do_not_add_up(self):
+        """Three lenses call their completeness countable and leave the counting to the agent that
+        wrote the report. This is the counting."""
+        self.audit("tests", "# Tests\n\n<!-- agent-kit:audit lens=tests walked=40 covered=30 "
+                            "gaps=5 -->\n")
+        code, output = self.run_check()
+        self.assertEqual(code, 1)
+        self.assertIn("walked 40 and accounts for 35", output)
+
+    def test_a_lens_that_adds_up_says_nothing_and_is_counted(self):
+        self.audit("tests", "# Tests\n\n<!-- agent-kit:audit lens=tests walked=40 covered=30 "
+                            "gaps=5 unjudged=3 deferred=1 declined=1 -->\n")
+        code, output = self.run_check("--status")
+        self.assertEqual(code, 0)
+        self.assertIn("Audit tests: walked 40", output)
+
+    def test_the_buckets_are_the_lenss_own_business(self):
+        """`walks`/`breaks` for scenarios, `covered`/`gaps` for tests — the check knows neither."""
+        self.audit("scenarios", "# Scenarios\n\n<!-- agent-kit:audit lens=scenarios walked=9 "
+                                "walks=7 breaks=1 unfollowable=1 -->\n")
+        code, _output = self.run_check()
+        self.assertEqual(code, 0)
+
+    def test_a_lens_file_with_no_counters_is_named_once_for_all_of_them(self):
+        self.audit("tests", "# Tests\n")
+        self.audit("deps", "# Deps\n")
+        _code, output = self.run_check()
+        self.assertIn("no `agent-kit:audit` counters (2)", output)
+        self.assertIn("deps, tests", output)
+
+    def test_a_file_that_belongs_to_no_lens_is_not_asked_for_counters(self):
+        self.audit("baseline", "# Baseline\n")
+        _code, output = self.run_check()
+        self.assertNotIn("counters", output)
+
+    def test_a_refusal_is_marked_and_not_counted_as_an_unsigned_tick(self):
+        self.audit("tests", "# Tests\n\n<!-- agent-kit:audit lens=tests walked=1 declined=1 -->\n\n"
+                            "- [x] `declined`: `guest.open_post` — визуальное, проверять нечего\n")
+        _code, output = self.run_check()
+        self.assertNotIn("ticked without naming the pull request", output)
+
+    def test_the_english_word_in_a_sentence_is_not_the_mark(self):
+        """The mark is backticked. A tick whose prose happens to say the word is still unsigned."""
+        self.audit("tests", "# Tests\n\n<!-- agent-kit:audit lens=tests walked=1 gaps=1 -->\n\n"
+                            "- [x] the owner declined this last week, so it is done\n")
+        _code, output = self.run_check()
+        self.assertIn("ticked without naming the pull request", output)
 
     def test_unsigned_ticks_are_counted_per_file_rather_than_listed(self):
         audits = self.root / "docs" / "audits"

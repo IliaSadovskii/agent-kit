@@ -34,6 +34,7 @@ import sys
 from pathlib import Path
 
 KNOWLEDGE = "docs/knowledge"
+AUDITS = "docs/audits"
 MANIFEST = ".agent-kit/project.yml"
 DEBT = "docs/technical_debt.md"
 MARK = "agent-kit:unmet"
@@ -58,6 +59,14 @@ ENTRY_POINT_RE = re.compile(r"`entry_point`", re.I)
 # reading a heading that may say anything.
 WALKED_RE = re.compile(r"^\s*[-*]\s+.*\bwalked:\s*(\d{4}-\d{2}-\d{2})", re.M)
 DERIVED_RE = re.compile(r"^\s*[-*]\s+.*\bderived\b", re.M | re.I)
+# What a lens says it walked, and how that broke down. Same reasoning again: the counts are in
+# English and countable, the report around them is in the project's language.
+TALLY_RE = re.compile(r"<!--\s*agent-kit:audit\s+([^>]*?)-->")
+TALLY_PAIR_RE = re.compile(r"([a-z_]+)=(\d+)")
+# A ticked item that records a refusal rather than closed work. Backticked, so the English word
+# appearing in a sentence is not mistaken for the mark.
+DECLINED_RE = re.compile(r"`declined`")
+LENSES = ("tests", "deps", "scenarios", "security", "performance", "conventions")
 STATE_LINE_RE = re.compile(r"(`key:\s*%s\s*`\s*·\s*`state:\s*)building \(pr:\s*(\d+)\)(\s*`)")
 
 SLOTS = ("product", "actors", "entities", "actions", "screens", "integrations", "scenarios", "stack")
@@ -193,6 +202,7 @@ class Report:
         self.debt: list = []
         self.drift: list = []
         self.shape: list = []
+        self.audits: list = []
 
     def add(self, group: str, line: str) -> None:
         self.groups.setdefault(group, []).append(line)
@@ -949,14 +959,14 @@ def check_channels(root: Path, report: Report) -> None:
     # `declined` is not a tick of that kind: it is the lens recording that an item was refused, and
     # no pull request will ever close it. The word stays English wherever the file is written, like
     # every other mark of this kit.
-    audits = root / "docs" / "audits"
+    audits = root / AUDITS
     blind: dict = {}
     if audits.is_dir():
         for path in sorted(audits.glob("*.md")):
             for line in path.read_text(encoding="utf-8").splitlines():
                 if not re.match(r"\s*[-*]\s*\[[xX]\]", line):
                     continue
-                if re.search(r"#\d+", line) or re.search(r"\bdeclined\b", line, re.I):
+                if re.search(r"#\d+", line) or DECLINED_RE.search(line):
                     continue
                 blind[path.name] = blind.get(path.name, 0) + 1
     if blind:
@@ -965,6 +975,59 @@ def check_channels(root: Path, report: Report) -> None:
                             f"them ({sum(blind.values())}): {where} — a tick takes an item off every "
                             f"list there is, and the number is what lets anyone check it was really "
                             f"done. Items ticked before this rule existed are in this count")
+
+
+def check_audits(root: Path, docs: list, report: Report) -> None:
+    """What each lens says it walked, and whether that adds up.
+
+    Every lens defends against the same failure in prose — *a lens that quietly narrows its own
+    scope produces a clean report about five actions and says nothing about the thirty it never
+    looked at, and nobody can tell which happened* — and three of them go further and call the
+    completeness *countable*. Counting it was then left to the same agent that wrote the report.
+
+    So the lens writes one line of counters and this adds them up. What the buckets are called is
+    the lens's own business — `covered`/`gaps` for tests, `walks`/`breaks` for scenarios — and this
+    knows none of them: it checks that they sum to `walked`, which is arithmetic and survives
+    translation.
+
+    The number of entries is printed beside it rather than compared against. The right total
+    differs by lens — the tests lens has nothing to walk in an actor, the security lens walks its
+    *must never* lines — and a program that picked one of those would have called the one real
+    audit in existence wrong.
+    """
+    audits = root / AUDITS
+    if not audits.is_dir():
+        return
+    entries = len([e for doc in docs for e in doc.entries if not doc.commented(e)])
+    uncounted = []
+    for path in sorted(audits.glob("*.md")):
+        if path.stem not in LENSES:
+            continue
+        found = TALLY_RE.search(path.read_text(encoding="utf-8"))
+        if not found:
+            uncounted.append(path.stem)
+            continue
+        counts = {k: int(v) for k, v in TALLY_PAIR_RE.findall(found.group(1))}
+        walked = counts.pop("walked", None)
+        if walked is None:
+            report.add("Audits", f"{path.name} counts nothing as `walked` — the other numbers "
+                                 f"have nothing to add up to")
+            continue
+        total = sum(counts.values())
+        if total != walked:
+            named = ", ".join(f"{k}={v}" for k, v in sorted(counts.items()))
+            report.add("Audits", f"{path.name} says it walked {walked} and accounts for {total} "
+                                 f"({named}) — a report whose own header does not add up is one "
+                                 f"nobody can use to tell coverage from silence")
+        else:
+            report.audits.append(f"{path.stem}: walked {walked}, and the knowledge has {entries} "
+                                 f"entries")
+    if uncounted:
+        report.drift.append(
+            f"audit files carry no `agent-kit:audit` counters ({len(uncounted)}): "
+            f"{', '.join(uncounted)} — how much of its scope a lens walked is then its own claim, "
+            f"and narrowing that scope quietly is the one failure every lens warns about. Files "
+            f"written before the counters existed are in this count")
 
 
 def run_defects(state: dict, root: Path | None = None) -> list:
@@ -1208,6 +1271,13 @@ def print_planned(docs: list) -> None:
     print(f"Planned: {shown}{rest}")
 
 
+def print_audits(report: Report) -> None:
+    """How much of its own scope each lens says it walked. A statement: what the right number is
+    differs by lens, and only a person can tell a narrow scope from a narrow project."""
+    for line in report.audits:
+        print(f"Audit {line}")
+
+
 def print_parts(docs: list) -> None:
     """A statement, like the standing above it: an unwalked part is not a defect, it is a fact
     about how much of the description the owner has actually seen."""
@@ -1321,6 +1391,7 @@ def main(argv: list | None = None) -> int:
     check_verdicts(manifest, report)
     check_runs(root, report)
     check_channels(root, report)
+    check_audits(root, docs, report)
     check_shape(root, docs, manifest, report)
     collect_unmet(root, manifest, keys(docs), report)
     collect_debt(root, report)
@@ -1380,6 +1451,7 @@ def main(argv: list | None = None) -> int:
             print("Knowledge is clean. " + ", ".join(standing(docs)))
             print_planned(docs)
             print_parts(docs)
+            print_audits(report)
         if options.state:
             print_state(root, options.offline)
         return 0
@@ -1388,6 +1460,7 @@ def main(argv: list | None = None) -> int:
         print("Standing: " + ", ".join(standing(docs)))
         print_planned(docs)
         print_parts(docs)
+        print_audits(report)
     for group, lines in report.groups.items():
         print(f"\n{group}:")
         for line in lines:

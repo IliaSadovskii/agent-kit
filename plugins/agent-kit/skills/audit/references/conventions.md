@@ -7,9 +7,10 @@ project's own words about how it should be** — the stances per area, the libra
 rules, the list of what this project does not do.
 
 **The rules are the list, so write them out and walk them one at a time.** A rule with nothing
-violating it gets a row saying where you looked; a rule you could not check gets `unjudged` and the
-reason. Reading the file and reporting three violations tells the owner nothing about the other
-fifteen rules.
+violating it gets a row saying where you looked and the mark `covered`; one that is broken gets
+`gaps`; one you could not check gets `unjudged` and the reason. Reading the file and reporting three
+violations tells the owner nothing about the other fifteen rules — and `walked` in the file's line
+of counters is how many rules there were, not how many you wrote about.
 
 Four kinds of finding, and the first is the most valuable:
 

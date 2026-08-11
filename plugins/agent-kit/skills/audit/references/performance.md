@@ -29,9 +29,10 @@ notification and an export; reading one template and citing it leaves a row that
 two consumers were never opened. Where you cannot enumerate them, say so — an honest `unjudged` is
 worth more than a clean row nobody can trust.
 
-**Every action in scope gets a row** — `clean`, a finding, or `unjudged` with the reason. A report
-that lists only the problems cannot be told apart from one that stopped looking. Walk them all, past
-the first finding.
+**Every action in scope gets a row** — `covered` where nothing is wrong, `gaps` where something is,
+or `unjudged` with the reason. A report that lists only the problems cannot be told apart from one
+that stopped looking. Walk them all, past the first finding, and count them in the file's own line
+of counters — the catalogue above says what was checked, the counters say against how much.
 
 ```
 guest.browse_feed

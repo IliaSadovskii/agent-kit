@@ -34,6 +34,10 @@ across.
 Order by what the owner would act on first: a reachable vulnerability, then an unreachable one, then
 end of life, then a major behind. Ignore patch drift entirely.
 
+This lens walks packages rather than entries, so `walked` in its line of counters is every direct
+dependency across every manifest — the ones that came out `covered` included. Patch drift is not a
+verdict and not a row.
+
 This lens needs no `docs/knowledge/` at all, so it is the one that works on a project the kit has
 never described — and the only one that survives on a repository nobody has ever run `blueprint`
 against.

@@ -3,6 +3,34 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.6.0
+
+A second independent pass, this one over the six audit lenses — the one substantial part of the
+payload nobody had reopened since writing it — read against the 3 629 lines four of them produced on
+the live project. They held up: the coverage maps cite file and line, the header arithmetic
+balances, the scanner really ran. Three findings, and one of them was made earlier the same day.
+
+- **A lens says what it walked, and the check adds it up.** Every lens defends in prose against
+  narrowing its own scope quietly — *a clean report about five actions that says nothing about the
+  thirty it never opened* — and three go as far as calling that countable. The counting was left to
+  the session writing the report. The file now carries
+  `<!-- agent-kit:audit lens=tests walked=49 covered=33 gaps=8 unjudged=1 deferred=7 declined=0 -->`,
+  and the buckets stay the lens's own: the check verifies they sum to `walked` and knows none of
+  them by name, which is what survives translation. The entry count is printed beside it rather than
+  compared — the tests lens has nothing to walk in an actor, the security lens walks its *must
+  never* lines, and a program that picked one of those would have called the only real audit wrong.
+
+- **A verdict is the owner's word with the mark beside it.** The rule named four verdicts; the live
+  project uses five — `deferred`, for an entry still `planned`, had no word — and writes them in its
+  own language, as it should. 2.5.0 had then demanded English, because the new tick check keyed on
+  the prose word `declined`: a rule the one live project does not follow, guarding a format it does
+  not use. Now `` **покрыто** `covered` ``, the way a translated heading carries `key:`, and a
+  refusal is `` - [x] `declined`: … ``.
+
+- **A ticked item leaves the file on the lens's next run, deliberately.** The lens rewrites its own
+  list and was never told what to do with the ticks somebody signed. It drops them and says how
+  many, so a signature that expires does so as a decision.
+
 ## 2.5.1
 
 - **The payload names its design notes rather than linking to them.** A relative link climbed out of

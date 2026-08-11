@@ -91,12 +91,44 @@ the size of the project:
 finding that turns out to be already covered costs the owner ten seconds of reading, and a gap
 recorded as covered costs a bug that nobody will look for again.
 
-**Every entry in scope gets a row**, including the covered ones and the ones you could not judge —
-`covered`, `gaps`, `unjudged`, `declined`. Completeness is then something the owner can count rather
-than something you claim. **Those four words stay English** wherever the file is written, like every
-other mark of this kit: `declined` in particular is what tells the check that a ticked box is a
-refusal rather than work someone closed, and a ticked box with no pull request number behind it is
-otherwise a claim nobody can check.
+**Every item in scope gets a row**, including the ones that came out clean and the ones you could
+not judge. A lens walking the entries has five verdicts and invents no sixth:
+
+| | |
+|---|---|
+| `covered` | nothing is missing here |
+| `gaps` | something is, and it is in the work list |
+| `unjudged` | you could not settle it, and the row says why |
+| `deferred` | there is nothing to judge yet — the entry is still `planned` |
+| `declined` | looked at, and the work is not worth doing |
+
+A lens that walks something else — scenarios, packages, the rules in `stack.md` — names its own
+verdicts in its own file and marks them the same way.
+
+**Write the verdict in the project's language and put the mark beside it in backticks** —
+``**покрыто** `covered` `` — exactly as a translated heading carries `key:` and `state:`. The word
+the owner reads is theirs; the mark is what the check reads, and it is the same in every language.
+
+That matters in one place beyond bookkeeping: a ticked box in a work list means the work is done and
+takes the item off every future list. Both things allowed to tick one must name the pull request
+that closed it. A refusal is not that kind of tick — no pull request will ever close one — so it
+carries the mark instead: `` - [x] `declined`: … ``.
+
+**And the file says what it walked, in one line the check adds up:**
+
+```
+<!-- agent-kit:audit lens=tests walked=49 covered=33 gaps=8 unjudged=1 deferred=7 declined=0 -->
+```
+
+`walked` is the size of the scope this lens took; the rest are how it broke down, and they have to
+sum to it. What the buckets are called is the lens's own business — the scenarios lens counts
+`walks`, `breaks` and `unfollowable` — and the check knows none of them by name: it checks the
+arithmetic, which survives translation.
+
+Every lens defends in prose against the same failure — a lens that quietly narrows its own scope
+reports cleanly about five things and says nothing about the thirty it never opened. Three of them
+go as far as calling that countable. Until this line existed, the counting was left to the same
+session that wrote the report.
 
 **No verification pass.** A second agent re-checking the first doubles the price to catch a mistake
 that costs ten seconds. That stacking is what once produced thirty findings and then twenty more.
@@ -135,12 +167,15 @@ history; a date in the filename would only make the previous state harder to fin
 ```markdown
 # Tests — 2026-08-04
 
+<!-- agent-kit:audit lens=tests walked=35 covered=10 gaps=21 unjudged=1 deferred=0 declined=3 -->
+
 Suite: `make test` → 0, 118 passed. 35 entries, 21 with gaps, 3 declined.
 
 ## Moderation — one ship run
 - [ ] `validator.check_post` — "what can go wrong" (engine unavailable) has no test
 - [ ] `moderator.reject_post` — nothing asserts the author is notified
-- [x] declined: `moderator.open_queue` — visual only
+- [x] `declined`: `moderator.open_queue` — visual only
+- [x] `moderator.hide_post` — closed by PR #48
 
 ## Covered
 `guest.open_post`
@@ -156,9 +191,15 @@ The covered section is the longest part of the file and that is correct: it is t
 reader can check, and an audit whose reassuring half cannot be checked is worth less than one that
 reports nothing.
 
-**Read the previous file before writing the new one.** Items the owner marked declined stay
-declined and are not raised again; items that are gone since last time are gone because someone did
-them. An audit that repeats what was already refused is an audit nobody runs twice.
+**Read the previous file before writing the new one.** Items marked `declined` stay declined and
+are not raised again; items that are gone since last time are gone because someone did them. An
+audit that repeats what was already refused is an audit nobody runs twice.
+
+**A ticked item leaves the new file, and that is deliberate.** Its work is done, the pull request
+that closed it is named in the old file, and git keeps that. Say the count in the header — *four
+items this list carried are closed* — so the reader can tell items that were finished from items
+that were dropped. The signature on a tick lives from the tick until your next run; nothing is meant
+to carry it further, and this line exists so that dropping it is a decision rather than an oversight.
 
 Sort by what matters, and never truncate: an audit that caps its own survey is lying about coverage.
 Sorting is what lets the owner read the top of the list and stop.

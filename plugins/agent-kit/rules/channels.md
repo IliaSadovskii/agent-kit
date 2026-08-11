@@ -31,7 +31,7 @@ kinds of durability, and half the surprises come from a run assuming the wrong o
 | a part's `walked: <date>` / `derived` in `product.md` | `blueprint`, and only with the owner there | `check.py`, which counts them; `blueprint`; an `epic`'s gate | `blueprint`, when the owner walks that part | git |
 | `agent-kit:scenario <heading>` beside a test | `ship` | `check.py --state`, an `epic`'s finish | never — it is the proof itself | git |
 | `docs/technical_debt.md` | `ship`, the closing session | `check.py`, `sprint`, `next` | the commit that does the work, deleting its line | git |
-| `docs/audits/<lens>.md` | that lens | `sprint`, `epic`, `next`, `accept` | the closing session, `next` or `accept`, ticking a box **with its pull request number** | git |
+| `docs/audits/<lens>.md` | that lens | `sprint`, `epic`, `next`, `accept` | the closing session, `next` or `accept`, ticking a box **with its pull request number**; the lens itself, rewriting the file on its next run | git |
 | `docs/runs/<slug>.json` | the closing session | a later gate; a person | never — it is the durable record of a batch | git |
 | the pull request body and its comments | the closing session | the owner | the merge | GitHub |
 
@@ -44,7 +44,10 @@ kinds of durability, and half the surprises come from a run assuming the wrong o
   execute it — a mechanism with no row in this table, in the one directory nothing tracks;
 - **a ticked audit item with no pull request number.** A tick takes an item off every list there is
   — `sprint` reads the unticked half and nothing else — so the number is the only way anyone can
-  later check the work behind it was really done. `declined` is not such a tick and is not counted;
+  later check the work behind it was really done. It holds until that lens runs again and rewrites
+  the file; a refusal carries the mark `` `declined` `` instead and is not counted;
+- **a lens's counters that do not add up.** Every lens warns in prose against narrowing its own
+  scope quietly, and three call it countable; the file says what it walked and the check adds it up;
 - **a field in a run file the template does not have**, and a `step` no reader knows;
 - **a field of records filled with sentences** — answered to a person, empty to every program;
 - **a knowledge file the kit ships no template for.** Its fields, its shape and its verdict are all

@@ -60,7 +60,9 @@ project promises and does not do.
 
 The map's completeness is arithmetic, not trust: the file's header declares its `fields:`, so a map
 with fewer rows than the entry has lines is a defect in the report rather than an absence of
-problems.
+problems. The same arithmetic one level up is the file's own line of counters, which the check adds
+up: `walked` here is every entry that has a line to prove — an actor has none, and saying so in the
+header is what keeps the number from looking short.
 
 What this lens does **not** judge: how the test is built — brittle, slow, duplicated, sitting at the
 wrong seam. That has a different reference, the project's own testing rules, and belongs to the
