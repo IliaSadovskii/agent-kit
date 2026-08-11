@@ -15,6 +15,7 @@ The command line itself stays in each command, because what they ask for differs
 | `[stale …]` blocks on those entries | an earlier feature outdated a sentence and could not correct it. The block says what the entry claims and what is true now, so with `gate: owner` apply it — same commit, same rule: transcribe, never decide. With `gate: none` leave it, and read the entry as the block corrects it |
 | an entry's state line behind its merged pull request | not yours. `/agent-kit:next` and `blueprint --check` move it, and a build command that started by writing to knowledge would fail its own clean-tree rule |
 | a run file at a step no reader knows, or fields the template does not have | history from an earlier run, and not a reason to stop. It is said so the drift is visible while it is still happening |
+| **knowledge written by an older kit** — a record declaring fewer fields than the template, a file with fewer sections | **not a reason to stop, and not yours.** Say it in one line with the count, so the owner learns it exists, and carry on: the entries you are about to build are answerable as they stand, they were written that way on purpose, and only `/agent-kit:blueprint` may change what a record requires. Never fill the missing field yourself — that is deciding what the product must describe, which is the one thing no build command may do |
 | nothing | continue without a word about it |
 
 **Promises the product does not keep are read differently by each command**, so that row lives in the

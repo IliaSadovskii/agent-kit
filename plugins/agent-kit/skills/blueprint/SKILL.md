@@ -1,6 +1,6 @@
 ---
 name: blueprint
-description: The project's knowledge layer — interview the owner and write the documentation the other four commands build from: application type and stack, actors, entities, actions, screens, integrations, scenarios, MVP bounds. Also audits that knowledge mechanically.
+description: The project's knowledge layer — interview the owner and write the documentation the other commands build from: application type and stack, actors, entities, actions, screens, integrations, scenarios, MVP bounds. Run with nothing when you do not know what is wrong: it says what is missing, what is behind the kit's current shape, and what to do about each — or that there is nothing to do.
 argument-hint: "[what to add or reconsider] [--check]"
 disable-model-invocation: true
 ---
@@ -38,6 +38,35 @@ counts as settled — stays here.
 
 Every question you put to the owner follows `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`: options
 rather than prose, the recommendation first, and everything independent in one round.
+
+## Where a plain run starts
+
+**Typed with nothing, this is the command an owner reaches for when they do not know what is wrong.**
+They may have never read a release note, may not know a flag exists, and may be coming back to a
+project a year older than the kit it was written with. So a plain run does not guess where it
+stopped — it asks the program, first, before anything else:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status
+```
+
+That is not optional and not conditional. Left to be inferred, it is skipped — a build command was
+once told to "run `blueprint --check`", went looking for an executable of that name, found none and
+carried on silently, which is why these rules live in a program at all.
+
+Then take what it printed, in this order, and stop at the first that applies:
+
+| What it says | What you do |
+|---|---|
+| no `docs/knowledge/` | this is a first interview. Go to *The interview* |
+| **written by an older kit** | say it in one screen — what the shape is missing and what it is for — and offer to bring it forward. See below. Do this before any other work: the interview that follows writes into the new shape, and doing it the other way round means writing every entry twice |
+| a slot with no verdict, empty fields, an open `[assumed …]`, a stale `source:` | that is the work list. Say how much of it there is, and start |
+| entries the owner has never walked — parts marked derived | offer the walk, part by part. It is the one gap the check can see and cannot fix |
+| nothing | **say so in one line and stop.** Then name what to run instead — usually `/agent-kit:next`, or `/agent-kit:epic` when there are entries still `planned`. An interview invented to fill the silence is the one thing an owner cannot check |
+
+Say the count before you start on any of it. *"Four things are behind, two slots have gaps, and six
+parts of nine you have never walked — that is about an hour"* is a sentence they can act on; opening
+with the first question is not.
 
 ## What this command does not do
 

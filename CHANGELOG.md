@@ -3,6 +3,29 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.3.1
+
+- **A plain `/agent-kit:blueprint` runs the check, first, before anything else.** It never did:
+  the only instruction to run the program lived under `--check`, so an owner who typed the command
+  with nothing got whatever the session guessed *continuing from where the last one stopped* meant.
+  That is the failure this kit already paid for once — a build command told to "run
+  `blueprint --check`" went looking for an executable of that name, found none, and carried on
+  silently — and it was sitting in the one command an owner reaches for when they do not know what
+  is wrong.
+
+  With it, a short ladder of what to do with what the check said, stopping at the first that
+  applies: no knowledge at all is a first interview; knowledge behind the kit's shape is brought
+  forward **before** any other work, because the interview after it writes into the new shape;
+  then gaps; then the parts nobody has walked. And when there is nothing — **say so in one line and
+  name what to run instead**, because an interview invented to fill the silence is the one thing an
+  owner cannot check.
+
+- **`preflight.md` gains the row for knowledge written by an older kit**, so the six commands that
+  run the check before they start all react the same way: say it once with the count, carry on, and
+  never fill a missing field yourself — what a record requires is blueprint's alone. A rule added to
+  the check and not to this table is how one of two commands went a whole release without learning
+  about a third kind of block.
+
 ## 2.3.0
 
 - **The check says when a project's knowledge was written by an older kit.** Every other rule asks

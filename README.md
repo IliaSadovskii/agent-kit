@@ -42,8 +42,10 @@ about it.
 
 ### `blueprint`
 
-Interviews you and writes the description. Each slot is committed as it is finished, so you can stop
-and come back.
+**Run it with nothing when you do not know what is wrong.** It checks first, then says what is
+missing, what is behind the kit's current shape and what each costs — or that there is nothing to do
+and what to run instead. Otherwise it interviews you and writes the description, committing each
+part as it is finished, so you can stop and come back.
 
 - `blueprint` — continue with whatever is empty, stale, or flagged by an earlier run
 - `blueprint "rework the map"` — add or rethink one thing
