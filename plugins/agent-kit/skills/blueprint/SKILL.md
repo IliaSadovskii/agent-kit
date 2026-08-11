@@ -32,6 +32,7 @@ counts as settled — stays here.
 |---|---|
 | `blueprint` | continues from wherever the last session stopped: works only on what is empty, stale, or marked by an earlier run. Interactive. |
 | `blueprint <what you want to add or reconsider>` | the owner has something the documents do not hold yet — a feature they have thought through, a part they want reworked, a doubt about whether something is covered. Find the slots it touches, interview about those, write, stop. Without this a finished blueprint has no way in, and the thought turns into work nobody asked for. |
+| `blueprint <what did not match, after using it>` | the same door, arrived at from the other side: the owner has clicked through what a run built and can say what is wrong. See below — it is one fork per complaint, and half of them are not blueprint's work at all. |
 | `blueprint --check` | audits, mechanically, in seconds, asking nothing. Run the program — `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status --sync` — and put its output in front of the owner with a sentence about what to do next. `--sync` is yours alone: it moves an entry whose pull request has merged, which is the one thing this program writes, and a preflight that wrote it would leave the tree dirty under the command that ran it. Two audiences: as another command's preflight it is run bare and prints nothing when clean; **by hand it always prints where the project stands**. That is the raw view of the knowledge; `/agent-kit:next` is the same data ranked into a recommendation. |
 
 Every question you put to the owner follows `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`: options
@@ -62,14 +63,38 @@ afterwards — is `${CLAUDE_PLUGIN_ROOT}/rules/knowledge-writing.md`, which `adv
 
 ## The interview
 
-Order, because each step feeds the next:
+**It is shaped by the product's own parts, not by the slots.** Nobody holds their product as actors,
+entities and screens — they hold it as the things it does: sign-in, the lesson, the notifications,
+the account. Walking the slots asks the owner to translate into a structure that is the kit's
+convenience, and what does not survive that translation is what a run has to invent later. So the
+questions follow the parts, and the slots are what the answers are written into: one part's telling
+usually fills a screen, several actions and an entity at once.
 
-1. **The owner's own telling.** One open question: what is this, for whom, how does it work. Not a
-   form — follow up until you can restate it, then restate it in a few lines and get a yes. On a
-   repository with real code, read the code first and bring your reading to be corrected, spending
-   the owner's attention only on what code cannot say: intent, what is deliberately out of scope,
-   what is coming. Store it near-verbatim as the first section of `product.md`.
-2. **Application type and stack.** Versions from the manifests, per-area decisions from the code.
+Six phases:
+
+1. **The telling.** One open question: what is this, for whom, how does it work. Not a form — follow
+   up until you can restate it. On a repository with real code, read the code first and bring your
+   reading to be corrected, spending the owner's attention only on what code cannot say: intent,
+   what is deliberately out of scope, what is coming. Store it near-verbatim as the first section of
+   `product.md`.
+
+2. **The parts, agreed as a list.** Split the telling into the product's parts and put them up as
+   names to pick from, never as prose to read back.
+
+   **Five to ten.** A part is something the owner can tell a story about in a few minutes and that
+   has a vocabulary of its own. More than ten and you have cut by screens rather than by meaning:
+   merge, and say that you merged. A product genuinely larger than that gets its list of parts
+   committed first, and the interview goes on one part per sitting — the resume point is a part, not
+   a slot.
+
+   **Order them by what the product is for**, not alphabetically: attention is freshest first, and
+   later parts borrow the vocabulary the early ones settle.
+
+   They are recorded in `product.md` and carried on each entry, because a part nobody wrote down is
+   invisible to the next session — and to `epic`, which reports at its gate which parts the owner
+   walked and which were only derived.
+
+3. **Application type and stack.** Versions from the manifests, per-area decisions from the code.
    Then one bounded research pass — delegate it — on what this framework's current major
    recommends and which packages this ecosystem treats as the standard answer. It comes back as a
    proposal, never as a written record: *here is what I found, what is wrong and what is missing?*
@@ -87,20 +112,46 @@ Order, because each step feeds the next:
    passes*, so it is the one gap that decides whether that command can finish at all. Name the tool
    and where it runs, or write plainly that there is none and the scenarios are proved by hand. Both
    are legitimate; neither may be left to be inferred.
-3. **`product`** — what it is for, and what it deliberately does not do. The second is worth more
-   to an autonomous run than the first.
-4. **`actors`**, then **`entities`**, then **`actions`**. Actions are the bulk: take one actor at a
-   time, put up the whole list of what it can do before filling anything in, then fill entries in
-   batches.
-5. **`screens`** — derived from the actions and from the routes and views in the code; propose and
-   let the owner correct. Do not start the application to find out what it has: when the code will
-   not tell you, say so, mark the slot `open_question` and move on. An honest gap costs a line; an
-   audit of a running app costs an afternoon and is not what was asked for.
-   **`integrations`** the same way.
-6. **`scenarios`** — walk eight to ten end to end on real names and numbers. This is the
-   completeness test, not a longer questionnaire: where the honest answer is "we would add another
-   field", the knowledge is wrong, and you find it here rather than in the build.
-7. **MVP bounds** — last, because before the walks they cannot be drawn honestly. Two explicit
+4. **One part at a time**, and each is two moves.
+
+   **The telling, in the owner's own words back at them.** Not *"tell me about the lesson"* but
+   *"you said a lesson is a conversation with the model — take me through one, start to finish"*.
+   Their vocabulary is what makes the question answerable.
+
+   **Then what is still open, as choices.** Two to four options each, several questions on a screen,
+   per `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`. Derived from what they just said, never from a
+   checklist — and held to one filter, because it decides whether the round is worth their attention:
+
+   | ask | never ask |
+   |---|---|
+   | what the person sees, and in what order | how it is stored |
+   | what happens when it does not work | which request, which index, which schema |
+   | what is kept about them that they could notice | protocols, headers, the shape of a table |
+   | who may, and who may not | |
+   | what costs money | |
+
+   Measured on a real run, four out of five decisions a build takes are the right-hand column —
+   whether the web build can use secure storage, whether a sign-in must carry a nonce. The owner
+   cannot answer those and should not be asked; a run decides them and records the decision. Asking
+   anyway is what teaches an owner to tap without reading.
+
+   Then write the part into whatever slots it touches — actors, entities, actions, screens,
+   integrations — and put the result up as a list of names to correct, not as prose: *"from the
+   lesson I got one screen, five actions and one entity"*.
+
+   A part is finished when you can write its records without inventing a **product** answer. The
+   mechanics you may still decide yourself.
+
+5. **Across the parts: `scenarios`.** Eight to ten walked end to end on real names and numbers, and
+   deliberately across parts, because that is where a split by parts is blind — a person signing in,
+   getting a lesson and answering it crosses three.
+
+   **Read every scenario's ending back as a choice, never as prose.** *"After the first right answer
+   the word becomes: `seen`, confidence 0.4 · `ok`, confidence 0.6 · something else"*. A wall of text
+   with a yes-or-no under it gets a yes: agreeing is free and produces nothing. On a measured run six
+   endings went unread that way, contradicted the product, and cost that run its finish.
+
+6. **MVP bounds** — last, because before the walks they cannot be drawn honestly. Two explicit
    lists.
 
 **Propose, don't interrogate.** An open question is for what a draft cannot cover. *"Here are the
@@ -124,6 +175,50 @@ confident around a wrong answer.
 answers and points at the owner's document: `source: docs/DEVELOPER.md#offers @a3f1c9d`. Their prose
 stays theirs and is not duplicated; when they edit it the hash diverges and the check says so. The
 hash is recorded by the program and never written by hand — see the shared rule.
+
+### A document is a witness, not the truth
+
+The code is the fact. The owner is the authority on intent. A document is neither: it may be a year
+stale, half-written, or wrong in the one sentence a run will build from — and adopting it silently is
+how a confident description produces a product nobody wanted.
+
+So **nothing taken from an existing document enters an entry until it is one of three**, and settling
+that is yours:
+
+| | What you do |
+|---|---|
+| **the code agrees** | take it, with a `source:` and its hash — the check watches for drift from here on |
+| **the code says otherwise** | do not take either. Put both sides up as a choice: *"the document says the offer is withdrawn, the code archives it — which is right?"* |
+| **cannot be checked** — intent, plans, why | do not take it at all. It goes into the part's interview as an ordinary question |
+
+The third is the one that looks safest and is not: *why* and *what next* are exactly what no code can
+contradict, so a stale intention survives every mechanical check the kit has and is followed by every
+run for months.
+
+This is the whole difference between an empty repository and an inherited one. On an inherited one
+phases 1 and 2 — the telling and the parts — you propose from the code and the documents and the
+owner corrects by tapping. Phases 4 to 6 are the same either way.
+
+## After the owner has used it
+
+The first run of anything is wrong somewhere, and the owner finds out by clicking through it rather
+than by reading. That is a different input from an interview: not what they imagine, what they saw.
+It arrives as a list of complaints, in their words, in no order.
+
+**Every complaint is one fork, and it is a fork the kit already knows** — the same one a build hits
+when an entry promises what the code does not:
+
+| What is wrong | Where it goes |
+|---|---|
+| **the description** — the product behaves correctly and is described wrongly | yours: rewrite the prose, which nothing else may |
+| **the product** — the description is right and the build is not | not yours: a line for `fix`, or an entry back to `state: planned` for a build command |
+
+Put that fork up per complaint, with your reading first. Do not resolve it by rewriting the entry to
+match the code — that is how a product decision gets made by whoever typed last, and the entry stops
+being something the build can be held to.
+
+This is where `accept` hands over: it says what to open and what to click, and this takes what was
+seen there.
 
 ## How a session ends
 

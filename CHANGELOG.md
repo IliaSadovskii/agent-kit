@@ -3,6 +3,47 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.1.0
+
+- **The interview is shaped by the product's parts, not by the kit's slots.** Nobody holds their
+  product as actors, entities and screens — they hold it as the things it does. Walking the slots
+  asks the owner to translate into a structure that is the kit's convenience, and what does not
+  survive that translation is what a run invents later. `blueprint` now tells → splits into five to
+  ten parts, agreed as a list of names → walks one part at a time → then crosses them with the
+  scenarios. One part's telling fills a screen, several actions and an entity at once; the slots are
+  what the answers are written into, and none of the files changed shape.
+
+  Two rules came out of measuring a real run. **Only what the owner can answer is asked** — what a
+  person sees, what happens when it fails, what is kept about them, who may, what costs money. Four
+  of five decisions a build takes are the other kind (can the web build use secure storage, must a
+  sign-in carry a nonce), the owner cannot answer those, and asking anyway teaches them to tap
+  without reading. And **a scenario's ending is read back as a choice, never as prose with a
+  yes-or-no under it**: agreeing to a wall of text is free and produces nothing, and on the measured
+  run six endings went unread that way, contradicted the product, and cost that run its finish.
+
+  The parts are recorded in `product.md`, each either walked on a date or derived and unconfirmed.
+
+- **A document is a witness, not the truth.** Nothing taken from an existing document enters an entry
+  until it is one of three: the code agrees, and it is taken with a `source:` and its hash; the code
+  says otherwise, and both sides go up as a choice; or it cannot be checked at all — intent, plans,
+  *why* — and it becomes an ordinary question in the interview. The third looks safest and is not:
+  no code can contradict a stale intention, so it survives every mechanical check the kit has.
+
+- **`blueprint` takes what the owner saw after using it.** The first run of anything is wrong
+  somewhere, and the owner finds that out by clicking, not by reading. Each complaint is one fork the
+  kit already knows: the description is wrong, which is blueprint's to rewrite, or the product is,
+  which is a `fix` or an entry back to `planned`. Resolving it by quietly rewriting the entry to
+  match the code is how a product decision gets made by whoever typed last.
+
+- **`epic`'s gate says what nobody has read, and spends its questions where being wrong is
+  expensive.** It reports how many parts the owner walked against how many were derived — it cannot
+  measure whether a description is *detailed enough*, there is no such signal, and claiming it would
+  be the most expensive sentence on that screen. Then it ranks the entries it is about to build by
+  what they touch: stored data, permissions, money, an outside contract. Measured, an entry's
+  decisions scale with how much it changes and not at all with how thinly it is written.
+
+- Two headings the 2.0.0 rename missed, both reading `MVP` where they meant the command.
+
 ## 2.0.1
 
 - **Both READMEs group the commands by what you are doing, not as one flat list of nine.** Describe

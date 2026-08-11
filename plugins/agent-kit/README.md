@@ -147,7 +147,7 @@ items, and composes from that.
 Why a script driver and not an orchestrating agent, and what a review deleted from the first design:
 [docs/design/sprint.md](../../docs/design/sprint.md).
 
-## MVP
+## Epic
 
 Everything inside the MVP bounds, autonomously, as one pull request. It owns no build, test or
 pull-request logic — it composes batches and the driver, `ship` and the closing session do the rest,

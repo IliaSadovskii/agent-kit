@@ -5,11 +5,12 @@ argument-hint: "[--advance <run dir> | --resume <run dir>]"
 disable-model-invocation: true
 ---
 
-# MVP
+# Epic
 
 A whole scope — built, audited and proved, as one pull request the owner can open and click through.
-The MVP bounds are the scope it is named after and the one it takes when nothing is said; run it
-again after those are built and it offers what is still planned, or what the project owes.
+`sprint` is a batch of about five features; this is the whole of what is left, in batches. The MVP
+bounds are the scope it takes when nothing is said; run it again after those are built and it offers
+what is still planned, or what the project owes.
 
 **It owns no build, test or pull-request logic.** It composes batches and hands each to the driver;
 the driver runs `ship` per feature and the closing session per batch. Everything those already do
@@ -99,11 +100,27 @@ building one would cost as a batch of its own, and that without it the finish is
 on a phone rather than a green suite. **Never leave that to be discovered later.** It is one line
 here and a rebuilt plan later, and the owner is standing right there.
 
-Then **one screen, one question**: the scope and its finish line said back in words — including what
-proves it — the batches in order, the price in hours, what the audit adds, and *this scope, or
-narrower?* Two or three options with counts, per `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`. That is the only question this run ever
-asks, so a harness that has to be decided is decided as part of the scope rather than in a question
-of its own.
+**Say how much of the description the owner has actually seen.** `product.md` lists the product's
+parts, each either walked in an interview on a date or derived from code and documents and never
+confirmed. Count them and say it as a fact: *four parts of six you walked; two were derived*. You
+cannot measure whether a description is detailed enough — there is no such signal, and claiming it
+would be the most expensive sentence on this screen. You can say what nobody has read, and on a
+measured run that was the whole failure: the scenarios were written in the same session as the gate,
+nobody walked them, and six of their endings contradicted the product by the finish.
+
+**Then spend your questions where being wrong is expensive.** Not evenly across the list: rank the
+entries you are about to build by what they touch — stored data first, then permissions, money, a
+contract outside this codebase — and put the top few up as choices. Measured, an entry's decisions
+scale with how much it changes and not at all with how thinly it is written, so this is the one
+ranking with evidence behind it. Typically five entries of twenty, and the rest you decide and
+record as you go.
+
+Then **one screen**: the scope and its finish line said back in words — including what proves it —
+the batches in order, the price in hours, what the audit adds, what has never been read, and *this
+scope, or narrower?* Options with counts, per `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`, and the
+expensive entries beside it — one round, a handful of taps. This is the only round this run ever
+has, so a harness that has to be decided is decided here as part of the scope rather than in a
+question of its own.
 
 **Nothing else is asked, deliberately.** Whether the owner is reachable is not worth asking of a run
 that lasts a day — every child gets `gate: "none"`, so an expensive fork becomes a recorded
