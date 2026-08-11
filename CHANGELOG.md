@@ -3,7 +3,7 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
-## Unreleased
+## 2.5.1
 
 - **The payload names its design notes rather than linking to them.** A relative link climbed out of
   the plugin directory, which works in this repository and nowhere else: an installed plugin is the
