@@ -354,7 +354,8 @@ the knowledge. `epic` refuses to start when a slot in its scope is unsettled; th
 carry on.
 
 The rules are in `scripts/check.py`, which is what lets every command run them and keeps one rule
-from meaning two things. Rule by rule: [docs/design/check.md](../../../../docs/design/check.md).
+from meaning two things. Rule by rule: the design note `docs/design/check.md`, in the kit's own
+repository — not in an installed copy of this plugin, which carries the payload and nothing else.
 
 Your job around it is the part a program cannot do: say which of its findings matter for what the
 owner is about to do, and offer to fix them here and now.

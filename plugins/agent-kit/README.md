@@ -4,7 +4,7 @@ A development kit for building software with long-running Claude Code sessions. 
 rewrite from scratch, complete as of 1.0.0: the line before it ended at 0.17.0, where one feature
 cost 27M tokens and most of that went on machinery insuring the kit against its own autonomy. What
 the rewrite concluded, and what it deleted, is in
-[docs/design/kit-v1.md](../../docs/design/kit-v1.md).
+`docs/design/kit-v1.md`.
 
 Measured against that line: a feature now costs about 15M tokens, and a night of five features
 about 73M.
@@ -93,7 +93,7 @@ is recorded with your reason and never raised again; a refusal that rested on a 
 number, so the next run can see whether it has moved.
 
 The reasoning, and the alternatives rejected on the way:
-[docs/design/advise.md](../../docs/design/advise.md).
+`docs/design/advise.md`.
 
 ## Fix
 
@@ -130,7 +130,7 @@ writes the test for the promise, marks it `agent-kit:unmet` so the suite stays g
 the contradiction. That is the one green a kit should not want — a test written over the code's side
 turns the day somebody fixes the product into a regression.
 
-Why it is shaped this way, and what was rejected: [docs/design/ship.md](../../docs/design/ship.md).
+Why it is shaped this way, and what was rejected: `docs/design/ship.md`.
 
 ## Sprint
 
@@ -145,7 +145,7 @@ ledger. It asks which pile first — close what is owed, or build what is missin
 items, and composes from that.
 
 Why a script driver and not an orchestrating agent, and what a review deleted from the first design:
-[docs/design/sprint.md](../../docs/design/sprint.md).
+`docs/design/sprint.md`.
 
 ## Epic
 
@@ -171,7 +171,7 @@ assertion exist for every line of every entry), `scenarios` (do the joins betwee
 the file and line that proves it, because a verdict without one can only be believed.
 
 The reasoning for each lens, and the two that were rejected:
-[docs/design/audit.md](../../docs/design/audit.md).
+`docs/design/audit.md`.
 
 ## Accept
 
@@ -220,7 +220,7 @@ is allowed to remove is a record that grows for ever:
 The rule underneath all six: **anything a run leaves undone names the record it now lives in, and
 nothing is left as a message to a person.** A leftover described only in a pull request is forgotten
 the day it merges. The whole graph — who records, who reminds, who resolves —
-is [docs/design/the-loop.md](../../docs/design/the-loop.md).
+is `docs/design/the-loop.md`.
 
 ## What it needs
 

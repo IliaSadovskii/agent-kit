@@ -3,6 +3,13 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## Unreleased
+
+- **The payload names its design notes rather than linking to them.** A relative link climbed out of
+  the plugin directory, which works in this repository and nowhere else: an installed plugin is the
+  payload and nothing beside it, so `../../docs/design/…` resolved to a path that does not exist on
+  the machine reading it. Seven of them, in `blueprint` and the plugin's README.
+
 ## 2.5.0
 
 Twenty findings from an independent read of the eleven releases of 2026-08-11, each checked against
