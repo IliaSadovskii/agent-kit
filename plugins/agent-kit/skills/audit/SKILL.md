@@ -93,7 +93,10 @@ recorded as covered costs a bug that nobody will look for again.
 
 **Every entry in scope gets a row**, including the covered ones and the ones you could not judge —
 `covered`, `gaps`, `unjudged`, `declined`. Completeness is then something the owner can count rather
-than something you claim.
+than something you claim. **Those four words stay English** wherever the file is written, like every
+other mark of this kit: `declined` in particular is what tells the check that a ticked box is a
+refusal rather than work someone closed, and a ticked box with no pull request number behind it is
+otherwise a claim nobody can check.
 
 **No verification pass.** A second agent re-checking the first doubles the price to catch a mistake
 that costs ten seconds. That stacking is what once produced thirty findings and then twenty more.

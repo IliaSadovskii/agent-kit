@@ -150,8 +150,11 @@ and the tasks are fields, the code is in the commits, the decisions worth keepin
 and `deviations`. What is nowhere else is **what you tried that did not work** — the code shows the
 answer and never the two answers before it — and what you settled silently on the way.
 
-**Coming in on a handoff**: read it, move anything durable into the field that owns it, overwrite
-`handoff` with your own when your turn comes, and carry on from `step`. You are continuing a run,
+**Coming in on a handoff**: read it, move anything durable into the field that owns it, **then empty
+`handoff`**, and carry on from `step`. Emptying it is not tidiness: the driver reads that field to
+know a note has landed, and the stop hook reads it to know this run stopped on purpose. Left
+standing, the next handoff is indistinguishable from yours, and a session gets killed on a note
+about work that is already done. You are continuing a run,
 not reviewing one: do not re-read the diff behind you, do not revisit the approach, do not design
 anything that is already designed. Design is skipped for exactly this reason when the file carries
 an approach and tasks.
@@ -214,6 +217,8 @@ reader that acts on it — a finding written anywhere else reaches nobody:
 | a decision the entry did not settle, cheap to reverse | `assumptions` | the pull request |
 | one expensive to reverse — stored data, permissions, money, a public contract | `assumptions` **and** an `[assumed …]` block under the entry | every later run follows it; the check prints it; `blueprint` closes it |
 | the entry promises what the code does not | a test marked `agent-kit:unmet`, and a line in `unmet` | the check lists it; the pull request; `sprint` with no theme offers it as a batch |
+| a promise **this** feature was sent to keep, and now does | delete the mark from that test in the commit that makes it pass, and say so in `notes` | nothing else ever removes one: the check would go on listing a promise the product now keeps, and the next `sprint` would offer the same work again |
+| something only the owner can do — a secret, an account, a production environment | a record in `manual` | the pull request's **Manual actions**, composed from this field; `accept` reads it too. Anything a script could do goes into `commands.run` instead, and a setting that already works is an assumption |
 | you departed from the approach that was approved | `deviations`, with its cause | the pull request, as an assumption the code forced |
 | a ready-made answer the library map does not name | a `[found …]` block under `stack.md` | the check prints it; `blueprint` folds it into the map |
 | what you built makes the entry's own prose false — it described the world before this feature | a `[stale …]` block under that entry | the check prints it; `blueprint` rewrites the entry and deletes the block, and nothing else may |
@@ -283,13 +288,19 @@ In this order, because it puts reviewed code in the pull request from its first 
    already has too much of. A critical or major finding left open is not `step: done`.
 3. **One round of fixes**, then rerun what the fixes put at risk, plus the suite.
 4. Open the pull request per `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md`. Never merge it.
-5. **CI** — `gh pr checks`, or the closest this session has. Fix what is yours: formatting, lint, a
+5. Set the entry's machine line to `state: building (pr: <n>)`, **commit it on this branch and
+   push**. It cannot happen earlier — the number only exists once the pull request does — and it
+   may not happen later than this: an edit left in the working tree is a dirty tree at
+   `step: "done"`, which is a blocker for the next command, and a knowledge change nobody committed
+   reaches nothing. Pushed here it rides in the pull request and CI runs on the final tree. Besides
+   an assumption block, that line is the only thing you write into knowledge; `blueprint --check`
+   moves it to `built` once the pull request merges. **Inside a batch you never reach this step**,
+   and that is right: the closing session sets the line for every feature at once, from the batch's
+   own pull request.
+6. **CI** — `gh pr checks`, or the closest this session has. Fix what is yours: formatting, lint, a
    flake, the workflow's own configuration. A failure that needs the feature's design changed is a
    blocker to report in the pull request. Bound the wait — a pipeline still pending after a
    reasonable window is reported as pending, rather than polled until something kills the session.
-6. Set the entry's machine line to `state: building (pr: <n>)`. Besides an assumption block, that is
-   the only thing you write into knowledge; `blueprint --check` moves it to `built` once the pull
-   request merges.
 7. Close the run file: `step: "done"`, `suite`, `pr`, and any blocker. Then have the check read it
    back — it is silent unless the file says something a finished run may not say, and what it names
    is fixed in the work rather than in the field that named it:

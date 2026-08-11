@@ -399,7 +399,33 @@ class LiveQueueCase(DriverCase):
         self.drive(Launcher)
         self.assertIn("/agent-kit:audit security", Launcher.prompts)
 
-    def test_wait_stands_still_and_then_carries_on(self):
+    def test_a_run_with_no_children_hands_back_instead_of_stopping_in_silence(self):
+        """A driver started on a file that is not a batch — an epic's own file, or a lone audit run
+        put into the wrong list — used to log one word and exit. Nothing else was running, so the
+        whole epic stopped there and only `--resume` ever found it."""
+        (self.runs / "e").mkdir()
+        self.write("e", {"slug": "e", "command": "epic", "children": ["b"]})
+        (self.runs / "b").mkdir()
+        self.write("b", {"slug": "b", "command": "sprint", "parent": "e", "children": []})
+
+        class Launcher(FakeLauncher):
+            started = []
+
+            def start(self, name, prompt, model=None):
+                Launcher.started.append((name, prompt))
+                return True
+
+        Launcher.started = []
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 1)
+        self.assertEqual([name for name, _prompt in Launcher.started], ["e-advance"])
+        self.assertIn("--advance", Launcher.started[0][1])
+
+    def test_an_instruction_the_driver_does_not_know_is_said_rather_than_swallowed(self):
+        """`control` is read and deleted whatever it says. An unrecognised word would then vanish
+        exactly like one that was obeyed, and the owner who watched the file disappear would
+        believe it was. `wait` was such a word until it was removed: it stopped the run for hours
+        on a question nobody was able to answer, because nothing in the kit could clear it."""
         first, = self.batch("one")
         (self.runs / "b" / "control").write_text("wait 2 the OpenRouter key is not in .env",
                                                  encoding="utf-8")
@@ -415,24 +441,9 @@ class LiveQueueCase(DriverCase):
 
         _driver, code = self.drive(Launcher)
         self.assertEqual(code, 0)
-        self.assertGreaterEqual(self.waited(), 2 * 3600, "it waited the hours it was given")
-        self.assertEqual(self.step(first), "done", "and then built the feature anyway")
-
-    def test_a_wait_with_no_hours_in_it_is_ignored_rather_than_guessed_at(self):
-        first, = self.batch("one")
-        (self.runs / "b" / "control").write_text("wait for the key", encoding="utf-8")
-        case = self
-
-        class Launcher(FakeLauncher):
-            def start(self, name, prompt, model=None):
-                if first in name:
-                    case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
-                if name.endswith("-close"):
-                    case.write("b", {"slug": "b", "children": [first], "step": "done", "pr": 9})
-                return True
-
-        _driver, _code = self.drive(Launcher)
-        self.assertLess(self.waited(), 3600)
+        self.assertLess(self.waited(), 3600, "nothing stands still on a word nobody knows")
+        self.assertEqual(self.step(first), "done")
+        self.assertIn("not recognised", (self.runs / "b" / "run.log").read_text(encoding="utf-8"))
 
     def test_what_a_batch_spent_is_written_down(self):
         first, = self.batch("one")
@@ -517,6 +528,81 @@ class HandoverCase(DriverCase):
         _driver, code = self.drive(Launcher)
         self.assertEqual(code, 0)
         self.assertEqual(self.step(first), "blocked")
+
+    def test_a_note_left_over_from_an_earlier_handoff_does_not_count_as_a_new_one(self):
+        """Nothing clears `handoff`, so a run handed over once carries a filled field for the rest
+        of its life. Read as "the note has landed", that would kill the next session on its first
+        quiet minute and pass on a note about work already finished."""
+        first, = self.batch("one")
+        case = self
+        state = {"starts": 0}
+        orch.read_tail = lambda path, lines=40: case.BIG        # always over the ceiling
+
+        stale = "stopped after task 2 — that was two sessions ago"
+        run = json.loads((self.runs / first / "run.json").read_text(encoding="utf-8"))
+        run["handoff"] = stale
+        self.write(first, run)
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if first in name:
+                    state["starts"] += 1
+                    if state["starts"] > 1:
+                        raise AssertionError("restarted on a note nobody wrote this session")
+                    case.write(first, {"slug": first, "step": "done", "handoff": stale,
+                                       "branch": f"claude/{first}"})
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first], "step": "done", "pr": 4})
+                return True
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertEqual(state["starts"], 1)
+
+    def test_the_closing_session_is_never_asked_to_hand_over(self):
+        """Handing a run on is a rule of `ship`. The closing session has nobody to hand to, and
+        restarting it throws away the one context in the batch that cannot be rebuilt from files."""
+        first, = self.batch("one")
+        case = self
+        orch.read_tail = lambda path, lines=40: case.BIG
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if first in name:
+                    case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first], "step": "done", "pr": 4})
+                return True
+
+            def send(self, name, text):
+                self.typed.append(text)
+                if "hand this run over" in text and name.endswith("-close"):
+                    raise AssertionError("the closing session was asked to hand over")
+                return True
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+
+    def test_a_child_that_is_not_a_ship_is_never_asked_to_hand_over(self):
+        """`prompt` says this child is an audit or a review. Handing on is a rule of `ship`, so the
+        ask would send it to a section of a file it never read, with nobody to hand to."""
+        first, = self.batch("one")
+        case = self
+        orch.read_tail = lambda path, lines=40: case.BIG
+        run = json.loads((self.runs / first / "run.json").read_text(encoding="utf-8"))
+        run["prompt"] = "/agent-kit:audit security"
+        self.write(first, run)
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if first in name:
+                    case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first], "step": "done", "pr": 4})
+                return True
+
+        driver, _code = self.drive(Launcher)
+        self.assertEqual([t for t in driver.launcher.typed if "hand this run over" in t], [])
 
     def test_the_ceiling_can_be_switched_off(self):
         first, = self.batch("one")

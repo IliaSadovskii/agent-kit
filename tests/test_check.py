@@ -114,6 +114,37 @@ class CheckCase(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("built: 1", output)
 
+    # ---- the product's parts, and who has walked them -------------------------------------------
+
+    def test_parts_are_counted_walked_against_derived(self):
+        """Two commands were told to read this and neither had anything to read it with: a plain
+        blueprint offers the walk, and an epic's gate says how much of the description nobody has
+        ever seen."""
+        self.write("product.md", "# Product\n\n## Parts\n\n"
+                                 "- вход и аккаунт — `walked: 2026-08-09`\n"
+                                 "- карта тем — `derived`\n"
+                                 "- урок — `walked: 2026-08-10`\n")
+        _code, output = self.run_check("--status")
+        self.assertIn("Parts: 3 recorded, 2 walked", output)
+        self.assertIn("1 derived", output)
+
+    def test_a_product_with_no_parts_recorded_says_so(self):
+        self.write("product.md", "# Product\n\n## What it is for\n\nA feed.\n")
+        _code, output = self.run_check("--status")
+        self.assertIn("Parts: none recorded", output)
+
+    def test_the_templates_own_example_is_not_counted_as_a_part(self):
+        """A file copied and not yet filled in would otherwise report three parts nobody has."""
+        template = (ROOT / "plugins" / "agent-kit" / "templates" / "knowledge" / "product.md")
+        self.write("product.md", template.read_text(encoding="utf-8"))
+        _code, output = self.run_check("--status")
+        self.assertIn("Parts: none recorded", output)
+
+    def test_the_parts_count_is_a_statement_and_not_a_finding(self):
+        self.write("product.md", "# Product\n\n## Parts\n\n- вход — `derived`\n")
+        code, _output = self.run_check("--status")
+        self.assertEqual(code, 0)
+
     # ---- knowledge written by an older kit -----------------------------------------------------
 
     def test_a_record_declaring_fewer_fields_than_the_template_is_named(self):
@@ -166,7 +197,25 @@ class CheckCase(unittest.TestCase):
             "# Tests\n\n- [x] closed by PR #21\n- [ ] still open\n- [x] done, honest\n",
             encoding="utf-8")
         _code, output = self.run_check()
-        self.assertIn("tests.md:5", output)
+        self.assertIn("ticked without naming the pull request", output)
+        self.assertIn("tests.md (1)", output)
+
+    def test_a_declined_item_is_not_a_tick_waiting_for_a_pull_request(self):
+        """The lens's own way of recording a refusal. No pull request will ever close one, so a
+        rule demanding a number would be permanently wrong about a format the kit prescribes."""
+        audits = self.root / "docs" / "audits"
+        audits.mkdir(parents=True)
+        (audits / "tests.md").write_text(
+            "# Tests\n\n- [x] declined: `guest.open_post` — visual only\n", encoding="utf-8")
+        _code, output = self.run_check()
+        self.assertNotIn("ticked without naming the pull request", output)
+
+    def test_unsigned_ticks_are_counted_per_file_rather_than_listed(self):
+        audits = self.root / "docs" / "audits"
+        audits.mkdir(parents=True)
+        (audits / "tests.md").write_text("# Tests\n\n" + "- [x] done\n" * 12, encoding="utf-8")
+        _code, output = self.run_check()
+        self.assertIn("(12)", output)
         self.assertNotIn("tests.md:3", output)
 
     # ---- the brief: what a run reads before it designs, in one call ---------------------------
@@ -188,6 +237,30 @@ class CheckCase(unittest.TestCase):
     def test_a_brief_says_what_it_could_not_find(self):
         _code, output = self.run_check("--brief", "guest.browse_feed")
         self.assertIn("does not exist", output, "a missing library map is said, not left out")
+
+    def test_a_brief_names_its_own_boundary(self):
+        """Silence in a brief has to mean one thing. Without the boundary, a brief that dropped
+        the entry its entry depends on reads like one where the entry depends on nothing."""
+        _code, output = self.run_check("--brief", "guest.browse_feed")
+        self.assertIn("pulled in:", output)
+        self.assertIn("is not looked up", output)
+
+    def test_a_brief_names_a_key_the_knowledge_never_defined(self):
+        self.write("actions.md", ACTIONS.replace(
+            "**Can go wrong:**", "**Reached from:** `screen.feed`\n\n**Can go wrong:**"))
+        _code, output = self.run_check("--brief", "guest.browse_feed")
+        self.assertIn("defined nowhere", output)
+        self.assertIn("screen.feed", output)
+
+    def test_a_brief_does_not_call_prose_a_missing_key(self):
+        """A status, a column and a config path all look like a key. Guessing at them named
+        twenty-two innocents in one entry on a real project."""
+        self.write("actions.md", ACTIONS.replace(
+            "**Can go wrong:**", "**What changes:** the post goes to `archived`, "
+                                 "`posts.author_id` stays\n\n**Can go wrong:**"))
+        _code, output = self.run_check("--brief", "guest.browse_feed")
+        self.assertNotIn("archived", output.split("pulled in:")[-1])
+        self.assertNotIn("posts.author_id", output.split("pulled in:")[-1])
 
     def test_an_unknown_key_names_the_near_miss_instead_of_guessing(self):
         err = io.StringIO()
@@ -789,7 +862,50 @@ class CheckCase(unittest.TestCase):
             (ROOT / "plugins" / "agent-kit" / "templates" / "run.json").read_text(encoding="utf-8"))
         template["step"] = "done"
         template["suite"] = "green"
+        template["pr"] = 21
         self.assertEqual(check.run_defects(template), [])
+
+    def test_a_run_that_owed_a_pull_request_and_has_no_number(self):
+        state = {"deliver": "pr", "step": "done", "suite": "green", "tasks": [], "pr": None}
+        self.assertTrue(any("`pr` is empty" in line for line in check.run_defects(state)))
+
+    def test_a_run_that_hit_a_blocker_may_close_without_one(self):
+        state = {"deliver": "pr", "step": "done", "suite": "green", "pr": None,
+                 "blockers": ["the gateway has no sandbox key"]}
+        self.assertFalse(any("`pr` is empty" in line for line in check.run_defects(state)))
+
+    def test_a_feature_inside_a_batch_owes_no_pull_request(self):
+        """`deliver` decides it, not `command`: a child pushes a branch, and a batch's own file
+        carries no `deliver` at all — both fall outside this by construction."""
+        child = {"deliver": "branch", "step": "done", "suite": "green", "pr": None}
+        self.assertEqual(check.run_defects(child), [])
+        batch = {"command": "sprint", "step": "done", "suite": "green", "pr": None}
+        self.assertFalse(any("`pr` is empty" in line for line in check.run_defects(batch)))
+
+    def test_a_batch_that_left_no_durable_record(self):
+        state = {"command": "sprint", "slug": "2026-08-05-offers", "step": "done",
+                 "suite": "green", "pr": 21}
+        defects = check.run_defects(state, self.root)
+        self.assertTrue(any("docs/runs/2026-08-05-offers.json" in line for line in defects))
+
+    def test_a_batch_that_wrote_its_record_says_nothing(self):
+        (self.root / "docs" / "runs").mkdir(parents=True)
+        (self.root / "docs" / "runs" / "2026-08-05-offers.json").write_text("{}", encoding="utf-8")
+        state = {"command": "sprint", "slug": "2026-08-05-offers", "step": "done",
+                 "suite": "green", "pr": 21}
+        self.assertEqual(check.run_defects(state, self.root), [])
+
+    def test_without_a_project_the_record_rule_is_skipped_rather_than_guessed(self):
+        state = {"command": "sprint", "slug": "2026-08-05-offers", "step": "done",
+                 "suite": "green", "pr": 21}
+        self.assertEqual(check.run_defects(state), [])
+
+    def test_a_knowledge_file_the_kit_has_no_template_for_is_named(self):
+        """Three checks key off the template — fields, shape, verdict — and a file with none slips
+        all three at once. The product template itself invites one for an API or a CLI."""
+        self.write("endpoints.md", "# Endpoints\n\n### GET /feed\n`key: endpoint.feed`\n")
+        _code, output = self.run_check(keep_shape=True)
+        self.assertIn("endpoints.md has no template", output)
 
     def test_a_step_no_reader_knows_is_named(self):
         directory = self.root / ".agent-kit" / "runs" / "x"

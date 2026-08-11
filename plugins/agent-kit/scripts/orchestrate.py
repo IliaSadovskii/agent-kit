@@ -316,7 +316,7 @@ def limit_reset(text: str) -> tuple[str, float | None]:
 
 
 # --------------------------------------------------------------------------------------------
-# the owner's three instructions
+# the owner's two instructions
 
 
 def take_control(run: Run) -> str:
@@ -380,12 +380,18 @@ class Driver:
         model = (state or {}).get("model")
         return model.strip() if isinstance(model, str) and model.strip() else None
 
-    def watch(self, name: str, run: Run, prompt: str) -> str:
+    def watch(self, name: str, run: Run, prompt: str, hand_over: bool = True) -> str:
         """Run a session until its run file goes terminal. Returns '' or why it did not.
 
         Every session the driver starts is watched the same way, the closing one included: an
         unbounded wait on a session that quietly died is how a night is lost without anyone
         noticing.
+
+        `hand_over` is what differs. Handing a run to a fresh session is a rule of `ship` and of
+        nothing else, so only a session that is building a feature is ever asked. The closing
+        session has no next session to hand to — it reads every child once and writes one pull
+        request — and asking it would restart the one session in the batch whose context cannot be
+        rebuilt from the run files.
         """
         model = self.model_for(run.state())
         if not self.launcher.start(name, prompt, model):
@@ -401,6 +407,11 @@ class Driver:
         restarts = 0
         nudged = False                            # one word before a restart, once per session
         asked = False                             # the handoff has been asked for, once per session
+        # The note as it stood when the handoff was asked for. Nothing ever clears `handoff`, so a
+        # run that has already been handed over once carries a filled field for the rest of its
+        # life — and "the note has landed" read as "the field is not empty" would fire instantly on
+        # every handoff after the first, killing a live session and passing on a stale note.
+        note_before = ""
 
         def fresh(why: str, event: str) -> bool:
             """Start this run's next session. Everything counted per session starts again with it."""
@@ -441,9 +452,10 @@ class Driver:
             gone = not self.launcher.alive(name)
             tail = read_tail(transcript)
 
-            # The handoff the session was asked for has landed: its note is written, and it has
+            # The handoff the session was asked for has landed: the note is new, and the session has
             # stopped. Take it on to a session that starts near the floor again.
-            if asked and (run.state().get("handoff") or "").strip() and (gone or idle > self.opt.poll):
+            note = (run.state().get("handoff") or "").strip()
+            if asked and note and note != note_before and (gone or idle > self.opt.poll):
                 if fresh(f"{run.slug} carried on in a new session", "handed-off"):
                     continue
                 return "could not start the session that takes the handoff"
@@ -453,9 +465,10 @@ class Driver:
                 # One line, once: what to hand over and how is the session's own business, in
                 # skills/ship/SKILL.md — this program only says when.
                 size = context_size(tail)
-                if not asked and size > self.opt.ceiling * 1000:
+                if hand_over and not asked and size > self.opt.ceiling * 1000:
                     if self.launcher.send(name, HANDOFF_LINE):
                         asked = True
+                        note_before = note
                         run.event("handoff-asked", f"context {size // 1000}k")
                 continue
 
@@ -511,7 +524,11 @@ class Driver:
     def build(self, child: Run) -> str:
         # The child's slug already carries the batch's, and it is what the owner sees in the app.
         name = child.slug[:60]
-        why = self.watch(name, child, self.prompt_for(child))
+        # A child with a `prompt` of its own is not a `ship` — an audit between two waves, a review
+        # — and handing a run on is a rule of `ship` alone. Asking one of those to hand over sends
+        # it to a section of a file it never read, and there is no next session to take it.
+        why = self.watch(name, child, self.prompt_for(child),
+                         hand_over=not (child.state().get("prompt") or "").strip())
         self.launcher.stop(name)
 
         # Judge by the world, not by the exit: a limit at the tail of a feature looks exactly like a
@@ -548,13 +565,17 @@ class Driver:
         return prompt or f"/agent-kit:ship --run {child.dir}"
 
     def audit(self, child: Run, state: dict) -> None:
-        """What a child closed with that it should not have.
+        """What a run closed with that it should not have.
 
         The branch is pushed and reviewed either way, so this does not park the feature and lose the
         rest of the night: it writes the defect into `blockers`, which the closing session reads and
         names in the pull request. A hole a batch reports is recoverable; one nobody noticed is not.
+
+        The batch's own closing goes through here too. Its one rule that a child cannot break is the
+        durable record in `docs/runs/`, which the closing session writes and nothing else would
+        notice the absence of — `.agent-kit/runs/` dies with the machine.
         """
-        defects = run_defects(state)
+        defects = run_defects(state, self.cwd)
         if not defects:
             return
         child.set(blockers=(state.get("blockers") or []) + defects)
@@ -572,7 +593,13 @@ class Driver:
         state = self.run.state()
         children = state.get("children") or []
         if not children:
-            self.run.event("empty", "no children to build")
+            # Nothing to build, and this program is the only thing running: without the hand-back
+            # an `epic` whose next step was started on the wrong file stops here in silence, and
+            # only `--resume` finds it. Judgement about what that means belongs to the session
+            # above; saying so is this program's job.
+            self.run.event("empty", "no children to build — handing back")
+            self.tell(f"{self.run.slug} has no children to build")
+            self.hand_back(state)
             return 1
 
         self.run.set(step="building")
@@ -605,11 +632,16 @@ class Driver:
                 target = instruction.split(None, 1)[1].strip() if " " in instruction else slug
                 self.skip.add(target)
                 self.run.event("control", f"skip {target}")
-            elif instruction.startswith("wait"):
-                self.wait_out(instruction)
             elif instruction == "stop":
                 self.run.event("control", instruction)
                 self.stopping = True
+            elif instruction:
+                # The file is read and deleted whatever it says. An instruction nobody recognised
+                # would then vanish exactly like one that was obeyed, and the owner — who watched
+                # the file disappear — would believe it was.
+                self.run.event("control", f"not recognised, ignored: {instruction[:60]}")
+                self.tell(f"the instruction in `control` was not recognised and did nothing: "
+                          f"{instruction[:60]} — the two words are `skip <slug>` and `stop`")
 
             if self.stopping:
                 child.set(step="skipped")
@@ -640,41 +672,6 @@ class Driver:
         self.close()
         return 0
 
-    def wait_out(self, instruction: str) -> None:
-        """`wait <hours> <question>` — stand still, ask, and then carry on either way.
-
-        A run under `gate: none` records an expensive fork as an assumption rather than losing the
-        night on a phone nobody is holding, and that is right almost always. Almost: one live run
-        never called the real model once, because the key it needed was a manual action and every
-        feature after that point was proved against a stand-in. Some answers change everything
-        after them, and for those the wait is worth its hours.
-
-        The deadline is what keeps it from being the old mistake in new clothes. Time runs out, the
-        question is already in `waiting_on` for the pull request to carry, and the run goes on.
-        """
-        parts = instruction.split(None, 2)
-        try:
-            hours = min(float(parts[1]), self.opt.max_wait)
-        except (IndexError, ValueError):
-            self.run.event("control", f"wait with no hours in it, ignored: {instruction[:60]}")
-            return
-        question = parts[2].strip() if len(parts) > 2 else "no question was written down"
-        self.run.set(waiting_on=question)
-        self.run.event("waiting", f"{hours:.1f}h — {question[:80]}")
-        self.tell(f"{self.run.slug} is waiting {hours:.1f}h for an answer: {question}")
-        deadline = time.time() + hours * 3600
-        while time.time() < deadline:
-            time.sleep(self.opt.poll)
-            if not (self.run.state().get("waiting_on") or "").strip():
-                self.run.event("answered", "the window cleared the question")
-                return
-            if take_control(self.run) == "stop":
-                self.stopping = True
-                return
-        self.run.set(waiting_on=None)
-        self.run.event("waited-out", "no answer — carrying on with what the run decided itself")
-        self.tell(f"{self.run.slug}: nobody answered in {hours:.1f}h, carrying on")
-
     def record_spend(self, built: int) -> None:
         """What this batch cost in the units an owner can use: hours, features, sessions.
 
@@ -695,7 +692,8 @@ class Driver:
     def close(self) -> None:
         """A pull request is judgement, so a session writes it — not this program."""
         name = f"{self.run.slug}-close"[:60]
-        why = self.watch(name, self.run, f"/agent-kit:sprint --close {self.run.dir}")
+        why = self.watch(name, self.run, f"/agent-kit:sprint --close {self.run.dir}",
+                         hand_over=False)
         self.launcher.stop(name)
 
         # Judge the closing session by its step first. Inside an `epic` the batch's `pr` is the run's
@@ -705,6 +703,7 @@ class Driver:
         if state.get("step") in TERMINAL_STEPS or self.run.own_pr(state):
             self.run.set(step="done")
             self.run.event("done", f"pr={state.get('pr')}")
+            self.audit(self.run, self.run.state())
             self.tell(f"the batch is finished, pull request {state.get('pr')}")
             self.hand_back(state)
             return

@@ -8,9 +8,12 @@ Do not replace it with a tidier summary — the throwaway details are exactly wh
 
 The parts are what the interview is shaped by, and they are recorded because a part nobody wrote
 down is invisible to the next session and to `epic`. Five to ten is what a product usually comes to,
-not a limit: a narrow tool has one or two, a large one has more. Each carries the date the owner walked it, or
-`выведена` / `derived` when it was read out of code and documents and never confirmed — `epic`
-reports that count at its gate, and it is the difference between a description somebody agreed to
+not a limit: a narrow tool has one or two, a large one has more.
+
+Each part carries a mark, and the mark stays English like `key:` and `state:` do: `walked: <date>`
+when the owner told you this part, `derived` when it was read out of code and documents and never
+confirmed. The check counts them, `blueprint` offers the walk for the derived ones, and `epic`
+reports the split at its gate — which is the difference between a description somebody agreed to
 and one nobody has read.
 
 Application type decides which surface slots apply: screens for a UI, endpoints for an API,
@@ -31,12 +34,13 @@ build without asking.
 
 ## Parts
 
-<!-- One line each: the name, and what it covers in a few words. Then, after the em dash, either the
-     date the owner walked it in an interview, or that it was derived and not confirmed.
+<!-- One line each: the name, what it covers in a few words, and the mark — `walked: <date>` when
+     the owner told you this part, `derived` when it was read out of the code and never confirmed.
+     The names are in the project's language; the mark is not, because the check counts it.
 
-     - вход и аккаунт — пройдена 2026-08-09
-     - задание — пройдена 2026-08-09
-     - карта тем — выведена из кода, владельцем не подтверждена
+     - вход и аккаунт — регистрация, вход, выход — `walked: 2026-08-09`
+     - задание — чат урока целиком — `walked: 2026-08-09`
+     - карта тем — прогресс по узлам — `derived`
 -->
 
 ## What it is for

@@ -32,9 +32,17 @@ import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 TERMINAL = {"done", "blocked", "skipped"}
+
+# How long a run file may sit untouched and still be read as a run in flight. A run that was
+# abandoned — the server restarted, the driver was killed, nobody ran `--resume` — never reaches a
+# terminal step, and without a limit it arms this hook for ever: every session in the project,
+# the owner's own included, then loses the right to merge until somebody edits JSON by hand. A day
+# is far longer than any gap inside a live run, where the driver writes on every event.
+STALE_AFTER = 24 * 3600
 
 MERGE = re.compile(r"\bgh\s+pr\s+merge\b")
 FORCE = re.compile(r"\bgit\s+push\b[^&|;]*?(?:--force\b|--force-with-lease\b|\s-f\b|\s\+\w)")
@@ -42,13 +50,20 @@ PUSH = re.compile(r"\bgit\s+push\b")
 
 
 def runs_in_flight(root: Path) -> bool:
-    """A run of the kit is happening here — the one condition under which this hook has an opinion."""
+    """A run of the kit is happening here — the one condition under which this hook has an opinion.
+
+    Two things make a run count: it never reached a terminal step, and something wrote to its file
+    recently. The second is what gives the signal an end. Without it one abandoned run disables
+    merging in this project for good, and the fix is a hand editing a file — which is exactly the
+    kind of thing this hook exists to make unnecessary.
+    """
     for path in (root / ".agent-kit" / "runs").glob("*/run.json"):
         try:
             state = json.loads(path.read_text(encoding="utf-8"))
+            age = time.time() - path.stat().st_mtime
         except (OSError, ValueError):
             continue
-        if isinstance(state, dict) and state.get("step") not in TERMINAL:
+        if isinstance(state, dict) and state.get("step") not in TERMINAL and age < STALE_AFTER:
             return True
     return False
 

@@ -8,10 +8,12 @@ a line in a log the agent wrote itself, so it guaranteed nothing while looking l
 
 import importlib.util
 import json
+import os
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -89,6 +91,21 @@ class EventCase(unittest.TestCase):
         code, out = self.run_guard("gh pr merge 42", step="done")
         self.assertEqual(code, 0)
         self.assertEqual(out.strip(), "")
+
+    def test_a_run_nobody_has_touched_for_a_day_is_not_in_flight(self):
+        """A run that was abandoned never reaches a terminal step. Without a limit it arms this
+        hook for ever, and every session in the project — the owner's own included — loses the
+        right to merge until somebody edits the file by hand."""
+        path = self.tmp / ".agent-kit" / "runs" / "x" / "run.json"
+        path.write_text(json.dumps({"slug": "x", "step": "build"}), encoding="utf-8")
+        old = time.time() - 30 * 3600
+        os.utime(path, (old, old))
+        done = subprocess.run(
+            [sys.executable, str(GUARD)], input=json.dumps(
+                {"tool_name": "Bash", "tool_input": {"command": "gh pr merge 42"},
+                 "cwd": str(self.tmp)}),
+            capture_output=True, text=True, timeout=30)
+        self.assertEqual(done.stdout.strip(), "")
 
     def test_another_tool_is_none_of_its_business(self):
         _code, out = self.run_guard("gh pr merge 42", tool="Read")

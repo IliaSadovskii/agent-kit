@@ -1,7 +1,7 @@
 ---
 name: blueprint
 description: The project's knowledge layer — interview the owner and write the documentation the other commands build from: application type and stack, actors, entities, actions, screens, integrations, scenarios, MVP bounds. Run with nothing when you do not know what is wrong: it says what is missing, what is behind the kit's current shape, and what to do about each — or that there is nothing to do.
-argument-hint: "[what to add or reconsider] [--check]"
+argument-hint: "[what to add or reconsider] [--recall [part]] [--check]"
 disable-model-invocation: true
 ---
 
@@ -61,7 +61,8 @@ Then take what it printed, in this order, and stop at the first that applies:
 | no `docs/knowledge/` | this is a first interview. Go to *The interview* |
 | **written by an older kit** | say it in one screen — what the shape is missing and what it is for — and offer to bring it forward — *Knowledge written by an older kit*, below. Do this before any other work: the interview that follows writes into the new shape, and doing it the other way round means writing every entry twice |
 | a slot with no verdict, empty fields, an open `[assumed …]`, a stale `source:` | that is the work list. Say how much of it there is, and start |
-| entries the owner has never walked — parts marked derived | offer the walk, part by part. It is the one gap the check can see and cannot fix |
+| **parts derived rather than walked** — the check counts them: *Parts: 6 recorded, 4 walked, 2 derived* | offer the walk, part by part. It is the one gap the check can see and cannot fix |
+| **no parts recorded at all** — written before the interview followed the product's parts | say it plainly: nothing records which of this product the owner has ever walked. Agree the list of parts first, then offer the walk. Everything already written stays; what is being added is who saw it |
 | nothing | **say so in one line and stop.** Then name what to run instead — usually `/agent-kit:next`, or `/agent-kit:epic` when there are entries still `planned`. An interview invented to fill the silence is the one thing an owner cannot check |
 
 Say the count before you start on any of it. *"Four things are behind, two slots have gaps, and six
@@ -100,7 +101,10 @@ convenience, and what does not survive that translation is what a run has to inv
 questions follow the parts, and the slots are what the answers are written into: one part's telling
 usually fills a screen, several actions and an entity at once.
 
-Six phases:
+Six phases, and **a run is in exactly one of them at a time — say which as you enter it**. An
+interview may span days and sittings; the owner cannot see from the outside whether they are being
+asked about the whole product or about one part of it, and *"this is the parts list, phase two of
+six — the walks come after"* is the difference between an answer and a guess.
 
 1. **The telling.** One open question: what is this, for whom, how does it work. Not a form — follow
    up until you can restate it. On a repository with real code, read the code first and bring your
@@ -127,6 +131,11 @@ Six phases:
    They are recorded in `product.md` and carried on each entry, because a part nobody wrote down is
    invisible to the next session — and to `epic`, which reports at its gate which parts the owner
    walked and which were only derived.
+
+   **Each part carries its mark, and the mark is English wherever the file is written**:
+   `walked: <date>` when the owner told you this part, `derived` when it came out of the code and
+   documents and they have not confirmed it. The names beside them are theirs; the mark is what the
+   check counts, the same way `key:` and `state:` stay English inside translated prose.
 
 3. **Application type and stack.** Versions from the manifests, per-area decisions from the code.
    Then one bounded research pass — delegate it — on what this framework's current major
@@ -324,9 +333,11 @@ one whose pull request has already merged — say so and branch from the default
 
 ## Notes left by runs
 
-A run never stops over the knowledge and never asks it to be rewritten. It leaves a block, carries
-on, and you are the only one who may resolve it — `[assumed …]`, `[found …]`, `[stale …]`,
-`[accepted …]`. **Deleting the block is the resolution**; nothing else in the kit removes one.
+A run never stops over the knowledge and never asks it to be rewritten. It leaves a block and
+carries on — `[assumed …]`, `[found …]`, `[stale …]`, `[accepted …]`. **Deleting the block is the
+resolution**, and who may delete which is one table, in
+`${CLAUDE_PLUGIN_ROOT}/rules/channels.md`: some of these you are the only closer of, and two of
+them a build command with the owner in the room, or the session closing a batch, may also close.
 What each means and how each ends, when the check names one:
 `${CLAUDE_PLUGIN_ROOT}/skills/blueprint/references/blocks.md`.
 

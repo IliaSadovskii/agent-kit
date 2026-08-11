@@ -3,6 +3,82 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.5.0
+
+Twenty findings from an independent read of the eleven releases of 2026-08-11, each checked against
+the one project the kit has ever run on rather than against the reasoning that produced it. The
+whole of it, including two findings that were themselves wrong and the four judgements the live
+project overturned, is in [docs/design/2026-08-11-review.md](docs/design/2026-08-11-review.md).
+
+Six mechanisms shipped that day had a writer and a reader and nobody allowed to close them.
+
+- **`handoff` is emptied by the session that takes it.** Nothing ever cleared it, and two things
+  read the field as a state: the driver, which took *not empty* for *the note has landed* — so every
+  handoff after the first would kill a live session on its next quiet minute and pass on a note
+  about work already finished — and the stop hook, which is silent while a note stands and therefore
+  went silent for the rest of that run. The driver now compares against the note it asked about.
+
+- **`wait` is gone.** An `epic` could stop a batch for hours on a question, and nothing in the kit
+  could ever answer it: the window may not write into a run file, no child's session is alive
+  between batches, and nothing put an answer into `answers`. Every `wait` ran out its hours and
+  arrived where the run would have arrived without it. Its one real case — a manual action that
+  every later feature is proved against a stand-in without — is now what `manual` is for.
+
+- **`manual` is a field.** **Manual actions** is the one section of a pull request the owner is
+  obliged to act on, and it had nothing behind it: the closing session was told to merge lists that
+  did not exist, and `accept` was told both to read them as records and never to read prose.
+  What, where, how you will know it worked, and when. Measured on one run, nineteen were listed and
+  six needed a person — the other thirteen were what made those six unfindable.
+
+- **The mark on a promise the product does not keep now has a remover.** Three files named three
+  different closers of `agent-kit:unmet`, and `ship` — the only one that can do it — was told
+  nothing. It deletes the mark in the commit that makes the promise true.
+
+- **The product's parts are counted.** A part is walked with the owner or derived from the code, and
+  two commands were told to report the difference while nothing produced the number. The mark is
+  `walked: <date>` or `derived`, English inside translated prose like every other mark here; the
+  check counts them, `blueprint` offers the walk, and an `epic`'s gate says how much of the
+  description nobody has ever read — including when no part is recorded at all, which is what a
+  project written before this looks like.
+
+- **A batch that closes without `docs/runs/<slug>.json` is a defect.** It is the only record of what
+  a batch cost that outlives the machine, and the next gate prices a scope from it. The driver asks
+  for it, so forgetting the step is not enough to lose the measurement.
+
+Then the things that were quiet when they should have spoken:
+
+- **A knowledge file the kit ships no template for is named.** Its fields, its shape and its verdict
+  are all keyed off that template, so without one three checks passed it in silence — and
+  `product.md` invites exactly such a file for an API or a CLI.
+- **`--brief` says what it pulled in and what it could not resolve.** Its docstring had promised
+  this and the code did the opposite. Held to the rule `check_references` already uses: naming every
+  unresolved backtick named 22 innocents in one entry on a real project; this names none.
+- **An unrecognised word in `control` is said out loud.** The file is deleted whatever it holds, so
+  a typo used to vanish exactly like an obeyed instruction.
+- **A run with no children hands back** instead of logging one word and exiting, which stopped a
+  whole `epic` in silence.
+- **A run that owed a pull request and closed with no number** is a defect, with the two cutouts
+  that matter: a run that hit a blocker may, and a batch's own file never owed one.
+
+And three that cost nothing and were wrong anyway:
+
+- **Only a `ship` is asked to hand its run over.** Handing on is a rule of that command and of no
+  other. The closing session has nobody to hand to, and restarting it throws away the one context in
+  a batch that cannot be rebuilt from files; a child with a `prompt` of its own — an audit between
+  two waves, a review — was being sent to a section of a file it never read.
+- **A batch's own file carries the model.** Both `sprint` and `epic` said that leaving it empty kept
+  the closing session on the owner's model. Empty means the install's default, and that session
+  writes the pull request.
+- **The guard has an expiry.** One abandoned run — never terminal, nobody resumed it — disabled
+  merging for every session in that project, the owner's own included, until somebody edited JSON.
+
+The rest: `ship` sets an entry's state line straight after opening the pull request and commits it,
+so the tree is clean at `done` and the change rides in the pull request; `epic` distinguishes its
+list of batches from a batch's list of features, and an audit is a child of a batch as
+`finish.md` always said; the batch chapters left `rules/pull-requests.md` for `close.md`, where the
+only session that ever writes one reads them; `epic` checks `tmux` before the gate's screen rather
+than after it; the ceiling in `CLAUDE.md` is no longer a byte count.
+
 ## 2.4.1
 
 Six contradictions this day's own releases introduced, found by a fresh pass that had not taken part

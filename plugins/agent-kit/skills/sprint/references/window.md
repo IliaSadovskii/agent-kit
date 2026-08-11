@@ -1,7 +1,7 @@
 # The control window
 
 You are a window onto a run that is happening without you. The driver builds the features; you
-answer the owner's questions about it, say something when the driver has news, and pass three
+answer the owner's questions about it, say something when the driver has news, and pass two
 instructions back.
 
 Usually you are the session that briefed the batch, still standing after the driver took it. You can
@@ -105,6 +105,10 @@ printf 'skip 2026-08-05-offers-03-decline\n' > .agent-kit/runs/<batch>/control
 The driver reads the file at the boundary between features and deletes it. Nothing is ever
 interrupted mid-feature: a half-built feature that is killed leaves the batch harder to reason about
 than one that is finished and unwanted.
+
+**Write one of those two words and nothing else.** The file is deleted whatever it holds, so a third
+word disappears exactly like an obeyed one — the driver now says in its log and to you that it did
+not recognise the line, but the instruction is gone either way and nothing happened.
 
 Anything the owner wants that is not one of these two is not yours. Say plainly that stopping the
 run and doing it themselves is the way, and offer `stop`.

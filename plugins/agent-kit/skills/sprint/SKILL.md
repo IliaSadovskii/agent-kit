@@ -143,7 +143,7 @@ The batch — `.agent-kit/runs/<date>-<theme>/run.json`:
 
 ```json
 { "slug": "2026-08-05-offers", "command": "sprint", "gate": "owner", "base": "main",
-  "window": "cc-sprint-offers",
+  "window": "cc-sprint-offers", "model": "opus",
   "children": ["2026-08-05-offers-01-create", "2026-08-05-offers-02-accept"] }
 ```
 
@@ -170,10 +170,15 @@ Each feature — `.agent-kit/runs/<batch>-NN-<feature>/run.json`:
   which may be neither; say which you wrote, so a batch composed on one model is not quietly built
   by another.
 
-  **A named model goes to the children and not to the batch's own file.** The children are where
-  effectively all of the cost is — measured on a real night, the closing session was 2M of 73M — and
-  that session writes the pull request and decides what counts as *did not happen*. Leave it on the
-  model the owner is on. If they want it cheaper too, they will say so.
+  **A model the owner named cheaper goes to the children and not to the batch's own file.** The
+  children are where effectively all of the cost is — measured on a real night, the closing session
+  was 2M of 73M — and that session writes the pull request and decides what counts as *did not
+  happen*. If they want it cheaper there too, they will say so.
+
+  **But the batch's own file still gets a `model`, and it is the one you are running on.** Left
+  empty it does not mean *the model the owner is on*; it means whatever this install defaults to,
+  which is what the driver will start the closing session with. The field is read and nothing
+  behind it guesses.
 
 **Every child chains to the previous one.** That is what makes integration a property instead of a
 step: the last branch already holds the batch, and each child's suite runs on everything before it.

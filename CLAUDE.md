@@ -42,10 +42,23 @@ Never guess a value out of prose either. A guessed value holds nobody to anythin
 
 ## The size of `ship` is not the metric
 
-Its whole reading set is ~9k tokens against a run that costs ~15M. What is worth watching is **how
-many mechanisms a run must hold at once** — that is what killed 0.17.0, and it is not measured in
-bytes. The ceiling in [docs/design/2026-08-05-audit.md](docs/design/2026-08-05-audit.md) still
-stands: past ~12k tokens, delete a mechanism rather than trimming an explanation.
+Its whole reading set is ~50k characters against a run that costs ~15M tokens. What is worth
+watching is **how many norms a run must hold at once at its hottest fork** — that is what killed
+0.17.0, and it is not measured in bytes.
+
+The outside work says the same thing. IFScale and ManyIFEval measure instruction-following against
+the **number** of instructions; nothing measures it against bytes. The two numbers this kit has been
+quoting are unfounded and are kept only as smoke alarms: Anthropic's *500 lines of `SKILL.md`* is
+published without a justification, and the 12k-token ceiling was proposed by a model and agreed to
+without a measurement. Neither is a rule to act on.
+
+**Splitting a file is not the tool.** Anthropic warns that a referenced file may go unread, and this
+kit already rejected splitting `blueprint`'s interview for that reason. Two moves are safe and both
+are in the four homes above: a rule that moves **into a program** stops being held at all, and a
+rule that moves **to its only reader** is not a split — the one who reads it reads it every time.
+That is why the batch chapters left `rules/pull-requests.md`: no feature ever opens a batch's pull
+request. Measured while doing it, in
+[docs/design/2026-08-11-review.md](docs/design/2026-08-11-review.md).
 
 ## Conventions
 

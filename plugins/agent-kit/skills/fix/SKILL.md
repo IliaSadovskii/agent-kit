@@ -51,7 +51,8 @@ branch `claude/fix-<slug>` off a freshly pulled default branch.
 
 Keep a run file — `.agent-kit/runs/<slug>/run.json`, the shape in
 `${CLAUDE_PLUGIN_ROOT}/templates/run.json` — but keep it short: `task` in the owner's words, the
-cause once you have it, `suite`, `review`, and whatever the fix left behind. Its fields are a closed
+cause once you have it, `suite`, `review`, `manual` if the fix needs the owner's hands anywhere, and
+whatever else the fix left behind. Its fields are a closed
 list; prose that fits none of them goes in `notes`. A fix that dies mid-session and left no file
 starts again from nothing.
 

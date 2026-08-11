@@ -53,6 +53,11 @@ MARK_RE = re.compile(re.escape(MARK) + r"[:\s]*([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)*
 # A screen the product opens on is reached from nowhere by design; the entry says so in its own
 # words, in the project's language, so this looks for the marker rather than for a sentence.
 ENTRY_POINT_RE = re.compile(r"`entry_point`", re.I)
+# The product's parts, and whether the owner ever walked one. Same reasoning as the marker above:
+# the names are in the project's language and the mark is not, so this counts marks rather than
+# reading a heading that may say anything.
+WALKED_RE = re.compile(r"^\s*[-*]\s+.*\bwalked:\s*(\d{4}-\d{2}-\d{2})", re.M)
+DERIVED_RE = re.compile(r"^\s*[-*]\s+.*\bderived\b", re.M | re.I)
 STATE_LINE_RE = re.compile(r"(`key:\s*%s\s*`\s*·\s*`state:\s*)building \(pr:\s*(\d+)\)(\s*`)")
 
 SLOTS = ("product", "actors", "entities", "actions", "screens", "integrations", "scenarios", "stack")
@@ -569,6 +574,25 @@ def standing(docs: list) -> list:
     return [f"{state}: {count}" for state, count in sorted(counts.items())]
 
 
+def parts(docs: list) -> tuple:
+    """How many parts the product is described in, and how many of them the owner never walked.
+
+    The interview is shaped by the product's own parts, and each is recorded in `product.md` as
+    either walked on a date or derived from the code and never confirmed. Two commands read that:
+    a plain `blueprint` offers the walk, and an `epic`'s gate says how much of the description
+    nobody has ever seen. Both were told to read it and neither had anything to read it with.
+
+    Counted, never named: what a part is called is the owner's language, the mark is not. The
+    template's own examples are inside an HTML comment and are dropped first, or a file copied and
+    not yet filled in would report three parts nobody has.
+    """
+    product = next((d for d in docs if d.slot == "product"), None)
+    if product is None:
+        return 0, 0
+    body = re.sub(r"<!--.*?-->", "", product.text, flags=re.S)
+    return len(WALKED_RE.findall(body)), len(DERIVED_RE.findall(body))
+
+
 def planned(docs: list) -> list:
     """Entries described and not built — named, because a count is nothing to compose a batch from."""
     return [entry.key for doc in docs for entry in doc.entries
@@ -687,33 +711,56 @@ def brief(root: Path, docs: list, key: str) -> int:
         return 2
 
     doc, entry = entries[key]
-    parts = [(f"{MANIFEST}", (root / MANIFEST).read_text(encoding="utf-8")
-              if (root / MANIFEST).is_file() else None),
-             (f"{doc.path.name} — {entry.heading}", entry.body.strip())]
+    sections = [(f"{MANIFEST}", (root / MANIFEST).read_text(encoding="utf-8")
+                 if (root / MANIFEST).is_file() else None),
+                (f"{doc.path.name} — {entry.heading}", entry.body.strip())]
 
     # The actor is in the key itself — `developer.create_offer` is the developer's — and the rest is
     # whatever the entry names in backticks and the knowledge defines: the entities it stores in,
     # the screens it is reached from, the actions it hands to. Its own key is not one of them.
     named = [key.split(".")[0]] if "." in key else []
     named += re.findall(r"`([a-z][a-z0-9_.]*)`", entry.body)
-    named = [k for k in dict.fromkeys(named) if k in entries and k != key]
+    candidates = [k for k in dict.fromkeys(named) if k != key]
+    named = [k for k in candidates if k in entries]
+
+    # What the entry names and the knowledge does not define. Held to the same rule as
+    # `check_references`, and for the same reason: a backticked `a.b` is a key only when `a` is a
+    # declared actor or it is a screen. Everything else with a dot is prose — a column, a config
+    # path, a filename — and a dotless one is as likely to be a status or a field as an entity.
+    # Measured on a real project: this rule names nothing false across 52 entries, and guessing
+    # more widely named twenty-two innocents in one entry.
+    actors = {k for k in entries if "." not in k}
+    missing = [k for k in candidates if k not in entries
+               and (k.split(".", 1)[0] in actors or k.startswith("screen."))]
     for other in named:
         other_doc, other_entry = entries[other]
-        parts.append((f"{other_doc.path.name} — {other_entry.heading}", other_entry.body.strip()))
+        sections.append((f"{other_doc.path.name} — {other_entry.heading}",
+                         other_entry.body.strip()))
 
     stack = root / KNOWLEDGE / "stack.md"
-    parts.append(("stack.md", stack.read_text(encoding="utf-8") if stack.is_file() else None))
+    sections.append(("stack.md", stack.read_text(encoding="utf-8") if stack.is_file() else None))
 
-    missing = []
-    for title, body in parts:
+    absent = []
+    for title, body in sections:
         print(f"\n{'=' * 78}\n== {title}\n{'=' * 78}")
         if body is None:
-            missing.append(title)
+            absent.append(title)
             print(f"[not in this project — {title} does not exist]")
         else:
             print(body)
+
+    # The boundary of this brief, said out loud. Without it a brief that quietly dropped the entry
+    # its entry depends on reads exactly like one where the entry depends on nothing, and the run
+    # designs the missing half itself.
+    print(f"\n{'=' * 78}")
+    print(f"== pulled in: {', '.join(named) if named else 'nothing — this entry names no other'}")
+    print("== a name in backticks that is neither an actor's key nor a screen is not looked up: "
+          "a status, a column and a config path all look the same here")
     if missing:
-        print(f"\nnot found, and read nowhere else: {', '.join(missing)}", file=sys.stderr)
+        print(f"== named by this entry and defined nowhere in {KNOWLEDGE}/: {', '.join(missing)}")
+    print('=' * 78)
+    if absent:
+        print(f"\nnot found, and read nowhere else: {', '.join(absent)}", file=sys.stderr)
     return 0
 
 
@@ -831,6 +878,13 @@ def check_shape(root: Path, docs: list, manifest: dict, report: Report) -> None:
     for doc in docs:
         model = templates / "knowledge" / doc.path.name
         if not model.is_file():
+            # Three checks key off the template: fields, shape, and the verdict this slot needs in
+            # the manifest. A file the kit ships no template for slips all three at once, and the
+            # silence reads as a clean file. The product template itself invites one — endpoints
+            # for an API, commands for a CLI — so this is a road the kit points at and does not pave.
+            report.drift.append(f"{doc.path.name} has no template in this kit — its fields, its "
+                                f"shape and its verdict are all unchecked, and a check that cannot "
+                                f"read a file has to say so rather than pass it")
             continue
         text = model.read_text(encoding="utf-8")
         found = FIELDS_RE.search(text)
@@ -887,31 +941,46 @@ def check_channels(root: Path, report: Report) -> None:
                             f"{named} — a run keeps run.json, run.log and control, and anything else "
                             f"there is a mechanism nothing declared and nothing tracks")
 
+    # A ticked item leaves every future list: `sprint` reads the unticked half and nothing else,
+    # `next` never raises it again. So the number is not there to protect the next batch — it is
+    # the only way anyone can later check that the work behind a tick was really done. A tick on a
+    # guess is work lost silently, which is why the tick is signed.
+    #
+    # `declined` is not a tick of that kind: it is the lens recording that an item was refused, and
+    # no pull request will ever close it. The word stays English wherever the file is written, like
+    # every other mark of this kit.
     audits = root / "docs" / "audits"
-    blind = []
+    blind: dict = {}
     if audits.is_dir():
         for path in sorted(audits.glob("*.md")):
-            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-                if re.match(r"\s*[-*]\s*\[[xX]\]", line) and not re.search(r"#\d+", line):
-                    blind.append(f"{path.name}:{number}")
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if not re.match(r"\s*[-*]\s*\[[xX]\]", line):
+                    continue
+                if re.search(r"#\d+", line) or re.search(r"\bdeclined\b", line, re.I):
+                    continue
+                blind[path.name] = blind.get(path.name, 0) + 1
     if blind:
-        named = ", ".join(blind[:5]) + (f" … and {len(blind) - 5} more" if len(blind) > 5 else "")
+        where = ", ".join(f"{name} ({count})" for name, count in sorted(blind.items()))
         report.drift.append(f"audit items are ticked without naming the pull request that closed "
-                            f"them ({len(blind)}): {named} — the next sprint composes its batch from "
-                            f"this list and cannot check a tick nobody signed")
+                            f"them ({sum(blind.values())}): {where} — a tick takes an item off every "
+                            f"list there is, and the number is what lets anyone check it was really "
+                            f"done. Items ticked before this rule existed are in this count")
 
 
-def run_defects(state: dict) -> list:
+def run_defects(state: dict, root: Path | None = None) -> list:
     """What a run may not close with.
 
-    Two rules that held only as long as a run remembered them at the end of its longest step, and
-    that a program can settle in a millisecond. They are asked at the moment of closing — by the run
+    Rules that held only as long as a run remembered them at the end of its longest step, and that a
+    program can settle in a millisecond. They are asked at the moment of closing — by the run
     itself, and by the driver before it calls a feature built — and nowhere else: a finished run's
     file is history, and telling the next command about it reaches nobody who can act.
 
     Only `done` is judged — and the one other moment a run file has to stand on its own, which is
     the handoff to the session that continues this run. A run that stopped at `blocked` is already
     saying so.
+
+    `root` is the project, and only the rules that have to look at the repository need it: without
+    one they are skipped rather than guessed at.
     """
     out = []
 
@@ -941,7 +1010,7 @@ def run_defects(state: dict) -> list:
     # A field of records filled with sentences reads as answered to a person and is empty to the
     # closing session, the reviewer and this program. Named across the project as drift; here, on
     # the one run that is closing, it is something to put right rather than to notice.
-    for field in ("tasks", "assumptions"):
+    for field in ("tasks", "assumptions", "manual"):
         value = state.get(field) or []
         if isinstance(value, list) and any(not isinstance(item, dict) for item in value):
             out.append(f"`{field}` is written as sentences rather than as records — the template "
@@ -968,6 +1037,23 @@ def run_defects(state: dict) -> list:
     if suite is None or (isinstance(suite, str) and not suite.strip()) or suite in ([], {}):
         out.append("`suite` is empty — nothing says what was run or what it returned, and the pull "
                    "request is written from that field rather than from memory")
+
+    # A run whose own job was to open a pull request, closing without its number. `deliver` is what
+    # decides that and not `command`: a feature inside a batch pushes a branch and stops, and a
+    # batch's own file has no `deliver` at all, so both fall outside this by construction. A run
+    # that hit a blocker is allowed to end without one — it is already saying what went wrong.
+    if state.get("deliver") == "pr" and not state.get("pr") and not (state.get("blockers") or []):
+        out.append("`pr` is empty on a run that delivers one — the branch is pushed and nothing "
+                   "records what it was opened as, so no later command can find it")
+
+    # The batch's own durable record. `.agent-kit/runs/` is git-ignored, so what a batch cost lives
+    # on one machine until this file is written; the gate of the next epic prices its scope from it.
+    # Existence only — what is inside is the closing session's judgement.
+    if root is not None and state.get("command") == "sprint":
+        slug = str(state.get("slug") or "").strip()
+        if slug and not (root / "docs" / "runs" / f"{slug}.json").is_file():
+            out.append(f"docs/runs/{slug}.json was never written — it is the only record of this "
+                       f"batch that outlives the machine, and the next gate prices a scope from it")
 
     return out
 
@@ -1122,6 +1208,18 @@ def print_planned(docs: list) -> None:
     print(f"Planned: {shown}{rest}")
 
 
+def print_parts(docs: list) -> None:
+    """A statement, like the standing above it: an unwalked part is not a defect, it is a fact
+    about how much of the description the owner has actually seen."""
+    walked, derived = parts(docs)
+    if not walked and not derived:
+        print("Parts: none recorded — no line in product.md carries `walked: <date>` or `derived`, "
+              "so nothing says which of this product the owner has ever walked")
+        return
+    print(f"Parts: {walked + derived} recorded, {walked} walked with the owner, {derived} derived "
+          f"from the code and never confirmed")
+
+
 def main(argv: list | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("root", nargs="?", default=".", type=Path)
@@ -1163,7 +1261,7 @@ def main(argv: list | None = None) -> int:
         except (OSError, ValueError) as exc:
             print(f"{path} cannot be read: {exc}", file=sys.stderr)
             return 2
-        defects = run_defects(state if isinstance(state, dict) else {})
+        defects = run_defects(state if isinstance(state, dict) else {}, root)
         if defects:
             print(f"This run cannot close as it stands ({len(defects)}):")
             for line in defects:
@@ -1281,6 +1379,7 @@ def main(argv: list | None = None) -> int:
         if options.status:
             print("Knowledge is clean. " + ", ".join(standing(docs)))
             print_planned(docs)
+            print_parts(docs)
         if options.state:
             print_state(root, options.offline)
         return 0
@@ -1288,6 +1387,7 @@ def main(argv: list | None = None) -> int:
     if options.status:
         print("Standing: " + ", ".join(standing(docs)))
         print_planned(docs)
+        print_parts(docs)
     for group, lines in report.groups.items():
         print(f"\n{group}:")
         for line in lines:

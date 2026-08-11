@@ -32,6 +32,10 @@ The only moment an owner is present, and its whole job is to make the finish lin
 with a thin blueprint still delivers five features; an epic with a thin blueprint has no stopping
 condition at all.
 
+**Check `tmux` is installed before anything else** — `command -v tmux`. Without it the driver cannot
+give a feature its own session, and an epic is nothing but batches of those. Say so now rather than
+after the owner has answered a screen about a run that cannot start.
+
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --epic
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status --state
@@ -100,13 +104,17 @@ building one would cost as a batch of its own, and that without it the finish is
 on a phone rather than a green suite. **Never leave that to be discovered later.** It is one line
 here and a rebuilt plan later, and the owner is standing right there.
 
-**Say how much of the description the owner has actually seen.** `product.md` lists the product's
-parts, each either walked in an interview on a date or derived from code and documents and never
-confirmed. Count them and say it as a fact: *four parts of six you walked; two were derived*. You
-cannot measure whether a description is detailed enough — there is no such signal, and claiming it
-would be the most expensive sentence on this screen. You can say what nobody has read, and on a
-measured run that was the whole failure: the scenarios were written in the same session as the gate,
-nobody walked them, and six of their endings contradicted the product by the finish.
+**Say how much of the description the owner has actually seen.** The check counts it — *Parts: 6
+recorded, 4 walked with the owner, 2 derived* — and you say it as a fact on the screen. You cannot
+measure whether a description is detailed enough; there is no such signal, and claiming it would be
+the most expensive sentence here. You can say what nobody has read, and on a measured run that was
+the whole failure: the scenarios were written in the same session as the gate, nobody walked them,
+and six of their endings contradicted the product by the finish.
+
+**When it says no parts are recorded, that is the fact to say**, not a thing to skip: the
+description was written before the kit asked who had walked what, so nobody can tell which of it
+the owner ever saw. Put it on the screen in one line beside the price, and offer
+`/agent-kit:blueprint` as the way to close it — after this run, not before, unless they want it now.
 
 **Then spend your questions where being wrong is expensive.** Not evenly across the list: rank the
 entries you are about to build by what they touch — stored data first, then permissions, money, a
@@ -129,12 +137,9 @@ request.
 
 ## The run files
 
-**Check `tmux` is installed before the gate's screen** — `command -v tmux`. Without it the driver
-cannot give a feature its own session, and an epic is nothing but batches of those. Say so at the
-gate rather than after the owner has answered.
-
 `.agent-kit/runs/<date>-epic-<slug>/run.json`, shaped like
-`${CLAUDE_PLUGIN_ROOT}/templates/run.json`: `command: "epic"`, `entries` holding the keys the owner
+`${CLAUDE_PLUGIN_ROOT}/templates/run.json`: `command: "epic"`, `step: "gate"` while this screen is
+up, `entries` holding the keys the owner
 took, `children` naming the batches in order, `window` your own tmux session, and `finish` carrying
 what the gate settled — the scope, the wave cap, the batches already delivered. **A resumed run
 reads `finish` instead of asking again**, so anything the gate decided that is not in there is a
@@ -144,16 +149,27 @@ question the owner will be asked twice.
 reaches it writes them, having seen the product built. Empty there means not yet chosen, never
 *nobody decided* — a resumed run before the audit reads it that way and asks nothing.
 
+**`step` on this file is your own phase, and you move it**: `gate` while this screen is up,
+`building` once the first batch is under way, `auditing` when the audit begins, `proving` at the
+scenarios, `done` at the end. No driver watches this file, so nothing depends on it — but a run left
+at a step nobody set is a run whose state has to be reconstructed from its children, and `--resume`
+is not the only reader: the check lists a run that never reached a terminal step, and a person
+looking at that list should see where this one stands.
+
 `model` is the one setting that moves the price of a run rather than trimming its edges, so say
 which you took in the screen, beside the price. Default it to **the model you are running on**; a
 session started without one takes the install's default, which may be neither what you are on nor
 what they asked for.
 
-**A model the owner names goes to the children and not to this run's own file.** The children are
-effectively the whole cost — on a real night the closing session was 2M of 73M — while this file's
-model is what your `--advance` sessions and each batch's closing session run on, and those are the
-ones deciding what follows and what the pull request says. Cheap where the work is, unchanged where
-the judgement is.
+**A cheaper model the owner names goes to the children and not to this run's own file.** The
+children are effectively the whole cost — on a real night the closing session was 2M of 73M — while
+this file's model is what your `--advance` sessions run on, and those decide what follows. Cheap
+where the work is, unchanged where the judgement is.
+
+**Each batch's own file gets a `model` too, and it is the one you are running on.** The driver
+starts a batch's closing session on the model in *that batch's* file and looks nowhere else — not
+here. Left empty it takes the install's default, so the session that writes the pull request would
+run on something nobody chose.
 
 Each batch is an ordinary sprint run file — `command: "sprint"`, `parent` naming this run, children
 with `deliver: "branch"`, `gate: "none"`, chained off each other. Write **only the batch you are
@@ -163,7 +179,7 @@ exist yet.
 The branch is `epic/<slug>`, created once from the default branch. Every batch chains onto it and the
 closing session moves it forward, so there is one branch and one pull request for the whole run.
 
-Then start the driver on the first batch and end:
+Then set `step: "building"` on this file, start the driver on the first batch and end:
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrate.py" .agent-kit/runs/<first batch>/ >/dev/null 2>&1 &
@@ -186,8 +202,8 @@ thing:
 | Where the run is | What you do |
 |---|---|
 | batches left in `children` | write the next one and start the driver on it |
-| the in-list is built | move to the audit, per `${CLAUDE_PLUGIN_ROOT}/skills/epic/references/finish.md` |
-| the audit is done | move to the scenarios, same file |
+| the in-list is built | set `step: "auditing"` and move to the audit, per `${CLAUDE_PLUGIN_ROOT}/skills/epic/references/finish.md` |
+| the audit is done | set `step: "proving"` and move to the scenarios, same file |
 | the scenarios pass | set `step: "done"` and say so in the pull request |
 
 Then end. You are one decision and its consequence, not a supervisor.
@@ -195,33 +211,32 @@ Then end. You are one decision and its consequence, not a supervisor.
 ### What you may change about the run that is left
 
 The gate settled the scope and the wave ceiling. Everything below that is yours, because you have
-seen the product built and the gate had only prose to go on. `children` **is** the queue — the
-driver reads it again before every feature, so editing it is how all of this is done, and there is
-no second file to disagree with it. What has already run is left alone.
+seen the product built and the gate had only prose to go on. **This run's `children` is the list of
+batches, and you are its only reader** — the next `--advance` reads it and decides from it; no
+driver ever looks at this file. A batch's own `children` is a different list, of features, and that
+one the driver does re-read before every child. Keeping them apart matters: a feature slug put into
+this list gets a driver started on it, which finds no children of its own. What has already run is
+left alone.
 
 | What you may do | How |
 |---|---|
-| reorder what is left | move the slugs in `children` |
-| drop a feature | take its slug out and set its own `step: "skipped"`; its entry stays `planned` and the pull request names it |
-| add a feature, a round of fixes, a review | write its run file and put its slug in `children` |
-| add work that is not a `ship` — an audit between two waves | the same, with `prompt` in its run file. This is why the driver reads that field |
-| stand still and ask the owner | write `wait <hours> <question>` into the batch's `control` file |
-| stop the run | `stop` in the same file |
+| reorder what is left | move the slugs in this run's `children` |
+| drop a batch | take its slug out and set its own `step: "skipped"`; its entries stay `planned` and the pull request names them |
+| add a batch — a round of fixes, a review | write its run file, with children of its own, and put its slug here |
+| add work that is not a `ship` — an audit between two waves | it is **a child of a batch**, never a batch: write its run file with `prompt` in it and put its slug in that batch's `children`. This is why the driver reads that field, and `${CLAUDE_PLUGIN_ROOT}/skills/epic/references/finish.md` says the same |
+| stop the run | write `stop` into the current batch's `control` file |
 
-Three ceilings, and they are what keeps a run that can extend itself finite. None of them is a
-judgement call:
+Two ceilings, and they are what keeps a run that can extend itself finite. Neither is a judgement
+call:
 
 - **three waves of audit**, from the gate. A lens that found nothing is not re-run at all;
 - **an inserted child inserts nothing itself.** Work you added because a feature went badly is one
-  level deep, never a chain that grows while it is being worked through;
-- **one `wait` per batch.** A run that stops twice for one absent owner has lost the night the
-  deadline was there to save.
+  level deep, never a chain that grows while it is being worked through.
 
-`wait` is the one that undoes a rule this command otherwise keeps — that nobody is waited for. Use it
-only where the answer changes everything after it, not merely something: a measured run never called
-its real model once, because the key was a manual action and every feature after that point was
-proved against a stand-in. That is what it is for. The deadline is what makes it safe: when it runs
-out the question is already in `waiting_on`, the pull request carries it, and the run goes on.
+**Nobody is waited for, and there is no exception.** An expensive fork becomes a recorded assumption
+and the pull request carries it. A run that stood still for an answer had no way to receive one: the
+window may not write into a run file, no child's session is alive between batches, and the deadline
+always ran out — hours spent to reach the same place.
 
 **And ending your turn does not end your session** — that is the part which reads as obvious and is
 not. Nothing else closes you: the driver that started you exits at the hand-back, and the driver you

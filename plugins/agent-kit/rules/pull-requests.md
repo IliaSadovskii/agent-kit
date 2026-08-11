@@ -94,44 +94,15 @@ effect that nobody ran it at all.
   branch — and a third pass, cold, over tens of thousands of lines returns a list nobody can act on
   before merging.
 
-## Batches
+## A feature inside a batch opens none of its own
 
-A batch — a sprint, or one of an `epic`'s — opens **one** pull request, based on the default branch,
-covering every feature in it. Its features chain off each other, so the last branch already holds
-the batch and there is nothing to merge together first.
+Its branch is pushed, so a pull request for it alone is one
+`gh pr create --base <its base> --head <its branch>` away on the day it is wanted, and the batch's
+own pull request prints that command per feature. Opening them in advance is what caused two merge
+accidents — a feature merged into its parent branch instead of the default one, so nothing reached
+it at all — and a review plugin that declines drafts silently skipping the pass.
 
-A feature inside a batch does not open one of its own. Its branch is pushed, so a pull request for
-it alone is one `gh pr create --base <its base> --head <its branch>` away on the day it is wanted,
-and the batch's own pull request prints that command per feature. Opening them in advance is what
-caused two merge accidents — a feature merged into its parent branch instead of the default one, so
-nothing reached it at all — and a review plugin that declines drafts silently skipping the pass.
-
-The sections above are then composed across features rather than written per feature: one **Manual
-actions** list in the order they must be done, one **Assumptions** table with a column for which
-feature took each, and a **What did not happen** section — parked features and why — before either.
-
-## A run's pull request, rewritten by every batch
-
-An `epic` has one pull request and eleven batches rewrite its body, so **every rule above applies to
-the run, not to the batch that happens to be writing.** Written per batch and appended, the body
-grows with the number of batches instead of with the size of the product. Measured on one real run:
-157 000 characters, of which a quarter was a list of every sentence the run changed in the
-knowledge, a fifth was seventy assumptions in one uncollapsed table, and *What was hard* — three to
-five lines by the rule above — was a hundred and eighty-seven.
-
-So a batch inside a run **replaces** the body rather than adding to it, and four sections are held
-to a size that does not depend on how many batches there have been:
-
-- **What & why** — one line per batch, naming what the product can now do. Not the batch's report:
-  that is its digest comment, which is where a reader goes for *what is new since I last looked*.
-- **What was hard** — the five hardest things in the whole run, chosen again each time. Five per
-  batch is the same rule applied eleven times, which is not the same rule.
-- **Assumptions** — the expensive ones uncollapsed, by name: stored data, permissions, money, a
-  public contract. The rest as one collapsed table with its count. Seventy uncollapsed rows defeat
-  the reason the section is uncollapsed at all.
-- **Knowledge this run corrected** — one line per entry: which entry, what it now says. What it said
-  before goes in the collapsed half. A pull request that edits the description it is judged against
-  must make *that it did* the easiest thing to see, which a six-hundred-line list does not.
-
-Everything a batch knows that does not fit those is already written down twice — in its digest
-comment and in `docs/runs/<slug>.json` — so nothing is lost by keeping it out of the body.
+**How a batch composes its own pull request out of its features, and how an `epic`'s eleven batches
+share one, is in `${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/close.md`** — the file the one
+session that ever does it reads. It is not here because every feature reads this file on every run
+and none of them will ever open a batch's pull request.

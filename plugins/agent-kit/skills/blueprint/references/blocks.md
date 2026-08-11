@@ -1,10 +1,14 @@
 # The blocks runs leave, and how each ends
 
-Read when the check names one and you are about to settle it. Four kinds, four endings, and only
-this command may remove any of them.
+Read when the check names one and you are about to settle it. Four kinds and four endings.
 
-A run never stops over the knowledge and never asks it to be rewritten. It leaves a block, carries
-on, and you are the only one who may resolve it. Four kinds, and each has its own ending:
+**Who may delete which is not here — it is in `${CLAUDE_PLUGIN_ROOT}/rules/channels.md`**, one row
+per block, because three commands can close one between them and a list kept in two places is how
+they came to disagree. What you are the sole closer of, and what a build command with the owner
+present or the session closing a batch may also close, is settled there.
+
+A run never stops over the knowledge and never asks it to be rewritten. It leaves a block and
+carries on. Four kinds, and each has its own ending:
 
 | Block | What it means | What you do with it |
 |---|---|---|
@@ -14,7 +18,7 @@ on, and you are the only one who may resolve it. Four kinds, and each has its ow
 | `[accepted …]` in the slot it names | `advise` proposed it, the owner said yes, and the fields were left for later | nothing to decide — it is already agreed. Interview the fields the record declares, write the entry, delete the block |
 
 The check prints all four before every command. **Deleting the block is the resolution**; there is
-no `resolved` field anywhere, and nothing else in the kit removes one.
+no `resolved` field anywhere.
 
 `[accepted …]` is the one that arrives already answered, so do not re-open it: asking again whether
 the owner wants what they accepted last week is how a list stops being read. If they have changed

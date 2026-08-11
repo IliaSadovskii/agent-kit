@@ -10,8 +10,8 @@ You build nothing and fix nothing. If a feature is broken, it is parked and said
 ## Read first
 
 `run.json` in the batch directory, then each child's `run.json` — approach, assumptions, deviations,
-`review`, `answers`, `unmet`, `deferred`, `closed_debt`, suite, blockers, branch, step, and whatever
-a child left in `notes`. Then `.agent-kit/project.yml` for the language.
+`review`, `answers`, `unmet`, `manual`, `deferred`, `closed_debt`, suite, blockers, branch, step,
+and whatever a child left in `notes`. Then `.agent-kit/project.yml` for the language.
 
 That is your whole source. Do not re-read the code of features you are describing: their run files
 and their commits are the record, and re-deriving it costs more than the batch's own delivery.
@@ -52,15 +52,25 @@ home in the knowledge is also the only work that disappears the day this pull re
 
 ## The pull request
 
-One for the batch, base the default branch, per `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md` —
-the same sections, composed across features and **organised by what could have gone wrong**, not by
-what was done. With the entries written in advance, a batch can only have gone wrong in three
-places, and all three stay uncollapsed at the top:
+**One for the batch**, based on the default branch, covering every feature in it. The features chain
+off each other, so the last branch already holds the batch and there is nothing to merge together
+first. Sections and their order are `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md`; everything below
+is how they are composed across features, which is yours alone — you are the only session that ever
+writes one of these, which is why it is here rather than in a file every feature reads.
+
+Composed across features and **organised by what could have gone wrong**, not by what was done. With
+the entries written in advance, a batch can only have gone wrong in three places, and all three stay
+uncollapsed at the top:
 
 1. **What did not happen** — every parked or skipped feature, and why. A hole in a batch is more
    dangerous than any line of code in it, and it is the first thing a reader must not miss.
-2. **Manual actions** — merged across features into one ordered list. Three migrations are three
-   numbered steps, not three sections the owner assembles in their head.
+2. **Manual actions** — the children's `manual` records, merged into one ordered list by `when`.
+   Three migrations are three numbered steps, not three sections the owner assembles in their head.
+   **From the field, never re-derived from a child's prose**: the list is what the owner will
+   actually go and do, and a paraphrase of it drops the `proof` line that says how they will know
+   it worked. Measured on one run, nineteen actions were listed and six needed a person — the
+   other thirteen were things a script should have done or settings that already worked, and they
+   were what made the six unfindable.
 3. **Assumptions** — one table for the batch: decision, why, which feature, which entry. Expensive
    first, and the children's `deviations` belong in it too: a deviation is an assumption the code
    forced. This is the single place a well-specified batch diverges from what the owner wanted.
@@ -107,6 +117,32 @@ The **Review** section is composed from the children's `review` fields, not from
 verdict, then the findings that were closed and how, then any that were not — a finding a child
 carried to the end without closing is the batch's most important line, and paraphrase is how it gets
 lost. The same for **Assumptions**, whose owner-answered forks come from `answers` word for word.
+
+### Inside an `epic`: one pull request, rewritten by every batch
+
+An `epic` has one pull request and eleven batches rewrite its body, so **every rule applies to the
+run, not to the batch that happens to be writing.** Written per batch and appended, the body grows
+with the number of batches instead of with the size of the product. Measured on one real run:
+157 000 characters, of which a quarter was a list of every sentence the run changed in the
+knowledge, a fifth was seventy assumptions in one uncollapsed table, and *What was hard* — three to
+five lines by the rule — was a hundred and eighty-seven.
+
+So a batch inside a run **replaces** the body rather than adding to it, and four sections are held
+to a size that does not depend on how many batches there have been:
+
+- **What & why** — one line per batch, naming what the product can now do. Not the batch's report:
+  that is its digest comment, which is where a reader goes for *what is new since I last looked*.
+- **What was hard** — the five hardest things in the whole run, chosen again each time. Five per
+  batch is the same rule applied eleven times, which is not the same rule.
+- **Assumptions** — the expensive ones uncollapsed, by name: stored data, permissions, money, a
+  public contract. The rest as one collapsed table with its count. Seventy uncollapsed rows defeat
+  the reason the section is uncollapsed at all.
+- **Knowledge this run corrected** — one line per entry: which entry, what it now says. What it said
+  before goes in the collapsed half. A pull request that edits the description it is judged against
+  must make *that it did* the easiest thing to see, which a six-hundred-line list does not.
+
+Everything a batch knows that does not fit those is already written down twice — in its digest
+comment and in `docs/runs/<slug>.json` — so nothing is lost by keeping it out of the body.
 
 **Review and CI.** Whether a repository-wide `/code-review` belongs on this pull request is settled
 in `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md`, and nowhere else — a batch offers it in its

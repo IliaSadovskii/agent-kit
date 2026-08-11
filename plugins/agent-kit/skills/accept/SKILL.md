@@ -31,9 +31,9 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status --state
 ```
 
 Then the run's own record — `docs/runs/*.json` for the batches, and `.agent-kit/runs/*/run.json`
-while they are still on this machine, for `answers`, `unmet`, `blockers`, `deviations` and whatever
-a child left in `notes`. The pull request is prose; those are records, and where the two disagree
-the record is what happened.
+while they are still on this machine, for `answers`, `unmet`, `manual`, `blockers`, `deviations` and
+whatever a child left in `notes`. The pull request is prose; those are records, and where the two
+disagree the record is what happened.
 
 **Never guess a value out of the prose.** If the body says a suite was green and no run file says
 what it returned, that is a thing you report as unproven, not a thing you round up.
@@ -49,7 +49,9 @@ that is red or a branch with conflicts makes this line, whatever else is in the 
 
 **2. Manual actions, numbered, in the order they must be done.** Each: what to do, where, and **how
 to tell it worked**. A secret goes somewhere and something starts working; say which. These come
-from the batches' own lists merged, not re-derived.
+from the runs' own `manual` records — what, where, `proof`, `when` — merged and ordered, never
+re-derived from the pull request's prose. Where a run file is gone from this machine and only the
+body is left, say that the list is the body's and could not be checked against a record.
 
 **3. What is waiting on a decision.** Every `waiting_on` that timed out, every fork the run took as
 an assumption *because* nobody was there, and anything the body names as the owner's to settle. Each
