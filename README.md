@@ -38,7 +38,7 @@ want a machine that does not sleep either — any server will do. If you would r
 survive reboots and are reachable from the mobile app. The kit does not need it and knows nothing
 about it.
 
-## Commands
+## Describe it
 
 ### `blueprint`
 
@@ -55,11 +55,8 @@ application, and it does not restate documents you already have — it links to 
 
 ### `advise [product | code | money] [area]`
 
-**A look over the whole project: where it is weak, and where it could grow.** Not whether the code
-matches the description — that is `audit`. This one questions the idea itself and the way it is
-built.
-
-Three areas, run separately or all at once:
+**Where the project is weak, and where it could grow.** Not whether the code matches the description
+— that is `audit`. This one questions the idea itself and the way it is built.
 
 | | What it looks for |
 |---|---|
@@ -67,23 +64,36 @@ Three areas, run separately or all at once:
 | `code` | how it is built — where the present approach quietly stops working as the project grows and at what number, and what would make it simpler, harder to break and faster to change, including how long you wait on the tests and the environment |
 | `money` | what it costs to run and what it could earn — what is given away that costs you per use, limits that exist in the plan and nowhere in the code, and what people would pay for that there is no way to pay for |
 
-Each area is looked at twice. Once close up, walking your own files and citing them. Once from a step
-back, thinking about the product the way an outsider would — including a look at what similar
-products do now, on the live web, with links and dates. **Every line in the report says which of the
-two it came from**, so judgement is never dressed up as evidence.
+Each area is looked at twice: close up, walking your own files and citing them, and from a step back,
+including what similar products do now on the live web, with links and dates. **Every line says
+which of the two it came from**, so judgement is never dressed up as evidence. Nothing already
+planned, already found by an audit, already in the debt list or already refused comes up again.
 
-It does not tell you what you already know: nothing already planned, already found by an audit,
-already in the debt list, or already refused in an earlier run.
+Then you say **yes** — and it is written into the description properly while you are still there, so
+`ship` can build it like anything else; **no** — recorded with your reason, and a refusal over a
+number keeps the number, so the next run checks whether it has moved; or **later** — it returns as an
+old question rather than a fresh idea.
 
-At the end it walks you through the findings and you say yes, no, or later:
+## Build it
 
-- **yes** — it is written down properly right there, while you are still in the room: a full entry in
-  the description with its fields filled in, a rule in the stack, or a line in the debt list. From
-  that moment `ship` and `sprint` can build it like anything else;
-- **no** — recorded with your reason, so it never comes up again. If you refused it over a number —
-  *not worth it at four hundred rows* — that number is kept, and the next run checks whether it has
-  moved;
-- **later** — the line stays open and comes back as an old question, not as a fresh idea.
+The same pipeline at three sizes, and one command for repairs. Each designs against the description,
+writes the tests from it, reviews itself and opens a pull request; what differs is how much it takes
+on before it stops asking you anything.
+
+### `epic`
+
+Everything that is left, built while nobody watches, then audited, then proved — one pull request
+you open and click through. The MVP bounds the first time; run it again once those are built and it
+offers what is still planned, or what the project owes, each with its own finish line.
+
+One question, at the start: this scope or narrower, with the price in hours of each. Then it runs in
+batches of about five features, and after every batch the pull request says what now works.
+
+### `sprint <theme>`
+
+Several features briefed in one sitting, then built unattended — each as its own visible session,
+one after another, chained so the batch arrives as a single mergeable pull request. A control
+session stands beside the run to say how it is going and to take *skip* and *stop*.
 
 ### `ship <action key | what to build>`
 
@@ -91,9 +101,7 @@ One feature, one pull request. Designs against the entry, builds, tests, reviews
 
 You are asked only about forks that are expensive to reverse: stored data, public contracts,
 permissions, money. Tests come from the entry and are written before the code. The PR lists what was
-assumed and what was proven.
-
-Also works with no blueprint, from a written task.
+assumed and what was proven. Also works with no blueprint, from a written task.
 
 ### `fix <what is wrong>` · `fix --pr <n>`
 
@@ -102,38 +110,7 @@ is found first, then proved by a test that fails before the change and passes af
 undone once to watch that test fail again. It changes the least that makes it pass; the tidy-up next
 to it goes to the ledger.
 
-### `sprint <theme>`
-
-Several features briefed in one sitting, then built unattended — each as its own visible session,
-one after another, chained so the batch arrives as a single mergeable pull request. A control
-session stands beside the run to say how it is going and to take *skip* and *stop*.
-
-### `epic`
-
-A whole scope, built while nobody watches, then audited, then proved — one pull request you open and
-click through. The MVP bounds the first time; run it again once those are built and it offers what
-is still planned, or what the project owes, each with its own finish line.
-
-It asks one question, at the start: this scope, or narrower, with the price in hours of each. After
-that it runs in batches — each a sprint of about five features — and after every batch the pull request says
-what now works. It owns no build logic of its own: it composes the batches and the same driver,
-`ship` and closing session do the rest.
-
-### `accept [pull request number]`
-
-For the moment a long run has ended and its pull request is too big to read. It reads the
-description, the run files and the state — never the diff, which was reviewed twice already — and
-answers in the order you act: can this be merged, what needs your hands and how to tell each step
-worked, what is still waiting on you and which side to take, what was decided without you, what is
-not proven or was never exercised at all, and how to open it without disturbing anything.
-
-Changes nothing. Run it before merging, and again after, when it becomes the list of what to go and do.
-
-### `next`
-
-For a session opened after a break: where the project stands, what is in the way, and the one command
-to run, with the reason. Reads branches, pull requests and their CI, runs left mid-flight, the debt
-and the audits; changes nothing but the bookkeeping it has just verified.
+## Check it
 
 ### `audit [lens] [area]`
 
@@ -154,16 +131,33 @@ Changes nothing.
 - `audit tests moderation` — narrowed to an area
 - `audit "why is moderation slow"` — says which lens it understood, then runs it
 
-Every run also checks the code for surfaces the description does not have, and the reverse. Findings
-carry the file and line proving them, so a verdict can be checked in ten seconds. The list lives in
-`docs/audits/<lens>.md`, grouped into batches of one `ship` run each; mark an item declined and later
-runs leave it alone.
+Findings carry the file and line proving them, so a verdict can be checked in ten seconds. The list
+lives in `docs/audits/<lens>.md`, grouped into batches of one `ship` run each; mark an item declined
+and later runs leave it alone.
+
+### `accept [pull request number]`
+
+For the moment a long run has ended and its pull request is too big to read. It reads the
+description, the run files and the state — never the diff, which was reviewed twice already — and
+answers in the order you act: can this be merged, what needs your hands and how to tell each step
+worked, what is still waiting on you, what was decided without you, and what is not proven or was
+never exercised at all.
+
+Changes nothing. Run it before merging, and again after, when it becomes the list of what to go and do.
+
+## Find your bearings
+
+### `next`
+
+For a session opened after a break: where the project stands, what is in the way, and the one command
+to run, with the reason. Reads branches, pull requests and their CI, runs left mid-flight, the debt
+and the audits; changes nothing but the bookkeeping it has just verified.
 
 ## Order of work
 
 | You have | Order |
 |---|---|
-| an idea | `blueprint` → `advise` → `epic` → `sprint` |
+| an idea | `blueprint` → `advise` → `epic` → `accept` |
 | a half-built skeleton | `blueprint` → `audit` → `ship` / `sprint` |
 | a finished application | `blueprint` → `audit` → `advise` → `sprint` → `fix` |
 | no idea where you stopped | `next` |
@@ -173,6 +167,9 @@ overnight. After `ship` it is redundant.
 
 `advise` pays best at two moments: straight after `blueprint`, while nothing is built and changing
 your mind is free; and after a sprint, when the product is real enough to be judged honestly.
+
+`accept` comes after any run long enough that its pull request stopped being readable — usually an
+`epic`, sometimes a large `sprint`.
 
 `ship`, `fix` and `sprint` work with no blueprint at all, from a written task — a project's first
 command should not be an hour of interview. `epic` requires one, because bounds are what tell it when

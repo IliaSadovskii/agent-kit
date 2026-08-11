@@ -3,6 +3,18 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.0.1
+
+- **Both READMEs group the commands by what you are doing, not as one flat list of nine.** Describe
+  it (`blueprint`, `advise`), build it (`epic`, `sprint`, `ship`, `fix`), check it (`audit`,
+  `accept`), find your bearings (`next`) — and the build group opens by saying that the first three
+  are one pipeline at three sizes, so nobody has to infer it from nine descriptions. Within it they
+  run largest first, because *what do I type to get this built* is the question the front door is
+  there to answer. `accept` joins the order-of-work table, where it was missing.
+
+  The two longest descriptions lost about a third of their prose without losing a rule: `advise` and
+  `audit` keep their tables, which are the part that is read.
+
 ## 2.0.0
 
 - **`mvp` is now `epic`.** The command stopped being about the MVP in 1.4.0, when it took a scope:
