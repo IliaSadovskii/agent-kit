@@ -63,8 +63,9 @@ outcome — say what you are taking and in what order, and start.
 What is worth asking, when it applies:
 
 1. **Composition** — which items of a long list are taken now. Propose a set that is one topic.
-2. **Order and collisions** — which features touch the same ground, and therefore which must follow
-   which.
+2. **Order and collisions** — which features touch the same ground. Two that do are not thereby
+   dependent: everything chains anyway. What you are after is the narrower thing — a feature that
+   cannot be built until another exists — and that is what goes in `needs`.
 3. **A fork found early** — an entry that stores something, crosses a contract, moves a permission
    boundary or touches money without saying how. Overnight that becomes an assumption and then a
    migration; ask it now, with a recommendation.
@@ -153,6 +154,25 @@ The batch — `.agent-kit/runs/<date>-<theme>/run.json`:
 as a notification. Take it from `tmux display-message -p '#{session_name}'` and leave the field out
 if that fails, because a run with no narrator is fine and a wrong address is not.
 
+**The first child of a batch of three or more is the frame**, and it is not a feature:
+
+```json
+{ "slug": "2026-08-05-offers-00-frame", "command": "ship", "step": "queued", "gate": "none",
+  "branch": "claude/2026-08-05-offers-frame", "deliver": "branch", "needs": [],
+  "prompt": "Read ${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/frame.md and follow it. Your run: .agent-kit/runs/2026-08-05-offers-00-frame. The batch: .agent-kit/runs/2026-08-05-offers" }
+```
+
+It reads the batch's entries and the code where two of them meet, and leaves two things: what these
+features must build alike, as a `[frame …]` block under `stack.md` where every `ship` already reads
+it — and the map of which feature cannot be built without which, which the driver turns into the
+queue. It writes no product code: the features do not exist yet, so a scaffold built for them in
+advance is built against a guess, and the third feature is where that is discovered.
+
+**Two features do not need one**, and neither does a batch composed of one topic the owner has
+already ordered — say so and skip it. What it costs is one session; what it buys is that five runs
+do not each invent their own answer to the same question, and that a feature blocked at three in
+the morning stops only the features that actually needed it.
+
 Each feature — `.agent-kit/runs/<batch>-NN-<feature>/run.json`:
 
 - `command: "ship"`, plus `entries` or a `task`. Fill `approach` and `tasks` **only if the owner
@@ -160,9 +180,15 @@ Each feature — `.agent-kit/runs/<batch>-NN-<feature>/run.json`:
 - `gate: "owner"` when the owner said they are reachable, `"none"` when they did not. That one field
   decides whether a child waits on an expensive fork or records it as an assumption.
 - `branch: "claude/<feature-slug>"`.
-- `base` and `parent` — **the previous feature in the list**, always: its branch and its run slug,
-  whether or not this feature depends on it. The first child takes the batch's `base` and
-  `parent: null`.
+- `base` and `parent` — the first child takes the batch's `base` and `parent: null`; for the rest,
+  write the previous feature in the list and leave it at that. **The driver moves both to the last
+  feature it actually built** before it starts a child, so a blocked feature does not leave the ones
+  behind it pointing at a branch that was never pushed.
+- `needs` — which other features in this batch this one cannot be built without, by slug. Write it
+  only where you know: the owner said so, or one entry plainly stores what another reads. Otherwise
+  **leave the field out** — the frame child fills it, and until something does, the driver assumes
+  the feature before it in the queue, which is what a chained batch has always meant. `[]` says
+  somebody looked, so do not write it as a guess.
 - `deliver: "branch"` — a feature inside a batch pushes and stops; the batch gets one pull request.
 - `step: "queued"`.
 - `model` — **the model you are running on**, unless the owner named another, in the invocation or
@@ -180,10 +206,14 @@ Each feature — `.agent-kit/runs/<batch>-NN-<feature>/run.json`:
   which is what the driver will start the closing session with. The field is read and nothing
   behind it guesses.
 
-**Every child chains to the previous one.** That is what makes integration a property instead of a
-step: the last branch already holds the batch, and each child's suite runs on everything before it.
-Its cost is that a feature cannot be dropped out of the middle afterwards — it is amended or
+**Every child chains onto the last one built.** That is what makes integration a property instead of
+a step: the last branch already holds the batch, and each child's suite runs on everything before
+it. Its cost is that a feature cannot be dropped out of the middle afterwards — it is amended or
 reverted by a commit.
+
+The chain and `needs` answer two different questions, and keeping them apart is the point. The chain
+says **what a feature is built on top of**, and it is always everything so far. `needs` says **what
+a feature cannot be built without**, and it is usually much less, often nothing.
 
 Add `.agent-kit/runs/` to `.gitignore` if it is not there.
 

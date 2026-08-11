@@ -937,6 +937,79 @@ class CheckCase(unittest.TestCase):
         batch = {"command": "sprint", "step": "done", "suite": "green", "pr": None}
         self.assertFalse(any("`pr` is empty" in line for line in check.run_defects(batch)))
 
+    # ---- the one evidence that a test can fail ------------------------------------------------
+
+    def mutate_declared(self, command="make mutate"):
+        path = self.root / ".agent-kit" / "project.yml"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"commands:\n  test: make test\n  mutate: {command}\n", encoding="utf-8")
+
+    def test_a_project_that_can_prove_its_tests_and_a_run_that_did_not(self):
+        self.mutate_declared()
+        state = {"command": "ship", "step": "done", "suite": "green", "deliver": "branch"}
+        defects = check.run_defects(state, self.root)
+        self.assertTrue(any("`mutation` is empty" in line for line in defects))
+
+    def test_a_run_that_says_why_it_could_not_is_answered(self):
+        """Not the numbers — the field being answered. A tool that would not start is a result;
+        silence is what must not read like a pass."""
+        self.mutate_declared()
+        for mutation in ({"killed": 12, "survived": 1},
+                         {"why": "infection exits 127 here", "command": "vendor/bin/infection"}):
+            state = {"command": "ship", "step": "done", "suite": "green", "deliver": "branch",
+                     "mutation": mutation}
+            self.assertEqual(check.run_defects(state, self.root), [], repr(mutation))
+
+    def test_an_excuse_with_no_command_behind_it_is_the_cheap_path(self):
+        """`why` on its own costs nothing to write and reads like a result. The command that was
+        actually run is the smallest artefact not running the tool does not produce."""
+        self.mutate_declared()
+        state = {"command": "ship", "step": "done", "suite": "green", "deliver": "branch",
+                 "mutation": {"why": "the tool would not start"}}
+        self.assertTrue(any("`mutation` is empty" in line
+                            for line in check.run_defects(state, self.root)))
+
+    def test_the_templates_own_empty_mutation_object_is_not_an_answer(self):
+        """What is on disk is the template's four nulls, not a missing key."""
+        self.mutate_declared()
+        template = json.loads(
+            (ROOT / "plugins" / "agent-kit" / "templates" / "run.json").read_text(encoding="utf-8"))
+        template.update({"step": "done", "suite": "green", "deliver": "branch", "pr": 21})
+        self.assertTrue(any("`mutation` is empty" in line
+                            for line in check.run_defects(template, self.root)))
+
+    def test_a_child_that_is_not_a_ship_is_asked_for_neither(self):
+        """The frame child and an audit between waves have no suite and no code to mutate. Asked
+        anyway, every batch of three or more closes with two defects that are not defects."""
+        self.mutate_declared()
+        state = {"command": "ship", "step": "done", "deliver": "branch", "suite": None,
+                 "prompt": "Read .../references/frame.md and follow it"}
+        self.assertEqual(check.run_defects(state, self.root), [])
+
+    def test_a_manifest_that_cannot_be_read_does_not_take_the_driver_down(self):
+        """`run_defects` runs after every child, all night, with no `try` above it."""
+        path = self.root / ".agent-kit" / "project.yml"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        state = {"command": "ship", "step": "done", "suite": "green", "deliver": "branch"}
+        path.write_bytes(b"commands:\n  mutate: \xff\xfe not utf-8\n")
+        self.assertEqual(check.run_defects(state, self.root), [])
+        path.write_text("commands: make all\n", encoding="utf-8")   # a scalar where a map is meant
+        self.assertEqual(check.run_defects(state, self.root), [])
+
+    def test_a_project_with_no_such_command_is_not_asked_for_one(self):
+        path = self.root / ".agent-kit" / "project.yml"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("commands:\n  test: make test\n  mutate:\n", encoding="utf-8")
+        state = {"command": "ship", "step": "done", "suite": "green", "deliver": "branch"}
+        self.assertEqual(check.run_defects(state, self.root), [])
+
+    def test_a_batch_is_not_asked_to_prove_anything_itself(self):
+        self.mutate_declared()
+        (self.root / "docs" / "runs").mkdir(parents=True)
+        (self.root / "docs" / "runs" / "b.json").write_text("{}", encoding="utf-8")
+        state = {"command": "sprint", "slug": "b", "step": "done", "suite": "green", "pr": 21}
+        self.assertEqual(check.run_defects(state, self.root), [])
+
     def test_a_batch_that_left_no_durable_record(self):
         state = {"command": "sprint", "slug": "2026-08-05-offers", "step": "done",
                  "suite": "green", "pr": 21}

@@ -1,6 +1,6 @@
 # The blocks runs leave, and how each ends
 
-Read when the check names one and you are about to settle it. Four kinds and four endings.
+Read when the check names one and you are about to settle it. Five kinds and five endings.
 
 **Who may delete which is not here — it is in `${CLAUDE_PLUGIN_ROOT}/rules/channels.md`**, one row
 per block, because three commands can close one between them and a list kept in two places is how
@@ -8,7 +8,7 @@ they came to disagree. What you are the sole closer of, and what a build command
 present or the session closing a batch may also close, is settled there.
 
 A run never stops over the knowledge and never asks it to be rewritten. It leaves a block and
-carries on. Four kinds, and each has its own ending:
+carries on. Five kinds, and each has its own ending:
 
 | Block | What it means | What you do with it |
 |---|---|---|
@@ -16,9 +16,15 @@ carries on. Four kinds, and each has its own ending:
 | `[found …]` under `stack.md` | a ready-made answer the library map does not name | confirm it belongs, add the package and what it covers to the library map, delete the block |
 | `[stale …]` under the entry | the feature that shipped made the entry's prose false | nothing to ask: rewrite the prose to what is true now, delete the block |
 | `[accepted …]` in the slot it names | `advise` proposed it, the owner said yes, and the fields were left for later | nothing to decide — it is already agreed. Interview the fields the record declares, write the entry, delete the block |
+| `[frame …]` under `stack.md` | a batch settled how its features would build alike, with nobody present | **only once that batch has merged**: it is what the code standing there actually does. Read it against the code, fold what held into the decisions per area, delete the block. What the features departed from is not folded in — say so, and it is the owner's to settle |
 
-The check prints all four before every command. **Deleting the block is the resolution**; there is
+The check prints all five before every command. **Deleting the block is the resolution**; there is
 no `resolved` field anywhere.
+
+`[frame …]` is the one that is **in force while it stands**, so it is not a queue to be drained: a
+run that opens the map obeys it. Leaving one open costs nothing but a line in the map that is not
+in the map yet; deleting one before its batch has merged costs every later run the reason its code
+looks the way it does.
 
 `[accepted …]` is the one that arrives already answered, so do not re-open it: asking again whether
 the owner wants what they accepted last week is how a list stops being read. If they have changed

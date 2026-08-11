@@ -173,7 +173,9 @@ later feature the history of all the earlier ones.
 Otherwise read the code the entry touches — including the callers and the stored data of everything
 you will alter, because a feature that quietly moves a neighbour's behavior is the most expensive
 thing an unattended run can produce. Then settle the approach. Reach for the library map in
-`stack.md` before writing anything yourself, and stay inside the stances it records. Name the seams
+`stack.md` before writing anything yourself, and stay inside the stances it records — including a
+`[frame …]` block at its end, which is what the other features of this batch are being built to and
+is therefore binding whether or not you would have chosen it. Name the seams
 the tests will sit at: prefer seams the project already has, take the highest one that can still see
 the behavior, and keep the count as low as the feature allows.
 
@@ -258,7 +260,20 @@ language.
 2. **Run the project's declared suite once**, from `project.yml` → `commands` — whatever it
    declares there: `test`, `lint`, and `types` where the project has one. A type error is a failing
    test. Fix the product; never weaken an assertion for green output.
-3. **Start the app** with `project.yml` → `commands.run` **and exercise what changed**, when the
+3. **Prove the tests can fail** — `project.yml` → `commands.mutate`. It changes the product's own
+   logic in small valid ways and reports how many of those the suite noticed, which is the one
+   thing here that is not your own word for it. Substitute `{files}` in that command with what
+   this feature changed — `git diff --name-only <base>...HEAD` — then copy `killed` and `survived`
+   into `mutation`. No such command, or it would not start: write `why` **and** the command you
+   ran. Never left empty on a finished run, because a run that skipped this and a run that passed
+   it must not read alike.
+
+   **A survivor is a finding, not a blocker.** Some changes alter nothing anybody could observe, so
+   chasing every one costs more than the tests are worth. Say how many survived and where; if one
+   of them is on a line of the entry, that line is not covered whatever the coverage says, and it
+   is worth the test before you go on.
+
+4. **Start the app** with `project.yml` → `commands.run` **and exercise what changed**, when the
    feature has a surface a person can reach. A
    green suite on an app that does not start is exactly what this catches. Say so when there is no
    such surface. Either way it goes into `suite` beside the test and lint results — what you opened

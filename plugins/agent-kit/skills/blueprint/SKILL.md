@@ -148,6 +148,14 @@ six — the walks come after"* is the difference between an answer and a guess.
    keep. The template says what to look for, and a project with several suites gets a line each.
    Leaving it blank costs a build command an invented answer at midnight.
 
+   **And `commands.mutate`, in the same breath**, because it is the same research: whether this
+   ecosystem has an off-the-shelf way to change the product's logic in small valid ways and count
+   what the suite noticed. The template names one per ecosystem. It is worth proposing rather than
+   asking about — the owner is unlikely to have one already, and every run after this is otherwise
+   taking its own word for it that a test can fail. Bound it to the changed files, and leave it
+   empty where nothing fits: a run then says the step did not happen, which is honest, where a
+   whole-project command that takes an hour is a step every night quietly skips.
+
    **And ask what runs the scenarios end to end** — the one testing question a draft cannot answer.
    Everything else in the testing section is derived: the layers, the seams, the bar all come from
    the code and the manifests. A harness that does not exist yet is invisible to that, so silence
@@ -334,7 +342,7 @@ one whose pull request has already merged — say so and branch from the default
 ## Notes left by runs
 
 A run never stops over the knowledge and never asks it to be rewritten. It leaves a block and
-carries on — `[assumed …]`, `[found …]`, `[stale …]`, `[accepted …]`. **Deleting the block is the
+carries on — `[assumed …]`, `[found …]`, `[stale …]`, `[accepted …]`, `[frame …]`. **Deleting the block is the
 resolution**, and who may delete which is one table, in
 `${CLAUDE_PLUGIN_ROOT}/rules/channels.md`: some of these you are the only closer of, and two of
 them a build command with the owner in the room, or the session closing a batch, may also close.
@@ -346,7 +354,7 @@ minutes rather than hours.
 
 ## What `--check` does
 
-Mechanical only, in seconds: states, fields, references, orphans, sources, stack age, the four kinds
+Mechanical only, in seconds: states, fields, references, orphans, sources, stack age, the five kinds
 of block, verdicts, unmet promises, debt, and whether this project's knowledge is behind the shape
 the templates ship. Silent when clean, exit code 1 when not — except unmet promises and the older-kit
 statement, which are listed whenever they exist and change no code, because neither is a defect in

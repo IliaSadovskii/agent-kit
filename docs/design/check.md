@@ -24,7 +24,7 @@ enough to run ahead of everything.
 - **Sources.** For every `source:`, the file and heading exist and the hash still matches.
 - **Stack age.** The direct dependency manifests against their recorded hash; and
   `stack_researched` past six months, named once.
-- **Notes.** Count the `[assumed …]`, `[found …]`, `[stale …]` and `[accepted …]` blocks and list
+- **Notes.** Count the `[assumed …]`, `[found …]`, `[stale …]`, `[accepted …]` and `[frame …]` blocks and list
   them.
 - **Verdicts.** Slots with no verdict in `project.yml`.
 - **Unmet promises.** Every test carrying `agent-kit:unmet` outside `docs/`, with the entry it

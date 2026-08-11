@@ -36,6 +36,7 @@ until 0.44.0.
 |---|---|---|---|---|---|
 | a decision the knowledge did not settle, expensive to reverse | `ship`, `fix` | `[assumed …]` block under the entry | the check, before every command | `blueprint` — asks it as a yes-or-no, rewrites the entry, deletes the block | in a `blueprint` session, or in the preflight of the next command to touch that entry, when the owner answers there |
 | a ready-made answer the library map does not name | `ship`, `fix` | `[found …]` block under `stack.md` | the check, before every command | `blueprint` — folds it into the map and deletes the block | in a `blueprint` session |
+| how a batch's features will build alike, settled with nobody present | a batch's frame child | `[frame …]` block under `stack.md` | the check, as a statement — it is in force, not waiting | `blueprint`, once the batch has merged and the code can be read against it | in a `blueprint` session |
 | the entry promises what the product does not do | `ship` | `agent-kit:unmet` on a test, plus `unmet` in the run file | the check lists it; `sprint` with no theme offers it as a batch | the owner picks the side; then `ship` makes it true and unmarks, or `blueprint` rewrites the entry and `ship` deletes the test | in a `sprint` composed of unkept promises |
 | what a run built made the entry's prose false | `ship`, `fix` | `[stale …]` block under the entry | the check, before every command | `blueprint` — rewrites the prose and deletes the block | the batch's closing session applies it in the pull request; otherwise the preflight of the next command to touch that entry, or a `blueprint` session |
 | work understood and not done | `ship`, `fix` | a line in `docs/technical_debt.md` | the check counts it; `sprint` with no theme offers it | whoever does that work — `ship`, `fix`, or `blueprint` where the work was prose — deleting the line in the same commit | in the commit that does the work |
@@ -58,6 +59,7 @@ because each was added on its own and nobody looked at the column.
 | `docs/knowledge/*.md` — prose | `blueprint` decides it. `ship`, `sprint` and a batch's closing session may transcribe: the owner's answer to an open block, or a `[stale …]` block that already states both halves | never a change to what an entry requires — that is the decision the rule exists to protect |
 | `docs/knowledge/*.md` — an entry's `state:` line | `ship`, the closing session, and `next` via `check.py --sync` | `building (pr: n)` when a pull request opens; `built` or back to `planned` from a merged or closed one. Every run of the check says when a line is behind; only `--sync` moves it |
 | `docs/knowledge/*.md` — `[assumed …]`, `[found …]` and `[stale …]` blocks | `ship`, `fix` | a block under the entry they stood in for; deleted by whoever applies it — `blueprint`, a preflight with the owner present, or the closing session for a `[stale …]` |
+| `docs/knowledge/stack.md` — a `[frame …]` block | a batch's frame child | one line per agreement, each checkable against a diff and carrying its reason; deleted by `blueprint` after the batch merges |
 | `docs/technical_debt.md` | `ship`, `fix`, the closing session, and `blueprint` for a line whose work was prose | a line appended, or a finished line deleted; never a ticked box |
 | `docs/audits/<lens>.md` | `audit` | the lens's own work list, rewritten whole on each run |
 | `docs/audits/<lens>.md` — the boxes | the closing session, `next` | `- [x]` on an item verified as done, and nothing else in that commit |
@@ -99,9 +101,10 @@ marked, the run file names it → the check lists it for ever → `sprint` with 
 sees the lens is stale or the list is long → `sprint` composes a batch → the work is done → the
 closing session or `next` ticks the boxes → the next run of that lens rewrites the file. Closed.
 
-**6. The night.** The brief writes the run files → the driver builds each child → each child records
-into its own run file → the closing session reads every run file and writes one pull request → the
-owner merges. Closed, and everything the children knew that did not reach the pull request is gone
+**6. The night.** The brief writes the run files → the frame child settles what the batch builds
+alike, under `stack.md`, and what needs what → the driver orders the queue by that and builds each
+child → each child records into its own run file → the closing session reads every run file and
+writes one pull request → the owner merges. Closed, and everything the children knew that did not reach the pull request is gone
 by design.
 
 ## Where the loop did not close, and what was done

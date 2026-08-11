@@ -176,6 +176,13 @@ with `deliver: "branch"`, `gate: "none"`, chained off each other. Write **only t
 about to start**: a batch composed three phases ahead would be composed against code that does not
 exist yet.
 
+**Every batch of three or more opens with a frame child**, written exactly as
+`${CLAUDE_PLUGIN_ROOT}/skills/sprint/SKILL.md` writes one, under *Write the run files* — the JSON
+is there and is not repeated here. It matters more here than it does in a sprint and for
+both of its halves: nobody is present at any point of this run, so the questions two features would
+each answer differently are answered once instead of twice; and an epic is long enough that a
+session dying in the middle of one batch would otherwise take the rest of the batch with it.
+
 The branch is `epic/<slug>`, created once from the default branch. Every batch chains onto it and the
 closing session moves it forward, so there is one branch and one pull request for the whole run.
 

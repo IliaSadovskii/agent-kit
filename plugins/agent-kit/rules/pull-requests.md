@@ -64,7 +64,11 @@ what is thin, and that nothing they just read depends on them remembering it.
   answer and never the two answers before it — and it is what tells the owner whether the ground
   here is solid or was made to hold by one careful decision.
 - **Proven** — which of the entry's lines have a test, what the suite returned, and whether the app
-  was started and exercised. Name what is *not* proven and why. A feature that says it is unproven
+  was started and exercised. Name what is *not* proven and why. **And what `mutation` says**: how
+  many changes to the product's own logic the suite caught and how many it slept through, or that
+  the step did not run and why. Everything else in this section is a green tick reporting on
+  itself; that pair of numbers is the only line in a pull request that says the tests would have
+  noticed. A feature that says it is unproven
   in one line is fine; one that looks proven and is not is the failure this section exists against.
   Tests left marked unmet go here in their own short list — the promise, the test that proves it
   absent, and what would have to change in the product. Never collapsed: a green suite that carries

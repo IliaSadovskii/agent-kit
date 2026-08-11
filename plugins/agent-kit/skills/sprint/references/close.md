@@ -42,6 +42,14 @@ A `git checkout` in the project's own directory pulls the working tree out from 
 still building in it. This line is what stops that at three in the morning; name a free port too if
 the project already has an instance running.
 
+**The frame child is not a feature and gets no row anywhere it would look like one** — no entry, no
+tests, no diff of its own beyond one block. What it owes the reader is one line near the top: what
+this batch agreed to build alike, quoted from the `[frame …]` block, because that block is in this
+pull request's diff and nothing else in the body accounts for it. Fill its `pr: ?` in with this
+pull request's number, in the commit that moves the ledger — `blueprint` closes the block months
+later, when the run directory is long gone, and the number in it is the only way anybody can then
+tell whether the batch behind it ever merged.
+
 A child that was parked mid-feature keeps its branch pushed, out of the chain, and is named in the
 report as unfinished work rather than merged silently.
 
@@ -76,8 +84,9 @@ uncollapsed at the top:
    forced. This is the single place a well-specified batch diverges from what the owner wanted.
 
 Then **Proven**: a row per feature naming which of the entry's lines have a test, what the suite
-returned, and what is *not* proven — plus the batch-level fact that the product's end-to-end
-scenarios were not run here.
+returned, its `mutation` — how many changes to the product's logic the tests caught, how many they
+slept through, or that the step did not run — and what is *not* proven, plus the batch-level fact
+that the product's end-to-end scenarios were not run here.
 
 Inside it, uncollapsed, **the promises this batch did not keep**: every line of every child's
 `unmet`, with the entry, what the code does instead, and which feature met it. A batch that ends

@@ -327,6 +327,361 @@ class DriverCase(unittest.TestCase):
         self.assertEqual(self.step("b"), "blocked")
 
 
+class NeedsCase(DriverCase):
+    """What a failed feature takes with it, and what it does not.
+
+    Before `needs` existed every child named the one before it as its parent whether or not it
+    depended on it, so one blocked feature skipped every feature after it — measured on the live
+    project as the cost of a session that died at three in the morning, not of anything the feature
+    got wrong. The chain stays; only the skipping is now about real dependencies.
+    """
+
+    def needs(self, slug, wants):
+        state = json.loads((self.runs / slug / "run.json").read_text(encoding="utf-8"))
+        state["needs"] = wants
+        self.write(slug, state)
+
+    def state_of(self, slug):
+        return json.loads((self.runs / slug / "run.json").read_text(encoding="utf-8"))
+
+    def test_a_feature_that_needs_nothing_survives_the_one_before_it_failing(self):
+        first, second, third = self.batch("one", "two", "three")
+        self.needs(second, [])
+        self.needs(third, [])
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if second in name:
+                    return True                    # the middle feature's session never comes back
+                for slug in (first, third):
+                    if slug in name:
+                        case.write(slug, {"slug": slug, "step": "done", "branch": f"claude/{slug}"})
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first, second, third],
+                                     "step": "done", "pr": 42})
+                return True
+
+            def alive(self, name):
+                return False
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.step(second), "blocked")
+        self.assertEqual(self.step(third), "done")
+
+    def test_a_feature_that_needs_the_failed_one_is_skipped(self):
+        first, second, third = self.batch("one", "two", "three")
+        self.needs(second, [])
+        self.needs(third, [second])
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if first in name:
+                    case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first, second, third],
+                                     "step": "done", "pr": 42})
+                return True
+
+            def alive(self, _name):
+                return False
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.step(third), "skipped")
+
+    def test_the_chain_runs_through_what_was_built_not_through_what_was_planned(self):
+        first, second, third = self.batch("one", "two", "three")
+        self.needs(second, [])
+        self.needs(third, [])
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                for slug in (first, third):
+                    if slug in name:
+                        case.write(slug, dict(case.state_of(slug), step="done"))
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first, second, third],
+                                     "step": "done", "pr": 42})
+                return True
+
+            def alive(self, _name):
+                return False
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.state_of(third)["base"], f"claude/{first}")
+        self.assertEqual(self.state_of(third)["parent"], first)
+        self.assertEqual(self.state_of(first)["base"], "main")
+
+    def test_a_batch_whose_children_name_no_parent_is_a_batch_of_independents(self):
+        """The fallback is the authored `parent`, not the neighbour in the queue. They are the same
+        thing in an ordinary batch and differ here — and the old code skipped nothing when `parent`
+        was null, so reading the neighbour instead would have skipped everything."""
+        first, second, third = self.batch("one", "two", "three")
+        for slug in (first, second, third):
+            self.write(slug, dict(self.state_of(slug), parent=None))
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                for slug in (second, third):
+                    if slug in name:
+                        case.write(slug, dict(case.state_of(slug), step="done"))
+                if name.endswith("-close"):
+                    case.write("b", dict(case.state_of("b"), step="done", pr=42))
+                return True
+
+            def alive(self, _name):
+                return False
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.step(first), "blocked")
+        self.assertEqual(self.step(second), "done")
+        self.assertEqual(self.step(third), "done")
+
+    def test_a_missing_needs_still_means_the_one_before_it(self):
+        """`[]` is an answer and no field at all is not, so a batch composed before this existed
+        behaves exactly as it did — the alternative reads every old batch as independents."""
+        first, second, third = self.batch("one", "two", "three")
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if first in name:
+                    case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first, second, third],
+                                     "step": "done", "pr": 42})
+                return True
+
+            def alive(self, _name):
+                return False
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.step(third), "skipped")
+
+
+class FrameCase(DriverCase):
+    """The frame child hands over a map; ordering the queue by it is arithmetic, so it is here."""
+
+    def state_of(self, slug):
+        return json.loads((self.runs / slug / "run.json").read_text(encoding="utf-8"))
+
+    def test_the_map_becomes_the_queue_and_the_children_learn_what_they_need(self):
+        frame, first, second = self.batch("frame", "one", "two")
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if frame in name:
+                    case.write(frame, dict(case.state_of(frame), step="done",
+                                           frame={second: [], first: [second]}))
+                for slug in (first, second):
+                    if slug in name:
+                        case.write(slug, dict(case.state_of(slug), step="done"))
+                if name.endswith("-close"):
+                    case.write("b", dict(case.state_of("b"), step="done", pr=42))
+                return True
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.state_of("b")["children"], [frame, second, first])
+        self.assertEqual(self.state_of(first)["needs"], [second])
+        self.assertEqual(self.state_of(second)["needs"], [])
+
+    def test_a_circle_leaves_the_queue_alone_and_says_so(self):
+        frame, first, second = self.batch("frame", "one", "two")
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if frame in name:
+                    case.write(frame, dict(case.state_of(frame), step="done",
+                                           frame={first: [second], second: [first]}))
+                for slug in (first, second):
+                    if slug in name:
+                        case.write(slug, dict(case.state_of(slug), step="done"))
+                if name.endswith("-close"):
+                    case.write("b", dict(case.state_of("b"), step="done", pr=42))
+                return True
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.state_of("b")["children"], [frame, first, second])
+        blockers = " ".join(self.state_of("b").get("blockers") or [])
+        self.assertIn("circle", blockers)
+
+    def test_a_feature_from_another_batch_is_ignored_and_named(self):
+        frame, first = self.batch("frame", "one")
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if frame in name:
+                    case.write(frame, dict(case.state_of(frame), step="done",
+                                           frame={first: ["somebody-elses-feature"]}))
+                if first in name:
+                    case.write(first, dict(case.state_of(first), step="done"))
+                if name.endswith("-close"):
+                    case.write("b", dict(case.state_of("b"), step="done", pr=42))
+                return True
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.state_of(first)["needs"], [])
+        blockers = " ".join(self.state_of("b").get("blockers") or [])
+        self.assertIn("somebody-elses-feature", blockers)
+
+    def test_ordering_moves_only_what_the_dependencies_move(self):
+        """Taking every ready feature in one pass reorders independents for no reason: with b
+        needing a, ["a","b","c"] came back as a, c, b. The owner's order is part of the bargain."""
+        self.assertEqual(orch.order_by_needs(["a", "b", "c"], {}), (["a", "b", "c"], []))
+        self.assertEqual(orch.order_by_needs(["a", "b", "c"], {"b": ["a"]})[0], ["a", "b", "c"])
+        self.assertEqual(orch.order_by_needs(["a", "b", "c", "d"], {"c": ["a"]})[0],
+                         ["a", "b", "c", "d"])
+        self.assertEqual(orch.order_by_needs(["a", "b", "c"], {"a": ["c"]})[0], ["b", "c", "a"])
+
+    def test_a_frame_child_that_never_came_back_does_not_skip_the_batch(self):
+        """The batch would otherwise open with its own most fragile link. A frame child builds no
+        product code, so nothing can be waiting on it — and it fails the way every child fails
+        most often, by its session dying."""
+        frame, first, second = self.batch("frame", "one", "two")
+        self.write(frame, dict(self.state_of(frame), prompt="follow frame.md"))
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                for slug in (first, second):
+                    if slug in name:
+                        case.write(slug, dict(case.state_of(slug), step="done"))
+                if name.endswith("-close"):
+                    case.write("b", dict(case.state_of("b"), step="done", pr=42))
+                return True
+
+            def alive(self, _name):
+                return False
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.step(frame), "blocked")
+        self.assertEqual(self.step(first), "done")
+        self.assertEqual(self.step(second), "done")
+
+    def test_a_map_that_names_the_frame_child_is_not_a_circle(self):
+        """It is built before all of them and is not in the list being sorted, so leaving it in
+        `wants` made every feature unplaceable and the whole map was thrown away as a cycle."""
+        frame, first, second = self.batch("frame", "one", "two")
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if frame in name:
+                    case.write(frame, dict(case.state_of(frame), step="done",
+                                           frame={first: [frame], second: [first]}))
+                for slug in (first, second):
+                    if slug in name:
+                        case.write(slug, dict(case.state_of(slug), step="done"))
+                if name.endswith("-close"):
+                    case.write("b", dict(case.state_of("b"), step="done", pr=42))
+                return True
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.state_of(first)["needs"], [])
+        self.assertEqual(self.state_of(second)["needs"], [first])
+        self.assertNotIn("circle", " ".join(self.state_of("b").get("blockers") or []))
+
+    def test_a_child_named_in_the_queue_with_no_run_file_is_not_invented(self):
+        """Writing `needs` into it would create the file, and the driver would then start a `ship`
+        session on a run that names no feature and carries no task."""
+        frame, first = self.batch("frame", "one")
+        case = self
+        shutil.rmtree(self.runs / first)
+        batch = self.state_of("b")
+        batch["children"] = [frame, first]
+        self.write("b", batch)
+
+        class Launcher(FakeLauncher):
+            started = []
+
+            def start(self, name, prompt, model=None):
+                Launcher.started.append(name)
+                if frame in name:
+                    case.write(frame, dict(case.state_of(frame), step="done", frame={first: []}))
+                if name.endswith("-close"):
+                    case.write("b", dict(case.state_of("b"), step="done", pr=42))
+                return True
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertFalse((self.runs / first / "run.json").is_file())
+        self.assertFalse(any(first in name for name in Launcher.started))
+
+    def test_a_map_the_owner_already_answered_is_not_overwritten(self):
+        """The composing session had the owner in front of it; the map was made overnight."""
+        frame, first, second = self.batch("frame", "one", "two")
+        self.write(second, dict(self.state_of(second), needs=[first]))
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if frame in name:
+                    case.write(frame, dict(case.state_of(frame), step="done",
+                                           frame={first: [], second: []}))
+                for slug in (first, second):
+                    if slug in name:
+                        case.write(slug, dict(case.state_of(slug), step="done"))
+                if name.endswith("-close"):
+                    case.write("b", dict(case.state_of("b"), step="done", pr=42))
+                return True
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.state_of(second)["needs"], [first])
+
+    def test_a_frame_child_that_left_no_map_says_so(self):
+        """Prose written and the map forgotten closes green, and the batch silently falls back to
+        the queue order — indistinguishable from a batch where nothing depends on anything."""
+        frame, first = self.batch("frame", "one")
+        self.write(frame, dict(self.state_of(frame), prompt="follow references/frame.md"))
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if frame in name:
+                    case.write(frame, dict(case.state_of(frame), step="done"))
+                if first in name:
+                    case.write(first, dict(case.state_of(first), step="done"))
+                if name.endswith("-close"):
+                    case.write("b", dict(case.state_of("b"), step="done", pr=42))
+                return True
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertIn("no `frame` map", " ".join(self.state_of("b").get("blockers") or []))
+
+    def test_applying_the_frame_twice_changes_nothing(self):
+        frame, first, second = self.batch("frame", "one", "two")
+        self.write(frame, dict(self.state_of(frame), step="done",
+                               frame={first: [second], second: []}))
+        driver = orch.Driver(orch.Run(self.runs / "b"), self.cwd,
+                             types.SimpleNamespace(poll=60, hang=30, max_wait=6, model=None,
+                                                   ceiling=120))
+        child = orch.Run(self.runs / frame)
+        with contextlib.redirect_stdout(io.StringIO()):
+            driver.apply_frame(child, child.state())
+            once = self.state_of("b")["children"]
+            driver.apply_frame(child, child.state())
+        self.assertEqual(self.state_of("b")["children"], once)
+        self.assertEqual(once, [frame, second, first])
+
+
 class LiveQueueCase(DriverCase):
     """`children` is the queue, and a session between features may change what is left of it."""
 

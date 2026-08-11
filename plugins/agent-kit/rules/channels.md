@@ -16,6 +16,9 @@ kinds of durability, and half the surprises come from a run assuming the wrong o
 | `run.json` → `children` | the composing session; `--advance` while the batch runs | the driver, before every child | the driver, by reaching the end of it | as above |
 | `run.json` → `handoff` | the session being handed over | the session that takes it | that same session, by **emptying** it once it has moved everything durable into its own field | as above |
 | `run.json` → `manual` | the run that found it — only what needs the owner's hands *and* access | the closing session, composing **Manual actions**; `accept` | the owner, doing it | as above |
+| `run.json` → `needs` | the composing session where it knows; the driver, from the frame child's map | the driver, deciding whether a failed feature takes this one with it | the run finishing | as above |
+| `run.json` → `frame` | the batch's frame child | the driver, once, the moment that child is built | nothing — the driver applies it and it stays as the record of what was applied | as above |
+| `run.json` → `mutation` | the run, from what `commands.mutate` returned | the closing session, into **Proven**; `check.py --run` | the run finishing | as above |
 | `run.json` → `prompt` | the composing session | the driver, when it starts the child | the run finishing | as above |
 | `run.json` → `spent` | the driver, and nothing else | a later gate, pricing a scope | never — it is history | as above |
 | `run.json` → `waiting_on` | the session that stopped on a fork, with the owner present | the driver, the window, `next` | the answer landing in `answers` | as above |
@@ -24,6 +27,7 @@ kinds of durability, and half the surprises come from a run assuming the wrong o
 | `[driver] …` typed into the window | the driver | the window session | nothing — it is speech | nowhere |
 | `[assumed …]` under an entry | `ship` | every later run that builds in that entry | `blueprint`; **or a build command with the owner present**, writing down the answer they just gave | git |
 | `[found …]` under `stack.md` | `ship` | `blueprint` | `blueprint`, folding it into the map | git |
+| `[frame …]` under `stack.md` | a batch's frame child | every `ship` of that batch, and every later one that opens the map; `agent-kit:reviewer`, judging a diff against it | `blueprint`, folding it into the decisions per area once the batch has merged | git |
 | `[stale …]` under an entry | `ship` | every later run that reads that entry | `blueprint`; the closing session, transcribing it; **or a build command with the owner present** | git |
 | `[accepted …]` | `advise` | `next`, which raises it | `blueprint`, writing up the record | git |
 | an entry's `state:` line | `ship`, the closing session; `next` and `accept` through `check.py --sync`; and `blueprint`, putting one back to `planned` when the owner says the build was wrong | `check.py`, every command | `check.py --sync`, once the pull request merges | git |
@@ -52,6 +56,9 @@ kinds of durability, and half the surprises come from a run assuming the wrong o
 - **a field of records filled with sentences** — answered to a person, empty to every program;
 - **a knowledge file the kit ships no template for.** Its fields, its shape and its verdict are all
   keyed off that template, so without one three checks pass it in silence;
+- **a finished `ship` or `fix` that left `mutation` empty** where the project declares
+  `commands.mutate` — and an excuse there counts only with the command that was run beside it,
+  because *the tool would not start* costs nothing to type;
 - **a batch that closed without `docs/runs/<slug>.json`**, and **a run that owed a pull request and
   closed with no number**.
 

@@ -47,7 +47,7 @@ KEY_RE = re.compile(r"^`key:\s*([^`·]+?)\s*`(?:\s*·\s*`state:\s*([^`]+?)\s*`)?
 HEADING_RE = re.compile(r"^###\s+(.+)$", re.M)
 FIELDS_RE = re.compile(r"^fields:\s*(.+)$", re.M)
 SOURCE_RE = re.compile(r"`source:\s*([^#`]+)#([^@`]+?)\s*@([0-9a-f]+)`")
-NOTE_RE = re.compile(r"^>\s*\*\*\[(assumed|found|stale|accepted)\b([^\]]*)\]\*\*\s*(.*)$", re.M)
+NOTE_RE = re.compile(r"^>\s*\*\*\[(assumed|found|stale|accepted|frame)\b([^\]]*)\]\*\*\s*(.*)$", re.M)
 REF_RE = re.compile(r"`([a-z][a-z0-9_]*\.[a-z0-9_]+)`")
 # entities and actors are keys without a dot, so the entry part is one or more segments
 MARK_RE = re.compile(re.escape(MARK) + r"[:\s]*([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)*)?")
@@ -109,7 +109,13 @@ def read_manifest(path: Path) -> dict:
     stack = [(-1, data)]
     if not path.is_file():
         return data
-    for raw in path.read_text(encoding="utf-8").splitlines():
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        # The driver calls this after every child, all night, with no `try` above it. A manifest
+        # saved in the wrong encoding would have taken the whole batch down between two features.
+        return data
+    for raw in text.splitlines():
         line = raw.split("#", 1)[0].rstrip() if not raw.lstrip().startswith("#") else ""
         if not line.strip():
             continue
@@ -197,6 +203,7 @@ class Report:
         self.assumed: list = []
         self.stale: list = []
         self.accepted: list = []
+        self.frame: list = []
         self.states: list = []
         self.unmet: list = []
         self.debt: list = []
@@ -505,6 +512,11 @@ def collect_notes(docs: list, report: Report) -> None:
     The owner accepted a proposal in front of `advise` and left the record's fields for later, so
     what is outstanding is an interview, not a decision. Nothing downstream is misled — there is no
     entry yet to be wrong about — so it is a statement too, and only `blueprint` turns it into one.
+
+    A `[frame …]` under `stack.md` is a statement for a third reason: it is working, and it is
+    working *now*. It holds what a batch's features agreed to build alike, it is read by every
+    `ship` that opens the map, and every batch leaves one. A finding raised on each of them would
+    have every command after every sprint report the knowledge as broken.
     """
     for doc in docs:
         # Which entry a block sits under is what a command needs: it only settles the ones on the
@@ -518,7 +530,7 @@ def collect_notes(docs: list, report: Report) -> None:
             kind, tail, text = found.groups()
             where = under.get(found.group(0), doc.path.name)
             line = f"[{kind}{tail}] {where}: {text.strip()[:90]}"
-            bucket = {"stale": report.stale, "accepted": report.accepted,
+            bucket = {"stale": report.stale, "accepted": report.accepted, "frame": report.frame,
                       "assumed": report.assumed}.get(kind, report.notes)
             bucket.append((where, line))
 
@@ -1044,8 +1056,15 @@ def run_defects(state: dict, root: Path | None = None) -> list:
 
     `root` is the project, and only the rules that have to look at the repository need it: without
     one they are skipped rather than guessed at.
+
+    Two of them are asked of features and not of errands. A child carrying its own `prompt` is not
+    a `ship` — the frame child of a batch, an audit between two waves — and it has no suite to run
+    and no code to mutate. Asked anyway, every batch of three or more would close with two defects
+    that are not defects, in the pull request, every night: exactly the noise that makes a real one
+    unfindable.
     """
     out = []
+    errand = bool(str(state.get("prompt") or "").strip())
 
     note = state.get("handoff")
     if isinstance(note, str) and note.strip():
@@ -1097,9 +1116,30 @@ def run_defects(state: dict, root: Path | None = None) -> list:
             out.append(f"a {severity} review finding is open — {what[:70]}")
 
     suite = state.get("suite")
-    if suite is None or (isinstance(suite, str) and not suite.strip()) or suite in ([], {}):
+    if not errand and (
+            suite is None or (isinstance(suite, str) and not suite.strip()) or suite in ([], {})):
         out.append("`suite` is empty — nothing says what was run or what it returned, and the pull "
                    "request is written from that field rather than from memory")
+
+    # The one piece of evidence in the kit that a test can fail, asked for only where the project
+    # has declared a way to produce it. Judged on the field being answered, never on the numbers:
+    # what a survivor means is the run's call, and a program that failed a run over a count would be
+    # holding it to a threshold nobody set.
+    if root is not None and state.get("command") in ("ship", "fix") and not errand:
+        commands = read_manifest(root / MANIFEST).get("commands")
+        declared = commands.get("mutate") if isinstance(commands, dict) else None
+        mutation = state.get("mutation")
+        mutation = mutation if isinstance(mutation, dict) else {}
+        counted = any(mutation.get(key) is not None for key in ("killed", "survived"))
+        # `why` alone is the cheap path out of this whole mechanism: not running the tool and
+        # writing "it would not start" costs nothing and reads like a result. The command that was
+        # actually run is the smallest artefact that path does not produce for free.
+        excused = str(mutation.get("why") or "").strip() and str(mutation.get("command") or "").strip()
+        if str(declared or "").strip() and not (counted or excused):
+            out.append("`mutation` is empty and this project declares `commands.mutate` — a suite "
+                       "nothing tried to break is the word of whoever wrote it, and a run that "
+                       "skipped the step must not read like one that passed it. Not run? "
+                       "`why` **and** the `command` you ran")
 
     # A run whose own job was to open a pull request, closing without its number. `deliver` is what
     # decides that and not `command`: a feature inside a batch pushes a branch and stops, and a
@@ -1427,6 +1467,14 @@ def main(argv: list | None = None) -> int:
             print(f"  {line}")
         print("  Written up by /agent-kit:blueprint, which interviews the fields and deletes the "
               "block. Already decided — do not ask again whether it is wanted.")
+
+    if report.frame:
+        print(f"\nWhat a batch agreed to build alike ({len(report.frame)}) — binding on every run "
+              "that touches the same ground, and in force as it stands:")
+        for _where, line in report.frame:
+            print(f"  {line}")
+        print("  Folded into the map by /agent-kit:blueprint once the batch has merged. Not a "
+              "reason to run it.")
 
     for line in report.drift:
         print(f"\n  {line}")

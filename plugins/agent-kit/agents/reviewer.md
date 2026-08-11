@@ -30,7 +30,10 @@ quality.
 **Does the code hold up?** Defects in the diff itself: wrong logic, unhandled failure that the entry
 says can happen, a broken contract with existing callers, a resource left open, a race. Judge it
 against `stack.md` — the stances and the library map there are what this project agreed to, so
-hand-rolled code that duplicates a library the map names is a finding.
+hand-rolled code that duplicates a library the map names is a finding. A `[frame …]` block at the
+end of that file is one of those stances and is read the same way: it is what this feature's batch
+settled its features would do alike, so a diff that quietly does otherwise is a finding even where
+what it did is defensible on its own. Consistency was the whole purpose of the line.
 
 **Is this the feature that was designed?** The run file — `.agent-kit/runs/<slug>/run.json` — holds
 the approach the run committed to, the seams it named, its task list and its deviations. Read it

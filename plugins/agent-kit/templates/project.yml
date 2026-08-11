@@ -9,6 +9,23 @@ commands:                         # the project's real commands; the only place 
   lint:
   types:                          # leave empty where the project has no type checker
   run:                            # what starts the application, for the run that has to click it
+  mutate:                         # what proves the tests can fail: it changes the product's own
+                                  # logic in small valid ways and reports how many of those changes
+                                  # the suite noticed. A test written after the code and never seen
+                                  # red is free to assert nothing, and no reading of the diff tells
+                                  # you which one that is — the surviving mutant does.
+                                  # Off-the-shelf per ecosystem: mutmut or cosmic-ray (Python),
+                                  # Stryker (JS, TS, C#), PIT (Java), infection (PHP), go-mutesting.
+                                  # Write `{files}` where the tool takes the files to mutate: the
+                                  # run replaces it with what this feature changed against its own
+                                  # base, space-separated, which is the only list it can compute
+                                  # and the manifest cannot. Without it the tool runs over the
+                                  # whole project, re-running the suite once per mutation, and the
+                                  # step takes hours and is skipped. It must print how many
+                                  # mutants were killed and how many survived.
+                                  #   mutate: vendor/bin/infection --filter={files}
+                                  # Empty is a real answer: the step then says it did not run,
+                                  # which is not the same as passing.
 
 tests:
   unmet:                          # a test proving a promise the product does not keep carries the

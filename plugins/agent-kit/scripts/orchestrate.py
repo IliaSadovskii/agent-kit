@@ -319,6 +319,36 @@ def limit_reset(text: str) -> tuple[str, float | None]:
 # the owner's two instructions
 
 
+def order_by_needs(children: list, needs_of: dict) -> tuple[list, list]:
+    """The queue, re-sorted so nothing is built before what it needs.
+
+    Stable: the order the composing session wrote survives everywhere the dependencies do not
+    contradict it. That order is not arbitrary — an owner named it, and an `epic`'s gate puts the
+    batch that makes a whole scenario walkable first — so it is the tie-break rather than something
+    to be recomputed from scratch.
+
+    A cycle cannot be sorted, and this returns the queue untouched and names the features caught in
+    it rather than picking one of them to go first. Choosing silently would be this program forming
+    an opinion out of input it could not read, and the run would look ordered.
+    """
+    order: list = []
+    placed: set = set()
+    left = list(children)
+    while left:
+        # One at a time, always the earliest that can go: taking every ready feature in a pass
+        # would move independents ahead of a dependent that was written before them, which is a
+        # reorder nothing asked for. Measured on ["a", "b", "c"] with b needing a: a pass-at-a-time
+        # sort answers a, c, b.
+        ready = next((slug for slug in left
+                      if all(w in placed for w in needs_of.get(slug) or [])), None)
+        if ready is None:
+            return list(children), left
+        order.append(ready)
+        placed.add(ready)
+        left.remove(ready)
+    return order, []
+
+
 def take_control(run: Run) -> str:
     """Read and clear the control file. The window writes it; the driver obeys between features."""
     path = run.dir / "control"
@@ -582,6 +612,104 @@ class Driver:
         child.event("closed-with-defects", "; ".join(defects))
         self.tell(f"{child.slug} closed with {len(defects)} thing(s) it should not have: {defects[0]}")
 
+    def apply_frame(self, child: Run, state: dict) -> None:
+        """Take the frame child's map of what needs what, and make it the queue.
+
+        The map is judgement and belongs to a session; ordering a list by it is arithmetic and
+        belongs here. That split is also what keeps ownership intact: a `ship` may not write another
+        run's file, and this program already writes `step` into every child, so it is the one thing
+        present that is allowed to write `needs` as well.
+
+        Applied once, when that child is built — and applying it twice changes nothing, which is
+        what `--resume` needs. A feature the map does not mention gets `[]` rather than being left
+        alone: the child was asked about the whole batch, so silence about one of them is an answer.
+        """
+        frame = state.get("frame")
+        if not isinstance(frame, dict) or not frame:
+            # Only where one was owed. A frame child that wrote its prose and forgot the map would
+            # otherwise close green and leave the batch on the fallback, which is indistinguishable
+            # from a batch where nothing depends on anything.
+            if "frame.md" in (state.get("prompt") or ""):
+                self.note_defect(f"{child.slug} left no `frame` map, so no feature knows what it "
+                                 f"needs and the batch falls back to the queue order")
+            return
+        children = self.run.state().get("children") or []
+        known = set(children)
+        rest = [slug for slug in children if slug != child.slug]
+
+        needs_of = {}
+        for slug in rest:
+            run = Run(self.run.dir.parent / slug)
+            # A slug in `children` with no file of its own is a hole the loop already reports.
+            # Writing `needs` into it would create the file, and the driver would then start a
+            # session on a run that names no feature and carries no task.
+            if not run.file.is_file():
+                continue
+            written = run.state().get("needs")
+            if isinstance(written, list):
+                # The composing session had the owner in front of it. This map was made overnight.
+                needs_of[slug] = [w for w in written if w in known]
+                continue
+            wants = frame.get(slug)
+            # Never this feature and never the frame child: it is built before all of them, so
+            # naming it is true and useless, and it is not in the list being sorted.
+            wants = ([w for w in wants if w in rest and w != slug]
+                     if isinstance(wants, list) else [])
+            needs_of[slug] = wants
+            run.set(needs=wants)
+
+        # A name outside this batch is the one thing the map can say that nothing can act on. It is
+        # dropped above — a slug with no run file cannot be waited for — and said out loud here,
+        # because a dependency the driver ignored is exactly what nobody would go looking for.
+        named = set(frame) | {w for wants in frame.values() if isinstance(wants, list) for w in wants}
+        stray = sorted(named - known)
+
+        order, cycle = order_by_needs(rest, needs_of)
+        self.run.set(children=[child.slug] + order)
+        child.event("frame", f"{len(rest)} features ordered")
+
+        defects = []
+        if cycle:
+            defects.append(f"{child.slug} made these features need each other in a circle, so the "
+                           f"queue was left in the order it was written: {', '.join(cycle)}")
+        if stray:
+            defects.append(f"{child.slug} named features that are not in this batch, and they were "
+                           f"ignored: {', '.join(dict.fromkeys(stray))}")
+        for line in defects:
+            self.note_defect(line)
+
+    def note_defect(self, line: str) -> None:
+        """Something the batch has to carry to the pull request, found by this program.
+
+        Into `blockers` of the batch's own file, because the closing session reads run files and
+        never this program's log — and a defect nobody reads is the shape of every hole this kit
+        has already paid for.
+        """
+        self.run.set(blockers=(self.run.state().get("blockers") or []) + [line])
+        self.run.event("frame-defect", line)
+        self.tell(line)
+
+    def chain(self, child: Run, last: Run | None, batch_base: str | None) -> None:
+        """Point this child at the last feature that was actually built.
+
+        Written by the composing session as *the one before it in the list*, `base` names a branch
+        that may not exist: a batch whose second feature is blocked would have every feature after
+        it branch off nothing. The chain is what makes integration a property rather than a step, so
+        it is kept — it just runs through what was built rather than through what was planned.
+        """
+        state = child.state()
+        base = (last.state().get("branch") if last else None) or batch_base
+        if not base:
+            # Nothing to point at and nothing pointed at it: the composing session left this batch
+            # no base, so whatever is in the child's own file is all there is. Said rather than
+            # left, because a stale `base` here is a feature branching off a branch nobody pushed.
+            self.note_defect(f"{child.slug} was started with no base to chain onto — this batch's "
+                             f"run file has no `base`, so it is building on {state.get('base')!r}")
+            return
+        if state.get("base") == base and state.get("parent") == (last.slug if last else None):
+            return
+        child.set(base=base, parent=last.slug if last else None)
+
     def branch_pushed(self, branch: str) -> bool:
         done = subprocess.run(["git", "ls-remote", "--heads", "origin", branch],
                               cwd=self.cwd, capture_output=True, text=True)
@@ -609,6 +737,13 @@ class Driver:
 
         built = 0
         seen: set = set()
+        last: Run | None = None                   # the last feature actually built: the chain's tip
+        # What the composing session wrote as each child's `parent`, read before this loop moves
+        # any of them. It is the fallback for a child with no `needs`, and it has to be the
+        # authored value: `chain()` rewrites `parent` as the run goes, so reading it later would
+        # answer with the tip of the chain — which is always built, and would never skip anything.
+        authored = {slug: Run(self.run.dir.parent / slug).state().get("parent")
+                    for slug in children}
         while True:
             # `children` is the queue, and it is read again here rather than taken as a snapshot:
             # a session between features may reorder what is left, drop something, or add a batch
@@ -651,19 +786,41 @@ class Driver:
                 self.run.event("already-terminal", slug)
                 if child.state().get("step") == "done":
                     built += 1
+                    last = child
+                    self.apply_frame(child, child.state())
                 continue
 
-            parent = child.state().get("parent")
-            if slug in self.skip or (parent and parent in self.skip):
-                self.skip.add(slug)               # descendants of a skipped feature follow it
+            # A child that carries its own `prompt` is not a feature — the frame child, an audit
+            # between two waves. Nothing is built on it, so it is never anybody's dependency and
+            # its failure cascades to nobody. Without this the batch opens with its own most
+            # fragile link: a frame child whose session died would skip every feature behind it,
+            # which is the exact failure this release was written to end.
+            state_of = child.state()
+            errand = bool((state_of.get("prompt") or "").strip())
+
+            # What this feature cannot be built without. `[]` is somebody's answer; the field
+            # missing altogether is nobody's, and then the fallback is the `parent` the composing
+            # session wrote — which is what a chained batch has meant since it was written, and is
+            # read from the snapshot above so this run's own rewrites cannot answer it.
+            needs = state_of.get("needs")
+            if not isinstance(needs, list):
+                if slug not in authored:          # added to the queue while the batch was running
+                    authored[slug] = state_of.get("parent")
+                needs = [authored[slug]] if authored[slug] else []
+            missing = [n for n in needs if n in self.skip]
+            if slug in self.skip or missing:
+                self.skip.add(slug)               # and whatever needs this one follows it
                 child.set(step="skipped")
-                self.run.event("skipped", f"{slug} — parent {parent}" if parent else slug)
+                self.run.event("skipped", f"{slug} — needs {', '.join(missing)}" if missing else slug)
                 continue
 
+            self.chain(child, last, state.get("base"))
             self.tell(f"starting {slug}")
             if self.build(child) == "built":
                 built += 1
-            else:
+                last = child
+                self.apply_frame(child, child.state())
+            elif not errand:
                 self.skip.add(slug)
 
         self.run.set(step="closing")

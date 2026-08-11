@@ -3,6 +3,62 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.7.0
+
+Out of a session that asked what this kit's architecture looks like to somebody who did not build
+it. Two of its findings turned out to be one mechanism. The reasoning, what was weighed against it
+and what was left undone are in [docs/design/2026-08-12-frame.md](docs/design/2026-08-12-frame.md);
+an existing project has one line to add and it is in [migrations/2.7.0.md](migrations/2.7.0.md).
+
+- **A batch opens with a frame child, and it writes prose rather than code.** Nobody designed across
+  features: `blueprint` settles what a feature does, `ship` settles how and sees one feature, and
+  the brief is told — correctly — not to design. So five sessions that could not see each other each
+  answered the same question about the shared table, the shared layer, the place a thing lives.
+  A batch of three or more now starts with a child that is not a feature: it reads the batch's
+  entries and the code where two of them meet, and leaves what they must build alike as a
+  `[frame …]` block under `stack.md`.
+
+  It builds no scaffold. The features do not exist yet, so anything compiled for them in advance is
+  a guess the third feature discovers — and a bad rule the next run bends where bad code it is
+  standing on. `stack.md` is where the block goes because `--brief` prints that file whole to every
+  feature and the reviewer already judges diffs against it: a line written so a diff can be held to
+  it brings its own enforcement, and *"we use DDD"* brings none. `blueprint` folds it into the map
+  once the batch has merged, which is the first moment there is code to read it against.
+
+- **A chain is not a dependency, and one dead session no longer costs the night.** Every child named
+  the one before it as its parent, "whether or not this feature depends on it", and the driver
+  skipped the descendants of anything that failed. But a child fails when its session dies, stalls
+  or hits a limit — nothing to do with the feature — so a blocked second feature took four
+  unrelated ones with it. The chain stays, because it is what makes integration a property of the
+  batch: `base` and `parent` now point at the last child **actually built**. Skipping is decided by
+  a new field, `needs`, and by nothing else.
+
+  The frame child produces that map; the driver applies it, because ordering a list is arithmetic
+  and writing another run's file is the driver's right, not a `ship`'s. `children` is re-sorted with
+  a stable topological sort, so the composing order survives wherever the dependencies do not
+  contradict it, and a circle leaves the queue untouched and is named in the batch's `blockers`
+  rather than broken by picking a winner. **A missing `needs` still means the feature before it** —
+  absent is nobody's answer and `[]` is somebody's, and reading them alike would turn every batch
+  composed before today into a batch of independents.
+
+- **Something other than the run's own word that a test can fail.** `ship` has always said *write
+  the test before the code*, and nothing has ever produced evidence of it. The cheapest way to
+  satisfy every check the kit had is to write the test afterwards against what the code already
+  does: it passes for ever, asserts nothing, and reads exactly like a real one in the diff, in the
+  coverage and in the review. This is the kit's own rule about naming the cheap path and demanding
+  an artefact it cannot produce, applied to the one place that had none.
+
+  `project.yml` gains `commands.mutate` — an off-the-shelf mutation runner, with `{files}` where it
+  takes what to mutate, which the run replaces with its own diff against its own base. `ship` and
+  `fix` run it after the suite and write `killed` and `survived` into the run file's `mutation`; the
+  pull request carries the pair, and `check.py` refuses a finished run that left the field empty
+  where the project declares such a command. *Not run* is an answer — but only with the command that
+  was run beside it, because "the tool would not start" is itself a cheap path and typing it costs
+  nothing. A survivor is a finding and never a blocker: some mutations change nothing observable,
+  and a night that stops over one has cost more than the tests are worth. `fix`'s own *undo the fix
+  and watch the test fail* stands where a project declares no such command, and gives way to it
+  where one exists — same question, and one of the two answers is not the run's own word.
+
 ## 2.6.0
 
 A second independent pass, this one over the six audit lenses — the one substantial part of the

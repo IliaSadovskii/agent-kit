@@ -94,8 +94,12 @@ reverted without taking the refactor with it.
 
 1. The new test passes, and the rest of the suite still does. `project.yml` → `commands`: tests,
    types, lint, once, at the end.
-2. **Undo the fix and watch the test fail again.** Ten seconds, and it is the only thing that proves
-   the test is guarding the fix rather than passing beside it.
+2. **Prove the test is guarding the fix rather than passing beside it.** Where `project.yml` names
+   `commands.mutate`, that is the proof: run it over the files you changed and put `killed` and
+   `survived` in `mutation` — the field says what to write when it could not run, and a finished
+   run never leaves it empty. Where the project names none, undo the fix by hand and watch the test
+   fail again. Both answer the same question; the difference is that one of them is a program's
+   answer and the other is yours, which is why the program wins wherever it exists.
 3. Start the app and exercise the path, when the defect has a surface a person can reach. What you
    opened and what you saw goes in `suite` — "not exercised" is an answer, silence is not.
 

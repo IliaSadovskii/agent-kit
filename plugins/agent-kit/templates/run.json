@@ -2,7 +2,8 @@
   "_": "One run of any command. The same shape for fix, ship, sprint and epic — what differs is which fields are filled. Written by the run, read by the run that resumes it, by the reviewer, and by whatever launched it. JSON because a script reads it; the owner reads the pull request instead.",
   "_records": "Every field drawn below as `[{ … }]` is a list of records and is read as one — `tasks`, `assumptions`, `answers`, `review.findings`. Filling one with sentences leaves a field that looks answered to a person and is empty to everything that reads it; the check names a run file that does.",
   "_step": "queued | design | build | verify | deliver | done | blocked | skipped — and building | closing, which only a driver writes on a batch's own file while it works through the children, and gate | auditing | proving, which only `epic` writes on its own file as it moves between its phases. The last three of the first list are terminal: a driver stops watching a run that reaches one, so nothing may leave it there while still working. The list is closed, and the check names a step outside it.",
-  "_parent": "The run this one continues from, when a batch chains its features. Its run file carries the decisions this one inherits; its branch is this one's base.",
+  "_parent": "The run this one continues from, when a batch chains its features. Its run file carries the decisions this one inherits; its branch is this one's base. Inside a batch the driver sets it to the last child that was actually built, so a feature never inherits a branch that does not exist.",
+  "_needs": "Which of the batch's other features this one cannot be built without, by slug. It decides one thing: whether this feature is skipped when another fails. `[]` says somebody looked and there are none; **left out it means nobody looked**, and the driver falls back to the feature before it in the queue, which is what a chained batch has always assumed. Written by the composing session when the owner named the order, or by the driver from the frame child's map; read by the driver and by nothing else. Never the same as `base`: every child still branches off the last one built, because that is what makes integration a property of the chain rather than a step at the end.",
   "_deliver": "pr — open one at the end, the default. branch — push and stop, because a batch delivers its features together.",
 
   "slug": "developer-create-offer",
@@ -15,6 +16,7 @@
   "branch": "claude/developer-create-offer",
   "base": "main",
   "parent": null,
+  "needs": null,
   "_session": "The session this run is being built in, written by the driver when it starts one. The stop hook matches on it and on nothing else — a run with no session is a run no hook has an opinion about.",
   "session": null,
   "deliver": "pr",
@@ -66,8 +68,13 @@
 
   "_suite": "What was run and what it returned: tests, types, lint — and, when the feature has a surface a person can reach, what was opened in the running application and what was seen there. 'Not exercised' is an answer; silence is not.",
   "suite": null,
+  "_mutation": "What `commands.mutate` returned over this feature's own files — `{files}` in it is replaced by the run with what it changed against its base: `killed` and `survived` as numbers, `command` as it was actually run, which is also what makes `why` an answer rather than a sentence. This is the only evidence in the kit that a test can fail — everything else about a test is the word of the session that wrote it, and a test written after the code and never seen red asserts whatever the code already did. `why` instead of the numbers when it did not run: no `commands.mutate` in `project.yml`, or the tool would not start. Never left null on a finished run, because a run that skipped it and a run that passed it must not read alike. Survivors are a finding for the pull request, not a blocker: some mutations change nothing a person could observe, and a night that stops over one has cost more than the tests are worth.",
+  "mutation": { "command": null, "killed": null, "survived": null, "why": null },
   "pr": null,
   "children": [],
+
+  "_frame": "The one thing a frame child leaves for a program: which of the batch's features cannot be built without which, `{ \"<child slug>\": [\"<child slug it needs>\"] }`. Everything else that child produces is prose, and prose goes under `stack.md` as a `[frame …]` block, where every `ship` already reads it — a second run file nobody opens would reach nobody. The driver applies this map once, the moment that child is built: it writes each `needs`, then re-sorts the batch's `children`. A feature it does not name gets `[]`, because the child was asked about all of them and saying nothing about one is an answer. It may not name a feature outside this batch. Written by the frame child, read by the driver, closed by nothing — it dies with the run directory.",
+  "frame": null,
 
   "_prompt": "What the driver types into this child's session. Left out, it is `/agent-kit:ship --run <this directory>`, which is what a feature is. A batch may hold a child that is not a ship — an audit between two rounds of fixes, a review — and this is how it says so. Everything else is unchanged: the child keeps this run file, and a terminal `step` is still the only signal the driver watches, so a command with no run file of its own must be told here to close one.",
   "prompt": null,
