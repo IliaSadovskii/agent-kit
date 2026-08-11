@@ -3,6 +3,23 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.2.0
+
+- **`blueprint --recall [part]` — the project read back to you, out loud.** The owner works through a
+  session, not a text editor, so when they have forgotten what a part says or doubt it, the answer
+  cannot be *open `docs/knowledge/actions.md`*. This tells that part instead: what it is for, who
+  does what in it, what the person sees, what happens when it fails, what is not built yet, and
+  where it is thin — including whether they ever walked it or it was derived. A retelling, one
+  screenful, never the entries read out, because that is the same wall of text they came here to
+  avoid. Then one round: right as it stands, change this, rework the part. It writes nothing on its
+  own, which is what separates it from `--check`, mechanical and silent when clean.
+
+- **The number of parts is an expectation, not a limit.** Five to ten is what a product usually comes
+  to; a narrow tool honestly has one or two and a large one has more, and forcing either into a
+  range invents parts or hides them. What decides a part is its size — a story tellable in a few
+  minutes, with a vocabulary of its own — and a surprising count is a reason to check the split, not
+  the product.
+
 ## 2.1.0
 
 - **The interview is shaped by the product's parts, not by the kit's slots.** Nobody holds their

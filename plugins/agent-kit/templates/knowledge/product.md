@@ -7,8 +7,8 @@ Do not replace it with a tidier summary — the throwaway details are exactly wh
 "you mentioned agencies, but no actor is recorded".
 
 The parts are what the interview is shaped by, and they are recorded because a part nobody wrote
-down is invisible to the next session and to `epic`. Five to ten; more than that means the split
-was made by screens rather than by meaning. Each carries the date the owner walked it, or
+down is invisible to the next session and to `epic`. Five to ten is what a product usually comes to,
+not a limit: a narrow tool has one or two, a large one has more. Each carries the date the owner walked it, or
 `выведена` / `derived` when it was read out of code and documents and never confirmed — `epic`
 reports that count at its gate, and it is the difference between a description somebody agreed to
 and one nobody has read.

@@ -47,6 +47,8 @@ and come back.
 
 - `blueprint` — continue with whatever is empty, stale, or flagged by an earlier run
 - `blueprint "rework the map"` — add or rethink one thing
+- `blueprint --recall [part]` — tells you what the project already says, in words, so you never open
+  a file to find out. Then: right as it stands, change this, or rework the part
 - `blueprint --check` — where the project stands: built, planned, open questions, assumptions
   waiting on you
 

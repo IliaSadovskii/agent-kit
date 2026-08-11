@@ -33,6 +33,7 @@ counts as settled — stays here.
 | `blueprint` | continues from wherever the last session stopped: works only on what is empty, stale, or marked by an earlier run. Interactive. |
 | `blueprint <what you want to add or reconsider>` | the owner has something the documents do not hold yet — a feature they have thought through, a part they want reworked, a doubt about whether something is covered. Find the slots it touches, interview about those, write, stop. Without this a finished blueprint has no way in, and the thought turns into work nobody asked for. |
 | `blueprint <what did not match, after using it>` | the same door, arrived at from the other side: the owner has clicked through what a run built and can say what is wrong. See below — it is one fork per complaint, and half of them are not blueprint's work at all. |
+| `blueprint --recall [part]` | tells the owner what the project already says, in their language and out loud, so they never open a file to find out. Changes nothing until they ask for a change — see *Reading it back*. |
 | `blueprint --check` | audits, mechanically, in seconds, asking nothing. Run the program — `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status --sync` — and put its output in front of the owner with a sentence about what to do next. `--sync` is yours alone: it moves an entry whose pull request has merged, which is the one thing this program writes, and a preflight that wrote it would leave the tree dirty under the command that ran it. Two audiences: as another command's preflight it is run bare and prints nothing when clean; **by hand it always prints where the project stands**. That is the raw view of the knowledge; `/agent-kit:next` is the same data ranked into a recommendation. |
 
 Every question you put to the owner follows `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`: options
@@ -81,11 +82,15 @@ Six phases:
 2. **The parts, agreed as a list.** Split the telling into the product's parts and put them up as
    names to pick from, never as prose to read back.
 
-   **Five to ten.** A part is something the owner can tell a story about in a few minutes and that
-   has a vocabulary of its own. More than ten and you have cut by screens rather than by meaning:
-   merge, and say that you merged. A product genuinely larger than that gets its list of parts
-   committed first, and the interview goes on one part per sitting — the resume point is a part, not
-   a slot.
+   **What decides a part is its size, not a count.** A part is something the owner can tell a story
+   about in a few minutes and that has a vocabulary of its own. Five to ten is what that usually
+   comes to and is worth saying out loud as an expectation — a narrow tool honestly has one or two,
+   a large product has more than ten, and forcing either into a number invents parts or hides them.
+   Where the count surprises you, check the split rather than the product: many small ones usually
+   means you cut by screens instead of by meaning.
+
+   A list long enough that the interview will not fit one sitting gets **committed first**, and then
+   goes one part per sitting — the resume point is a part, not a slot.
 
    **Order them by what the product is for**, not alphabetically: attention is freshest first, and
    later parts borrow the vocabulary the early ones settle.
@@ -198,6 +203,33 @@ run for months.
 This is the whole difference between an empty repository and an inherited one. On an inherited one
 phases 1 and 2 — the telling and the parts — you propose from the code and the documents and the
 owner corrects by tapping. Phases 4 to 6 are the same either way.
+
+## Reading it back
+
+The owner works through a session, not through a text editor. So when they have forgotten what a
+part says, or doubt it, or want to rework it, **the answer is not "open `docs/knowledge/actions.md`"**
+— it is you, retelling it.
+
+`--recall` with nothing names the parts, one line each, and asks which to open. `--recall <part>`
+tells that one:
+
+- what it is for, in a sentence;
+- who does what in it, and what the person sees;
+- what happens when it does not work;
+- what is **not** built yet — `planned` entries, open blocks, promises the product does not keep;
+- and what is thin: fields nobody filled, and whether the owner ever walked this part or it was
+  derived.
+
+**A retelling, never the file.** Reading the entries out is the same wall of text they came here to
+avoid, and it is what makes them stop asking. One screenful per part; if it will not fit, the part
+is too big and say so.
+
+Then one round of choices: *right as it stands* · *change this* · *rework the part*. The first ends
+the session. The second and third are the ordinary interview, on that part alone, and everything
+about how it is written and committed is unchanged.
+
+**It decides nothing and writes nothing on its own.** That is what separates it from `--check`,
+which is mechanical and silent when clean: this one always speaks, in prose, and is for a person.
 
 ## After the owner has used it
 
