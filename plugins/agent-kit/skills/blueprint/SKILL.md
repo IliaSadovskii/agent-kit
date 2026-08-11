@@ -8,7 +8,7 @@ disable-model-invocation: true
 # Blueprint
 
 Everything the project knows about itself, in one place, written before anything is built.
-`fix`, `ship`, `sprint` and `mvp` read it and never write prose into it. `advise` writes what the
+`fix`, `ship`, `sprint` and `epic` read it and never write prose into it. `advise` writes what the
 owner answered in front of it, and nothing else — see
 `${CLAUDE_PLUGIN_ROOT}/rules/knowledge-writing.md`, which is the half both of you share.
 
@@ -41,7 +41,7 @@ rather than prose, the recommendation first, and everything independent in one r
 
 It writes knowledge. It does not build anything, start or instrument the application, write scripts,
 install dependencies, produce quality or audit reports, or decide what gets worked on first — those
-belong to `fix`, `ship`, `sprint`, `mvp`, or to a plain conversation with the owner.
+belong to `fix`, `ship`, `sprint`, `epic`, or to a plain conversation with the owner.
 
 The pull is strongest when the owner voices a doubt: *is this ready?*, *does the admin area work?*
 Answer it from the knowledge and the code, name what you cannot answer from those, and offer the
@@ -83,7 +83,7 @@ Order, because each step feeds the next:
    **And ask what runs the scenarios end to end** — the one testing question a draft cannot answer.
    Everything else in the testing section is derived: the layers, the seams, the bar all come from
    the code and the manifests. A harness that does not exist yet is invisible to that, so silence
-   here is read by every later run as a decision nobody made — and `mvp` stops on *every scenario
+   here is read by every later run as a decision nobody made — and `epic` stops on *every scenario
    passes*, so it is the one gap that decides whether that command can finish at all. Name the tool
    and where it runs, or write plainly that there is none and the scenarios are proved by hand. Both
    are legitimate; neither may be left to be inferred.
@@ -237,7 +237,7 @@ enough to run ahead of everything.
 Silent when clean, exit code 1 when not — with one exception: unmet promises are listed whenever
 they exist and change no exit code, because a recorded promise is a statement about the product, not
 a defect in the knowledge. Otherwise one screen: what is open, what is stale, what does not line up,
-and what it could not see. `mvp` refuses to start when a slot in its scope is not settled; the other
+and what it could not see. `epic` refuses to start when a slot in its scope is not settled; the other
 three report and carry on.
 
 Your job around it is the part a program cannot do: say which of its findings matter for what the

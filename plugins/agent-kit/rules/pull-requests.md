@@ -82,7 +82,7 @@ collapsed view still tells the whole story.
 
 ## Batches
 
-A batch — a sprint, or one of an `mvp`'s — opens **one** pull request, based on the default branch,
+A batch — a sprint, or one of an `epic`'s — opens **one** pull request, based on the default branch,
 covering every feature in it. Its features chain off each other, so the last branch already holds
 the batch and there is nothing to merge together first.
 
@@ -98,7 +98,7 @@ feature took each, and a **What did not happen** section — parked features and
 
 ## A run's pull request, rewritten by every batch
 
-An `mvp` has one pull request and eleven batches rewrite its body, so **every rule above applies to
+An `epic` has one pull request and eleven batches rewrite its body, so **every rule above applies to
 the run, not to the batch that happens to be writing.** Written per batch and appended, the body
 grows with the number of batches instead of with the size of the product. Measured on one real run:
 157 000 characters, of which a quarter was a list of every sentence the run changed in the

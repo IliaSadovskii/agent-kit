@@ -192,9 +192,9 @@ that looks complete.
 **Two questions that are not the entry's own fields, and both fail silently if skipped:**
 
 - **Which scenario covers it** — an existing one gains a step in the owner's words, or a new
-  scenario is written. `mvp` stops on *every scenario inside the bounds passes*, so an entry in no
+  scenario is written. `epic` stops on *every scenario inside the bounds passes*, so an entry in no
   scenario is built, marked `built`, and proved by nothing.
-- **Inside the MVP bounds, or outside** — `mvp` reads those bounds to know where to stop, and a new
+- **Inside the MVP bounds, or outside** — `epic` reads those bounds to know where to stop, and a new
   entry silently widens them or does not. Outside the bounds, the scenario question can wait.
 
 A stance rather than a feature — *money in minor units*, *every outbound call idempotent* — is two

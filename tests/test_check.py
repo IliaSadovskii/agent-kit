@@ -219,7 +219,7 @@ class CheckCase(unittest.TestCase):
     def test_an_open_assumption_is_named_by_the_entry_it_stands_under(self):
         """A run took the decision and every later run in that entry follows it, so what a command
         needs is which entries carry one — it only settles the blocks where it is about to build.
-        One `mvp` left seventy-four, and printing each of them before every command buries the
+        One `epic` left seventy-four, and printing each of them before every command buries the
         findings that are real."""
         self.write("actions.md", ACTIONS + "\n> **[assumed 2026-08-04 · claude/x]** Nothing says "
                                            "where it is stored. Took: beside the post.\n")
@@ -555,9 +555,9 @@ class CheckCase(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(output, "")
 
-    # ---- the gate of an mvp ---------------------------------------------------------------------
+    # ---- the gate of an epic ---------------------------------------------------------------------
     #
-    # A sprint with a thin blueprint still delivers five features; an mvp with one has no stopping
+    # A sprint with a thin blueprint still delivers five features; an epic with one has no stopping
     # condition. These three are what it refuses to start without.
 
     def ready_for_mvp(self, product=None, scenarios=None, commands=True):
@@ -569,7 +569,7 @@ class CheckCase(unittest.TestCase):
         if commands:
             (self.root / ".agent-kit" / "project.yml").write_text(
                 MANIFEST + "commands:\n  test: make test\n  run: make up\n", encoding="utf-8")
-        return self.run_check("--mvp")
+        return self.run_check("--epic")
 
     def test_a_project_that_may_start_an_mvp(self):
         code, output = self.ready_for_mvp()

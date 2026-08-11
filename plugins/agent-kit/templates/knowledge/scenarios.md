@@ -5,7 +5,7 @@ This is how completeness is tested. Where the honest answer during a walk is "we
 add another field", the knowledge is wrong, and it shows in five minutes rather than five weeks.
 Walking is cheaper and finds more than a longer questionnaire.
 
-They are also what `mvp` proves against the running application: every scenario inside the MVP
+They are also what `epic` proves against the running application: every scenario inside the MVP
 bounds has to pass.
 
 An end-to-end test claims a scenario by carrying `agent-kit:scenario <this heading>` in a comment;

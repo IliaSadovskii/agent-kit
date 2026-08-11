@@ -21,7 +21,7 @@ the result back against it, and **orienting** when you have lost the thread.
 | `/agent-kit:fix` | build | something is wrong and it is small: find the cause, prove it with a failing test, change the least that works |
 | `/agent-kit:ship` | build | one feature end to end: design against the blueprint, build, verify, review, pull request |
 | `/agent-kit:sprint` | build | a batch of features: brief them in one sitting, then a driver builds each unattended |
-| `/agent-kit:mvp` | build | a whole scope built, audited and proved, as one pull request: the MVP bounds first, then whatever is still planned or still owed |
+| `/agent-kit:epic` | build | a whole scope built, audited and proved, as one pull request: the MVP bounds first, then whatever is still planned or still owed |
 | `/agent-kit:audit` | check | compare existing code to the description and write a work list |
 | `/agent-kit:accept` | check | take delivery of a finished run: can this be merged, and what needs your hands, in what order |
 | `/agent-kit:next` | orient | where the project stands and which command to run — for the cold start |
@@ -224,7 +224,7 @@ is [docs/design/the-loop.md](../../docs/design/the-loop.md).
 
 ## What it needs
 
-`git` and `python3` for everything, `gh` to open a pull request. `sprint` and `mvp` also need
+`git` and `python3` for everything, `gh` to open a pull request. `sprint` and `epic` also need
 `tmux`: the driver gives each feature its own visible session through it, which is what makes a
 stalled run rescuable by hand and an account limit recoverable by typing one line into a session
 whose context is intact. Headless children were rejected for exactly that reason.

@@ -1,5 +1,5 @@
 ---
-name: mvp
+name: epic
 description: From the blueprint to a running prototype — build a whole scope autonomously, audit it, and prove it, delivered as one pull request. The MVP bounds the first time; run again once they are built and it offers what is still planned or still owed.
 argument-hint: "[--advance <run dir> | --resume <run dir>]"
 disable-model-invocation: true
@@ -18,9 +18,9 @@ knowing when it is finished.
 
 | Invocation | You are |
 |---|---|
-| `/agent-kit:mvp` | the gate — the one conversation this run has. Then start the first batch and stop. Run again once the bounds are built and it offers what is left instead: see *Derive the in-list* |
-| `/agent-kit:mvp --advance <run dir>` | started by the driver when a batch finished: decide what follows, start it, stop |
-| `/agent-kit:mvp --resume <run dir>` | the run stalled and nobody restarted it. Work out where it is and carry on — see *Coming back* |
+| `/agent-kit:epic` | the gate — the one conversation this run has. Then start the first batch and stop. Run again once the bounds are built and it offers what is left instead: see *Derive the in-list* |
+| `/agent-kit:epic --advance <run dir>` | started by the driver when a batch finished: decide what follows, start it, stop |
+| `/agent-kit:epic --resume <run dir>` | the run stalled and nobody restarted it. Work out where it is and carry on — see *Coming back* |
 
 Each of these **ends**. Nothing sits watching for hours: between phases the driver runs, and a phase
 that is waiting is a phase that has already lost the night to an account limit.
@@ -28,11 +28,11 @@ that is waiting is a phase that has already lost the night to an account limit.
 ## The gate
 
 The only moment an owner is present, and its whole job is to make the finish line real. A sprint
-with a thin blueprint still delivers five features; an mvp with a thin blueprint has no stopping
+with a thin blueprint still delivers five features; an epic with a thin blueprint has no stopping
 condition at all.
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --mvp
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --epic
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status --state
 ```
 
@@ -89,7 +89,7 @@ every batch that has closed here — and say which runs it came from. With none 
 figure elsewhere is **about an hour per feature end to end**, so twenty-one entries is a day and a
 night; say that it is a figure from another project until this one has its own.
 
-**And price the audit separately, because it is not small.** Measured on one real `mvp`: the lenses
+**And price the audit separately, because it is not small.** Measured on one real `epic`: the lenses
 and the batches that fixed what they found came to as much as building the product did. It is a
 choice, so it goes in the screen as one — two waves against one, with what each costs.
 
@@ -113,11 +113,11 @@ request.
 ## The run files
 
 **Check `tmux` is installed before the gate's screen** — `command -v tmux`. Without it the driver
-cannot give a feature its own session, and an mvp is nothing but batches of those. Say so at the
+cannot give a feature its own session, and an epic is nothing but batches of those. Say so at the
 gate rather than after the owner has answered.
 
-`.agent-kit/runs/<date>-mvp-<slug>/run.json`, shaped like
-`${CLAUDE_PLUGIN_ROOT}/templates/run.json`: `command: "mvp"`, `entries` holding the keys the owner
+`.agent-kit/runs/<date>-epic-<slug>/run.json`, shaped like
+`${CLAUDE_PLUGIN_ROOT}/templates/run.json`: `command: "epic"`, `entries` holding the keys the owner
 took, `children` naming the batches in order, `window` your own tmux session, and `finish` carrying
 what the gate settled — the lenses, the wave cap, the batches already delivered. **A resumed run
 reads `finish` instead of asking again**, so anything the gate decided that is not in there is a
@@ -139,7 +139,7 @@ with `deliver: "branch"`, `gate: "none"`, chained off each other. Write **only t
 about to start**: a batch composed three phases ahead would be composed against code that does not
 exist yet.
 
-The branch is `mvp/<slug>`, created once from the default branch. Every batch chains onto it and the
+The branch is `epic/<slug>`, created once from the default branch. Every batch chains onto it and the
 closing session moves it forward, so there is one branch and one pull request for the whole run.
 
 Then start the driver on the first batch and end:
@@ -165,7 +165,7 @@ thing:
 | Where the run is | What you do |
 |---|---|
 | batches left in `children` | write the next one and start the driver on it |
-| the in-list is built | move to the audit, per `${CLAUDE_PLUGIN_ROOT}/skills/mvp/references/finish.md` |
+| the in-list is built | move to the audit, per `${CLAUDE_PLUGIN_ROOT}/skills/epic/references/finish.md` |
 | the audit is done | move to the scenarios, same file |
 | the scenarios pass | set `step: "done"` and say so in the pull request |
 
@@ -217,7 +217,7 @@ shared. Do it last: your session dies with the command, so anything after it nev
 
 **A batch that ended blocked does not stop the run.** Its features' entries stay `planned`, they are
 named in the pull request as what did not happen, and the next batch starts. A run that stopped on
-the first failure would lose everything behind it — but say it plainly, because a hole in an mvp is
+the first failure would lose everything behind it — but say it plainly, because a hole in an epic is
 worth more attention than anything that did land.
 
 **Before starting a batch, look at the working tree.** A dirty tree blocks every child in turn:

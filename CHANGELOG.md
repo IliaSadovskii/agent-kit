@@ -3,6 +3,29 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.0.0
+
+- **`mvp` is now `epic`.** The command stopped being about the MVP in 1.4.0, when it took a scope:
+  the MVP bounds the first time, and afterwards whatever is still `planned` or still owed. A name
+  that describes only the first run of it lies on every run after. `epic` explains itself through a
+  command that already exists — `sprint` is a batch of about five features, `epic` is the whole of
+  what is left, in batches, audited and proved as one pull request. Nobody has to read a paragraph
+  to size them against each other.
+
+  Nothing about the machinery changed: the gate, the batches, the audit in waves, the finish. What
+  changed is the word, `check.py --mvp` → `--epic`, and the branch prefix `mvp/<slug>` → `epic/`.
+  A run already in flight needs nothing — the driver still recognises `"command": "mvp"` in a run
+  file it did not write. **The MVP bounds were not renamed**: they are the owner's own section of
+  `product.md`, and they are still the scope this command takes when nothing else is said.
+  Migration: [migrations/2.0.0.md](migrations/2.0.0.md).
+
+- **`next` knows the command exists.** It has said `mvp` "is not written yet" since before 1.0.0, so
+  in every state of every project it recommended something else — which is why the two commands felt
+  unconnected. Rungs 9 and 10 now name one judgement in two rows, and it is about size: one entry is
+  a `ship`, about five on one topic is a `sprint`, everything that is left is an `epic` — with the
+  count, because naming the command without it leaves the owner guessing at a day's work. An empty
+  repository is `blueprint`, then `epic`.
+
 ## 1.4.2
 
 - **A run proves its application starts from a clean checkout, not from the tree it built in.** The

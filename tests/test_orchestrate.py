@@ -303,12 +303,12 @@ class DriverCase(unittest.TestCase):
         self.assertEqual(self.step(first), "done")
 
     def test_a_batch_carrying_the_run_s_own_pull_request_is_not_closed_on_that_alone(self):
-        """The trap, from the live run: one pull request covers a whole `mvp`, so a batch can hold
+        """The trap, from the live run: one pull request covers a whole `epic`, so a batch can hold
         its number before it has done anything. Read as proof, it ends the closing session a minute
         after it starts — twice, on one night."""
         first, = self.batch("one")
         (self.runs / "m").mkdir()
-        self.write("m", {"slug": "m", "command": "mvp", "pr": 12, "children": ["b"]})
+        self.write("m", {"slug": "m", "command": "epic", "pr": 12, "children": ["b"]})
         self.write("b", {"slug": "b", "command": "sprint", "base": "main", "children": [first],
                          "parent": "m", "pr": 12})
         case = self
@@ -557,18 +557,18 @@ class InheritedPullRequestCase(unittest.TestCase):
         self.assertTrue(run.terminal())
 
     def test_a_number_inherited_from_the_run_above_is_not(self):
-        self.write("m", {"slug": "m", "command": "mvp", "pr": 12})
+        self.write("m", {"slug": "m", "command": "epic", "pr": 12})
         run = self.write("b", {"slug": "b", "parent": "m", "pr": 12, "step": "closing"})
         self.assertIsNone(run.own_pr())
         self.assertFalse(run.terminal())
 
     def test_a_second_pull_request_under_the_same_parent_still_counts(self):
-        self.write("m", {"slug": "m", "command": "mvp", "pr": 12})
+        self.write("m", {"slug": "m", "command": "epic", "pr": 12})
         run = self.write("b", {"slug": "b", "parent": "m", "pr": 13, "step": "closing"})
         self.assertEqual(run.own_pr(), 13)
 
     def test_the_step_alone_closes_a_batch_with_an_inherited_number(self):
-        self.write("m", {"slug": "m", "command": "mvp", "pr": 12})
+        self.write("m", {"slug": "m", "command": "epic", "pr": 12})
         run = self.write("b", {"slug": "b", "parent": "m", "pr": 12, "step": "done"})
         self.assertTrue(run.terminal())
 
@@ -597,7 +597,7 @@ class LauncherCase(unittest.TestCase):
 
     `claude-new` prints "that name is taken" and exits 0, so a launcher that trusted the exit code
     believed it had a fresh session and typed the prompt into whatever was standing there — a real
-    mvp run left its hand-back session idle with half a sentence in its box, and the next batch
+    epic run left its hand-back session idle with half a sentence in its box, and the next batch
     would have appended its instruction to that. The name is taken back instead.
     """
 
@@ -625,15 +625,15 @@ class LauncherCase(unittest.TestCase):
     def test_a_taken_name_is_closed_before_anything_is_typed(self):
         made = self.launcher(alive=True)
         with contextlib.redirect_stdout(io.StringIO()):
-            self.assertTrue(made.start("batch-advance", "/agent-kit:mvp --advance x"))
+            self.assertTrue(made.start("batch-advance", "/agent-kit:epic --advance x"))
         self.assertEqual(made.reclaimed, "batch-advance")
         self.assertEqual(made.calls[0], ("stop", "batch-advance"))
-        self.assertIn(("send", "/agent-kit:mvp --advance x"), made.calls)
+        self.assertIn(("send", "/agent-kit:epic --advance x"), made.calls)
 
     def test_a_free_name_is_left_alone(self):
         made = self.launcher(alive=False)
         with contextlib.redirect_stdout(io.StringIO()):
-            self.assertTrue(made.start("batch-advance", "/agent-kit:mvp --advance x"))
+            self.assertTrue(made.start("batch-advance", "/agent-kit:epic --advance x"))
         self.assertIsNone(made.reclaimed)
         self.assertNotIn("stop", [c[0] for c in made.calls])
 

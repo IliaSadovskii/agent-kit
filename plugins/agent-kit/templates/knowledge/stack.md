@@ -46,7 +46,7 @@ patterns to follow, where to look for a ready-made answer, and what this project
      the seams and the bar all come from the code and the manifests; a harness nobody has built
      yet comes from nowhere, so it has to be asked. Name the tool and where it runs — or write
      that there is none and the scenarios are proved by hand. Both are legitimate; the absence of
-     either is not. `mvp` finishes only when every scenario inside the bounds passes, so a run
+     either is not. `epic` finishes only when every scenario inside the bounds passes, so a run
      that finds this silent reads it as "not done here" and builds a whole product before anyone
      notices. -->
 

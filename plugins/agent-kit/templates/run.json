@@ -1,5 +1,5 @@
 {
-  "_": "One run of any command. The same shape for fix, ship, sprint and mvp — what differs is which fields are filled. Written by the run, read by the run that resumes it, by the reviewer, and by whatever launched it. JSON because a script reads it; the owner reads the pull request instead.",
+  "_": "One run of any command. The same shape for fix, ship, sprint and epic — what differs is which fields are filled. Written by the run, read by the run that resumes it, by the reviewer, and by whatever launched it. JSON because a script reads it; the owner reads the pull request instead.",
   "_records": "Every field drawn below as `[{ … }]` is a list of records and is read as one — `tasks`, `assumptions`, `answers`, `review.findings`. Filling one with sentences leaves a field that looks answered to a person and is empty to everything that reads it; the check names a run file that does.",
   "_step": "queued | design | build | verify | deliver | done | blocked | skipped — and building | closing, which only a driver writes on a batch's own file while it works through the children. The last three of the first list are terminal: a driver stops watching a run that reaches one, so nothing may leave it there while still working. The list is closed, and the check names a step outside it.",
   "_parent": "The run this one continues from, when a batch chains its features. Its run file carries the decisions this one inherits; its branch is this one's base.",
@@ -39,10 +39,10 @@
   "closed_debt": [],
   "blockers": [],
 
-  "_finish": "An mvp's own plan, settled at its gate and never asked again — a resumed run reads it instead of putting the same questions a second time. `scope`: the entry keys taken, which is `entries` above; this says which list they came from. `lenses`: the audit lenses this product needs. `waves`: how many times a lens may be re-run after its findings are fixed, before the remainder goes to the report — a lens is never run twice over unchanged code, so a wave is always audit, then the sprints that fix it, then the audit again. `built`: the batches already delivered, so an advance knows where it is.",
+  "_finish": "An epic's own plan, settled at its gate and never asked again — a resumed run reads it instead of putting the same questions a second time. `scope`: the entry keys taken, which is `entries` above; this says which list they came from. `lenses`: the audit lenses this product needs. `waves`: how many times a lens may be re-run after its findings are fixed, before the remainder goes to the report — a lens is never run twice over unchanged code, so a wave is always audit, then the sprints that fix it, then the audit again. `built`: the batches already delivered, so an advance knows where it is.",
   "finish": null,
 
-  "_model": "Which model this run's session is started on — an alias like `opus` or `sonnet`, or a full name. Left out, the session takes whatever the install defaults to; a brief or an mvp's gate writes the model it is itself running on, so children inherit the owner's choice without being asked. The driver sets it by typing `/model` into the session before the task, so it works however the session was launched.",
+  "_model": "Which model this run's session is started on — an alias like `opus` or `sonnet`, or a full name. Left out, the session takes whatever the install defaults to; a brief or an epic's gate writes the model it is itself running on, so children inherit the owner's choice without being asked. The driver sets it by typing `/model` into the session before the task, so it works however the session was launched.",
   "model": null,
 
   "window": null,

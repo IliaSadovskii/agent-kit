@@ -71,7 +71,7 @@ moment anyone checks before the owner does.
 point of the step rather than a detail of it:
 
 ```bash
-git worktree add /tmp/<slug>-preview mvp/<slug>
+git worktree add /tmp/<slug>-preview epic/<slug>
 ```
 
 The tree the run built in has everything already done to it — dependencies installed, migrations
@@ -129,7 +129,7 @@ Then the line that makes the whole run usable — how to open it without touchin
 children share:
 
 ```bash
-git worktree add /tmp/<slug>-preview mvp/<slug>
+git worktree add /tmp/<slug>-preview epic/<slug>
 ```
 
 A `git checkout` in the project's own directory would pull the tree out from under a live run, and

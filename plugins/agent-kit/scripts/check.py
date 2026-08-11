@@ -62,7 +62,7 @@ SLOTS = ("product", "actors", "entities", "actions", "screens", "integrations", 
 # nothing recognises leaves whatever is watching that field waiting for a state that never comes.
 STEPS = ("queued", "design", "build", "verify", "deliver", "done", "blocked", "skipped",
          "building", "closing",
-         # an mvp's own phases, written by `mvp` on its own file as it moves between them
+         # an epic's own phases, written by `epic` on its own file as it moves between them
          "gate", "auditing", "proving")
 
 # What a dependency manifest is called, across the ecosystems a project here might use. Only their
@@ -331,10 +331,10 @@ def tracked_manifests(root: Path) -> list:
     return sorted(p for p in listed.stdout.splitlines() if Path(p).name in MANIFEST_NAMES)
 
 
-def check_mvp(root: Path, manifest: dict, docs: list, report: Report) -> list:
-    """What `mvp` cannot start without, and nothing more.
+def check_epic(root: Path, manifest: dict, docs: list, report: Report) -> list:
+    """What `epic` cannot start without, and nothing more.
 
-    An `mvp` with a thin blueprint has no stopping condition — a sprint with one still delivers five
+    An `epic` with a thin blueprint has no stopping condition — a sprint with one still delivers five
     features. So these three are fatal at its gate and are checked here rather than remembered: two
     real MVP bounds, at least one scenario to prove the end against, and the two commands that start
     the application and run its suite. Everything smaller becomes an assumption instead of costing a
@@ -352,7 +352,7 @@ def check_mvp(root: Path, manifest: dict, docs: list, report: Report) -> list:
         found = re.search(r"^#{1,6}\s+.*\bMVP\b.*$", text, re.M | re.I)
         section = section_of(text, found.group(0).lstrip("# ").strip()) if found else None
     if not section:
-        fatal.append("product.md has no MVP bounds section — an mvp with no bounds cannot know when "
+        fatal.append("product.md has no MVP bounds section — an epic with no bounds cannot know when "
                      "it is finished")
     else:
         sides = re.findall(r"^\*\*([^*]+):?\*\*[:：]?\s*(.*)$", section, re.M)
@@ -364,7 +364,7 @@ def check_mvp(root: Path, manifest: dict, docs: list, report: Report) -> list:
     scenarios = next((d for d in docs if d.slot == "scenarios"), None)
     body = re.sub(r"<!--.*?-->", "", scenarios.text, flags=re.S) if scenarios else ""
     if not HEADING_RE.findall(body):
-        fatal.append("no scenarios are described — they are what an mvp proves itself against, and "
+        fatal.append("no scenarios are described — they are what an epic proves itself against, and "
                      "without them its finish line is somebody's opinion")
 
     commands = manifest.get("commands") or {}
@@ -654,7 +654,7 @@ def work_branches(root: Path, base: str) -> list:
     listed = git(root, "for-each-ref", "--format=%(refname:short)\t%(upstream:short)", "refs/heads")
     for row in listed.splitlines():
         name, _, upstream = row.partition("\t")
-        if not name.startswith(("claude/", "sprint/", "mvp/")):
+        if not name.startswith(("claude/", "sprint/", "epic/")):
             continue
         counts = git(root, "rev-list", "--left-right", "--count", f"{base}...{name}") if base else ""
         behind, _, ahead = counts.partition("\t")
@@ -1088,8 +1088,8 @@ def main(argv: list | None = None) -> int:
                              "mid-flight, when each lens last ran")
     parser.add_argument("--hash", nargs="+", metavar="ARG",
                         help="print the digest of a file, or of one heading inside it: --hash FILE [HEADING]")
-    parser.add_argument("--mvp", action="store_true",
-                        help="the gate of /agent-kit:mvp: bounds, scenarios, and the commands that "
+    parser.add_argument("--epic", action="store_true",
+                        help="the gate of /agent-kit:epic: bounds, scenarios, and the commands that "
                              "start and test the application. Silent when it may start")
     parser.add_argument("--brief", metavar="KEY",
                         help="everything a run reads before it designs, in one call: the project's "
@@ -1155,10 +1155,10 @@ def main(argv: list | None = None) -> int:
               else "  every hash was already current")
         return 0
 
-    if options.mvp:
-        fatal = check_mvp(root, manifest, docs, report)
+    if options.epic:
+        fatal = check_epic(root, manifest, docs, report)
         if fatal:
-            print("This project cannot start an mvp as it stands:")
+            print("This project cannot start an epic as it stands:")
             for line in fatal:
                 print(f"  {line}")
         return 1 if fatal else 0
@@ -1241,7 +1241,7 @@ def main(argv: list | None = None) -> int:
               "owned the hash. Re-record them with blueprint rather than reading each document.")
     if report.assumed:
         # Not "waiting for the owner": a run took the decision, and every later run in that entry
-        # follows it — that is what keeps features consistent with each other. One `mvp` leaves
+        # follows it — that is what keeps features consistent with each other. One `epic` leaves
         # dozens, and printing each of them before every command buries the findings that are real.
         # The entries are what a command needs, because it only cares about the ones it builds in.
         where = sorted({at for at, _line in report.assumed})

@@ -217,4 +217,4 @@ own run, and the only reason to touch one is that the owner changed their mind a
 It does not design features, write code, run tests, merge anything, or watch the run once the driver
 has it. It never opens a pull request itself — the closing session does that, once, for the batch.
 And it does not run `/agent-kit:audit` over its own output: a batch of a few features is small
-enough for the owner to read, and the sweep would cost more than the batch. That belongs to `mvp`.
+enough for the owner to read, and the sweep would cost more than the batch. That belongs to `epic`.

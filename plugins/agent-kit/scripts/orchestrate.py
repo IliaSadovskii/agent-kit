@@ -101,7 +101,7 @@ class Run:
 
         `pr` is the driver's second signal that a run finished: a session can die between opening
         the pull request and writing its step, and the world is the better witness. But inside an
-        `mvp` **one** pull request covers the whole run, so every batch after the first carries a
+        `epic` **one** pull request covers the whole run, so every batch after the first carries a
         number that was already there — and a batch may carry it before it has done anything.
 
         Measured twice on one live run: the number was written into a batch's file in advance, this
@@ -535,7 +535,7 @@ class Driver:
         """What gets typed into this child's session.
 
         `ship` unless the run file says otherwise. It said otherwise for the first time on a live
-        `mvp`: the audit is not a `ship`, so the driver could not start it, and the session that
+        `epic`: the audit is not a `ship`, so the driver could not start it, and the session that
         wanted one wrote a shell script into the run directory to launch it by hand and another to
         hand control back. A mechanism nobody declared, in a directory nothing tracks — and every
         limit, stall and restart this program handles was outside it.
@@ -678,7 +678,7 @@ class Driver:
     def record_spend(self, built: int) -> None:
         """What this batch cost in the units an owner can use: hours, features, sessions.
 
-        The gate of an `mvp` prices its scope out of a number written in prose, and on the run this
+        The gate of an `epic` prices its scope out of a number written in prose, and on the run this
         was added for that number was four times under. Nothing fed a measurement back into it,
         because nothing measured. This does — accumulating, so a batch picked up by `--resume` adds
         to what the first pass spent rather than replacing it.
@@ -698,7 +698,7 @@ class Driver:
         why = self.watch(name, self.run, f"/agent-kit:sprint --close {self.run.dir}")
         self.launcher.stop(name)
 
-        # Judge the closing session by its step first. Inside an `mvp` the batch's `pr` is the run's
+        # Judge the closing session by its step first. Inside an `epic` the batch's `pr` is the run's
         # one pull request, which the closing session rewrites rather than opens — so it is there
         # whether or not this batch was closed, and reading it as proof is what killed two closings.
         state = self.run.state()
@@ -717,7 +717,7 @@ class Driver:
     def hand_back(self, state: dict) -> None:
         """A batch inside a longer run tells that run it is finished, and this program stops.
 
-        An `mvp` is batches one after another, and something has to decide what the next one is —
+        An `epic` is batches one after another, and something has to decide what the next one is —
         which is judgement, so it is a session. This launches it and does not watch it: the session's
         own product is another driver running, and there is no state of its own to wait for. If it
         dies before starting one, the run stops where it stands and `--resume` picks it up, which is
@@ -727,17 +727,19 @@ class Driver:
         if not parent:
             return
         above = Run(self.run.dir.parent / parent)
-        if above.state().get("command") != "mvp":
+        # `mvp` is what this command was called before 2.0.0. A run file on disk outlives the
+        # rename, and a run half-finished under the old name still has to be handed back.
+        if above.state().get("command") not in ("epic", "mvp"):
             return
         name = f"{above.slug}-advance"[:60]
         self.run.event("hand-back", f"{parent} decides what follows")
-        started = self.launcher.start(name, f"/agent-kit:mvp --advance {above.dir}",
+        started = self.launcher.start(name, f"/agent-kit:epic --advance {above.dir}",
                                       self.model_for(above.state()))
         if self.launcher.reclaimed:
             above.event("reclaimed", f"{name} was still up from an earlier batch — closed it first")
         if not started:
             above.event("stalled", "could not start the session that decides the next batch")
-            self.tell(f"{above.slug} needs /agent-kit:mvp --resume — the next batch did not start")
+            self.tell(f"{above.slug} needs /agent-kit:epic --resume — the next batch did not start")
 
 
 # --------------------------------------------------------------------------------------------

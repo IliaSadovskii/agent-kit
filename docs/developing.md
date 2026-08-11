@@ -80,7 +80,7 @@ can be held to, and salvaging it teaches the next run that the shape was optiona
 
 The kit is being rebuilt. Read [docs/design/kit-v1.md](design/kit-v1.md) before changing anything:
 it records what was removed and why, and adding one of those things back needs an argument rather
-than an oversight. Six commands work, `mvp` is a declared stub, and `scripts/validate.sh` enforces
+than an oversight. Six commands work, `epic` is a declared stub, and `scripts/validate.sh` enforces
 that a command is either behavior or a stub marked as such in the plugin README.
 
 ## Adding a command

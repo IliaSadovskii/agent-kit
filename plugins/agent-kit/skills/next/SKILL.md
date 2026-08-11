@@ -105,9 +105,16 @@ alone, not what is most interesting.
 | 6 | somebody is waiting: a run's `waiting_on`, open `[assumed …]` on entries about to be built | the answer is cheapest while the context is warm | answer it, or `/agent-kit:blueprint` |
 | 7 | knowledge not ready **for the work you are about to name**: a slot `open_question`, empty fields, a stale `source:`, an open block on the very entry you would recommend building | a run over that entry invents the missing half | `/agent-kit:blueprint` |
 | 8 | a blind spot: a lens that never ran, or ran long ago; scenarios with no end-to-end test | not knowing what is broken is not the same as nothing being broken | `/agent-kit:audit <lens>` |
-| 9 | debt, unkept promises, unticked audit boxes | it only gets more expensive | `/agent-kit:sprint` with no theme |
-| 10 | entries still `planned` | the product is unfinished | `/agent-kit:sprint` or `/agent-kit:ship <key>` |
+| 9 | debt, unkept promises, unticked audit boxes | it only gets more expensive | `/agent-kit:sprint` with no theme — or `/agent-kit:epic` when there is a lot of it |
+| 10 | entries still `planned` | the product is unfinished | by how much is left: one `/agent-kit:ship <key>`, a `/agent-kit:sprint` of about five, or `/agent-kit:epic` for the rest of them |
 | 11 | none of the above | say so | nothing |
+
+**Rungs 9 and 10 are one judgement in two rows, and it is about size.** One entry is a `ship`; about
+five on one topic is a `sprint`; everything that is left — the MVP bounds on a project that has none
+of them yet, or every `planned` entry on one that does — is an `epic`, which takes that whole list,
+audits what it built and proves it, as one pull request. Say which of the three you mean and why,
+with the count: *seven entries left — `/agent-kit:epic`, it asks one question and runs the rest
+unattended*. Naming the command without the count leaves the owner to guess at a day's work.
 
 **An open block is not by itself a reason to recommend `blueprint`.** Every batch leaves some, and a
 ladder that fires on them recommends the same command after every sprint until the owner learns to
@@ -121,16 +128,16 @@ were about to recommend is the one carrying the block, which is rung 7.
 three sit under an entry, so the next run that builds there settles them in passing. This one is
 waiting *for* an entry: the owner agreed to something and its fields were left for later, so there is
 nothing to build in and no command that arrives by accident. Left alone it stays for ever, and the
-work it stands for is invisible to `sprint`, to `mvp` and to rung 10. Treat any open one as rung 9
+work it stands for is invisible to `sprint`, to `epic` and to rung 10. Treat any open one as rung 9
 work and name `/agent-kit:blueprint`, saying how many and from which lens.
 
 Three overrides, because a ladder read literally lies:
 
 - **No `docs/knowledge/` at all** — the ladder collapses: the answer is `/agent-kit:blueprint`,
   whatever else is true.
-- **An empty repository** — the answer is `/agent-kit:blueprint`, then `/agent-kit:sprint` for a
-  skeleton that starts and serves something. `mvp` is the command for this and is not written yet;
-  recommending it would be recommending a stub.
+- **An empty repository** — the answer is `/agent-kit:blueprint`, then `/agent-kit:epic`, which
+  builds the MVP bounds it just wrote. Its gate is one screen and one question, so recommending it
+  costs the owner a conversation, not a night.
 - **MVP bounds not reached** — rungs 9 and 10 swap: unbuilt entries inside the bounds come before
   debt. Paying down debt in a product that does not exist yet is optimising a thing nobody has run.
 

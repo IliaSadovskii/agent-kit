@@ -26,7 +26,7 @@ git branch -f sprint/<batch-slug> <last successful child's branch>
 git push -u origin sprint/<batch-slug>
 ```
 
-**Inside an `mvp` the branch already exists and moves forward instead**: fast-forward `mvp/<slug>`
+**Inside an `epic` the branch already exists and moves forward instead**: fast-forward `epic/<slug>`
 to the last successful tip and push it. There is one pull request for that whole run, so the first
 batch opens it and every batch after **rewrites its body and adds a comment with its own digest** —
 what this batch built, what it proved, what it decided without the owner. They read one place and
@@ -35,7 +35,7 @@ see what is new since they last looked.
 Say once, in the body, how to look at it without breaking the run:
 
 ```bash
-git worktree add /tmp/<slug>-preview mvp/<slug>
+git worktree add /tmp/<slug>-preview epic/<slug>
 ```
 
 A `git checkout` in the project's own directory pulls the working tree out from under the children
@@ -113,7 +113,7 @@ this is the one place the `/code-review` fan belongs — offer it to the owner i
 rather than running it, since it cannot be started by an agent. That holds while a batch is what it
 says — a few thousand lines on one topic.
 
-**Inside an `mvp`, do not offer it at all.** Eleven batches offering it into a body each of them
+**Inside an `epic`, do not offer it at all.** Eleven batches offering it into a body each of them
 rewrites is how it came to be offered nought times on a measured run — but that is the small reason.
 The large one is that a run's diff is tens of thousands of lines already read twice with context
 nothing else has: by `agent-kit:reviewer` against each entry, and by the audit's lenses over the
@@ -149,7 +149,7 @@ the Assumptions section of this pull request, and answering them is the owner's.
 `.agent-kit/runs/` is working state and is in the project's `.gitignore`, so every run file, every
 driver log and everything a child left in `notes` lives on one machine and dies with it. What
 survives a batch today is the pull request's prose — which no program can read, and which nobody can
-read either once it has been rewritten eleven times by an `mvp`.
+read either once it has been rewritten eleven times by an `epic`.
 
 So write **`docs/runs/<batch slug>.json`**, in the same commit as the ledger, and keep it small — a
 few kilobytes, records rather than sentences:

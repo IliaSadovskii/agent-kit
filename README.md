@@ -7,7 +7,7 @@ A Claude Code plugin. You describe the project once, and the commands build from
 The description lives in `docs/knowledge/`, one file per slot: what the product is and deliberately
 is not, the actors, the entities and their states, the actions, the screens, the integrations, the
 scenarios, the stack — and what is in the first version. `blueprint` writes it. `ship`, `fix`,
-`sprint` and `mvp` read it and write code. `audit` compares the code back to it. And `advise` looks
+`sprint` and `epic` read it and write code. `audit` compares the code back to it. And `advise` looks
 the whole thing over — the product, the code and the money — and says where it is weak and where it
 could grow.
 
@@ -30,7 +30,7 @@ For a whole repository, in `.claude/settings.json`:
 ```
 
 Needs `git` and `python3`, plus `gh` for pull requests. The other five commands stop there;
-`sprint` and `mvp` also need `tmux`, because they give each feature its own live session.
+`sprint` and `epic` also need `tmux`, because they give each feature its own live session.
 
 Those two run for a night or a day and wait out account limits by sleeping until the reset, so they
 want a machine that does not sleep either — any server will do. If you would rather not arrange one,
@@ -108,7 +108,7 @@ Several features briefed in one sitting, then built unattended — each as its o
 one after another, chained so the batch arrives as a single mergeable pull request. A control
 session stands beside the run to say how it is going and to take *skip* and *stop*.
 
-### `mvp`
+### `epic`
 
 A whole scope, built while nobody watches, then audited, then proved — one pull request you open and
 click through. The MVP bounds the first time; run it again once those are built and it offers what
@@ -163,7 +163,7 @@ runs leave it alone.
 
 | You have | Order |
 |---|---|
-| an idea | `blueprint` → `advise` → `mvp` → `sprint` |
+| an idea | `blueprint` → `advise` → `epic` → `sprint` |
 | a half-built skeleton | `blueprint` → `audit` → `ship` / `sprint` |
 | a finished application | `blueprint` → `audit` → `advise` → `sprint` → `fix` |
 | no idea where you stopped | `next` |
@@ -175,7 +175,7 @@ overnight. After `ship` it is redundant.
 your mind is free; and after a sprint, when the product is real enough to be judged honestly.
 
 `ship`, `fix` and `sprint` work with no blueprint at all, from a written task — a project's first
-command should not be an hour of interview. `mvp` requires one, because bounds are what tell it when
+command should not be an hour of interview. `epic` requires one, because bounds are what tell it when
 to stop. `audit` requires one too, with a single exception: the `deps` lens has the registries as its
 reference and needs no description. `advise` requires one as well — with nothing written down, there
 is nothing for it to be about. And `next` will run, but with nothing to rank it will only tell you to
