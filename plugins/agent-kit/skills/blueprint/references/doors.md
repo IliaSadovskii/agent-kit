@@ -1,8 +1,9 @@
-# The two doors that are not an interview
+# Reading it back, and what the owner found by using it
 
-Read the one you were opened by, and neither otherwise. Both are chosen from the invocation table in
-`SKILL.md`, both are the owner arriving with something specific rather than with a project to
-describe, and a plain interview never needs either.
+Two things that are not the five steps of `SKILL.md`, and each is read only when you are in it.
+`--recall` is its own invocation. The second is not a door at all any more — it is what step 3 does
+with a contradiction the owner found by clicking through the product, and the table is here because
+no run that meets none needs to carry it.
 
 ## `--recall` — reading it back
 

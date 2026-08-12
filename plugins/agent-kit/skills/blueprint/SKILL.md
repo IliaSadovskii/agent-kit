@@ -1,7 +1,7 @@
 ---
 name: blueprint
-description: The project's knowledge layer — interview the owner and write the documentation the other commands build from: application type and stack, actors, entities, actions, screens, integrations, scenarios, MVP bounds. Run with nothing when you do not know what is wrong: it says what is missing, what is behind the kit's current shape, and what to do about each — or that there is nothing to do.
-argument-hint: "[what to add or reconsider] [--recall [part]] [--check]"
+description: The project's knowledge layer — the owner says whatever they came to say about their product and this writes it into the documentation the other commands build from: application type and stack, actors, entities, actions, screens, integrations, scenarios, MVP bounds. It reads what is already recorded on what they touched, shows the comparison before writing, and asks only about what is still missing. Run with nothing and it says where the description is thin.
+argument-hint: "[whatever you want to say about the product] [--recall [part]] [--check]"
 disable-model-invocation: true
 ---
 
@@ -30,52 +30,116 @@ counts as settled — stays here.
 
 | Invocation | What it does |
 |---|---|
-| `blueprint` | continues from wherever the last session stopped: works only on what is empty, stale, marked by an earlier run — **or written by an older kit**, which is the one nobody can spot by reading. Interactive. |
-| `blueprint <what you want to add or reconsider>` | the owner has something the documents do not hold yet — a feature they have thought through, a part they want reworked, a doubt about whether something is covered. Find the slots it touches, interview about those, write, stop. Without this a finished blueprint has no way in, and the thought turns into work nobody asked for. |
-| `blueprint <what did not match, after using it>` | the same door from the other side: the owner has clicked through what a run built and can say what is wrong. One fork per complaint, and half of them are not blueprint's work — `${CLAUDE_PLUGIN_ROOT}/skills/blueprint/references/doors.md` |
+| `blueprint`, with or without words after it | **the one door.** The owner says something about their product — an idea, one part in detail, the whole thing again, a list of what did not match after using it — or says nothing, and then you ask. Everything after this table is that. |
 | `blueprint --recall [part]` | tells the owner what the project already says, in their language and out loud, so they never open a file to find out. Changes nothing until they ask for a change — `${CLAUDE_PLUGIN_ROOT}/skills/blueprint/references/doors.md` |
 | `blueprint --check` | audits, mechanically, in seconds, asking nothing. Run the program — `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status --sync` — and put its output in front of the owner with a sentence about what to do next. `--sync` moves an entry whose pull request has merged — the one thing this program writes, and never as a preflight, which would leave the tree dirty under the command that ran it. `next` and `accept` may run it too, under the same fence; a build command may not. Two audiences: as another command's preflight it is run bare and prints nothing when clean; **by hand it always prints where the project stands**. That is the raw view of the knowledge; `/agent-kit:next` is the same data ranked into a recommendation. |
 
 Every question you put to the owner follows `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`: options
-rather than prose, the recommendation first, and everything independent in one round.
+rather than prose, the recommendation first, and everything independent in one round — and its one
+exception is the step below where the owner is doing the talking.
 
-## Where a plain run starts
+## The five steps
 
-**Typed with nothing, this is the command an owner reaches for when they do not know what is wrong.**
-They may have never read a release note, may not know a flag exists, and may be coming back to a
-project a year older than the kit it was written with. So a plain run does not guess where it
-stopped — it asks the program, first, before anything else:
+**Every run is these five, whatever was typed and however much of the project exists.** An empty
+repository has an empty step 2 and a long step 5; a mature one is the reverse; a dictation about one
+part narrows both to that part. There is no other route through this command and no phase to
+announce — what differs between runs is how much of each step there is, not which of them happen.
+
+Before any of it, the program, always — not optional and not conditional. Left to be inferred it is
+skipped, and a build command once told to "run `blueprint --check`" went looking for an executable of
+that name, found none and carried on in silence:
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status
 ```
 
-That is not optional and not conditional. Left to be inferred, it is skipped — a build command was
-once told to "run `blueprint --check`", went looking for an executable of that name, found none and
-carried on silently, which is why these rules live in a program at all.
+### 1. The owner talks
 
-Then take what it printed, in this order, and stop at the first that applies:
+They came with something to say. Let them say it: an idea, one part in detail, the whole product
+again, a list of what did not match after using it — **any length, any order, and not sorted for
+you**. This is the one place in the kit where an open question is the right instrument and choices
+are the wrong one, because options can only be written out of what you have already read.
 
-| What it says | What you do |
+Typed with words after the command, that is the telling and it has already happened. Typed bare, ask
+for it — and say in the same breath what the check just told you, so they can take that instead:
+
+> Seventy assumptions across twenty-three entries, six parts of nine never walked. Tell me whatever
+> you came to tell me — an idea, one part in detail, what did not match when you used it — or say
+> *the list* and we work through that.
+
+Never a menu of modes. One sentence, and the microphone is open by default.
+
+**With no `docs/knowledge/` at all**, this is the first interview: there is nothing to dictate
+against, so you ask — what is this, for whom, how does it work — and follow up until you can restate
+it. On a repository that already has code, read the code first and bring your reading to be
+corrected, spending their attention only on what code cannot say.
+
+### 2. Read what is written on what they touched
+
+Not the whole knowledge every time: the entries, slots and parts their telling actually reaches.
+A sentence about notifications does not need the sign-in read.
+
+But **a telling that covers the whole product does mean reading the whole thing**, and that is the
+cost of the thing being asked for — a description can only be kept current against the previous
+version of itself. Do not skim it and do not sample it.
+
+### 3. Put your reading up before you write anything
+
+One screen, and it is the most important thing you produce:
+
+| | |
 |---|---|
-| no `docs/knowledge/` | this is a first interview. Go to *The interview* |
-| **written by an older kit** | say it in one screen — what the shape is missing and what it is for — and offer to bring it forward — *Knowledge written by an older kit*, below. Do this before any other work: the interview that follows writes into the new shape, and doing it the other way round means writing every entry twice |
-| a slot with no verdict, empty fields, an open `[assumed …]`, a stale `source:` | that is the work list. Say how much of it there is, and start |
-| **parts derived rather than walked** — the check counts them: *Parts: 6 recorded, 4 walked, 2 derived* | offer the walk, part by part. It is the one gap the check can see and cannot fix |
-| **no parts recorded at all** — written before the interview followed the product's parts | say it plainly: nothing records which of this product the owner has ever walked. Agree the list of parts first, then offer the walk. Everything already written stays; what is being added is who saw it |
-| nothing | **say so in one line and stop.** Then name what to run instead — usually `/agent-kit:next`, or `/agent-kit:epic` when there are entries still `planned`. An interview invented to fill the silence is the one thing an owner cannot check |
+| **new** | nothing recorded covers this |
+| **refines** | recorded and this adds to it — name the entry |
+| **contradicts** | recorded and this says otherwise — name the entry, quote both, **and this one is asked** |
+| **unchanged** | you read it, they touched on it, nothing moves |
 
-Say the count before you start on any of it. *"Four things are behind, two slots have gaps, and six
-parts of nine you have never walked — that is about an hour"* is a sentence they can act on; opening
-with the first question is not.
+The last row is not padding and may not be dropped. Comparing a telling against fifty entries means
+reading fifty entries, and the cheap way to look thorough is to read a third, find something and
+report it confidently — *"three differences"* is what an honest pass and a lazy one both say. A line
+per record touched, including the ones that did not move, is what a third of the reading cannot
+produce.
 
-**And on that same screen, name the other door in one line** — *"or, if you came with something
-else: say what did not match and I will take it point by point"*. Typing the command with nothing is
-what an owner does when they have something to say and do not know which flag says it, so the work
-list you just printed is the answer to a question they may not have asked. One line costs nothing
-and is the only place they will see it: the doors are written in
-`${CLAUDE_PLUGIN_ROOT}/skills/blueprint/references/doors.md`, which nobody but you reads. It is a
-line, not a question — do not turn the start of every session into a menu.
+Only contradictions are asked here, as choices, before anything is written. Everything else is
+stated and written.
+
+**A contradiction the owner found by using the product is the kit's own fork**, and it is the same
+one a build hits: the description is wrong and you rewrite the prose — which nothing else may — or
+the product is wrong, and that is not yours: a line for `fix`, or the entry back to `state: planned`
+for a build command to take. Your reading first, their decision.
+`${CLAUDE_PLUGIN_ROOT}/skills/blueprint/references/doors.md` has the table.
+
+### 4. Write it
+
+Into whatever slots it touches, committed as it is settled, per
+`${CLAUDE_PLUGIN_ROOT}/rules/knowledge-writing.md`. Then put the result up as a list of names to
+correct, not as prose: *"from the lesson I got one screen, five actions and one entity"*.
+
+### 5. Then the gaps, and only then
+
+What is missing, asked as choices — and **the order is the cost of leaving it, not the order of the
+files**:
+
+1. **What stops `epic`** — the MVP bounds, the scenarios and their endings. Its gate refuses to
+   start without them.
+2. **What is expensive to get wrong** — stored shapes, permissions, money, a contract outside this
+   codebase.
+3. **Everything else you do not ask.** Take it, record it as an assumption, and show the lot in one
+   list at the end: *here is what I decided for you*. This tier is the whole difference between a
+   command that clarifies and one that interrogates — and padding a round with decisions you could
+   have taken yourself is what teaches an owner to tap without reading.
+
+Two kinds of gap, found by two different things, and only the second is yours:
+
+- **a field that is not there** — the check already printed it: a slot with no verdict, empty
+  fields, a stale `source:`, `Parts: 6 recorded, 4 walked, 2 derived`, or no parts recorded at all
+  on a project written before the kit asked. Nothing to go looking for;
+- **a field that is filled and says nothing** — only a session sees this, and it is held to the
+  filter in *What to ask about, and what never*, below.
+
+When the check found nothing and the owner brought nothing, **say so in one line and stop**, naming
+what to run instead — usually `/agent-kit:next`, or `/agent-kit:epic` when entries are still
+`planned`. An interview invented to fill the silence is the one thing an owner cannot check.
 
 ## What this command does not do
 
@@ -100,7 +164,12 @@ slot. The verdicts are yours alone; the rest of how a record is written —
 templates, the project's language, `state: planned`, the commit per slot, hashes, the check
 afterwards — is `${CLAUDE_PLUGIN_ROOT}/rules/knowledge-writing.md`, which `advise` follows too.
 
-## The interview
+## What a finished description holds
+
+**Six things, and this is a list of what must exist — not a route to walk.** Step 5 asks about
+whichever of them the project is missing; a telling may fill three of them at once and leave the
+order to the owner. Only an empty repository walks it top to bottom, and it does so because the
+early items are the vocabulary the later ones are answered in, not because the list is a procedure.
 
 **It is shaped by the product's own parts, not by the slots.** Nobody holds their product as actors,
 entities and screens — they hold it as the things it does: sign-in, the lesson, the notifications,
@@ -109,15 +178,10 @@ convenience, and what does not survive that translation is what a run has to inv
 questions follow the parts, and the slots are what the answers are written into: one part's telling
 usually fills a screen, several actions and an entity at once.
 
-Six phases, and **a run is in exactly one of them at a time — say which as you enter it**. An
-interview may span days and sittings; the owner cannot see from the outside whether they are being
-asked about the whole product or about one part of it, and *"this is the parts list, phase two of
-six — the walks come after"* is the difference between an answer and a guess.
-
-1. **The telling.** One open question: what is this, for whom, how does it work. Not a form — follow
-   up until you can restate it. On a repository with real code, read the code first and bring your
-   reading to be corrected, spending the owner's attention only on what code cannot say: intent,
-   what is deliberately out of scope, what is coming. Store it near-verbatim as the first section of
+1. **The telling.** What this is, for whom, how it works. Not a form — follow up until you can
+   restate it. On a repository with real code, read the code first and bring your reading to be
+   corrected, spending the owner's attention only on what code cannot say: intent, what is
+   deliberately out of scope, what is coming. Store it near-verbatim as the first section of
    `product.md`.
 
 2. **The parts, agreed as a list.** Split the telling into the product's parts and put them up as
@@ -171,49 +235,22 @@ six — the walks come after"* is the difference between an answer and a guess.
    passes*, so it is the one gap that decides whether that command can finish at all. Name the tool
    and where it runs, or write plainly that there is none and the scenarios are proved by hand. Both
    are legitimate; neither may be left to be inferred.
-4. **One part at a time**, and each is two moves.
+4. **Each part, told by the owner.** One part is one telling, and it goes through the five steps
+   like anything else: they talk, you read what is recorded about that part, you put the comparison
+   up, you write, then you ask what is still open. A part is finished when you can write its records
+   without inventing a **product** answer — the mechanics you may still decide yourself.
 
-   **The telling, in the owner's own words back at them.** Not *"tell me about the lesson"* but
-   *"you said a lesson is a conversation with the model — take me through one, start to finish"*.
-   Their vocabulary is what makes the question answerable.
+   Two things are worth knowing before you open one.
 
-   **This move is an open question and stays one.** `rules/asking.md` is about forks and says so;
-   choices here can only be written from what you have already read, so they ask about what you
-   already know and the walk produces nothing. It is also the cheap path — options are generated in
-   a second, a telling has to be waited for — and on a live project it was taken: four
-   multiple-choice questions where the owner had a list of things that did not match.
+   **Ask for it in their own words back at them.** Not *"tell me about the lesson"* but *"you said a
+   lesson is a conversation with the model — take me through one, start to finish"*. Their
+   vocabulary is what makes the question answerable.
 
-   **Where the part is already built and the owner has used it, the telling is a different
-   question.** They cannot describe it as an intention — they have clicked it. Ask for the
-   difference instead: *"you have used this — what did not match?"*, dictated in any order, nothing
-   sorted. Then take their points one at a time, each with the same fork and your reading of it:
-   the prose is wrong and you rewrite it, or the product is wrong and it is not yours — a line for
-   `fix`, or the entry back to `planned` for a build command to take. A part whose entries are
-   `built` is in this case, and it is the common one on any project older than its first epic.
-
-   **Then what is still open, as choices.** Two to four options each, several questions on a screen,
-   per `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`. Derived from what they just said, never from a
-   checklist — and held to one filter, because it decides whether the round is worth their attention:
-
-   | ask | never ask |
-   |---|---|
-   | what the person sees, and in what order | how it is stored |
-   | what happens when it does not work | which request, which index, which schema |
-   | what is kept about them that they could notice | protocols, headers, the shape of a table |
-   | who may, and who may not | |
-   | what costs money | |
-
-   Measured on a real run, four out of five decisions a build takes are the right-hand column —
-   whether the web build can use secure storage, whether a sign-in must carry a nonce. The owner
-   cannot answer those and should not be asked; a run decides them and records the decision. Asking
-   anyway is what teaches an owner to tap without reading.
-
-   Then write the part into whatever slots it touches — actors, entities, actions, screens,
-   integrations — and put the result up as a list of names to correct, not as prose: *"from the
-   lesson I got one screen, five actions and one entity"*.
-
-   A part is finished when you can write its records without inventing a **product** answer. The
-   mechanics you may still decide yourself.
+   **Where the part is already built and the owner has used it, ask for the difference instead.**
+   They cannot describe it as an intention — they have clicked it. *"You have used this — what did
+   not match?"*, in any order, nothing sorted. Each point is then the fork in step 3: the prose is
+   wrong and you rewrite it, or the product is wrong and it is not yours. A part whose entries are
+   `built` is in this case, and on any project older than its first epic that is most of them.
 
 5. **Across the parts: `scenarios`.** Eight to ten walked end to end on real names and numbers, and
    deliberately across parts, because that is where a split by parts is blind — a person signing in,
@@ -224,8 +261,33 @@ six — the walks come after"* is the difference between an answer and a guess.
    with a yes-or-no under it gets a yes: agreeing is free and produces nothing. On a measured run six
    endings went unread that way, contradicted the product, and cost that run its finish.
 
-6. **MVP bounds** — last, because before the walks they cannot be drawn honestly. Two explicit
-   lists.
+6. **MVP bounds** — the last to be drawn honestly, because before the parts are told there is
+   nothing to draw them around. Two explicit lists.
+
+## What to ask about, and what never
+
+The filter step 5 is held to. It decides whether a round is worth the owner's attention, and getting
+it wrong in the generous direction is what teaches them to tap without reading:
+
+| ask | never ask |
+|---|---|
+| what the person sees, and in what order | how it is stored |
+| what happens when it does not work | which request, which index, which schema |
+| what is kept about them that they could notice | protocols, headers, the shape of a table |
+| who may, and **who may not** | how it is layered, which pattern, where the logic lives |
+| what costs money | |
+
+Measured on a real run, four out of five decisions a build takes are the right-hand column — whether
+the web build can use secure storage, whether a sign-in must carry a nonce. The owner cannot answer
+those and should not be asked; a run decides them and records the decision.
+
+The two rows worth naming, because they look alike and are not: **who may not** is always asked —
+the code shows who can and never says whether that was intended — and **how it is built** never is,
+however architectural the question feels. A layering the owner has an opinion about belongs in
+`stack.md` as a stance, put there once, not asked per part.
+
+Questions are derived from what they just said, never from a checklist. Two to four options each,
+several on a screen, per `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`.
 
 **Draft what the code can witness; ask what it cannot.** Both are right, and which applies is decided
 by the answer's kind rather than by whether the project is new — a repository full of code and
@@ -316,8 +378,8 @@ The third is the one that looks safest and is not: *why* and *what next* are exa
 contradict, so a stale intention survives every mechanical check the kit has and is followed by every
 run for months.
 
-What an inherited repository changes is only **how much of phases 1 and 2 you can draft** — the
-telling and the parts come as a proposal from the code and the documents, and the owner corrects by
+What an inherited repository changes is only **how much of the telling and the parts you can
+draft** — both come as a proposal from the code and the documents, and the owner corrects by
 tapping. It changes nothing about which answers may be drafted at all: that is decided by the kind
 of answer, in *Draft what the code can witness*, and the third row of that table holds on the
 best-documented project there is.

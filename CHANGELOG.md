@@ -3,6 +3,47 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.8.0
+
+`blueprint` had five ways in and an owner has one thought: *I want to tell you something about my
+product.* Three of the five were the same door wearing different labels — and the label was chosen
+by the one person who cannot be expected to know the difference. 2.7.1 patched two rules around
+that; this is the cause. Reasoning and what was kept unchanged:
+[docs/design/2026-08-13-one-door.md](docs/design/2026-08-13-one-door.md).
+
+- **One door, and it is the microphone.** `blueprint`, with or without words after it, is now the
+  whole command: say an idea, one part in detail, the whole product again, or a list of what did not
+  match after using it — any length, any order, unsorted. `<what to add>` and `<what did not match>`
+  are gone as separate invocations, because they never differed in anything but where the thought
+  came from. `--recall` stays, being a different verb — it writes nothing — and `--check` stays,
+  being a program.
+
+- **Five steps, the same five every time.** The owner talks; you read what is recorded on what they
+  touched; **you put the comparison up before writing a word** — new, refines this, contradicts
+  that; you write; and only then you ask about the gaps. An empty repository has an empty second
+  step and a long fifth, a mature project is the reverse, one part narrows both. Same machine at
+  three sizes.
+
+- **The comparison has to be countable.** Reading a telling against fifty entries means reading
+  fifty entries, and the cheap path is to read a third and report *"I found three differences"* —
+  which is exactly what an honest pass says too. So the screen carries a line per record touched
+  **including the ones that did not change**, the way an audit lens reports what it walked. A short
+  report on a long dictation is then visibly short.
+
+- **Six phases became a list of what must exist, not a route to walk.** They are right for an empty
+  repository, where the early ones are the vocabulary the later ones are answered in, and wrong for
+  every project after that: an owner with a running product has whatever they were thinking about on
+  the way home, not phases. Nothing about the parts, their `walked:` marks or what each item must
+  hold has changed.
+
+- **Gaps are asked in the order of what they cost.** What stops `epic` — the bounds, the scenarios,
+  their endings — then what is expensive to get wrong: stored shapes, permissions, money. **The rest
+  is not asked at all**: taken, recorded as an assumption, and shown in one list at the end. That
+  tier is the difference between a command that clarifies and one that interrogates. The filter for
+  what may be asked at all is unchanged and now has its own section — with one row made explicit,
+  because the two look alike and are not: *who may not* is always asked, and *how it is built* never
+  is, however architectural the question feels.
+
 ## 2.7.1
 
 Found on a live `blueprint`, in the first session after 2.7.0: a walk that owed the owner *"take me

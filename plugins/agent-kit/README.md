@@ -37,13 +37,15 @@ It writes into `docs/knowledge/`, one file per slot, copied from `templates/know
 templates carry the shape of a record, so the format and its description cannot drift apart. The
 project's language, its commands, and one verdict per slot live in `.agent-kit/project.yml`.
 
-Three ways in:
+One door, and two flags:
 
-- `blueprint` — the interview, resuming wherever the last session stopped. It works only on what is
-  empty, stale, or marked by an earlier run, so a second run costs minutes rather than hours.
-- `blueprint <what you want to add or reconsider>` — the way in once everything is settled: a
-  feature you have thought through, a part you want reworked, a doubt about whether something is
-  covered.
+- `blueprint` — **say whatever you came to say**, in any order and at any length: an idea, one part
+  in detail, the whole product again, or a list of what did not match when you used it. It reads
+  what is already written on what you touched, shows you the comparison — new, refines this,
+  contradicts that — writes it, and only then asks about what is still missing. Say nothing and it
+  tells you where the description is thin and asks from there.
+- `blueprint --recall [part]` — tells you what the project already says, out loud, so you never
+  open a file to find out. Changes nothing until you ask it to.
 - `blueprint --check` — mechanical audit: fields, key references, orphans, stale sources, the state
   of the pull requests behind entries being built, and the promises the product does not keep.
   Seconds, asks nothing, quiet when there is nothing open.
