@@ -105,9 +105,35 @@ stated and written.
 
 **A contradiction the owner found by using the product is the kit's own fork**, and it is the same
 one a build hits: the description is wrong and you rewrite the prose — which nothing else may — or
-the product is wrong, and that is not yours: a line for `fix`, or the entry back to `state: planned`
-for a build command to take. Your reading first, their decision.
+the product is wrong, and that is not yours. Your reading first, their decision.
 `${CLAUDE_PLUGIN_ROOT}/skills/blueprint/references/doors.md` has the table.
+
+### What is not a change to the description
+
+Most of what an owner brings back from using their product is not. *The button is in the second
+menu and should be on the first screen* is — that is what a person sees and in what order, and it
+belongs in the entry. *The spacing is wrong*, *these two buttons next to each other confuse people*,
+*this crashes when the network drops* are not: the description is right and the build is not.
+
+**Those go in `docs/technical_debt.md`, one line each, and you are the one who writes them.** Not
+into the knowledge — an entry that carries a padding complaint stops being something a build can be
+held to — and not into the conversation, where they die when the session closes. The ledger is
+already read by `check.py` before every command, offered by `sprint` with no theme, and taken by
+`epic` as work the project owes. Copy `${CLAUDE_PLUGIN_ROOT}/templates/technical_debt.md` if the
+project has none yet; the format, and the field that says a line came from the owner rather than
+from a run, are in its header.
+
+Three destinations and one test between them:
+
+| What they said | Where it goes |
+|---|---|
+| this changes what the product must do | the entry — yours to write |
+| it does what it should and does it badly | a ledger line |
+| it does not work at all | a ledger line, saying so — `fix` takes it, or the next batch does |
+
+Say the count back when you are done — *"four went into the description, nine into the ledger"* —
+because the second number is the one they cannot see anywhere else, and a complaint that reached
+neither place is the thing this step exists to prevent.
 
 ### 4. Write it
 

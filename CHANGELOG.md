@@ -3,6 +3,35 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.8.1
+
+Found while dictating a real product into 2.8.0: most of what an owner brings back from using their
+own application is not a change to the description. Spacing, two buttons that get mistapped, a
+screen that fails when the network drops — the description is right and the build is not. There was
+nowhere for any of it to go, so it went nowhere.
+
+- **`blueprint` writes the ledger now.** Not a new file: `docs/technical_debt.md` already has every
+  reader such a line needs — the check counts it before every command, `sprint` with no theme offers
+  the pile, `epic` takes it as work the project owes, `next` names it at rung 9. A second list would
+  have had to earn all of that from scratch and would compete with the first for attention.
+
+- **A ledger line can now say a person saw it happen.** The format wanted a run slug and a pull
+  request number, and an owner using their product has neither; the line carries `owner` in that
+  field instead. It is not bookkeeping — whoever composes the next batch is choosing between work a
+  run decided to skip and work the owner watched go wrong, and those are not worth the same.
+
+- **The fork stops handing back a command instead of a record.** *The product is wrong* used to
+  resolve to "a line for `fix`" with nowhere for the line to live, and a complaint answered with the
+  name of another command dies when the session closes — nobody dictating nine things is going to
+  run nine commands. It resolves to the ledger; whether that becomes a `fix` or a batch is decided
+  later, by whoever is choosing work.
+
+- **And the boundary is written down in the command**, because it is the one judgement this step
+  makes on every point: *the button should be on the first screen* changes what a person sees and in
+  what order, so it is the entry's; *the spacing is wrong* is not, so it is a line. Three
+  destinations, one test, and the counts said back at the end — *four went into the description,
+  nine into the ledger* — because the second number is the one the owner cannot see anywhere else.
+
 ## 2.8.0
 
 `blueprint` had five ways in and an owner has one thought: *I want to tell you something about my

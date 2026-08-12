@@ -34,7 +34,7 @@ kinds of durability, and half the surprises come from a run assuming the wrong o
 | `agent-kit:unmet <key>` beside a test | `ship` | `check.py`, `sprint` with no theme | the `ship` run that makes the promise true, deleting the mark in the same commit — on the decision the owner gave `sprint` | git |
 | a part's `walked: <date>` / `derived` in `product.md` | `blueprint`, and only with the owner there | `check.py`, which counts them; `blueprint`; an `epic`'s gate | `blueprint`, when the owner walks that part | git |
 | `agent-kit:scenario <heading>` beside a test | `ship` | `check.py --state`, an `epic`'s finish | never — it is the proof itself | git |
-| `docs/technical_debt.md` | `ship`, the closing session | `check.py`, `sprint`, `next` | the commit that does the work, deleting its line | git |
+| `docs/technical_debt.md` | `ship`, the closing session, and `blueprint` for what the owner brought back from using the product | `check.py`, `sprint`, `next` | the commit that does the work, deleting its line | git |
 | `docs/audits/<lens>.md` | that lens | `sprint`, `epic`, `next`, `accept` | the closing session, `next` or `accept`, ticking a box **with its pull request number**; the lens itself, rewriting the file on its next run | git |
 | `docs/runs/<slug>.json` | the closing session | a later gate; a person | never — it is the durable record of a batch | git |
 | the pull request body and its comments | the closing session | the owner | the merge | GitHub |

@@ -44,11 +44,18 @@ when an entry promises what the code does not:
 | What is wrong | Where it goes |
 |---|---|
 | **the description** — the product behaves correctly and is described wrongly | yours: rewrite the prose, which nothing else may |
-| **the product** — the description is right and the build is not | not yours: a line for `fix`, or an entry back to `state: planned` for a build command |
+| **the product** — the description is right and the build is not | a line in `docs/technical_debt.md`, marked `owner`, written by you as they say it. An entry that was never built at all goes back to `state: planned` instead |
 
 Put that fork up per complaint, with your reading first. Do not resolve it by rewriting the entry to
 match the code — that is how a product decision gets made by whoever typed last, and the entry stops
 being something the build can be held to.
+
+**The right-hand row is not "tell them to run `fix`".** A complaint answered with the name of
+another command is a complaint that dies when this session closes: they are describing nine things
+and will not run nine commands. The line is what survives, and everything downstream already reads
+it — the check counts it, `sprint` with no theme offers the pile, `epic` takes it as work the
+project owes, `next` names it at rung 9. Whether it becomes a `fix` or a batch is decided later, by
+whoever is choosing work, which is not this session.
 
 This is where `accept` hands over: it says what to open and what to click, and this takes what was
 seen there.

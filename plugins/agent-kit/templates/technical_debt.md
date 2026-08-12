@@ -1,7 +1,7 @@
 # Debt
 
-Work a run decided not to do. Written by the runs, read before every command, closed by whoever
-does the work.
+Work that is understood and not done. Written by the runs and by `blueprint` when the owner brings
+something back from using the product, read before every command, closed by whoever does the work.
 
 This is the ledger for the one thing the rest of the kit has nowhere to put. A decision about the
 product goes into `docs/knowledge/` as an `[assumed …]` block. A promise the product does not keep
@@ -22,6 +22,12 @@ composed around one area rather than around whatever was written last; `—` whe
 no entry, like a tidy-up in the test suite. The run slug and the pull request are where the reasoning
 still lives when the line is too short to carry it.
 
+**A line the owner brought carries `owner` where the run slug goes, and `—` for the pull request.**
+They were using the product, not reading a diff, so there is no run and no number — and the word is
+not bookkeeping: it says a person saw this happen. Whoever composes the next batch is choosing
+between work a run decided to skip and work the owner watched go wrong, and those are not worth the
+same. Without the word the line reads as neither.
+
 Closed by deleting the line, in the commit that does the work, so the diff shows the debt going down
 beside the code that paid it. **Never a ticked box** — a ticked box is a line nobody deletes
 afterwards, and a ledger of them stops being read within a month; git holds every line that was ever
@@ -39,6 +45,8 @@ Keep it in the project's language, like everything else the owner reads.
 ```markdown
 - [ ] pin the invariant the session fix rests on — a new path to an unverified account reopens the
       hole silently · guest.login_via_provider · 2026-08-05-security-and-deps · PR #21
+- [ ] the two buttons under the answer sit together and get mistapped — the wrong one ends the
+      lesson · student.answer_task · owner · —
 ```
 
 Delete this file's own prose once the first real item is in it, or keep it — the check counts only
