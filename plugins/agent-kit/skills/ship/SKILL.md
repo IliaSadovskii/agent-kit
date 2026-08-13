@@ -161,7 +161,15 @@ know a note has landed, and the stop hook reads it to know this run stopped on p
 standing, the next handoff is indistinguishable from yours, and a session gets killed on a note
 about work that is already done. You are continuing a run,
 not reviewing one: do not re-read the diff behind you, do not revisit the approach, do not design
-anything that is already designed. Design is skipped for exactly this reason when the file carries
+anything that is already designed.
+
+**And never open the session before you.** Its transcript is on this machine, under
+`~/.claude/projects/`, and reading it was the single largest read in three consecutive sessions of
+one measured feature — 38k characters of raw JSON in one, 23k in the next, more than any source file
+either of them touched, to learn what the note says in two paragraphs. The channel is the run file,
+the note and the commits; a transcript is a log of how a session got there, which is exactly what
+its successor does not need. If the note left you guessing, that is a defect in the note — say so in
+your own, and do not pay for the journal. Design is skipped for exactly this reason when the file carries
 an approach and tasks.
 
 ## Design

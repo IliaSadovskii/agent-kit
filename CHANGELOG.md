@@ -3,6 +3,19 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.10.4
+
+- **A session never opens the session before it.** Measured on three consecutive sessions of one
+  feature, the largest single read in each was the predecessor's raw transcript — 38k characters of
+  JSON, then 23k, more than any source file those sessions touched, to learn what the handoff note
+  says in two paragraphs. It is the most expensive possible channel for the cheapest possible
+  question. The run file, the note and the commits are the channel; a transcript records how a
+  session got somewhere, which is the one thing its successor has no use for.
+
+  What the same breakdown says about the rest is that there is nothing to fix: the bulk of a
+  session is reading the source it is about to change, and thinking, which is on by default on this
+  model. Some work is simply large.
+
 ## 2.10.3
 
 - **A handoff note names the files it was working in.** Measured across sixteen sessions of one
