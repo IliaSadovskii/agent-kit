@@ -3,6 +3,19 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.10.3
+
+- **A handoff note names the files it was working in.** Measured across sixteen sessions of one
+  run: a session that takes a handoff spends 21 turns and 65k characters before its first edit,
+  against 33 turns and 140k for a fresh one — so the note is already worth about half the
+  orientation, and what is left of the gap is looking for where the last session was. A path is
+  read in one turn and found in five. It goes in the template, where the shape of the record is
+  read by whoever writes one.
+
+  The same measurement corrected the number this kit had been reasoning from: the re-reading a
+  handoff costs was assumed at 7 turns and is 26. On that figure the cheapest segment is 297k, which
+  is where the ceiling now sits — arrived at from the wrong parameter and right anyway.
+
 ## 2.10.2
 
 The rule 2.10.0 added for splitting oversized features was refuted by the run it was written from,
