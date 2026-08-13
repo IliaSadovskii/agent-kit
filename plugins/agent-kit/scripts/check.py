@@ -532,7 +532,19 @@ def collect_notes(docs: list, report: Report) -> None:
             line = f"[{kind}{tail}] {where}: {text.strip()[:90]}"
             bucket = {"stale": report.stale, "accepted": report.accepted, "frame": report.frame,
                       "assumed": report.assumed}.get(kind, report.notes)
-            bucket.append((where, line))
+            bucket.append((where, line, quoted_block(doc.text, found.start())))
+
+
+def quoted_block(text: str, start: int) -> str:
+    """A block runs until the quoting stops, and the summary line above keeps only its first 90
+    characters — enough to tell two blocks apart in a list, useless to answer one. What a decision
+    was, and what was taken instead, is usually three lines further down."""
+    kept = []
+    for raw in text[start:].splitlines():
+        if not raw.lstrip().startswith(">"):
+            break
+        kept.append(raw.lstrip()[1:].strip())
+    return "\n".join(kept).strip()
 
 
 def sync_states(docs: list, report: Report, sync: bool, offline: bool) -> None:
@@ -1330,6 +1342,50 @@ def print_parts(docs: list) -> None:
           f"from the code and never confirmed")
 
 
+def print_entry_blocks(report: Report, docs: list, keys: list) -> None:
+    """Every open block under the entries a command names, in full — and which of them it misread.
+
+    The summary above prints entry names and nothing else, because one `epic` leaves dozens and
+    printing all of them before every command buries the findings that are real. That leaves the
+    *choosing* to the command, and a gate that chose wrong is what this exists for: told to read
+    "the entries you are about to build", a live run took that to mean the entries with no code yet,
+    and never opened the twenty-one built ones its scope was about to change. Fifty-one decisions
+    taken without the owner stayed shut while the owner sat there answering other questions.
+
+    So the caller says which entries it means and the program does the reading. A key that matches
+    no entry is named, loudly: this is a filter, and a filter that quietly matches nothing looks
+    exactly like an entry with nothing to answer.
+    """
+    known = {entry.key for doc in docs for entry in doc.entries}
+    seen, wanted = set(), []
+    for key in keys:
+        if key not in seen:
+            seen.add(key)
+            wanted.append(key)
+
+    print(f"\nOpen blocks under the {len(wanted)} "
+          f"{'entry' if len(wanted) == 1 else 'entries'} this command named:")
+    for key in wanted:
+        if key not in known:
+            continue
+        blocks = [(line, body) for bucket in (report.assumed, report.notes, report.stale)
+                  for at, line, body in bucket if at == key]
+        if not blocks:
+            print(f"  {key}: none")
+            continue
+        print(f"  {key}:")
+        for line, body in blocks:
+            for text in (body or line).splitlines():
+                print(f"    {text}")
+            print()
+
+    missing = [key for key in wanted if key not in known]
+    if missing:
+        print(f"\n  Not an entry in this project's knowledge ({len(missing)}): "
+              f"{', '.join(missing)} — nothing above covers them, so their silence means the key is "
+              f"wrong and not that they are clear.")
+
+
 def main(argv: list | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("root", nargs="?", default=".", type=Path)
@@ -1350,6 +1406,10 @@ def main(argv: list | None = None) -> int:
     parser.add_argument("--epic", action="store_true",
                         help="the gate of /agent-kit:epic: bounds, scenarios, and the commands that "
                              "start and test the application. Silent when it may start")
+    parser.add_argument("--entries", nargs="+", metavar="KEY",
+                        help="every open block under these entries, in full, instead of their "
+                             "names: the entries a run is about to build or to change. Names any "
+                             "key that matches no entry")
     parser.add_argument("--brief", metavar="KEY",
                         help="everything a run reads before it designs, in one call: the project's "
                              "corner, the entry, the entries it names, the library map")
@@ -1455,7 +1515,7 @@ def main(argv: list | None = None) -> int:
     if report.stale:
         print(f"\nProse a feature has already outdated ({len(report.stale)}) — the entry carries "
               "the correction under it, so nothing is misled while it stands:")
-        for _where, line in report.stale:
+        for _where, line, _body in report.stale:
             print(f"  {line}")
         print("  Applied by whoever next builds in that entry, with the owner present, or by "
               "/agent-kit:blueprint. Not a reason to run either.")
@@ -1463,7 +1523,7 @@ def main(argv: list | None = None) -> int:
     if report.accepted:
         print(f"\nAccepted and not yet written up ({len(report.accepted)}) — the owner said yes and "
               "the record's fields are outstanding:")
-        for _where, line in report.accepted:
+        for _where, line, _body in report.accepted:
             print(f"  {line}")
         print("  Written up by /agent-kit:blueprint, which interviews the fields and deletes the "
               "block. Already decided — do not ask again whether it is wanted.")
@@ -1471,7 +1531,7 @@ def main(argv: list | None = None) -> int:
     if report.frame:
         print(f"\nWhat a batch agreed to build alike ({len(report.frame)}) — binding on every run "
               "that touches the same ground, and in force as it stands:")
-        for _where, line in report.frame:
+        for _where, line, _body in report.frame:
             print(f"  {line}")
         print("  Folded into the map by /agent-kit:blueprint once the batch has merged. Not a "
               "reason to run it.")
@@ -1500,6 +1560,11 @@ def main(argv: list | None = None) -> int:
             print_planned(docs)
             print_parts(docs)
             print_audits(report)
+        # A `[stale …]` is a statement and leaves the report clean, so a run that asked about its
+        # own entries is answered here too — otherwise the one call it makes goes silent on exactly
+        # the entries it named.
+        if options.entries:
+            print_entry_blocks(report, docs, options.entries)
         if options.state:
             print_state(root, options.offline)
         return 0
@@ -1522,18 +1587,23 @@ def main(argv: list | None = None) -> int:
         # Not "waiting for the owner": a run took the decision, and every later run in that entry
         # follows it — that is what keeps features consistent with each other. One `epic` leaves
         # dozens, and printing each of them before every command buries the findings that are real.
-        # The entries are what a command needs, because it only cares about the ones it builds in.
-        where = sorted({at for at, _line in report.assumed})
+        # The entries are what a command needs — and *which* entries those are is the mistake this
+        # line used to invite, so it names both kinds and hands the reading to `--entries`.
+        where = sorted({at for at, _line, _body in report.assumed})
         entries = f"{len(where)} entry" if len(where) == 1 else f"{len(where)} entries"
         print(f"\nDecisions taken without the owner ({len(report.assumed)}) in {entries} — every "
               f"later run in them follows the block as written; only `blueprint` rewrites one. "
-              f"Read the ones under the entries you are about to build:")
+              f"Read the ones under the entries you are about to build **or to change**, with "
+              f"--entries; a built entry whose behaviour this run moves is one of them:")
         print("  " + ", ".join(where))
 
     if report.notes:
         print(f"\nOpen notes ({len(report.notes)}) — each is a decision waiting for the owner:")
-        for _where, note in report.notes:
+        for _where, note, _body in report.notes:
             print(f"  {note}")
+
+    if options.entries:
+        print_entry_blocks(report, docs, options.entries)
 
     if options.state:
         print_state(root, options.offline)

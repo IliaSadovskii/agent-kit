@@ -46,6 +46,26 @@ mark* and says it on every step. The owner had a list of things that did not mat
 So where a command names a move as a telling, **the open question is the move** and choices come
 after it, from what was said. Everywhere else, this file stands.
 
+## Do the work first, and ask what is left over
+
+A question goes up only after you have taken it as far as reading, counting and searching can take
+it. What remains after that is a preference, and a preference is what the owner is for.
+
+Measured on a live gate: it asked *how many rule cards should the reference hold?* with three
+numbers it had invented, having read nothing about the subject. The owner sent it to look — there
+was a published list of 170 items, so the answer was neither a preference nor a guess, and the
+scope grew from one work item to seven **after** the owner had already approved a price. Two rounds
+of the owner's attention bought what one search would have.
+
+The test is one sentence: **name the fact that would settle this, and say why you cannot get it.**
+A fact in a file, in the repository, in the count a program prints, or on the open web is yours to
+fetch — and until you have, the options you would write are made up. Only when the fact exists and
+still leaves two roads — cheaper against fuller, sooner against safer, what only they know about
+their own business — is it a fork worth a round.
+
+This matters most where rounds are scarce. A command with one screen for the whole run spends it on
+its own ignorance if it asks too early, and there is no second screen to correct that in.
+
 ## Say what you would do, and why it is a fork
 
 The recommended option comes first and says what you would take. Below it, one line on what makes

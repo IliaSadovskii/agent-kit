@@ -219,12 +219,62 @@ def transcript_dir(cwd: Path) -> Path:
     return Path.home() / ".claude" / "projects" / slug
 
 
-def newest_transcript(cwd: Path, after: float) -> Path | None:
+def newest_transcript(cwd: Path, after: float, mark: str = "") -> Path | None:
+    """The transcript of the session this driver just started — not whatever wrote last here.
+
+    Every session in a project shares one transcript directory, and the owner's own window is in
+    there too. Picking the newest file by modification time means picking the one that was typed
+    into most recently, which on a measured run was the window: the driver read a 370k conversation
+    as if it were its child's context, asked the child to hand over on the strength of it, and did
+    the same to every session that replaced it.
+
+    A file this driver started *begins* after the session was launched, so the first record's
+    timestamp is what tells it apart from a conversation that has been open for an hour. Among
+    those, the one whose opening lines carry the run's own slug is certain; without a match the
+    newest of them is the answer, which is the old behaviour narrowed to the right candidates.
+    """
     directory = transcript_dir(cwd)
     if not directory.is_dir():
         return None
-    fresh = [p for p in directory.glob("*.jsonl") if p.stat().st_mtime >= after]
+    fresh = []
+    for path in directory.glob("*.jsonl"):
+        try:
+            if path.stat().st_mtime < after:
+                continue
+        except OSError:
+            continue
+        began = opened_at(path)
+        if began is not None and began < after - 60:  # a conversation that was already running
+            continue
+        fresh.append(path)
+    if mark:
+        named = [p for p in fresh if mark in read_head(p)]
+        if named:
+            fresh = named
     return max(fresh, key=lambda p: p.stat().st_mtime, default=None)
+
+
+def read_head(path: Path, lines: int = 12) -> str:
+    """The opening records of a transcript — the prompt the driver typed is in them."""
+    try:
+        with path.open("r", encoding="utf-8", errors="replace") as fh:
+            return "".join(next(fh, "") for _ in range(lines))
+    except OSError:
+        return ""
+
+
+def opened_at(path: Path) -> float | None:
+    """When this transcript's first record was written, or None when it carries no timestamp."""
+    for line in read_head(path).splitlines():
+        found = re.search(r'"timestamp"\s*:\s*"(\d{4}-\d\d-\d\dT[\d:.]+)Z"', line)
+        if not found:
+            continue
+        try:
+            return dt.datetime.strptime(found.group(1)[:19], "%Y-%m-%dT%H:%M:%S").replace(
+                tzinfo=dt.timezone.utc).timestamp()
+        except ValueError:
+            return None
+    return None
 
 
 def last_spoke(path: Path) -> float | None:
@@ -287,6 +337,72 @@ def context_size(text: str) -> int:
         if found:
             largest = max(largest, sum(int(number) for number in found))
     return largest
+
+
+def opening_size(path: Path) -> int:
+    """What a session's context weighed before it did anything: its first usage record.
+
+    Not the first number the driver happens to poll — that one already includes whatever the
+    session did in the first minute, and it moves with the poll interval. The reading set is what a
+    handoff has to buy again, and it is written at the top of the transcript: measured on a live
+    project, 90.8k identically in every session of the same run.
+
+    Zero when the head carries no usage record, and the caller then holds the old rule: a floor that
+    cannot be read must not become a floor of nothing.
+    """
+    for line in read_head(path, lines=40).splitlines():
+        found = USAGE_RE.findall(line)
+        if found:
+            return sum(int(number) for number in found)
+    return 0
+
+
+def handoff_due(size: int, floor: int, ceiling: int, room: int) -> bool:
+    """Whether a session has grown enough that starting a new one is worth what it costs.
+
+    A handoff is not free: the session that takes it pays the whole reading set again — the skill,
+    the rules, the project's own instructions, the run file, the note — before it does anything.
+    Measured on a live project that floor is 90k, against a ceiling of 120k. Thirty thousand tokens
+    of room bought about four minutes of work, and one feature was handed over eleven times in an
+    hour, each session spending most of itself reading its way back to where the last one stood.
+    The rule fired exactly as written and the run went nowhere.
+
+    So the ceiling alone cannot decide it: what matters is how much this session did *of its own*,
+    over the floor it started at. Below `room` the handoff costs more than it saves, whatever the
+    absolute number says. Both conditions, and a size that could not be read is not a small one.
+
+    **What sets the ceiling is cost, and not the model's window.** Claude Opus 5 carries a 1M token
+    window as both default and maximum, so at 280k a session is a quarter of the way in and nothing
+    is near a limit. The question is only where a segment is cheapest. A turn re-sends the whole
+    context and reads it from cache at a tenth of the price; a handoff writes the floor into a cold
+    cache at a quarter over (twice over on the hour-long cache), and the session that takes it
+    spends its first several turns reading itself back to where the last one stood. Against a 90k
+    floor and a context growing ~2.8k a turn, the cost per useful turn bottoms out over a segment
+    of 40-55 turns — 205k to 286k across every assumption worth making about the re-reading — and
+    the curve is flat from 170k to 290k either side of it. At 120k it was three times the bottom,
+    and worse than never handing over at all.
+
+    **And the ceiling sits at the top of that flat zone deliberately, not at its bottom.** The money
+    curve is nearly level from 170k to 290k — 280k costs about a tenth more than the theoretical
+    bottom — and that tenth buys a third fewer handoffs. A handoff is not only tokens: it is a lossy
+    transfer through a note, and the failure that note can carry (a claim nobody can tell was
+    checked) is worth more than ten percent. Past 290k the trade reverses: 400k costs a third more
+    and enters the band where published long-context measurements put visible degradation on
+    million-token models, 300-400k.
+
+    The harness compacts by itself at about 83% of the window, which is where an uncontrolled
+    version of this would happen anyway — and on heavy work that is only 24 minutes away, because a
+    session's context grows 8-31k a minute. No rule can make a session on that kind of work last
+    much longer than half an hour; this one puts the ask at 6-23 minutes of its own work.
+
+    **A project on a 200k-window model must lower this to about 150k.** There the harness would
+    compact at ~167k and a 220k ceiling would never fire — the very failure this replaced, in the
+    other direction. The 120k that was here before is exactly the 50-60%-of-capacity rule of thumb
+    for a 200k window, applied to a model with five times the room.
+    """
+    if not size or ceiling <= 0:               # 0 is how the whole mechanism is turned off
+        return False
+    return size > ceiling * 1000 and size - floor >= room * 1000
 
 
 def limit_reset(text: str) -> tuple[str, float | None]:
@@ -373,6 +489,17 @@ class Driver:
         self.stopping = False
         self.sessions = 0
         self.began = time.time()
+        self.watched: str | None = None           # the session `watch` has live, numbered
+
+    @staticmethod
+    def numbered(name: str, segment: int) -> str:
+        """A run's first session carries its slug; each one that takes a handoff carries a number.
+
+        The slug is trimmed rather than the number dropped: a name that collides is a session typed
+        into by the driver that owns the *other* one, and `claude-new` takes letters, digits and
+        dashes only.
+        """
+        return name[:60] if segment <= 1 else f"{name[:56]}-{segment}"
 
     # ---- the control window -----------------------------------------------------------------
     #
@@ -423,18 +550,28 @@ class Driver:
         request — and asking it would restart the one session in the batch whose context cannot be
         rebuilt from the run files.
         """
+        # Every session of this run has its own name, numbered: the first is the run's slug and the
+        # one that takes a handoff is `-2`, `-3`. They used to share one name, and eleven sessions
+        # deep into a live feature nothing on the machine, in the app, or in the log could say which
+        # of them was speaking — the log line for the fourth handoff reads exactly like the first.
+        current = self.numbered(name, 1)
+        self.watched = current
         model = self.model_for(run.state())
-        if not self.launcher.start(name, prompt, model):
+        if not self.launcher.start(current, prompt, model):
             return "could not start a session"
         self.sessions += 1
 
         # The stop hook matches a session to its run on this field and on nothing else, which is
         # what keeps it silent in every session the kit did not start. See docs/design/stop-hook.md.
-        run.set(session=self.launcher.tmux_name(name))
-        run.event("session-start", f"{name}{' on ' + model if model else ''}")
+        # Numbered names make this a *live* obligation: every handoff must write the new name here,
+        # or the hook goes on guarding a session that is already dead.
+        run.set(session=self.launcher.tmux_name(current))
+        run.event("session-start", f"{current}{' on ' + model if model else ''}")
         launched = time.time() - 1
         transcript = None
         restarts = 0
+        segment = 1                               # which session of this run is speaking
+        floor = 0                                 # what its context started at, before it did anything
         nudged = False                            # one word before a restart, once per session
         asked = False                             # the handoff has been asked for, once per session
         # The note as it stood when the handoff was asked for. Nothing ever clears `handoff`, so a
@@ -445,16 +582,21 @@ class Driver:
 
         def fresh(why: str, event: str) -> bool:
             """Start this run's next session. Everything counted per session starts again with it."""
-            nonlocal transcript, launched, nudged, asked
-            self.launcher.stop(name)
+            nonlocal transcript, launched, nudged, asked, current, segment, floor
+            self.launcher.stop(current)
             transcript = None
             launched = time.time() - 1
             nudged = False
             asked = False
-            if not self.launcher.start(name, prompt, self.model_for(run.state())):
+            floor = 0
+            segment += 1
+            current = self.numbered(name, segment)
+            self.watched = current
+            if not self.launcher.start(current, prompt, self.model_for(run.state())):
                 return False
             self.sessions += 1
-            run.event(event, why)
+            run.set(session=self.launcher.tmux_name(current))
+            run.event(event, f"{why} — session {segment}")
             return True
 
         def restart(why: str) -> bool:
@@ -471,7 +613,7 @@ class Driver:
                 return ""
 
             if transcript is None:
-                transcript = newest_transcript(self.cwd, launched)
+                transcript = newest_transcript(self.cwd, launched, run.slug)
                 if transcript is None:
                     if time.time() - launched > 300:
                         return "no transcript — the session cannot be watched"
@@ -479,7 +621,7 @@ class Driver:
 
             spoke = last_spoke(transcript)
             idle = time.time() - (spoke if spoke is not None else transcript.stat().st_mtime)
-            gone = not self.launcher.alive(name)
+            gone = not self.launcher.alive(current)
             tail = read_tail(transcript)
 
             # The handoff the session was asked for has landed: the note is new, and the session has
@@ -495,11 +637,18 @@ class Driver:
                 # One line, once: what to hand over and how is the session's own business, in
                 # skills/ship/SKILL.md — this program only says when.
                 size = context_size(tail)
-                if hand_over and not asked and size > self.opt.ceiling * 1000:
-                    if self.launcher.send(name, HANDOFF_LINE):
+                floor = floor or opening_size(transcript)   # the reading set, read once
+                if hand_over and not asked and handoff_due(size, floor, self.opt.ceiling,
+                                                           self.opt.room):
+                    if self.launcher.send(current, HANDOFF_LINE):
                         asked = True
                         note_before = note
-                        run.event("handoff-asked", f"context {size // 1000}k")
+                        # Logged with the minutes so the numbers behind the ceiling stop being an
+                        # estimate: floor, size and how long the segment lasted are what a later
+                        # reading needs to fit the growth per turn and price a run's segments.
+                        run.event("handoff-asked",
+                                  f"context {size // 1000}k over a floor of {floor // 1000}k "
+                                  f"after {(time.time() - launched) / 60:.0f}m")
                 continue
 
             # Something stopped. Silence alone means nothing — ask the transcript why.
@@ -517,7 +666,7 @@ class Driver:
                     time.sleep(wait + 60)
                 # A limit does not kill the process: it is idle with its context intact, so one
                 # typed line resumes it and nothing is re-read.
-                if self.launcher.alive(name) and self.launcher.send(name, "continue"):
+                if self.launcher.alive(current) and self.launcher.send(current, "continue"):
                     run.event("resumed", "typed into the live session")
                     continue
                 if restart("session was gone after the limit"):
@@ -527,7 +676,7 @@ class Driver:
             if kind == "overloaded" and not gone:
                 run.event("overloaded", "retrying shortly")
                 time.sleep(120)
-                self.launcher.send(name, "continue")
+                self.launcher.send(current, "continue")
                 continue
 
             why = "session died" if gone else f"no progress for {idle / 60:.0f}m"
@@ -538,7 +687,7 @@ class Driver:
             # that resumes a session after a limit resumes this one: one word against a restart
             # that throws away everything it read. Only a session that will not move on that word,
             # or one that is gone, is worth rebuilding from nothing.
-            if not gone and not nudged and self.launcher.send(name, "continue"):
+            if not gone and not nudged and self.launcher.send(current, "continue"):
                 nudged = True
                 run.event("nudged", f"{why} — typed into the live session")
                 time.sleep(self.opt.poll)
@@ -559,7 +708,7 @@ class Driver:
         # it to a section of a file it never read, and there is no next session to take it.
         why = self.watch(name, child, self.prompt_for(child),
                          hand_over=not (child.state().get("prompt") or "").strip())
-        self.launcher.stop(name)
+        self.launcher.stop(self.watched or name)
 
         # Judge by the world, not by the exit: a limit at the tail of a feature looks exactly like a
         # crash while the work is already done.
@@ -851,7 +1000,7 @@ class Driver:
         name = f"{self.run.slug}-close"[:60]
         why = self.watch(name, self.run, f"/agent-kit:sprint --close {self.run.dir}",
                          hand_over=False)
-        self.launcher.stop(name)
+        self.launcher.stop(self.watched or name)
 
         # Judge the closing session by its step first. Inside an `epic` the batch's `pr` is the run's
         # one pull request, which the closing session rewrites rather than opens — so it is there
@@ -913,9 +1062,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("run_dir", type=Path, help=".agent-kit/runs/<slug>/ of the batch")
     parser.add_argument("--poll", type=int, default=60, help="seconds between looks at the run file")
     parser.add_argument("--hang", type=int, default=30, help="minutes of transcript silence before a session is treated as stuck")
-    parser.add_argument("--ceiling", type=int, default=120,
+    parser.add_argument("--ceiling", type=int, default=280,
                         help="thousands of tokens: a session past this is asked to hand its run "
-                             "over to a fresh one. 0 turns it off")
+                             "over to a fresh one. What sets it is cost, not the model's window — "
+                             "see handoff_due. 0 turns it off")
+    parser.add_argument("--room", type=int, default=80,
+                        help="thousands of tokens a session must have grown by, over the context it "
+                             "started with, before the ceiling above can send it away. What stops a "
+                             "reading set that nearly fills the ceiling from handing over forever")
     parser.add_argument("--max-wait", type=float, default=6, help="hours: a reset further away than this is a weekly limit, and the run stops")
     parser.add_argument("--model", default=None,
                         help="model for every session this run starts, unless its run file names "

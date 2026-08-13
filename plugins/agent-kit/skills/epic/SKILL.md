@@ -43,8 +43,9 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status --state
 
 The first is fatal or silent: no MVP bounds, no scenarios, or no `commands.run` / `commands.test`
 and this run does not start — say what is missing and offer `/agent-kit:blueprint`. The second is
-the usual preflight, per `${CLAUDE_PLUGIN_ROOT}/rules/preflight.md`; open blocks on entries you are
-about to build are settled here, because this is the last moment anyone can answer.
+the usual preflight, per `${CLAUDE_PLUGIN_ROOT}/rules/preflight.md`. It gives you counts and entry
+names; the blocks themselves are read once the in-list exists, below, because until then you do not
+know which entries this run is about.
 
 **`--state` is here for one line of its output**, and it is the most consequential fact the gate can
 learn: *scenarios: N described, M with an end-to-end test*. That number decides how this run ends,
@@ -76,6 +77,26 @@ The bounds are written in the owner's own prose — *"registration and sign-in, 
 the composer, moderation with a fallback"* — not as entry keys. Read the bounds section and the
 entry headings, and map one to the other. For every scope, take only what is not already `built`.
 
+**Then write down what this run changes, which is more than what it builds.** The in-list is the
+entries with no code yet; beside it stands every **built** entry this scope moves — a debt line that
+rewrites a button's behaviour, an owner's remark that changes a prompt, a field that stops meaning
+what it meant. Those are the entries a run touches without creating, and they are where the answers
+already taken without an owner are sitting. Take both lists to the program:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --entries <every key, built and planned alike>
+```
+
+It prints every open block under them in full, and names any key that matched no entry — so a key
+you derived wrongly from prose comes back as a mistake instead of as silence. **Settle them on the
+screen below**, per `${CLAUDE_PLUGIN_ROOT}/rules/preflight.md`: transcribe the answer into the entry,
+delete the block, commit it as `docs(knowledge):` before the first batch starts.
+
+This is the one thing at this gate that cannot be done later at any price, and a live run skipped it
+by reading *the entries you are about to build* as *the entries with no code yet*: fifty-one
+decisions taken without an owner stayed shut in twenty-one built entries while the owner sat there
+answering other questions. The list of what is being built is not the list of what is being changed.
+
 **Order it.** Scenario steps name action keys and entries carry their preconditions, so the order is
 derived, not chosen: what must exist before what. Group the result into batches of about five, each
 batch one topic, and put the batch that makes a whole scenario walkable first — that is what the
@@ -93,6 +114,15 @@ Take the rate from what this project has already measured — `docs/runs/*.json`
 every batch that has closed here — and say which runs it came from. With none yet, the measured
 figure elsewhere is **about an hour per feature end to end**, so twenty-one entries is a day and a
 night; say that it is a figure from another project until this one has its own.
+
+**The rate is a rate for features, and content is not a feature.** An entry that says *the reference
+holds the grammar rules* is one line of description and an unbounded amount of writing — cards,
+seed data, a table of copy, a migration full of text somebody composes by hand. Before the screen,
+find the actual count: the list it comes from, the number of items, whether it exists anywhere
+already. One entry of that kind grew from one work item to seven while the owner was mid-conversation,
+because nobody counted first. Two things go on the screen beside it, and neither can be added later:
+the count, and that **no test will say the content is right** — a test says the card exists, and only
+a person says it is true.
 
 **And price the audit separately, because it is not small.** Measured on one real `epic`: the lenses
 and the batches that fixed what they found came to as much as building the product did. It is a
@@ -116,6 +146,20 @@ description was written before the kit asked who had walked what, so nobody can 
 the owner ever saw. Put it on the screen in one line beside the price, and offer
 `/agent-kit:blueprint` as the way to close it — after this run, not before, unless they want it now.
 
+**Except where this run stands on one.** A part nobody walked that the scope merely mentions waits;
+a part the scope **builds on** does not — an unconfirmed map of topics is a guess that every entry
+hanging off it inherits. Walk that one part now, here, with the owner, and record it walked. It is
+minutes, and the alternative is a batch built on prose derived from code that nobody ever confirmed.
+
+**And a thing the conversation invents gets written down before the run starts.** An owner answering
+a fork will describe something the description does not have — on a measured run, a table of
+translations shared across everyone, which was neither an entity nor an entry anywhere. Recorded as
+an assumption it builds fine and is reviewed against nothing: `${CLAUDE_PLUGIN_ROOT}/agents/reviewer.md`
+holds a diff against the entry it was built from, and the finish line counts scenarios, so a feature
+with no entry is outside both. So write the record — the owner is here, and their answer is the
+material — in the same `docs(knowledge):` commit as the settled blocks. If it will not fit in a few
+minutes, it does not enter the scope; it becomes a named `planned` entry and the next run builds it.
+
 **Then spend your questions where being wrong is expensive.** Not evenly across the list: rank the
 entries you are about to build by what they touch — stored data first, then permissions, money, a
 contract outside this codebase — and put the top few up as choices. Measured, an entry's decisions
@@ -123,12 +167,25 @@ scale with how much it changes and not at all with how thinly it is written, so 
 ranking with evidence behind it. Typically five entries of twenty, and the rest you decide and
 record as you go.
 
+**The open blocks are ranked the same way and by the same rule**, because there can be fifty of them
+and there is one screen. What a run took without an owner and cannot take back — where data is
+stored, who may see it, what it costs, what an outside party was promised — goes up as choices. The
+rest keep standing as written, which is what makes features consistent with each other, and the pull
+request names them. What may never happen is the third thing: leaving a block unread because it sat
+under an entry that already has code.
+
 Then **one screen**: the scope and its finish line said back in words — including what proves it —
 the batches in order, the price in hours, what the audit adds, what has never been read, and *this
 scope, or narrower?* Options with counts, per `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`, and the
-expensive entries beside it — one round, a handful of taps. This is the only round this run ever
-has, so a harness that has to be decided is decided here as part of the scope rather than in a
-question of its own.
+expensive entries and the expensive blocks beside it — one round, a handful of taps. This is the only
+round this run ever has, so a harness that has to be decided is decided here as part of the scope
+rather than in a question of its own.
+
+**And it is one round because you did the reading first**, per that same file: every number on this
+screen — the count of a list somebody has to write, what a published source already contains, how
+long the base branch has been apart from the default — is yours to fetch before the screen goes up.
+A gate that asks in order to find out spends the run's only round on its own ignorance, and the
+price it quoted moves while the owner is still reading it.
 
 **Nothing else is asked, deliberately.** Whether the owner is reachable is not worth asking of a run
 that lasts a day — every child gets `gate: "none"`, so an expensive fork becomes a recorded
@@ -183,8 +240,19 @@ both of its halves: nobody is present at any point of this run, so the questions
 each answer differently are answered once instead of twice; and an epic is long enough that a
 session dying in the middle of one batch would otherwise take the rest of the batch with it.
 
-The branch is `epic/<slug>`, created once from the default branch. Every batch chains onto it and the
-closing session moves it forward, so there is one branch and one pull request for the whole run.
+The branch is `epic/<slug>`, created once **from the branch this session is standing on** — not from
+the default branch. That is where the description you are building from lives: a `blueprint` run in
+another session leaves its work on a branch of its own, and an epic based on `main` would build
+against a description that is not there. Every batch chains onto it and the closing session moves it
+forward, so there is one branch and one pull request for the whole run.
+
+Two consequences, and both are said on the screen rather than discovered in the pull request:
+
+- **anything uncommitted is committed here**, as `docs(knowledge):` — the batches cannot start on a
+  dirty tree, and what is not committed is not in the base they build on. Say what you committed;
+- **where the pull request points** is that base branch when it is pushed and still open — then the
+  diff is this run's work and nothing else. Otherwise it points at the default branch and carries
+  the description's commits too; say how many, so nobody opens it expecting only code.
 
 Then set `step: "building"` on this file, start the driver on the first batch and end:
 

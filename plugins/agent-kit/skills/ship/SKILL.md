@@ -145,7 +145,9 @@ Finish the task you are on, to its commit. Then close it in the run file, write 
   ```
 
 `handoff` answers four questions and nothing else, under 2000 characters — its shape is in the
-template. Everything you would otherwise write there is already somewhere: the approach, the seams
+template, including the one rule that is not about what to write but about how: **say what proves
+each claim, or say that nothing does.** The next session treats this note as a contract and does not
+re-check it. Everything you would otherwise write there is already somewhere: the approach, the seams
 and the tasks are fields, the code is in the commits, the decisions worth keeping are `assumptions`
 and `deviations`. What is nowhere else is **what you tried that did not work** — the code shows the
 answer and never the two answers before it — and what you settled silently on the way.

@@ -12,6 +12,7 @@ import datetime as dt
 import importlib.util
 import io
 import json
+import os
 import shutil
 import tempfile
 import time
@@ -78,7 +79,7 @@ class DriverCase(unittest.TestCase):
         orch.time = types.SimpleNamespace(
             time=lambda: self.clock[0],
             sleep=lambda seconds=0: self.clock.__setitem__(0, self.clock[0] + max(seconds, 30)))
-        orch.newest_transcript = lambda cwd, after: self.transcript
+        orch.newest_transcript = lambda cwd, after, mark="": self.transcript
         orch.read_tail = lambda path, lines=40: ""
         orch.Driver.branch_pushed = lambda _self, _branch: False
 
@@ -111,7 +112,7 @@ class DriverCase(unittest.TestCase):
 
     def drive(self, launcher_class, **overrides):
         orch.Launcher = launcher_class
-        options = types.SimpleNamespace(poll=60, hang=30, max_wait=6, model=None, ceiling=120)
+        options = types.SimpleNamespace(poll=60, hang=30, max_wait=6, model=None, ceiling=120, room=60)
         for key, value in overrides.items():
             setattr(options, key, value)
         driver = orch.Driver(orch.Run(self.runs / "b"), self.cwd, options)
@@ -672,7 +673,7 @@ class FrameCase(DriverCase):
                                frame={first: [second], second: []}))
         driver = orch.Driver(orch.Run(self.runs / "b"), self.cwd,
                              types.SimpleNamespace(poll=60, hang=30, max_wait=6, model=None,
-                                                   ceiling=120))
+                                                   ceiling=120, room=60))
         child = orch.Run(self.runs / frame)
         with contextlib.redirect_stdout(io.StringIO()):
             driver.apply_frame(child, child.state())
@@ -821,6 +822,42 @@ class LiveQueueCase(DriverCase):
         self.assertIn("hours", spent)
 
 
+class TranscriptPickingCase(DriverCase):
+    """Which of a project's transcripts belongs to the session the driver just started."""
+
+    def jsonl(self, name, began, wrote, body=""):
+        path = self.transcripts / name
+        path.write_text(f'{{"timestamp":"{began}Z","body":"{body}"}}\n'
+                        f'{{"timestamp":"{wrote}Z"}}\n', encoding="utf-8")
+        return path
+
+    def test_a_conversation_that_was_already_open_is_not_the_session_just_started(self):
+        """The owner's own window sits in the same project directory, and its file is touched every
+        time they type. Picked by modification time it wins — and a live run read a 370k
+        conversation as its child's context, then asked every session that followed to hand over."""
+        orch.newest_transcript = self._real[1]
+        window = self.jsonl("window.jsonl", "2026-08-13T11:12:36", "2026-08-13T12:27:14")
+        child = self.jsonl("child.jsonl", "2026-08-13T12:25:47", "2026-08-13T12:26:01")
+        os.utime(window, (2_000_000_100, 2_000_000_100))     # the newest file by a clear margin
+        os.utime(child, (2_000_000_000, 2_000_000_000))
+        launched = dt.datetime(2026, 8, 13, 12, 25, tzinfo=dt.timezone.utc).timestamp()
+        self.assertEqual(orch.newest_transcript(self.cwd, launched), child)
+
+    def test_the_transcript_carrying_the_run_slug_wins_over_a_newer_one(self):
+        """Two sessions can start within a minute of each other — a sibling in the same tree, the
+        driver's own hand-back. The prompt the driver typed names the run."""
+        orch.newest_transcript = self._real[1]
+        mine = self.jsonl("mine.jsonl", "2026-08-13T12:25:47", "2026-08-13T12:26:01",
+                               body="/agent-kit:ship .agent-kit/runs/b-01-table")
+        other = self.jsonl("other.jsonl", "2026-08-13T12:25:50", "2026-08-13T12:26:30")
+        os.utime(mine, (2_000_000_000, 2_000_000_000))
+        os.utime(other, (2_000_000_100, 2_000_000_100))
+        launched = dt.datetime(2026, 8, 13, 12, 25, tzinfo=dt.timezone.utc).timestamp()
+        self.assertEqual(orch.newest_transcript(self.cwd, launched, "b-01-table"), mine)
+        self.assertEqual(orch.newest_transcript(self.cwd, launched, "no-such-run"), other,
+                         "with nothing matching, the newest of the candidates is still the answer")
+
+
 class HandoverCase(DriverCase):
     """A feature outlasting one session, handed to the next instead of paying for its own history."""
 
@@ -832,6 +869,29 @@ class HandoverCase(DriverCase):
     def test_the_size_is_read_off_the_transcript_a_record_at_a_time(self):
         self.assertEqual(orch.context_size(self.SMALL + "\n" + self.BIG), 202004)
         self.assertEqual(orch.context_size("nothing here"), 0)
+
+    def test_a_reading_set_that_nearly_fills_the_ceiling_does_not_hand_over_forever(self):
+        """The measured failure: a floor of 90k under a ceiling of 120k left 30k of room, one
+        feature was handed over eleven times in an hour, and each session spent most of itself
+        reading its way back to where the last one stood. A handoff costs the new session the whole
+        floor, so a segment that grew less than `room` costs more than it saves."""
+        self.assertFalse(orch.handoff_due(139_000, 90_000, 120, 60))
+        self.assertTrue(orch.handoff_due(151_000, 90_000, 120, 60))
+
+    def test_a_floor_that_cannot_be_read_leaves_the_ceiling_deciding_alone(self):
+        """A number that is missing is not a small one — but here the safe reading is the old rule,
+        not a floor of nothing: with no floor to measure from, growth is unknowable."""
+        self.assertTrue(orch.handoff_due(151_000, 0, 120, 60))
+        self.assertFalse(orch.handoff_due(0, 0, 120, 60))
+        self.assertFalse(orch.handoff_due(900_000, 0, 0, 60), "0 turns the mechanism off")
+
+    def test_the_floor_is_the_first_usage_record_and_not_the_first_poll(self):
+        """The first number the driver polls already carries whatever the session did in that
+        minute, and it moves with the poll interval. The reading set is at the top of the file."""
+        path = self.cwd / "transcript.jsonl"
+        path.write_text(self.SMALL + "\n" + self.BIG + "\n", encoding="utf-8")
+        self.assertEqual(orch.opening_size(path), 41004)
+        self.assertEqual(orch.opening_size(self.cwd / "gone.jsonl"), 0)
 
     def test_a_session_over_the_ceiling_is_asked_once_and_carried_on_by_a_fresh_one(self):
         first, = self.batch("one")
@@ -870,6 +930,49 @@ class HandoverCase(DriverCase):
         self.assertEqual(self.step(first), "done")
         asks = [t for t in driver.launcher.typed if "hand this run over" in t]
         self.assertEqual(len(asks), 1, "asked once per session, not once per poll")
+
+    def test_the_session_that_takes_a_handoff_is_numbered_and_the_run_file_follows(self):
+        """Eleven sessions of one feature shared a name, so nothing on the machine, in the app or in
+        the log could say which was speaking. And the run file's `session` is what the stop hook
+        matches on: a new name that is not written there leaves the hook guarding a dead session."""
+        first, = self.batch("one")
+        case = self
+        state = {"over": True, "alive": True, "starts": 0, "names": []}
+        orch.read_tail = lambda path, lines=40: case.BIG if state["over"] else case.SMALL
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                state["names"].append(name)
+                if first in name:
+                    state["starts"] += 1
+                    state["alive"] = True
+                    if state["starts"] == 2:
+                        case.write(first, dict(json.loads(
+                            (case.runs / first / "run.json").read_text(encoding="utf-8")),
+                            step="done", branch=f"claude/{first}"))
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first], "step": "done", "pr": 4})
+                return True
+
+            def send(self, name, text):
+                self.typed.append(text)
+                if "hand this run over" in text:
+                    run = json.loads((case.runs / first / "run.json").read_text(encoding="utf-8"))
+                    run["handoff"] = "stopped after task 2"
+                    case.write(first, run)
+                    state["over"], state["alive"] = False, False
+                return True
+
+            def alive(self, _name):
+                return state["alive"]
+
+        driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        started = [name for name in state["names"] if name.startswith(first)]
+        self.assertEqual(started[:2], [first, f"{first[:56]}-2"])
+        session = json.loads(
+            (self.runs / first / "run.json").read_text(encoding="utf-8"))["session"]
+        self.assertTrue(session.endswith("-2"), f"the run file still names {session}")
 
     def test_a_session_that_ignores_the_ask_is_still_treated_as_stuck(self):
         first, = self.batch("one")

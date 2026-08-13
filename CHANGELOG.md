@@ -3,6 +3,100 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.9.0
+
+The first real `epic` ran on a project with a description of its own, and its gate — the one
+conversation a day-long run ever has — spent that conversation badly in five separate ways. Four of
+them have the same shape: something that could only be settled while the owner was present was left
+for after the run. The owner caught the largest one himself, which is the part that should not have
+been possible.
+
+- **The check reads the blocks now, and the gate says which entries it means.** `check.py --entries
+  <keys>` prints every open block under them in full — the whole quote, not the ninety characters
+  the summary keeps — and names any key that matched no entry, so a key derived wrongly from prose
+  comes back as a mistake rather than as silence. The summary line that invited the mistake said
+  *read the ones under the entries you are about to build*; a live gate read that as *the entries
+  with no code yet* and never opened the twenty-one built entries its scope was about to change.
+  Fifty-one decisions taken without an owner stayed shut while the owner sat there answering other
+  questions.
+
+- **The list of what a run builds is not the list of what it changes**, and `epic` now writes both
+  before it asks anything. A debt line that moves a button's behaviour, a remark that rewrites a
+  prompt, a field that stops meaning what it meant — those entries are `built` and are exactly where
+  the unanswered questions live. Both lists go to the program above; the expensive blocks go on the
+  screen and the rest keep standing as written.
+
+- **A question you have not researched is not a fork.** New in `rules/asking.md`, because a gate
+  asked *how many rule cards?* with three invented numbers, having read nothing: there was a
+  published list of 170 items, the owner had to send it to look, and the scope grew from one work
+  item to seven **after** the price was approved. The test is one sentence — name the fact that
+  would settle this and say why you cannot get it. A fact in a file, in a count, or on the open web
+  is yours to fetch.
+
+- **Content is priced apart from features.** The measured hour-per-feature is a rate for features,
+  and *the reference holds the grammar rules* is one line of description and an unbounded amount of
+  writing. Find the count before the screen, and say the other half out loud: no test will say the
+  content is right — it says the card exists, and only a person says it is true.
+
+- **What the conversation invents is written into the description before the run starts.** An owner
+  answering a fork described a table shared across every user that was neither entity nor entry
+  anywhere. As an assumption it builds fine and is reviewed against nothing — the reviewer holds a
+  diff against the entry it was built from, and the finish line counts scenarios, so a feature with
+  no entry is outside both. Same for a part of the description nobody has walked: one the scope
+  merely mentions can wait, one the scope **builds on** is walked here, in minutes.
+
+And three defects in the driver, all of them found in the same run's log while it was still going —
+one feature, eleven sessions in an hour, and it was still on the same step:
+
+- **A handoff has to pay for itself.** The ceiling was absolute: past 120k a session was asked to
+  hand its run over. On that project a `ship` session *starts* at 90.8k — the skill, the rules, the
+  project's own instructions, the run file, the note — so it had 30k of room, about five minutes of
+  work, and then paid the whole 90k again to read its way back to where the last one stood. The rule
+  fired exactly as written and the run went nowhere. The driver now measures the floor from the
+  transcript's first usage record and asks only when the session has grown `--room` past it (60k by
+  default). The ceiling moved from 120k to 280k with it, and what sets it is
+  cost rather than the model's window — the window is not the constraint at all: a session on the
+  same model was measured at 380k with nothing compacted. A turn re-reads its context from cache at
+  a tenth of the price, while a handoff writes the floor into a cold cache and buys several turns
+  of re-orientation, so the cheapest segment on a 90k floor is 40-55 turns, and the curve is flat
+  from 170k to 290k. It is set at the top of that zone rather than its bottom: the last tenth of
+  the money buys a third fewer handoffs, and a handoff is a lossy transfer through a note, not just
+  tokens. The old 120k sat at three times the cost of the
+  bottom — and worse than never handing over at all. It is recognisable now as the 50-60%-of-capacity
+  rule of thumb for a 200k window, applied to a model that has 1M. The two ceilings above the money
+  curve were checked and neither binds: the harness compacts itself at ~83% of the window, and
+  published long-context measurements put visible degradation at 300-400k. A project on a 200k-window
+  model must set `--ceiling 150`, and the docstring says so, so a reading set that nearly fills the ceiling can no longer hand over forever. The
+  event says both numbers: `context 151k over a floor of 91k`.
+
+- **The driver watched the wrong session.** A transcript was picked as *the newest file in the
+  project's directory*, and every session of a project shares one — including the owner's own
+  window. Twice in that run the driver read the window's conversation as its child's context: 358k,
+  then 370k, both of them the owner talking to the gate. It picked by modification time, so the file
+  that was typed into last won. Now a candidate must also have *begun* after the session was
+  launched, and among those the one whose opening lines carry the run's slug wins.
+
+- **Every session of a run has its own name now**, numbered: the slug, then `-2`, `-3`. Eleven
+  sessions shared one name, so nothing on the machine, in the app, or in the log could say which was
+  speaking — and the log line for the eleventh handoff reads exactly like the first. The run file's
+  `session` field is rewritten with each one, which it was not before: the stop hook matches on that
+  field alone, and under a numbered name a stale value leaves it guarding a session that is dead.
+
+- **A handoff note says what proves each claim, or says nothing does.** Read against how other
+  people run long agent sessions, this is the one rule the kit was missing and the one everybody who
+  has been burned writes down: the expensive failure is not a forgotten fact, it is a claim nobody
+  can tell was checked. The next session treats the note as a contract and does not re-check it — a
+  live note read *the review is done, do not run it again*, and had that been wrong the rest of the
+  feature would have been built on it. The template carries the rule, since the shape of the record
+  is read by whoever writes one. It also now forbids pointing at a temporary directory, which is
+  where a downloaded reference list sat until it was noticed.
+
+- **The branch comes off the branch the session is standing on**, not off the default one. The
+  description an epic builds from may be sitting on an unmerged `blueprint` branch from another
+  session — which is what happened — and a run based on `main` would build against a description
+  that is not there. Anything uncommitted is committed as `docs(knowledge):` before the batches
+  start, and the screen says where the pull request will point and what it will carry.
+
 ## 2.8.1
 
 Found while dictating a real product into 2.8.0: most of what an owner brings back from using their

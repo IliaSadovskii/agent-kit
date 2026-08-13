@@ -460,6 +460,58 @@ class CheckCase(unittest.TestCase):
         self.assertIn("Prose a feature has already outdated (1)", output)
         self.assertIn("Accepted and not yet written up (1)", output)
 
+    # ---- the blocks under the entries a command names --------------------------------------------
+
+    def test_entries_prints_the_blocks_under_the_entry_it_names(self):
+        """The summary gives names only, and a gate that has to choose from names chose wrong: it
+        read "the entries you are about to build" as the ones with no code yet, and left the built
+        entries its scope was about to change unopened. Naming them gets the text itself."""
+        self.write("actions.md", ACTIONS + "\n> **[assumed 2026-08-04 · claude/x]** Nothing says "
+                                           "where it is stored. Took: beside the post.\n")
+        code, output = self.run_check("--entries", "guest.browse_feed")
+        self.assertEqual(code, 1)
+        self.assertIn("Open blocks under the 1 entry this command named", output)
+        self.assertIn("beside the post", output)
+
+    def test_entries_prints_the_whole_block_and_not_its_first_line(self):
+        """The summary keeps 90 characters, which tells two blocks apart and answers neither: what
+        was taken, and at what cost, is further down the quote. A block runs until the quoting
+        stops."""
+        self.write("actions.md", ACTIONS + "\n> **[assumed 2026-08-04 · claude/x]** Nothing says "
+                                           "where it is stored, and the entry is silent on how long "
+                                           "any of it is kept by anyone at all.\n"
+                                           "> Took: beside the post, and deleted with it.\n"
+                                           "\nOrdinary prose that is not part of the block.\n")
+        _code, output = self.run_check("--entries", "guest.browse_feed")
+        self.assertIn("Took: beside the post, and deleted with it.", output)
+        self.assertNotIn("Ordinary prose", output)
+
+    def test_entries_says_an_entry_it_named_has_nothing(self):
+        """Silence per entry has to be a statement. A section that listed only the entries with
+        blocks would leave the caller unable to tell "clear" from "not looked at"."""
+        self.write("actions.md", ACTIONS)
+        code, output = self.run_check("--entries", "guest.browse_feed")
+        self.assertEqual(code, 0)
+        self.assertIn("guest.browse_feed: none", output)
+
+    def test_entries_names_a_key_that_matches_no_entry(self):
+        """A filter that quietly matches nothing reads exactly like an entry with nothing to
+        answer, and the keys come from prose — where a run derives them by hand."""
+        self.write("actions.md", ACTIONS + "\n> **[assumed 2026-08-04 · claude/x]** Nothing says "
+                                           "where it is stored. Took: beside the post.\n")
+        _code, output = self.run_check("--entries", "guest.browse_feed", "guest.typo")
+        self.assertIn("Not an entry in this project's knowledge (1): guest.typo", output)
+
+    def test_entries_answers_even_when_the_report_is_otherwise_clean(self):
+        """A `[stale …]` leaves the report clean and returns 0. The one call a gate makes must not
+        go silent on the entries it named because nothing else had anything to say."""
+        self.write("actions.md", ACTIONS + "\n> **[stale 2026-08-05 · claude/x]** Says the driver "
+                                           "is `log`; mail goes out over SMTP now.\n")
+        code, output = self.run_check("--entries", "guest.browse_feed")
+        self.assertEqual(code, 0)
+        self.assertIn("Open blocks under the 1 entry this command named", output)
+        self.assertIn("SMTP", output)
+
     # ---- promises the product does not keep ----------------------------------------------------
 
     MARKED = ("// agent-kit:unmet guest.browse_feed\n"
