@@ -1342,6 +1342,25 @@ def print_parts(docs: list) -> None:
           f"from the code and never confirmed")
 
 
+def unreachable(docs: list, report: Report) -> tuple:
+    """Decisions taken without the owner that no run will arrive at, and how many entries hold them.
+
+    The kit's answer to an open block is that the next run building in that entry settles it in
+    passing, with the owner there. That holds for an entry something is still planned to build in.
+    Under a `built` entry it is false: nothing arrives, and the block stands for the life of the
+    project — the same reasoning the ladder already applies to `[accepted …]`, which is raised
+    because nothing else will ever reach it.
+
+    Measured on one project after two autonomous runs: 47 of 58 standing decisions were in that
+    position. Counted here rather than judged, because *which of them are expensive* is written in
+    the block's own prose, in the project's language, and guessing a value out of prose is the one
+    thing this program never does.
+    """
+    states = {entry.key: (entry.state or "") for doc in docs for entry in doc.entries}
+    where = [at for at, _line, _body in report.assumed if states.get(at, "").startswith("built")]
+    return len(where), len(set(where))
+
+
 def print_entry_blocks(report: Report, docs: list, keys: list) -> None:
     """Every open block under the entries a command names, in full — and which of them it misread.
 
@@ -1596,6 +1615,12 @@ def main(argv: list | None = None) -> int:
               f"Read the ones under the entries you are about to build **or to change**, with "
               f"--entries; a built entry whose behaviour this run moves is one of them:")
         print("  " + ", ".join(where))
+
+        stuck, entries_stuck = unreachable(docs, report)
+        if stuck:
+            print(f"  of those, {stuck} in {entries_stuck} entries already `built` — nothing is "
+                  f"planned there, so no run arrives to settle them in passing and only "
+                  f"`blueprint` ever will.")
 
     if report.notes:
         print(f"\nOpen notes ({len(report.notes)}) — each is a decision waiting for the owner:")

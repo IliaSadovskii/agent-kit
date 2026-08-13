@@ -105,7 +105,7 @@ alone, not what is most interesting.
 | 6 | somebody is waiting: a run's `waiting_on`, open `[assumed …]` on entries about to be built | the answer is cheapest while the context is warm | answer it, or `/agent-kit:blueprint` |
 | 7 | knowledge not ready **for the work you are about to name**: a slot `open_question`, empty fields, a stale `source:`, an open block on the very entry you would recommend building | a run over that entry invents the missing half | `/agent-kit:blueprint` |
 | 8 | a blind spot: a lens that never ran, or ran long ago; scenarios with no end-to-end test | not knowing what is broken is not the same as nothing being broken | `/agent-kit:audit <lens>` |
-| 9 | debt, unkept promises, unticked audit boxes | it only gets more expensive | `/agent-kit:sprint` with no theme — or `/agent-kit:epic` when there is a lot of it |
+| 9 | debt, unkept promises, unticked audit boxes, decisions nothing will reach | it only gets more expensive | `/agent-kit:sprint` with no theme — or `/agent-kit:epic` when there is a lot of it |
 | 10 | entries still `planned` | the product is unfinished | by how much is left: one `/agent-kit:ship <key>`, a `/agent-kit:sprint` of about five, or `/agent-kit:epic` for the rest of them |
 | 11 | none of the above | say so | nothing |
 
@@ -124,7 +124,17 @@ settled by the next command that builds in that entry, with the owner present, a
 them there. Report the count in *Where it stands* and go on down the ladder — unless the entry you
 were about to recommend is the one carrying the block, which is rung 7.
 
-**`[accepted …]` is the exception, and it is one because nothing else will ever reach it.** The other
+**The exception is the block nothing will ever reach**, and there are two kinds of it.
+
+The first is `[assumed …]` under an entry already `built`. The reasoning above — *the next command
+that builds in that entry settles it* — is a promise about a run that is coming; under a built entry
+with nothing planned in it, no run is coming. The check counts them apart from the rest for exactly
+this: *of those, 47 in 19 entries already `built`*. That count is rung 9 work, named with the number
+and `/agent-kit:blueprint`. It cannot become noise, because it only grows when work **finishes** and
+it goes to zero after one pass — a fresh batch's blocks sit under entries the run will return to,
+and those do not count.
+
+**And `[accepted …]`, because nothing else will ever reach it either.** The other
 three sit under an entry, so the next run that builds there settles them in passing. This one is
 waiting *for* an entry: the owner agreed to something and its fields were left for later, so there is
 nothing to build in and no command that arrives by accident. Left alone it stays for ever, and the

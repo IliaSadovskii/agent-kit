@@ -512,6 +512,27 @@ class CheckCase(unittest.TestCase):
         self.assertIn("Open blocks under the 1 entry this command named", output)
         self.assertIn("SMTP", output)
 
+    def test_a_decision_under_a_built_entry_is_counted_as_one_nothing_will_reach(self):
+        """The kit's answer to an open block is that the next run building there settles it in
+        passing. Under a `built` entry with nothing planned in it, that run never comes — 47 of 58
+        stood in exactly that position on a measured project, and no count anywhere said so."""
+        self.write("actions.md", ACTIONS + "\n> **[assumed 2026-08-04 · claude/x]** Nothing says "
+                                           "where it is stored. Took: beside the post.\n")
+        code, output = self.run_check()
+        self.assertEqual(code, 1)
+        self.assertIn("of those, 1 in 1 entries already `built`", output)
+
+    def test_a_decision_under_an_entry_still_to_be_built_is_not_counted_as_stuck(self):
+        """A run is coming there, and it settles the block with the owner present. Counting these
+        would make the number grow after every batch and stop meaning anything."""
+        planned = ACTIONS.replace("`state: built`", "`state: planned`")
+        self.write("actions.md", planned + "\n> **[assumed 2026-08-04 · claude/x]** Nothing says "
+                                           "where it is stored. Took: beside the post.\n")
+        code, output = self.run_check()
+        self.assertEqual(code, 1)
+        self.assertIn("Decisions taken without the owner (1)", output)
+        self.assertNotIn("already `built`", output)
+
     # ---- promises the product does not keep ----------------------------------------------------
 
     MARKED = ("// agent-kit:unmet guest.browse_feed\n"

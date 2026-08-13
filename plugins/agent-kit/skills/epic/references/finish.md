@@ -26,6 +26,24 @@ that field — before it did, a live run wrote itself a shell script to launch t
 to hand control back, neither of them tracked, neither of them knowing anything about limits or
 stalls.
 
+**Two lenses take a scope, and the rest may not.** A run finishing off what an MVP left over is
+walking a product most of which a previous audit already read — and on a measured run the lenses and
+the batches that answered them cost as much as building the product did, so paying that twice for
+code nobody touched is the largest avoidable number in this phase.
+
+- `tests` and `scenarios` are counted **by entry**, and this run's entries are known: pass them as
+  the area, exactly as `audit <lens> <area>` takes one. The finish line is already written that way —
+  *every scenario inside the bounds* — so the narrower walk is the one that matches it;
+- `deps`, `security` and `conventions` take no area and are not asked for one. A vulnerable package
+  is not inside anybody's feature, an attack surface does not stop at the edge of a batch, and a
+  convention is a property of the codebase or of nothing.
+
+**A narrowed lens carries the old file forward.** `docs/audits/<lens>.md` is rewritten whole on
+every run, so a walk over five entries would silently drop what a walk over forty found and left
+open. Say it in the `prompt`: keep every item of the previous file that is still open, then add
+what this walk found. Without that line the narrowing is not a saving, it is a deletion — and the
+`walked=` count in the header would be the only trace, on a file nobody diffs.
+
 **The lenses are chosen here, not at the gate.** You have read what was built; the gate had only the
 owner's prose. Take them from what this product is made of — `tests` and `scenarios` always, `deps`
 always, `security` wherever there are people, permissions or money, `performance` only once there

@@ -18,6 +18,36 @@ The command line itself stays in each command, because what they ask for differs
 | **knowledge written by an older kit** — a record declaring fewer fields than the template, a file with fewer sections | **not a reason to stop, and not yours.** Say it in one line with the count, so the owner learns it exists, and carry on: the entries you are about to build are answerable as they stand, they were written that way on purpose, and only `/agent-kit:blueprint` may change what a record requires. Never fill the missing field yourself — that is deciding what the product must describe, which is the one thing no build command may do |
 | nothing | continue without a word about it |
 
+## Before you start, say what has piled up
+
+The row above settles the blocks **on the entries in scope**, which is right and is not enough: a
+decision under an entry nobody is going to build in again is settled by nobody, ever. The check
+counts those separately — *of those, 47 in 19 entries already `built`* — and that number is the one
+an owner has no other way of seeing.
+
+**Only where a person just typed the command.** That is the gate of a run they started themselves —
+`epic`, `sprint`, a `ship` by hand — and nowhere else. A session the driver raised is not the
+moment, whatever `gate` says in the file it reads: an `--advance` deciding what follows, a `--resume`
+picking up a dead run and a closing session all run with nobody watching, and a question put there
+stops the run until morning. If you did not receive this command from a person, this section is not
+for you.
+
+So at that gate, **once per run and before any work starts**:
+
+- **say the count in one line**, both numbers, whatever else is on the screen;
+- **and put it up as a choice**, per `${CLAUDE_PLUGIN_ROOT}/rules/asking.md`: settle the blocks on
+  this run's own entries now (minutes, and the recommendation), hand the lot to
+  `/agent-kit:blueprint` first, or go and build as it stands. Whatever they pick, it is asked once —
+  a command that raises this again per feature is the alarm nobody hears by the third batch.
+
+With `gate: none`, and in every session the driver started, this section does not exist: there is nobody to ask, the blocks are followed as
+written, and the run leaves its own for the owner to meet in `accept`.
+
+**Why insist here of all places.** A build command is the last cheap moment: what was decided
+without the owner is about to be built on, and after that a *no* costs a new run instead of an
+answer. The same insistence in `next` would be noise — advice between tasks is easy to scroll past —
+which is why that ladder deliberately does not fire on open blocks alone.
+
 **Promises the product does not keep are read differently by each command**, so that row lives in the
 command rather than here: `ship` reads the marked test for the entry it is about to touch; `sprint`
 counts them, and with no theme offers them as a batch of their own.

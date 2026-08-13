@@ -3,6 +3,74 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.10.0
+
+Watching the run that 2.9.0 fixed, from the outside, for four hours. The driver behaved: two
+handoffs where there had been eleven, the numbers landing where they were predicted to. What the
+watching turned up instead is that **nothing in this kit ever drains what it writes down.** A
+project two autonomous runs old was carrying 58 decisions taken without its owner, and 47 of them
+sat under entries already `built` — where the kit's own answer, *the next run building there settles
+it in passing*, is a promise about a run that is never coming.
+
+- **The check counts what nothing will reach.** Not "there are open blocks" — every batch leaves
+  some, and a number that rises after every sprint is one nobody reads. The line is narrower and it
+  only moves when work **finishes**: *of those, 47 in 19 entries already `built` — nothing is planned
+  there, so no run arrives to settle them in passing.* Which of them are expensive stays a judgement,
+  because that is written in the block's own prose in the project's language, and this program does
+  not guess values out of prose.
+
+- **A build command says what has piled up before it starts.** One line and one choice, once per
+  run, and only with the owner present: settle this run's entries now, hand the lot to `blueprint`
+  first, or build as it stands. It lives in `rules/preflight.md`, so `ship`, `sprint`, `epic`, `fix`
+  and `advise` all got it from one edit. The insistence belongs here and not in `next`: a build
+  command is the last cheap moment before what was decided without the owner is built upon, while
+  advice between tasks is scrolled past.
+
+- **`accept` settles the run's own decisions, before the merge.** Nine, not fifty — and the branch
+  is still open, so a *no* is a fix in that pull request instead of an entry put back to `planned`
+  and a run of its own. It offers and hands to `blueprint`; it still writes nothing itself, having
+  not read the diff and being unable to tell what an answer breaks.
+
+- **`next` raises them at rung 9**, with the count. The ladder's refusal to fire on open blocks
+  stands — it is what keeps it from recommending the same command after every sprint — and this is
+  the exception it already made for `[accepted …]`, for the same reason and now stated once.
+
+- **The frame child may split a feature that is two features.** Composition groups by topic and
+  nothing stopped it putting a person's action and a background job into one child: measured, that
+  one took four sessions and seven tasks and spent about 40% of its wall clock handing itself over,
+  while three single-deliverable features beside it took one session each. The frame child is the
+  only reader that sees a whole batch before a line of it is written, and the driver re-reads the
+  list before every child — so the mechanism was already there and only the mandate was missing. The
+  test is the kind of thing and not the count: an action and the screen it fills stay one, an action
+  and a scheduler become two. At most one split per batch, because every split costs a session's
+  whole 90k reading set.
+
+- **What a feature cost is recorded per feature.** The driver writes `spent.sessions` on each
+  child's run file and the batch's durable record carries `per_feature` by slug. The average said
+  1.67 sessions per feature and hid everything: that a single feature took four. The reader is the
+  next batch's frame child, deciding what to split.
+
+- **An epic's audit stops re-reading the whole product.** A run finishing off what an MVP left over
+  walks code a previous audit already read, and that audit cost as much as the building did. `tests`
+  and `scenarios` count by entry, so they now take this run's entries as their area — which is how
+  the finish line was already written. `deps`, `security` and `conventions` take none: a vulnerable
+  package is not inside anybody's feature. And the narrowed ones are told to carry the previous
+  file's open items forward, because `docs/audits/<lens>.md` is rewritten whole and a five-entry walk
+  would otherwise delete what a forty-entry walk found.
+
+And two things the same watching found in the driver:
+
+- **A batch written by `--resume` is written by the gate's rules.** It normally writes none — it
+  continues batches that exist — and forced onto that path by a rollback it produced a batch of
+  three with no frame child. What that cost was not the shared rules, which its first feature wrote
+  anyway, but `frame`: the record of what depends on what, and the only thing between one dead
+  session and the rest of the batch.
+
+- **The driver closes the session that started it.** The hand-back session is told to close itself
+  last and never did once: the instruction sits at the end of a section, after the work is done,
+  which is where instructions go to be forgotten. The driver knows which session it is from
+  `parent`, and starting it with `setsid` is what makes killing it safe.
+
 ## 2.9.0
 
 The first real `epic` ran on a project with a description of its own, and its gate — the one

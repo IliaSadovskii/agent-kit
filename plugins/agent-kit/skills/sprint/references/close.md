@@ -195,12 +195,18 @@ few kilobytes, records rather than sentences:
 ```json
 { "slug": "2026-08-05-offers", "command": "sprint", "pr": 21, "branch": "sprint/2026-08-05-offers",
   "entries": ["developer.create_offer"], "children": 4, "spent": { "hours": 6.2, "features": 4, "sessions": 9 },
+  "per_feature": { "2026-08-05-offers-01-create": 1, "2026-08-05-offers-02-accept": 4 },
   "suite": "make test → 0, 118 passed", "assumptions": 3, "unmet": 1, "debt": { "closed": 2, "added": 3 },
   "review": { "findings": 37, "open": 0 }, "blocked": [] }
 ```
 
 Counts, not copies: what each of those *says* is already in the pull request and in the knowledge,
-and duplicating it here would give one fact two places to disagree with itself. `spent` is copied
+and duplicating it here would give one fact two places to disagree with itself. `per_feature` is `spent.sessions` off each child's own run file, by slug: the average hides the
+shape, and the shape is the thing a later batch can act on. Measured — a batch reporting 1.67
+sessions per feature was one feature at four and three at one, and the four was where a person's
+action and a background job had been composed into a single child. The frame child of a later batch
+reads this to decide what to split before anything is built; nothing else in the kit can tell it.
+`spent` is copied
 from the run file as the driver left it — the only measurement of what a run costs that outlives the
 machine it ran on, and the only thing a later gate can price a scope from.
 

@@ -490,6 +490,7 @@ class Driver:
         self.sessions = 0
         self.began = time.time()
         self.watched: str | None = None           # the session `watch` has live, numbered
+        self.segments = 1                         # how many that run has needed so far
 
     @staticmethod
     def numbered(name: str, segment: int) -> str:
@@ -556,6 +557,7 @@ class Driver:
         # of them was speaking — the log line for the fourth handoff reads exactly like the first.
         current = self.numbered(name, 1)
         self.watched = current
+        self.segments = 1
         model = self.model_for(run.state())
         if not self.launcher.start(current, prompt, model):
             return "could not start a session"
@@ -592,6 +594,7 @@ class Driver:
             segment += 1
             current = self.numbered(name, segment)
             self.watched = current
+            self.segments = segment
             if not self.launcher.start(current, prompt, self.model_for(run.state())):
                 return False
             self.sessions += 1
@@ -709,6 +712,13 @@ class Driver:
         why = self.watch(name, child, self.prompt_for(child),
                          hand_over=not (child.state().get("prompt") or "").strip())
         self.launcher.stop(self.watched or name)
+        # What this feature cost, on the feature itself. The batch's total says 1.67 sessions per
+        # feature and hides the shape: on a measured batch one feature took four while three took
+        # one each, and it was the one where a person's action and a background job had been
+        # composed into a single child. Per feature, that is visible; averaged, it is not — and the
+        # frame child of the next batch is the reader, deciding what to split before anything is
+        # built.
+        child.set(spent={"sessions": self.segments})
 
         # Judge by the world, not by the exit: a limit at the tail of a feature looks exactly like a
         # crash while the work is already done.
@@ -878,6 +888,17 @@ class Driver:
             self.tell(f"{self.run.slug} has no children to build")
             self.hand_back(state)
             return 1
+
+        # The session that started this driver has nothing left to do — its own product is this
+        # process running. It is told to close itself last, and measured on a live run it never
+        # did: the instruction sits at the end of a section, after the work is finished, which is
+        # where instructions go to be forgotten. So the driver closes it, and knows which one it is
+        # from `parent`. Safe because the driver is started with `setsid` and shares no session
+        # with it. Nothing depends on the kill working — a session left standing is reclaimed by
+        # the next hand-back, which is what happened for every batch before this line existed.
+        parent = state.get("parent")
+        if parent:
+            self.launcher.stop(f"{parent}-advance"[:60])
 
         self.run.set(step="building")
         self.run.event("start", f"{len(children)} features")

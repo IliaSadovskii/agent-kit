@@ -62,6 +62,18 @@ is work handed over.
 permissions, money, a public contract — because those are the ones that cost something to reverse
 later, and the rest as a count with where they live. `check.py` names the entries carrying them.
 
+Then **offer to settle them, here, before the merge** — not as a report, as the question this
+command exists to make cheap. It is the run's own blocks, not the project's pile: nine, not fifty.
+Two things make this the right moment and no other. The owner is holding the run's output and has
+just read what it decided; and **the branch is still open**, so a *no* is a fix in this pull request
+rather than an entry put back to `planned` and a run of its own.
+
+You do not write it. **`accept` changes nothing** — that is the boundary that keeps it cheap, and it
+has not read the diff, so it cannot tell what an answer breaks. The offer hands over to
+`/agent-kit:blueprint`, narrowed to this run's blocks, which owns the prose and may put an entry
+back to `planned` when the answer says the build was wrong. Stopping halfway costs nothing: what is
+not answered stays a block.
+
 **5. What is not proven.** Tests marked `agent-kit:unmet` and what each waits for; scenarios inside
 the bounds with no end-to-end test and why; and — the one nobody writes down — **what was never
 exercised at all**. A run whose every proof went through a stand-in has proved the stand-in. Say

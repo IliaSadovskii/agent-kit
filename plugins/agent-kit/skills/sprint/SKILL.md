@@ -162,10 +162,12 @@ if that fails, because a run with no narrator is fine and a wrong address is not
   "prompt": "Read ${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/frame.md and follow it. Your run: .agent-kit/runs/2026-08-05-offers-00-frame. The batch: .agent-kit/runs/2026-08-05-offers" }
 ```
 
-It reads the batch's entries and the code where two of them meet, and leaves two things: what these
-features must build alike, as a `[frame …]` block under `stack.md` where every `ship` already reads
-it — and the map of which feature cannot be built without which, which the driver turns into the
-queue. It writes no product code: the features do not exist yet, so a scaffold built for them in
+It reads the batch's entries and the code where two of them meet, and leaves three things: what
+these features must build alike, as a `[frame …]` block under `stack.md` where every `ship` already
+reads it; the map of which feature cannot be built without which, which the driver turns into the
+queue; and **one feature split in half where two deliverables were composed into one** — it is the
+only reader that sees the whole batch before any of it is written, and the driver re-reads the list
+before every child. It writes no product code: the features do not exist yet, so a scaffold built for them in
 advance is built against a guess, and the third feature is where that is discovered.
 
 **Two features do not need one**, and neither does a batch composed of one topic the owner has
@@ -220,7 +222,7 @@ Add `.agent-kit/runs/` to `.gitignore` if it is not there.
 ## Start the driver
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrate.py" .agent-kit/runs/<batch>/ >/dev/null 2>&1 &
+setsid python3 "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrate.py" .agent-kit/runs/<batch>/ >/dev/null 2>&1 &
 ```
 
 It builds the children in order, each as its own visible session. It survives the account limit by

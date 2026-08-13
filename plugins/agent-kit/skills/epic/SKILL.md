@@ -257,7 +257,7 @@ Two consequences, and both are said on the screen rather than discovered in the 
 Then set `step: "building"` on this file, start the driver on the first batch and end:
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrate.py" .agent-kit/runs/<first batch>/ >/dev/null 2>&1 &
+setsid python3 "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrate.py" .agent-kit/runs/<first batch>/ >/dev/null 2>&1 &
 ```
 
 Close per `${CLAUDE_PLUGIN_ROOT}/rules/closing.md`, then stay as the window —
@@ -349,6 +349,14 @@ Read this run's file and every batch's, and rebuild where it stands: which batch
 which is current, which of its children are not finished. Then start the driver on the current
 batch — it leaves terminal children alone and builds the rest — or `--advance` if that batch is
 done.
+
+**A batch you write yourself is written by the gate's rules, not by this section's.** Normally there
+is nothing to write — you continue batches that already exist, which is what this invocation is for.
+When there is (the files were lost, or a batch was rolled back), everything under *The run files*
+applies unchanged, and the one that gets forgotten is the frame child: a batch of three or more
+opens with one. Measured — a resumed batch of three came out without it, and what it cost was not
+the shared rules (its first feature wrote those itself) but `frame`, the record of what depends on
+what, which is the only thing standing between one dead session and the rest of the batch.
 
 **Never start a second driver over a live one.** The driver itself refuses when a child's session is
 alive, and that is the check to trust rather than a guess: two drivers on one working tree is how a
