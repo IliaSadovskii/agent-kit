@@ -3,6 +3,15 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.10.7
+
+- **A field's name is not a word in the owner's language.** Caught on a phone while a run was going:
+  *«Гоню всю суиту»* — the `suite` field spelled out in Cyrillic, in the one line the owner sees.
+  Neither English nor Russian, where *«прогоняю все тесты»* was free. The rule sits beside the two
+  that already govern how a session speaks: the file's name for a field, and the meaning said out
+  loud, are different things; where the meaning has no word in the project's language, the English
+  term stays as written, in backticks.
+
 ## 2.10.6
 
 - **A run file's records are judged whenever the file is judged, not only as it closes.** Two

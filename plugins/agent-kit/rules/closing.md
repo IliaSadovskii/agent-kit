@@ -23,6 +23,18 @@ that takes a handoff says the same thing and which session of the run it is: tha
 its name carries and its first screen does not.
 
 
+## Speak the project's language, not this kit's field names in it
+
+Everything the owner reads is written in their project's language; the kit's own words — `suite`,
+`handoff`, `frame`, `deliver`, entry keys — are English because the payload is. **The two do not
+mix by transliteration.** Caught on a phone, mid-run: *«Гоню всю суиту»* — the `suite` field spelled
+in Cyrillic, which is neither an English word nor a Russian one, in the one sentence the owner
+actually sees. It costs nothing to say *«прогоняю все тесты»* instead.
+
+The rule is one line: a field's name is how the file calls it, and what it *means* is how you say
+it out loud. Where the meaning has no word in the project's language, use the English term as it is
+written, in backticks — a term someone can look up beats a term that only sounds like one.
+
 ## Say where it is thin, not what you did
 
 The owner can read the files and the pull request. A summary of the work adds nothing they cannot
