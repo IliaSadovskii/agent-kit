@@ -3,6 +3,28 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.10.2
+
+The rule 2.10.0 added for splitting oversized features was refuted by the run it was written from,
+about an hour later, which is the best argument for watching a run to the end.
+
+- **The frame child no longer splits features, and the ability is gone with the rule.** The test was
+  the *kind* of entry — an action and its screen stay one, an action and a scheduler become two —
+  and the run's own numbers say entries predict nothing: a feature of two homogeneous entries took
+  three sessions, exactly as many as one of three mixed ones, while features with no entries at all
+  took one or two. What does correlate is the number of tasks (7→4 sessions, 5→3, 5→3, 4→2, 3→2),
+  and tasks are written at Design — inside the session that then builds, where acting on them would
+  mean a run splitting itself. So there is no test worth keeping, and cutting at random is worse
+  than not cutting. The driver's side of it goes too: a mechanism whose writer has been removed has
+  no business staying.
+
+- **The ceiling is 320k.** Complex features hand over more often and that is accepted rather than
+  designed around: measured, the raise buys three minutes of work per session for about seven
+  percent, and the only number that would remove a session from a heavy feature is 350k — twenty
+  percent on every feature to help three, with the tail landing where long-context measurements
+  start to bite. What stays is the per-feature session count, which costs nothing and is what any
+  future answer here will have to be built on.
+
 ## 2.10.1
 
 Reviewing 2.10.0 the hour after it shipped, and one of the three findings would have stopped a run

@@ -1,13 +1,10 @@
 # The frame child
 
-You are the first child of a batch and you are not a feature. Nobody is present. Three things come
+You are the first child of a batch and you are not a feature. Nobody is present. Two things come
 out of you and nothing else:
 
 1. **What the batch's features must build alike** — a `[frame …]` block under `docs/knowledge/stack.md`.
 2. **Which feature cannot be built without which** — the `frame` field of your own run file.
-3. **A feature that is two features, split in half** — see below. You are the only reader who sees
-   the whole batch before a line of it is written, and the driver re-reads the list before every
-   child, so this is the last and cheapest moment it can happen.
 
 **Before anything else, say one line about yourself**, per `${CLAUDE_PLUGIN_ROOT}/rules/closing.md` — which run this is, what it builds in the owner's words, where it lands. The owner meets an unattended session by opening it mid-flight, and what greets them is whatever it said first.
 
@@ -33,43 +30,6 @@ That call prints `stack.md` whole every time, so read the map from the first one
 Then the code where two features look like they meet: the same table, the same model, the same
 screen, the same outbound call. **Only there.** Reading the codebase because it might be relevant
 is how this step comes to cost what a feature costs, and it has no diff to show for it.
-
-## A feature that is two
-
-The composing session groups by topic and nothing stops it putting two deliverables in one child.
-Measured on a live batch: `user.open_rule` and `scheduler.generate_session` went into one feature —
-a person's action and a background job — and it took **four sessions** and seven tasks, spending
-about 40% of its wall clock handing itself over, while three single-deliverable features next to it
-took one session each.
-
-**The test is the kind of thing, not the count.** Two entries in one child are usually right:
-
-| in one child | what it is | verdict |
-|---|---|---|
-| an action and the screen it fills — `user.open_rules` + `screen.rules` | one thing a person does | leave it |
-| an entity and the action that first writes it | one thing that starts existing | leave it |
-| a person's action and a scheduler, a queue, a webhook | two places, two proofs | **split** |
-| something stored and something displayed, in different parts of the product | two deliverables | **split** |
-
-The signal is readable without judgement: the entries live in different files of the knowledge, or
-their keys name different actors — a person against `scheduler.*`, `push_*`, an integration.
-
-Read the numbers before you decide. `docs/runs/*.json` carries what past features of this project
-cost, per feature, in `spent.sessions`; a shape that took three or more sessions before is the
-shape to split now. With no history yet, split only on the table above.
-
-**To split**, write a second run file beside the first, exactly as
-`${CLAUDE_PLUGIN_ROOT}/skills/sprint/SKILL.md` writes one — the same `base`, `model`, `deliver`,
-`gate`, `step: "queued"` — move the entries that belong to it into it, and name it in your `frame`
-map with the original as what it needs. **You do not touch the batch's file**: the driver reads your
-map, finds the run file you wrote, and puts it in the queue itself. That is the same division as the
-rest of this — the judgement is yours, the list is the program's — and it is why a `ship` never
-writes another run's file. Say in your report which feature you split and why, in one line.
-
-**Split at most one per batch, and never a feature already begun.** A frame child that halves
-everything turns five features into nine, and every split costs a session's whole reading set —
-90k of context before a line is written. One is the case where the evidence is plain; two is a
-rewrite of the batch, which is the composing session's job and not yours.
 
 ## The block
 
