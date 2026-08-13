@@ -1,5 +1,7 @@
 # Closing a batch
 
+**Before anything else, say one line about yourself**, per `${CLAUDE_PLUGIN_ROOT}/rules/closing.md` — which run this is, what it builds in the owner's words, where it lands. The owner meets an unattended session by opening it mid-flight, and what greets them is whatever it said first.
+
 You were started by the driver, with a run directory. Every feature in it has finished — with a
 pushed branch, or parked. Your job is the one part of a batch that is judgement rather than
 bookkeeping: turn it into a pull request somebody can merge without reading the diff, then write the

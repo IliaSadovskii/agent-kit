@@ -1,6 +1,27 @@
-# How a command ends
+# How a command speaks: its first line and its last
 
-Every command in the kit ends the same two ways, whatever it did.
+Every command in the kit opens the same way and ends the same two ways, whatever it did.
+
+## Say who you are, in one line, before you do anything
+
+A session the driver started runs unattended for half an hour, and the owner meets it by opening it
+on a phone somewhere in the middle. What they see at the top is whatever it happened to say first —
+usually a tool call, or a paragraph about a file they have never heard of.
+
+So the first thing out of any session, before the check and before reading anything: **one line, in
+the project's language** — which run this is, what it is building said in the owner's words rather
+than in entry keys, and where it lands. Nothing else:
+
+```
+2026-08-13-corpus-a-02-cards-a1 · пишу карточки свода уровня A1 из перечня CEFR-J
+→ ветка claude/2026-08-13-corpus-a-02-cards-a1, дальше карточки A2
+```
+
+**Not a plan and not a preamble.** Two lines at most, no list of steps, no restatement of the task —
+the run file holds all of that and the owner did not open the session to read it back. A session
+that takes a handoff says the same thing and which session of the run it is: that is the one fact
+its name carries and its first screen does not.
+
 
 ## Say where it is thin, not what you did
 

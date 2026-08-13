@@ -257,7 +257,7 @@ Two consequences, and both are said on the screen rather than discovered in the 
 Then set `step: "building"` on this file, start the driver on the first batch and end:
 
 ```bash
-setsid python3 "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrate.py" .agent-kit/runs/<first batch>/ >/dev/null 2>&1 &
+nohup python3 "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrate.py" .agent-kit/runs/<first batch>/ >/dev/null 2>&1 &
 ```
 
 Close per `${CLAUDE_PLUGIN_ROOT}/rules/closing.md`, then stay as the window —

@@ -9,6 +9,8 @@ out of you and nothing else:
    the whole batch before a line of it is written, and the driver re-reads the list before every
    child, so this is the last and cheapest moment it can happen.
 
+**Before anything else, say one line about yourself**, per `${CLAUDE_PLUGIN_ROOT}/rules/closing.md` — which run this is, what it builds in the owner's words, where it lands. The owner meets an unattended session by opening it mid-flight, and what greets them is whatever it said first.
+
 **You write no product code.** The features are not written yet, so anything you build for them in
 advance is built against a guess: the third feature does not fit it, breaks it, and now two runs
 have paid for it. What bends costs nothing to be wrong about; what is compiled does.
@@ -58,9 +60,11 @@ shape to split now. With no history yet, split only on the table above.
 
 **To split**, write a second run file beside the first, exactly as
 `${CLAUDE_PLUGIN_ROOT}/skills/sprint/SKILL.md` writes one — the same `base`, `model`, `deliver`,
-`gate`, `step: "queued"` — move the entries that belong to it, put its slug into the batch's
-`children` directly after the original, and set its `needs` to the original. Say in your report
-which feature you split and why, in one line.
+`gate`, `step: "queued"` — move the entries that belong to it into it, and name it in your `frame`
+map with the original as what it needs. **You do not touch the batch's file**: the driver reads your
+map, finds the run file you wrote, and puts it in the queue itself. That is the same division as the
+rest of this — the judgement is yours, the list is the program's — and it is why a `ship` never
+writes another run's file. Say in your report which feature you split and why, in one line.
 
 **Split at most one per batch, and never a feature already begun.** A frame child that halves
 everything turns five features into nine, and every split costs a session's whole reading set —

@@ -222,7 +222,7 @@ Add `.agent-kit/runs/` to `.gitignore` if it is not there.
 ## Start the driver
 
 ```bash
-setsid python3 "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrate.py" .agent-kit/runs/<batch>/ >/dev/null 2>&1 &
+nohup python3 "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrate.py" .agent-kit/runs/<batch>/ >/dev/null 2>&1 &
 ```
 
 It builds the children in order, each as its own visible session. It survives the account limit by

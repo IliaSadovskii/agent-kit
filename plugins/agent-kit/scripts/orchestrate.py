@@ -273,7 +273,7 @@ def opened_at(path: Path) -> float | None:
             return dt.datetime.strptime(found.group(1)[:19], "%Y-%m-%dT%H:%M:%S").replace(
                 tzinfo=dt.timezone.utc).timestamp()
         except ValueError:
-            return None
+            continue
     return None
 
 
@@ -396,7 +396,7 @@ def handoff_due(size: int, floor: int, ceiling: int, room: int) -> bool:
     much longer than half an hour; this one puts the ask at 6-23 minutes of its own work.
 
     **A project on a 200k-window model must lower this to about 150k.** There the harness would
-    compact at ~167k and a 220k ceiling would never fire — the very failure this replaced, in the
+    compact at ~167k and a 280k ceiling would never fire — the very failure this replaced, in the
     other direction. The 120k that was here before is exactly the 50-60%-of-capacity rule of thumb
     for a 200k window, applied to a model with five times the room.
     """
@@ -718,7 +718,8 @@ class Driver:
         # composed into a single child. Per feature, that is visible; averaged, it is not — and the
         # frame child of the next batch is the reader, deciding what to split before anything is
         # built.
-        child.set(spent={"sessions": self.segments})
+        before = int((child.state().get("spent") or {}).get("sessions") or 0)
+        child.set(spent={"sessions": max(before, self.segments)})
 
         # Judge by the world, not by the exit: a limit at the tail of a feature looks exactly like a
         # crash while the work is already done.
@@ -793,6 +794,20 @@ class Driver:
                                  f"needs and the batch falls back to the queue order")
             return
         children = self.run.state().get("children") or []
+
+        # A feature the frame child split in two arrives here as a run file nobody has queued: it
+        # wrote the file, because what goes in it is judgement, and named it in the map. Putting it
+        # into the queue is arithmetic, so it happens here — the same split as everything else in
+        # this method, and the reason a `ship` never writes another run's file. Without this the
+        # slug would fall through to `stray` below and be reported as a defect for existing.
+        adopted = [slug for slug in frame
+                   if slug not in children and slug != child.slug
+                   and (self.run.dir.parent / slug / "run.json").is_file()]
+        if adopted:
+            children = children + adopted
+            self.run.set(children=children)
+            child.event("split", f"{', '.join(adopted)} — written by the frame child, queued here")
+
         known = set(children)
         rest = [slug for slug in children if slug != child.slug]
 
@@ -893,8 +908,9 @@ class Driver:
         # process running. It is told to close itself last, and measured on a live run it never
         # did: the instruction sits at the end of a section, after the work is finished, which is
         # where instructions go to be forgotten. So the driver closes it, and knows which one it is
-        # from `parent`. Safe because the driver is started with `setsid` and shares no session
-        # with it. Nothing depends on the kill working — a session left standing is reclaimed by
+        # from `parent`. Safe because the driver is started under `nohup` and ignores the SIGHUP
+        # that killing a session sends — `setsid` would do the same and does not exist on macOS.
+        # Nothing depends on the kill working — a session left standing is reclaimed by
         # the next hand-back, which is what happened for every batch before this line existed.
         parent = state.get("parent")
         if parent:

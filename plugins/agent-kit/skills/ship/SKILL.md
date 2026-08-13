@@ -15,6 +15,8 @@ step, a dependency bump. Then `entries` is empty, `task` in the run file describ
 built, and everything below reads "the entry's lines" as "what that task says done means". Nothing
 else changes.
 
+**Before anything else, say one line about yourself**, per `${CLAUDE_PLUGIN_ROOT}/rules/closing.md` — which run this is, what it builds in the owner's words, where it lands. The owner meets an unattended session by opening it mid-flight, and what greets them is whatever it said first.
+
 Blueprint already says **what** this feature does and **why**. Your job is **how, in this codebase,
 now** — which files, which layer, which existing helper, which seam the tests sit at. Do not
 re-decide what blueprint settled, and do not put product decisions into the code that the entry does

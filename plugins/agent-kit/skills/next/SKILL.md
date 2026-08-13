@@ -135,7 +135,7 @@ it goes to zero after one pass — a fresh batch's blocks sit under entries the 
 and those do not count.
 
 **And `[accepted …]`, because nothing else will ever reach it either.** The other
-three sit under an entry, so the next run that builds there settles them in passing. This one is
+three sit under an entry, so a run that returns there settles them in passing — where one is coming. This one is
 waiting *for* an entry: the owner agreed to something and its fields were left for later, so there is
 nothing to build in and no command that arrives by accident. Left alone it stays for ever, and the
 work it stands for is invisible to `sprint`, to `epic` and to rung 10. Treat any open one as rung 9

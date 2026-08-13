@@ -3,6 +3,38 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.10.1
+
+Reviewing 2.10.0 the hour after it shipped, and one of the three findings would have stopped a run
+dead on half the machines it runs on.
+
+- **`setsid` does not exist on macOS.** It was introduced hours earlier to keep the driver alive
+  when the session that started it is closed — and on a Mac the line would have failed with
+  *command not found*, so the driver would never have started and the run would have gone quiet
+  with nothing to read. `nohup` is POSIX, is on every machine, and buys exactly what was needed:
+  immunity to the SIGHUP that closing a session sends.
+
+- **The frame child was told to write into the batch's own file.** Splitting an oversized feature
+  meant putting a slug into `children`, and a `ship` may not write another run's file — the rule the
+  driver's own ordering is built on. Worse, `apply_frame` would have seen the new slug as a name
+  from outside the batch and reported it as a defect for existing. It now writes only its own file
+  and names the split in its map; the driver finds the file and queues it, which is the same
+  division as everything else here: the judgement is the session's, the list is the program's.
+
+- **A feature's session count no longer shrinks.** A driver restarted mid-batch began counting from
+  one and wrote the smaller number over the larger — undercounting exactly the feature that had
+  cost the most, which is the one the next batch's frame child needs to see.
+
+And the thing an owner asked for, which is not a fix:
+
+- **Every session says who it is in one line, before it does anything.** A run started by the driver
+  is met by opening it on a phone somewhere in the middle, and what greeted the owner was whatever
+  it happened to say first — usually a tool call. Now: which run, what it builds in their words,
+  where it lands. Two lines at most, and a session that took a handoff says which one of the run it
+  is. The rule sits in `rules/closing.md`, which every command already reads, and each of the three
+  kinds of child carries the trigger at its own top, because a rule that fires in the first second
+  cannot live behind a reference read at the end.
+
 ## 2.10.0
 
 Watching the run that 2.9.0 fixed, from the outside, for four hours. The driver behaved: two

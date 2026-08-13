@@ -683,6 +683,44 @@ class FrameCase(DriverCase):
         self.assertEqual(once, [frame, second, first])
 
 
+    def test_a_feature_the_frame_child_split_off_is_queued_by_the_driver(self):
+        """The frame child writes the run file — what goes in it is judgement — and names it in the
+        map. It may not write the batch's file: a `ship` never writes another run's, and until this
+        was handled the slug fell through to `stray` and was reported as a defect for existing."""
+        frame, first, second = self.batch("frame", "one", "two")
+        (self.runs / "b-03-split").mkdir()
+        self.write("b-03-split", {"slug": "b-03-split", "command": "ship", "step": "queued",
+                                  "branch": "claude/b-03-split"})
+        self.write(frame, dict(self.state_of(frame), step="done",
+                               frame={first: [], second: [], "b-03-split": [first]}))
+        driver = orch.Driver(orch.Run(self.runs / "b"), self.cwd,
+                             types.SimpleNamespace(poll=60, hang=30, max_wait=6, model=None,
+                                                   ceiling=120, room=60))
+        child = orch.Run(self.runs / frame)
+        with contextlib.redirect_stdout(io.StringIO()):
+            driver.apply_frame(child, child.state())
+        children = self.state_of("b")["children"]
+        self.assertIn("b-03-split", children)
+        self.assertGreater(children.index("b-03-split"), children.index(first),
+                           "it needs the feature it was split from")
+        self.assertEqual(self.state_of("b-03-split")["needs"], [first])
+
+    def test_a_slug_the_frame_names_with_no_run_file_is_still_reported_as_stray(self):
+        """Adoption is for a file the frame child actually wrote. A bare name is the old failure —
+        a dependency on something that is not in this batch — and it must stay visible."""
+        frame, first, second = self.batch("frame", "one", "two")
+        self.write(frame, dict(self.state_of(frame), step="done",
+                               frame={first: ["b-99-imaginary"], second: []}))
+        driver = orch.Driver(orch.Run(self.runs / "b"), self.cwd,
+                             types.SimpleNamespace(poll=60, hang=30, max_wait=6, model=None,
+                                                   ceiling=120, room=60))
+        child = orch.Run(self.runs / frame)
+        with contextlib.redirect_stdout(io.StringIO()):
+            driver.apply_frame(child, child.state())
+        self.assertNotIn("b-99-imaginary", self.state_of("b")["children"])
+        self.assertIn("b-99-imaginary", json.dumps(self.state_of("b"), ensure_ascii=False))
+
+
 class LiveQueueCase(DriverCase):
     """`children` is the queue, and a session between features may change what is left of it."""
 
