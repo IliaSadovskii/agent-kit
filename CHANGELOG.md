@@ -3,6 +3,15 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.10.5
+
+- **The ceiling is 300k, which is where the measured bottom is.** 2.10.2 put it at 320k from a
+  re-reading cost assumed at 7 turns; measuring it at 26 moved the cheapest segment to 297k. The
+  money between 280k, 300k and 320k differs by about half a percent — what makes 300k the right one
+  of the three is the other end: the tail after the ask lands near 320k rather than 340k, further
+  from where published long-context measurements put visible degradation. Cheapest and most
+  cautious happen to be the same number.
+
 ## 2.10.4
 
 - **A session never opens the session before it.** Measured on three consecutive sessions of one

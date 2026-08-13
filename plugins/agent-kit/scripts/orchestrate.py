@@ -372,8 +372,8 @@ def handoff_due(size: int, floor: int, ceiling: int, room: int) -> bool:
     absolute number says. Both conditions, and a size that could not be read is not a small one.
 
     **What sets the ceiling is cost, and not the model's window.** Claude Opus 5 carries a 1M token
-    window as both default and maximum, so at 320k a session is a third of the way in and nothing
-    is near a limit. The question is only where a segment is cheapest. A turn re-sends the whole
+    window as both default and maximum, so at 300k a session is under a third of the way in and
+    nothing is near a limit. The question is only where a segment is cheapest. A turn re-sends the whole
     context and reads it from cache at a tenth of the price; a handoff writes the floor into a cold
     cache at a quarter over (twice over on the hour-long cache), and the session that takes it
     spends its first several turns reading itself back to where the last one stood. Against a 90k
@@ -382,9 +382,12 @@ def handoff_due(size: int, floor: int, ceiling: int, room: int) -> bool:
     the curve is flat from 170k to 290k either side of it. At 120k it was three times the bottom,
     and worse than never handing over at all.
 
-    **And the ceiling sits above the bottom of that curve deliberately.** It is nearly level from
-    170k to 290k and rises gently after — 320k costs about a seventh more than the theoretical
-    bottom — and what that buys is a third fewer handoffs. A handoff is not only tokens: it is a lossy
+    **The ceiling sits at the bottom of that curve, and the bottom moved once the re-reading was
+    measured rather than guessed.** It was assumed at 7 turns; measured across sixteen sessions of
+    one run it is 26 — a session spends 33 turns and 140k characters before its first edit, 21 and
+    65k when it takes a handoff. On that figure the cheapest segment is 297k, so the ceiling is
+    300k: about twelve minutes of a session's own work, with the tail after the ask landing near
+    320k, which is short of where long-context measurements start to bite. A handoff is not only tokens: it is a lossy
     transfer through a note, and the failure that note can carry (a claim nobody can tell was
     checked) is worth more than ten percent. Past 290k the trade reverses: 400k costs a third more
     and enters the band where published long-context measurements put visible degradation on
@@ -1085,7 +1088,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("run_dir", type=Path, help=".agent-kit/runs/<slug>/ of the batch")
     parser.add_argument("--poll", type=int, default=60, help="seconds between looks at the run file")
     parser.add_argument("--hang", type=int, default=30, help="minutes of transcript silence before a session is treated as stuck")
-    parser.add_argument("--ceiling", type=int, default=320,
+    parser.add_argument("--ceiling", type=int, default=300,
                         help="thousands of tokens: a session past this is asked to hand its run "
                              "over to a fresh one. What sets it is cost, not the model's window — "
                              "see handoff_due. 0 turns it off")
