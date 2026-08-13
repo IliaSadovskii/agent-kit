@@ -3,6 +3,21 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.10.6
+
+- **A run file's records are judged whenever the file is judged, not only as it closes.** Two
+  children on one night closed with `assumptions` written as prose, in different batches — while
+  `tasks`, which carries the same rule and is tested before every handoff, held all night. Same
+  rule, same shape, different moment: at `step: done` there is nothing left to do but report it,
+  and a session told at its first handoff fixes it in a minute. Measured on the same run, children
+  ran that check in eight sessions of twelve, several times each, so the earlier test lands where
+  it is read.
+
+  What was *not* done is the other half of the obvious fix: a copy of the shape in every child's
+  run file. The template already states it at its head — one fact in two places is the thing this
+  kit warns about, and the child does not miss the rule for want of a copy, it misses it for want
+  of being told at the moment it got it wrong. That is what the check now does.
+
 ## 2.10.5
 
 - **The ceiling is 300k, which is where the measured bottom is.** 2.10.2 put it at 320k from a

@@ -1090,26 +1090,27 @@ def run_defects(state: dict, root: Path | None = None) -> list:
             out.append("`approach` is empty and this run is being handed over — the session that "
                        "takes it skips Design because the file carries one, so it would design this "
                        "feature a second time")
-        tasks = state.get("tasks") or []
-        if not tasks:
+        if not (state.get("tasks") or []):
             out.append("`tasks` is empty and this run is being handed over — nothing says which "
                        "task the handoff stopped after, or what is left")
-        elif any(not isinstance(task, dict) for task in tasks):
-            out.append("`tasks` is written as sentences rather than records — `done` is how the "
-                       "next session tells what is finished, and prose says nothing")
-
-    if state.get("step") != "done":
-        return out
+        # Its shape is judged below, on every run and not only the ones being handed over.
 
     # A field of records filled with sentences reads as answered to a person and is empty to the
-    # closing session, the reviewer and this program. Named across the project as drift; here, on
-    # the one run that is closing, it is something to put right rather than to notice.
+    # closing session, the reviewer and this program. Checked whenever this file is judged and not
+    # only as it closes — measured on one run, `tasks` is tested before every handoff and never
+    # drifted all night, while `assumptions`, tested only at `done`, drifted twice in two different
+    # batches. Same rule, same shape, different moment: at `done` there is nothing to do but report
+    # it, and a session that hears it at its first handoff fixes it in a minute. Shape is safe to
+    # test early — an empty field passes, and only prose already written can fail.
     for field in ("tasks", "assumptions", "manual"):
         value = state.get(field) or []
         if isinstance(value, list) and any(not isinstance(item, dict) for item in value):
             out.append(f"`{field}` is written as sentences rather than as records — the template "
-                       f"draws it as `[{{…}}]`, and the pull request is composed from it by a "
+                       f"says so at its head, and the pull request is composed from it by a "
                        f"session that reads run files and never the code")
+
+    if state.get("step") != "done":
+        return out
 
     review = state.get("review") or {}
     findings = (review.get("findings") or []) if isinstance(review, dict) else []

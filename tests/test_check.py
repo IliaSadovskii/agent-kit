@@ -460,6 +460,36 @@ class CheckCase(unittest.TestCase):
         self.assertIn("Prose a feature has already outdated (1)", output)
         self.assertIn("Accepted and not yet written up (1)", output)
 
+    # ---- the shape of a run file's records ------------------------------------------------------
+
+    def test_prose_in_assumptions_is_named_before_the_run_is_done(self):
+        """It used to be judged only at `step: done`, where there is nothing left to do but report
+        it — and it drifted twice in one night, while `tasks`, tested before every handoff, held.
+        A session hearing it at its first handoff fixes it in a minute."""
+        run = self.root / ".agent-kit" / "runs" / "r"
+        run.mkdir(parents=True)
+        (run / "run.json").write_text(json.dumps({
+            "slug": "r", "command": "ship", "step": "build",
+            "assumptions": ["взято: хранить рядом с постом"]}), encoding="utf-8")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = check.main([str(self.root), "--offline", "--run", str(run)])
+        self.assertEqual(code, 1)
+        self.assertIn("`assumptions` is written as sentences", out.getvalue())
+
+    def test_an_empty_field_of_records_passes_at_any_step(self):
+        """Shape is safe to test early only because absence is not a failure — a run mid-flight has
+        not written its assumptions yet, and saying so would fire on every healthy run."""
+        run = self.root / ".agent-kit" / "runs" / "r"
+        run.mkdir(parents=True)
+        (run / "run.json").write_text(json.dumps({
+            "slug": "r", "command": "ship", "step": "build", "assumptions": [], "manual": []}),
+            encoding="utf-8")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = check.main([str(self.root), "--offline", "--run", str(run)])
+        self.assertEqual(code, 0, out.getvalue())
+
     # ---- the blocks under the entries a command names --------------------------------------------
 
     def test_entries_prints_the_blocks_under_the_entry_it_names(self):
@@ -971,9 +1001,11 @@ class CheckCase(unittest.TestCase):
         self.assertIn("design this feature a second time", output)
 
     def test_a_handoff_whose_tasks_are_prose_says_nothing_about_what_is_left(self):
+        """The shape is judged for every run now, not only for one being handed over, so this is
+        the general message rather than the handoff's own — the finding is what matters."""
         code, output = self.handover(tasks=["the endpoint", "the screen"])
         self.assertEqual(code, 1)
-        self.assertIn("`done` is how the next session tells", output)
+        self.assertIn("`tasks` is written as sentences", output)
         code, output = self.handover(tasks=[])
         self.assertEqual(code, 1)
         self.assertIn("which task the handoff stopped after", output)
