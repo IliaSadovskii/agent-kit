@@ -101,6 +101,36 @@ never edited a file at all. That is 75M and 10M respectively. Neither is reachab
 - `handoff_due` carries the refitted curve and, more importantly, carries what the mechanism is
   worth, so the next person to come looking for a saving here is told at once to go elsewhere.
 
+## Three savings that were looked for and are not there
+
+With the ceiling settled, the same run was searched for what else could be cut. All three candidates
+died on measurement, and they are recorded here so the next person does not spend a night on them.
+
+**`--brief` is not being skipped.** The night before left this open as *"called by two first-sessions
+in five — measure the piecemeal path before spending a rule on it"*. Measured: of 58 sessions that
+touched `docs/knowledge/` at all, 44 called `--brief` and 14 read piecemeal — and **all 14 belong to
+children whose run file names no entry**. Of the 34 children that do name one, 34 called it.
+Compliance is total where the command applies, and the two-in-five figure counted entry-less children
+as failures. An entry-less child has no key to pass and `ship` already tells it what to read instead.
+
+**The sessions that never edited a file were not waste.** Fourteen of 103 wrote nothing through
+`Edit` or `Write`, which looked like 10M of pure overhead. Nine are `ship` lenses and audit children,
+whose whole job is to read and report, and two are frame children that write their run files through
+`Bash`. Counting work by `Edit`/`Write` calls is what made them look empty.
+
+**Effort is mostly spent where it belongs.** Thinking is 42% of a feature child's output, but 52% of
+a card-writing child's and 59% of a frame's — which is backwards, since those two are the mechanical
+kinds. It is also small: cards and frames together are 17M of the run's 183M, so taking their
+thinking to zero saves ~4M, about 2%. Everything else is feature children, where lowering effort is a
+quality trade rather than a saving. Not worth a mechanism either way.
+
+What that leaves: **the kit has no material saving left in it.** 83% of a run's cost is feature
+children building features, sitting at the bottom of the session-length curve and reading close to
+the minimum. Over the same week, 70% of all tokens went to the project's runs and **27% went to six
+sessions of conversation about the kit**, each 400-950 turns long and reaching 600-780k of context —
+four times past the bottom of the very curve those conversations were about. The expensive thing was
+never the run.
+
 ## The method note
 
 The earlier note's closing line was *don't argue about numbers, measure them on a live run*. That
