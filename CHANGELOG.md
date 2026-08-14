@@ -3,6 +3,69 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.12.0
+
+- **The counter was fixed and the curve it feeds was not.** 2.11.0 stopped the driver double-counting
+  context and then set `--ceiling 280` out of a fit that still counts a *turn* as one transcript
+  record. One reply of the model carrying several content blocks is several records — a factor of
+  ~1.9, the same shape of defect as the doubled context and on the other axis. So the two numbers the
+  ceiling stands on were both wrong: context growth is **1.64k per turn, not 0.97k**, and
+  re-orientation after a handoff is **8 turns, not 40** — the median turn of the first `Edit` over 48
+  sessions that took one, against 18 in a session starting from nothing.
+
+  Refitted over 119 `ship` sessions of both live runs: `cost(n) = 0.076M + 10.67k·n + 87·n²`,
+  context `45.7k + 1.64k·n`. Against the observed medians of those same sessions the new curve is out
+  by 4% and the old one by 21% — and not evenly, it reads ~20% low from 130 to 190 turns, which is
+  the only band where a ceiling is decided. That is what put its bottom at 144 turns and 282k.
+
+  Priced over the real distribution of feature lengths of one run, the bottom is a plateau from
+  **130k to 170k**, and 280k costs **14% more**. The second live run never paid that — the doubled
+  counter had it cutting at 140-168k of real context, which is the plateau, so fixing the instrument
+  without refitting the curve would have made the next run the first to actually sit at 280k.
+  `--ceiling` is now **210**: off the bottom by a measured 5% and set there deliberately, because
+  280 was never compared with anything a night could resolve (300 → 280 is 0.8%) and 210 against it
+  is a difference one run can show.
+
+- **`--room` has been inert since the counter was fixed, and its help said otherwise.** With a floor
+  of 45.7k and any sane ceiling, `size - floor >= room` is always true; it can only bind where the
+  ceiling is under the floor plus `room`, which is a ceiling set by mistake. It used to bind because
+  the broken counter doubled the floor. The flag stays as the safety net it actually is, and now
+  says so.
+
+- **A floor that could not be read lapsed silently.** With no floor, `room` clears trivially and the
+  ceiling decides alone — deliberate, and held by a test. What was missing is that nothing said so,
+  and a guard that stopped applying looked exactly like a guard with nothing to complain about. The
+  driver now writes `floor-unreadable` into the run log, once per session.
+
+- **`read_tail`'s window is 400k, not 200k.** One transcript line is one record, and a record
+  carrying a large tool result is a long line: the longest measured is 273k characters. A window
+  smaller than that could start inside one, leaving nothing parseable — and everything read off the
+  tail would go silent rather than wrong. Never observed in 1459 polls replayed over real
+  transcripts; closed because the failure is invisible.
+
+  The reading itself was replayed and holds: the record parse is right on all 20,763 usage records
+  of one project, `context_size` was never blind and never low by more than 10%, and `opening_size`
+  found the floor in all 186 sessions.
+
+- **`scripts/measure.py` is what took all of the above, so it is now a tool and not a scratch
+  file.** It prices in weighted tokens rather than raw ones — the four kinds differ by a factor of
+  fifty, and a total in raw tokens is a number nobody can act on — counts a turn as one reply of the
+  model, includes subagents (15% of one project's spend, and absent from every earlier reading), and
+  adds `--by-role`, `--since` and `--curve`. The last one refits the cost curve on whatever run it
+  is pointed at and prints what every ceiling would have cost that run's own features, so the next
+  argument about this number is settled by running it rather than by quoting this entry.
+
+  It also caught a defect in its own first pass, which is why it exists: sessions are classified by
+  the first kit command in their opening records, and `/mvp-finish` inside the run directory
+  `2026-08-13-epic-mvp-finish` matched as the command `mvp` — filing twelve of one run's sessions
+  under a command nobody typed and reporting `epic --advance` at 10% of a run where it is 3%.
+
+  Measured in [docs/design/2026-08-14-where-the-tokens-burn.md](docs/design/2026-08-14-where-the-tokens-burn.md),
+  which also prices a whole run by what its tokens carry — 29% is the session floor re-read on every
+  turn, 17% output, 16% of everything a tool puts into a context is `run.json` — and confirms from an
+  independent measurement that the handoff mechanism, `--brief` and the reviewer are not where the
+  money is.
+
 ## 2.11.0
 
 - **The driver was counting every context number twice, and the ceiling has been half of itself all

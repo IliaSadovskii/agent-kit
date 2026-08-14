@@ -923,6 +923,45 @@ class HandoverCase(DriverCase):
         self.assertFalse(orch.handoff_due(0, 0, 120, 60))
         self.assertFalse(orch.handoff_due(900_000, 0, 0, 60), "0 turns the mechanism off")
 
+    def test_a_floor_that_could_not_be_read_is_said_out_loud(self):
+        """The rule above is the behaviour and is right. What may not come with it is silence: with
+        no floor, `room` clears trivially and stops guarding anything, and a guard that lapsed reads
+        exactly like a guard with nothing to complain about. So the driver says it into the run log,
+        once per session — the same file that already records every other thing it decided."""
+        first, = self.batch("one")
+        case = self
+        state = {"over": True, "alive": True, "starts": 0}
+        orch.read_tail = lambda path, lines=40: case.BIG if state["over"] else case.SMALL
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if first in name:
+                    state["starts"] += 1
+                    state["alive"] = True
+                    if state["starts"] == 2:
+                        case.write(first, {"slug": first, "step": "done",
+                                           "branch": f"claude/{first}"})
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first], "step": "done", "pr": 4})
+                return True
+
+            def send(self, name, text):
+                self.typed.append(text)
+                if "hand this run over" in text:
+                    run = json.loads((case.runs / first / "run.json").read_text(encoding="utf-8"))
+                    run["handoff"] = "stopped after task 2"
+                    case.write(first, run)
+                    state["over"], state["alive"] = False, False
+                return True
+
+            def alive(self, _name):
+                return state["alive"]
+
+        self.drive(Launcher)
+        log = (self.runs / first / "run.log").read_text(encoding="utf-8")
+        self.assertEqual(log.count("floor-unreadable"), 1,
+                         "once per session — the driver polls this many times over")
+
     def test_the_floor_is_the_first_usage_record_and_not_the_first_poll(self):
         """The first number the driver polls already carries whatever the session did in that
         minute, and it moves with the poll interval. The reading set is at the top of the file."""

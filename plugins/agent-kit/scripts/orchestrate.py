@@ -304,12 +304,20 @@ def last_spoke(path: Path) -> float | None:
 
 
 def read_tail(path: Path, lines: int = 40) -> str:
-    """Last lines of a file, without reading a transcript that can be hundreds of megabytes."""
+    """Last lines of a file, without reading a transcript that can be hundreds of megabytes.
+
+    The window is bytes, and one transcript line is one record — a record carrying a large tool
+    result is a long line. Measured over 186 sessions of two runs, the longest single line is 273k
+    characters: a window of 200k could start inside it, leaving `splitlines` one fragment that
+    parses as nothing, and everything read off this tail would then be silent rather than wrong.
+    It never happened on those runs — 1459 simulated polls, no blind read — because such a line was
+    never the last one. The window is 400k so that it cannot.
+    """
     try:
         with path.open("rb") as fh:
             fh.seek(0, os.SEEK_END)
             size = fh.tell()
-            fh.seek(max(0, size - 200_000))
+            fh.seek(max(0, size - 400_000))
             text = fh.read().decode("utf-8", errors="replace")
         return "\n".join(text.splitlines()[-lines:])
     except OSError:
@@ -373,8 +381,14 @@ def opening_size(path: Path) -> int:
     handoff has to buy again, and it is written at the top of the transcript: measured over 104
     sessions of one run, a median of 45.5k with the quartiles at 45.3k and 45.8k.
 
-    Zero when the head carries no usage record, and the caller then holds the old rule: a floor that
-    cannot be read must not become a floor of nothing.
+    Zero when the head carries no usage record. Then `room` cannot be applied — `size - 0` clears
+    any floor there is — and the ceiling decides alone, which is the deliberate behaviour and is
+    what the tests hold. What must not also happen is silence: the caller says `floor-unreadable`
+    into the run log once, because a guard that quietly stopped applying and a guard that had
+    nothing to complain about would otherwise look identical.
+
+    Measured over 186 sessions of two runs, the head carried a usage record every time, so this is
+    a path that has never been taken rather than one that is taken often.
     """
     for line in read_head(path, lines=40).splitlines():
         size = record_size(line)
@@ -388,53 +402,56 @@ def handoff_due(size: int, floor: int, ceiling: int, room: int) -> bool:
 
     A handoff is not free: the session that takes it pays the whole reading set again — the skill,
     the rules, the project's own instructions, the run file, the note — before it does anything.
-    Measured over 104 sessions, that floor is 45.5k and a session spends ~40 turns before its first
-    edit. Against the 120k this ceiling once held — which the broken counter above turned into 60k
-    of real context, with `room` making the true trigger 85.5k — a session was sent away after
-    ~40k of growth, which is those same 40 turns and not one more. It handed over the moment it
-    finished orienting, eleven times in an hour on one feature. The rule fired exactly as written
-    and the run went nowhere.
+    That floor is 45.7k written into a cold cache, and the session then spends **8 turns** getting
+    back to where the last one stood: the median first `Edit` over 48 sessions that took a handoff,
+    against 18 in a session starting from nothing. One cut therefore costs about 0.17M, once.
+
+    **Eight, not forty.** The earlier figure counted transcript records rather than the model's own
+    replies, and one reply with several content blocks is several records — a factor of ~1.9 on the
+    turn axis, the same shape of defect as the doubled context above and on the other axis. The
+    failure it was blamed for is not this trade: a session handing over eleven times in an hour came
+    from the doubled counter putting the real trigger at 85.5k, which is barely past orienting.
 
     So the ceiling alone cannot decide it: what matters is how much this session did *of its own*,
-    over the floor it started at. Below `room` the handoff costs more than it saves, whatever the
-    absolute number says. Both conditions, and a size that could not be read is not a small one.
+    over the floor it started at. Both conditions, and a size that could not be read is not a small
+    one. `room` binds only where the ceiling is below the floor plus `room` — see its own help.
 
     **What sets the ceiling is cost, and not the model's window.** Claude Opus 5 carries a 1M token
-    window as both default and maximum, so at 280k a session is under a third of the way in and
-    nothing is near a limit. The question is only where a segment is cheapest. A turn re-sends the
-    whole context and reads it from cache at a tenth of the price; a handoff writes the floor into a
-    cold cache at a quarter over (twice over on the hour-long cache), and the session that takes it
-    spends those ~40 turns reading itself back to where the last one stood.
+    window as both default and maximum, so nothing here is near a limit. The question is only where
+    a segment is cheapest. A turn re-sends the whole context and reads it from cache at a tenth of
+    the price, so a session's cost grows with the square of its turns; a cut pays the floor again
+    and buys those 8 turns back.
 
-    **Both halves of that trade are now fitted rather than argued.** Over 170 sessions of two runs,
-    a session of `n` turns costs `0.48M + 5.3k·n + 75.6·n²` and its context is `45.5k + 0.97k·n`.
-    Divide by the turns that were not re-orientation and the curve has a bottom:
+    **Fitted over 119 ship sessions of two live runs**, a session of `n` turns costs
+    `0.076M + 10.67k·n + 87·n²` and its context is `45.7k + 1.64k·n`. Checked against the observed
+    medians of the same sessions, that curve is out by 4% on average; the curve this replaces —
+    `0.48M + 5.3k·n + 75.6·n²`, with re-orientation at 40 — is out by 21%, and not evenly: it reads
+    ~20% low across 130-190 turns, which is exactly the band where a ceiling is decided. That is
+    what put its bottom at 144 turns and 282k, and the ceiling at 280.
 
-        turns   context   cost per useful turn (o=25 / o=40 / o=55 turns re-read)
-          100      142k        23.5k / 29.4k / 39.2k
-          150      191k        23.8k / 27.1k / 31.3k
-          200      240k        26.1k / 28.5k / 31.5k
-          300      336k        32.3k / 34.1k / 36.2k
+    Priced over the real distribution of feature lengths of one run — 36 features, median 114 turns,
+    p90 243 — the whole cost of building them lands like this:
 
-    Measured re-orientation is 40 turns, which puts the bottom at ~150 turns and 191k, and the floor
-    of the curve is flat from 160k to 250k — a few percent across the whole band. **The ceiling is
-    280k**: at the flat end of the bottom, because the error that costs more is cutting early, and
-    because the tail after the ask lands ~20k further on. Past 300k the trade turns: 434k costs half
-    again as much per useful turn and enters the 300-400k band where published long-context
-    measurements put visible degradation on million-token models.
+        ceiling   130k   150k   170k   190k   210k   240k   280k   340k
+        vs best  +0.4%     --  +1.0%  +2.7%  +4.9%  +7.4% +14.0% +18.6%
 
-    **What this mechanism is worth is small, and knowing that matters more than the number.** On the
-    run it was measured against — 22 children, 41 handoffs — cutting cost about 5M tokens more than
-    never cutting at all. It loses on two- and three-session features and only pays from five up.
-    A ceiling is a guard against a session growing without bound, not a way to save money. Anyone
-    who comes here looking for a large saving should read that sentence twice and go count the
-    sessions that never edited a file instead.
+    The bottom is a plateau from 130k to 170k, and it is shallow: everything up to 190k is inside
+    3%. **The ceiling is 210k** — off the bottom by a measured 5%, and set there deliberately as the
+    next step of a live experiment: 280 was never compared with anything (300 → 280 is 0.8%, which
+    no single night can resolve), and 210 against it is a difference a run can actually show. The
+    number to go to if it holds is 160.
+
+    **What this mechanism is worth is small, and knowing that matters more than the number.** The
+    whole span from 130k to 280k is 14% of the feature children, which is ~10% of a run; between any
+    two sensible values it is a few percent. A ceiling is a guard against a session growing without
+    bound, not a way to save money. The larger numbers are elsewhere and are named in
+    docs/design/2026-08-14-where-the-tokens-burn.md.
 
     The harness compacts by itself at about 83% of the window, which is where an uncontrolled
     version of this would happen anyway.
 
-    **A project on a 200k-window model must lower this to about 150k.** There the harness would
-    compact at ~166k and a 280k ceiling would never fire — the very failure this replaced, in the
+    **A project on a 200k-window model must lower this to about 130k.** There the harness would
+    compact at ~166k and a 210k ceiling would never fire — the very failure this replaced, in the
     other direction.
     """
     if not size or ceiling <= 0:               # 0 is how the whole mechanism is turned off
@@ -613,6 +630,7 @@ class Driver:
         floor = 0                                 # what its context started at, before it did anything
         nudged = False                            # one word before a restart, once per session
         asked = False                             # the handoff has been asked for, once per session
+        blind = False                             # the floor could not be read, said once per session
         # The note as it stood when the handoff was asked for. Nothing ever clears `handoff`, so a
         # run that has already been handed over once carries a filled field for the rest of its
         # life — and "the note has landed" read as "the field is not empty" would fire instantly on
@@ -621,12 +639,13 @@ class Driver:
 
         def fresh(why: str, event: str) -> bool:
             """Start this run's next session. Everything counted per session starts again with it."""
-            nonlocal transcript, launched, nudged, asked, current, segment, floor
+            nonlocal transcript, launched, nudged, asked, current, segment, floor, blind
             self.launcher.stop(current)
             transcript = None
             launched = time.time() - 1
             nudged = False
             asked = False
+            blind = False
             floor = 0
             segment += 1
             current = self.numbered(name, segment)
@@ -678,6 +697,15 @@ class Driver:
                 # skills/ship/SKILL.md — this program only says when.
                 size = context_size(tail)
                 floor = floor or opening_size(transcript)   # the reading set, read once
+                # A floor of nothing is not a floor: `room` stops applying and the ceiling decides
+                # alone. That is the behaviour, and it is fine — what is not fine is doing it
+                # quietly, because then a guard that lapsed reads exactly like a guard with nothing
+                # to say. Once per session, in the log the driver already keeps.
+                if hand_over and not blind and not floor and size:
+                    blind = True
+                    run.event("floor-unreadable",
+                              f"no opening usage record — `room` cannot apply and the ceiling of "
+                              f"{self.opt.ceiling}k decides this session alone")
                 if hand_over and not asked and handoff_due(size, floor, self.opt.ceiling,
                                                            self.opt.room):
                     if self.launcher.send(current, HANDOFF_LINE):
@@ -1122,14 +1150,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("run_dir", type=Path, help=".agent-kit/runs/<slug>/ of the batch")
     parser.add_argument("--poll", type=int, default=60, help="seconds between looks at the run file")
     parser.add_argument("--hang", type=int, default=30, help="minutes of transcript silence before a session is treated as stuck")
-    parser.add_argument("--ceiling", type=int, default=280,
+    parser.add_argument("--ceiling", type=int, default=210,
                         help="thousands of tokens: a session past this is asked to hand its run "
                              "over to a fresh one. What sets it is cost, not the model's window — "
                              "see handoff_due. 0 turns it off")
     parser.add_argument("--room", type=int, default=40,
                         help="thousands of tokens a session must have grown by, over the context it "
-                             "started with, before the ceiling above can send it away. What stops a "
-                             "reading set that nearly fills the ceiling from handing over forever")
+                             "started with, before the ceiling above can send it away. A safety net "
+                             "rather than a lever: with a floor of ~46k it binds only where the "
+                             "ceiling is under ~86k, which is a ceiling set by mistake")
     parser.add_argument("--max-wait", type=float, default=6, help="hours: a reset further away than this is a weekly limit, and the run stops")
     parser.add_argument("--model", default=None,
                         help="model for every session this run starts, unless its run file names "
