@@ -198,9 +198,19 @@ few kilobytes, records rather than sentences:
 { "slug": "2026-08-05-offers", "command": "sprint", "pr": 21, "branch": "sprint/2026-08-05-offers",
   "entries": ["developer.create_offer"], "children": 4, "spent": { "hours": 6.2, "features": 4, "sessions": 9 },
   "per_feature": { "2026-08-05-offers-01-create": 1, "2026-08-05-offers-02-accept": 4 },
+  "branches": ["claude/2026-08-05-offers-01-create", "claude/2026-08-05-offers-02-accept"],
   "suite": "make test → 0, 118 passed", "assumptions": 3, "unmet": 1, "debt": { "closed": 2, "added": 3 },
   "review": { "findings": 37, "open": 0 }, "blocked": [] }
 ```
+
+**`branches` is every child's branch, copied from its run file** — including the frame child's and
+any child that was parked, because a branch nobody can account for is one nobody will ever remove.
+It is the only field here that is not a count, and it is not derivable from the others: a slug does
+not give a branch name (the frame child's branch and its slug differ), and `.agent-kit/runs/` dies
+with the machine. Without it, the day this pull request is **squash**-merged, git can no longer tell
+those branches from unfinished work — measured on one project, 51 of 99 branches were unanswerable
+by any git question, and the list grew until nobody could read it. `/agent-kit:next` removes them
+from this field and the pull request's state; nothing else may.
 
 Counts, not copies: what each of those *says* is already in the pull request and in the knowledge,
 and duplicating it here would give one fact two places to disagree with itself. `per_feature` is `spent.sessions` off each child's own run file, by slug: the average hides the

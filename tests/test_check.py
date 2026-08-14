@@ -1164,3 +1164,79 @@ class CheckCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BranchesCase(unittest.TestCase):
+    """Which branches a merged pull request has already delivered.
+
+    The case this exists for is a squash merge: the branch's commits are then nowhere in the base
+    and `--merged` says no for ever. One project reached 99 branches that way, of which git could
+    answer for 47 — so the record has to answer for the rest, and a branch nothing can judge has to
+    be said rather than assumed either way.
+    """
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.root = self.tmp / "proj"
+        self._real = check.merged_prs
+        (self.root / "docs" / "runs").mkdir(parents=True)
+        self.git("init", "-q", "-b", "main")
+        self.git("config", "user.email", "t@t")
+        self.git("config", "user.name", "t")
+        (self.root / "a.txt").write_text("one\n", encoding="utf-8")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "first")
+
+    def tearDown(self):
+        check.merged_prs = self._real
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def git(self, *args):
+        subprocess.run(["git", *args], cwd=self.root, capture_output=True, check=False)
+
+    def branch(self, name, text):
+        self.git("checkout", "-q", "-b", name)
+        (self.root / "a.txt").write_text(text, encoding="utf-8")
+        self.git("commit", "-qam", f"work on {name}")
+        self.git("checkout", "-q", "main")
+
+    def record(self, name, number, branches):
+        (self.root / "docs" / "runs" / f"{name}.json").write_text(
+            json.dumps({"slug": name, "pr": number, "branches": branches}), encoding="utf-8")
+
+    def judge(self, merged=()):
+        check.merged_prs = lambda root, numbers, offline: set(merged)
+        return check.delivered_branches(self.root, "main", offline=False)
+
+    def test_a_squashed_branch_is_delivered_by_its_record_and_not_by_git(self):
+        self.branch("claude/one", "two\n")
+        self.record("batch", 7, ["claude/one"])
+        self.git("checkout", "-q", "main")
+        (self.root / "a.txt").write_text("two\n", encoding="utf-8")   # the squash
+        self.git("commit", "-qam", "squashed (#7)")
+        self.assertEqual(check.git(self.root, "branch", "--merged", "main").count("claude/one"), 0,
+                         "git cannot see a squashed branch as merged — that is the whole case")
+        delivered, unknown = self.judge(merged={7})
+        self.assertEqual([name for name, _ in delivered], ["claude/one"])
+        self.assertEqual(unknown, [])
+
+    def test_an_unmerged_pull_request_retires_nothing(self):
+        self.branch("claude/one", "two\n")
+        self.record("batch", 7, ["claude/one"])
+        delivered, unknown = self.judge(merged=set())
+        self.assertEqual(delivered, [])
+        self.assertEqual([name for name, _ in unknown], ["claude/one"])
+        self.assertIn("not merged", unknown[0][1])
+
+    def test_a_branch_no_record_names_is_said_rather_than_assumed(self):
+        self.branch("claude/orphan", "two\n")
+        delivered, unknown = self.judge()
+        self.assertEqual(delivered, [])
+        self.assertEqual(unknown, [("claude/orphan", "no run record names it")])
+
+    def test_ancestry_still_answers_where_it_can(self):
+        self.branch("claude/one", "two\n")
+        self.git("merge", "-q", "--no-ff", "-m", "merge", "claude/one")
+        delivered, unknown = self.judge()
+        self.assertEqual([name for name, _ in delivered], ["claude/one"])
+        self.assertEqual(unknown, [])

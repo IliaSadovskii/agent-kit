@@ -3,6 +3,35 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.13.0
+
+- **A branch had no answer to "who may close it, and where."** Every mechanism in this kit arrives
+  with four answers and branches only ever had three: `ship` makes one, the closing session delivers
+  it, and then nothing. Found on a real project the morning after a run merged — **99 branches**,
+  and no command in the kit had ever been allowed to remove one.
+
+  Worse than the count is that git could not answer for them either. The run's one pull request was
+  **squash**-merged, so the children's commits are nowhere in the default branch and `--merged` says
+  no for ever: 47 of the 99 were answerable by ancestry (an older run that merged with a merge
+  commit) and **51 were unanswerable by any git question at all**. Meanwhile `--state` listed them
+  all as unmerged work in flight, which is how a listing nobody can read gets ignored for a week.
+
+  Three changes, one per answer:
+
+  - `docs/runs/<batch>.json` gains **`branches`** — every child's branch, copied from its run file.
+    It is the only field there that is not a count, and nothing else can stand in for it: a slug
+    does not give a branch name, and `.agent-kit/runs/` dies with the machine. This is what lets a
+    merged pull request retire its branches by name, on any machine, under any merge strategy.
+  - `check.py` decides, and says when it cannot. `delivered_branches` answers by ancestry where
+    ancestry works and by the record where it does not, and returns anything neither test reaches
+    **separately, named, with the reason** — because one branch left standing costs a line in a
+    listing and one deleted on a guess costs work nobody can get back. `--state` now counts the
+    delivered ones and names who removes them instead of printing them as live work.
+  - **`/agent-kit:next` is where it ends.** Removing a branch its pull request already delivered
+    joins the two facts it was already allowed to write down — an audit's box and an entry's state
+    line — under the same fence: only what the check named, never what it could not judge, and the
+    count said out loud.
+
 ## 2.12.0
 
 - **The counter was fixed and the curve it feeds was not.** 2.11.0 stopped the driver double-counting

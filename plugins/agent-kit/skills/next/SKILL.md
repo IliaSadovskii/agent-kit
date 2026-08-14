@@ -31,13 +31,29 @@ these two, you may write down where they belong:**
   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --sync
   ```
 
-You are the one holding the evidence in both cases, and if you leave them the next run repeats the
-same comparison and the lists keep lying.
+- **a branch its pull request already delivered.** The check names them and how many, and you are
+  the only command allowed to remove one:
 
-Both go straight to the default branch, with no pull request: neither is a decision anybody needs to
-approve, each is a fact catching up with itself. Which is exactly why they are fenced:
+  ```bash
+  git branch -D <branch>… && git push origin --delete <branch>…
+  ```
 
-- **only those two things** — the boxes in `docs/audits/*`, and an entry's `state:` line. Not a line
+  Only what the check calls delivered, by name, and never a branch it could not judge — it says
+  which those are and why, and one left standing costs a line in a listing while one deleted on a
+  guess costs work nobody can get back. Say the count in your answer. This is the fourth answer
+  every mechanism of this kit owes and branches never had: a run makes one, a batch delivers it,
+  **and you are where it ends.** Measured on one project, nobody had that answer and it reached 99
+  branches — 51 of them unanswerable by any git question, because the run's pull request was
+  squashed and their commits are nowhere in the base branch.
+
+You are the one holding the evidence in all three cases, and if you leave them the next run repeats
+the same comparison and the lists keep lying.
+
+All three go straight to the default branch, with no pull request: none is a decision anybody needs
+to approve, each is a fact catching up with itself. Which is exactly why they are fenced:
+
+- **only those three things** — the boxes in `docs/audits/*`, an entry's `state:` line, and a
+  delivered branch. Not a line
   of anything else in that commit, or the next run will fix "just one more thing" in the same
   breath. The prose of an entry is never yours: `blueprint` owns it, and a state line that is right
   beside stale prose is still worth moving;

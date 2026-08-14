@@ -723,6 +723,80 @@ def work_branches(root: Path, base: str) -> list:
     return out
 
 
+def merged_prs(root: Path, numbers: set, offline: bool) -> set:
+    """Which of these pull request numbers have merged. Empty when nothing can be asked."""
+    if offline or not numbers or not shutil.which("gh"):
+        return set()
+    out = set()
+    for number in sorted(numbers):
+        done = subprocess.run(["gh", "pr", "view", str(number), "--json", "state"],
+                              cwd=root, capture_output=True, text=True)
+        if done.returncode != 0:
+            continue
+        try:
+            if (json.loads(done.stdout or "{}") or {}).get("state") == "MERGED":
+                out.add(int(number))
+        except ValueError:
+            continue
+    return out
+
+
+def delivered_branches(root: Path, base: str, offline: bool) -> tuple:
+    """Branches whose work is in the default branch, and the ones nothing here can judge.
+
+    **Two tests, because either one alone leaves half the branches undecided.** Ancestry answers it
+    when the pull request was merged with a merge commit. It cannot answer at all when the pull
+    request was squashed: the branch's commits are then nowhere in the base and never will be, so
+    `--merged` says no for ever. Measured on one project — 99 branches after two runs, 47 answered
+    by ancestry and 51 unanswerable, because the run's one pull request was squashed.
+
+    What answers those is the record. `docs/runs/<batch>.json` carries the batch's pull request and,
+    since 2.13.0, the branches of its children — so a merged number retires them by name, on any
+    machine, under any merge strategy, long after `.agent-kit/runs/` is gone.
+
+    A branch that neither test reaches is returned separately and named rather than assumed either
+    way. Deleting on a guess costs work nobody can get back; leaving one is a line in a listing.
+    """
+    names = [row["branch"] for row in work_branches(root, base)]
+    remote = git(root, "for-each-ref", "--format=%(refname:short)", "refs/remotes/origin")
+    for row in remote.splitlines():
+        name = row.partition("/")[2]
+        if name.startswith(("claude/", "sprint/", "epic/")) and name not in names:
+            names.append(name)
+    if not names:
+        return [], []
+
+    owned = {}                                    # branch -> the pull request that carried it
+    for path in sorted((root / "docs" / "runs").glob("*.json")):
+        try:
+            written = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        number = written.get("pr")
+        if not isinstance(number, int):
+            continue
+        for branch in written.get("branches") or []:
+            owned[branch] = number
+    merged = merged_prs(root, set(owned.values()), offline)
+
+    def inside(name: str) -> bool:
+        return bool(base) and subprocess.run(
+            ["git", "merge-base", "--is-ancestor", name, base],
+            cwd=root, capture_output=True).returncode == 0
+
+    delivered, unknown = [], []
+    for name in sorted(names):
+        if owned.get(name) in merged:
+            delivered.append((name, f"pull request {owned[name]} merged"))
+        elif inside(name):
+            delivered.append((name, f"in {base}"))
+        elif name in owned:
+            unknown.append((name, f"pull request {owned[name]} is not merged"))
+        else:
+            unknown.append((name, "no run record names it"))
+    return delivered, unknown
+
+
 def brief(root: Path, docs: list, key: str) -> int:
     """Everything a feature needs before it designs, printed in one call.
 
@@ -1282,13 +1356,27 @@ def print_state(root: Path, offline: bool) -> None:
         print(f"  run {run['slug']} left at step={run['step']} "
               f"({run['command']}, {run['branch'] or 'no branch'}{waiting}{blocked})")
 
-    live = [b for b in work_branches(root, base) if b["ahead"]] if base else []
+    # A branch a merged pull request already delivered is not work in flight, and printing it as
+    # though it were is how one project reached 99 of them: every listing said "unmerged", nobody
+    # could tell which were finished, so none was ever removed. Delivered ones are counted and
+    # named to whoever may remove them; the rest are listed as before.
+    delivered, unjudged = delivered_branches(root, base, offline) if base else ([], [])
+    done_names = {name for name, _ in delivered}
+    live = [b for b in work_branches(root, base) if b["ahead"] and b["branch"] not in done_names] \
+        if base else []
     for branch in live[:UNMET_SHOWN // 2]:
         pushed = "pushed" if branch["pushed"] else "**never pushed**"
         print(f"  branch {branch['branch']}: {branch['ahead']} ahead, {branch['behind']} behind "
               f"{base}, {pushed}, last commit {branch['last']}")
     if len(live) > UNMET_SHOWN // 2:
         print(f"  … and {len(live) - UNMET_SHOWN // 2} more unmerged branches")
+    if delivered:
+        print(f"  {len(delivered)} branch(es) their pull request already delivered — "
+              f"/agent-kit:next removes them: {', '.join(sorted(done_names)[:3])}"
+              f"{', …' if len(delivered) > 3 else ''}")
+    for name, why in unjudged[:3]:
+        if name not in {b["branch"] for b in live}:
+            print(f"  branch {name}: nothing says it is finished — {why}")
 
     for pr in pull_requests(root, offline):
         print(f"  PR #{pr['number']} ({pr['branch']}): CI {pr['ci']}"
