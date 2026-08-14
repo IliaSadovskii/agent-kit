@@ -1,5 +1,12 @@
 # What one night measured
 
+> **Every token figure below that came from the driver is twice the truth.** The instrument was
+> double-counting: the floor is 45.5k and not 90.8k, growth is 0.97k a turn and not 2.25k, and the
+> ceiling of 300k was firing at 150k. The conclusions about *where* the bottom sits survive in
+> shape; the numbers do not. Corrected figures, the proof, and what the correction revealed — that
+> the mechanism this note spent a night tuning is worth about ±3% — are in
+> [2026-08-14-the-counter-was-doubling.md](2026-08-14-the-counter-was-doubling.md). Read that first.
+
 Watching a live `epic` from the outside for fourteen hours — 2026-08-13 into 2026-08-14, on
 `beeplish`, six batches and 23 features — and releasing against what it showed. Nine releases,
 2.9.0 through 2.10.7. This is the evidence, so the next argument about any of it starts from numbers

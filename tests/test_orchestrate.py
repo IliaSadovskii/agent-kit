@@ -877,22 +877,44 @@ class TranscriptPickingCase(DriverCase):
 class HandoverCase(DriverCase):
     """A feature outlasting one session, handed to the next instead of paying for its own history."""
 
+    # Both carry `iterations`, because every record a live session writes carries it: the same
+    # three numbers a second time. The totals below are the numbers counted once.
     BIG = ('{"message":{"usage":{"input_tokens":4,"cache_creation_input_tokens":2000,'
-           '"cache_read_input_tokens":200000,"output_tokens":40}}}')
+           '"cache_read_input_tokens":200000,"output_tokens":40,'
+           '"iterations":[{"input_tokens":4,"cache_creation_input_tokens":2000,'
+           '"cache_read_input_tokens":200000,"output_tokens":40}]}}}')
     SMALL = ('{"message":{"usage":{"input_tokens":4,"cache_creation_input_tokens":1000,'
-             '"cache_read_input_tokens":40000,"output_tokens":40}}}')
+             '"cache_read_input_tokens":40000,"output_tokens":40,'
+             '"iterations":[{"input_tokens":4,"cache_creation_input_tokens":1000,'
+             '"cache_read_input_tokens":40000,"output_tokens":40}]}}}')
 
     def test_the_size_is_read_off_the_transcript_a_record_at_a_time(self):
         self.assertEqual(orch.context_size(self.SMALL + "\n" + self.BIG), 202004)
         self.assertEqual(orch.context_size("nothing here"), 0)
 
+    def test_a_repeated_field_is_one_number_and_not_two(self):
+        """What `iterations` cost: scanning the line for the three field names summed each of them
+        twice, on 20,249 of the 20,260 usage records of one run. Every number this driver decides
+        by was doubled — a 300k ceiling fired at 150k, a 45.5k floor read as 91k — and the run did
+        exactly half of what its own command line said. A field that appears twice is not a number
+        to add up, so the record is parsed and its fields are read by name."""
+        self.assertEqual(orch.context_size(self.BIG), 202004, "not 404008")
+        self.assertEqual(orch.context_size(
+            '{"message":{"usage":{"input_tokens":7,"cache_read_input_tokens":9}}}'), 16,
+            "a record from before iterations existed still reads")
+        self.assertEqual(orch.context_size('cache_read_input_tokens":200000}'), 0,
+                         "the half line a tail read starts on is not a size")
+
     def test_a_reading_set_that_nearly_fills_the_ceiling_does_not_hand_over_forever(self):
-        """The measured failure: a floor of 90k under a ceiling of 120k left 30k of room, one
-        feature was handed over eleven times in an hour, and each session spent most of itself
-        reading its way back to where the last one stood. A handoff costs the new session the whole
-        floor, so a segment that grew less than `room` costs more than it saves."""
-        self.assertFalse(orch.handoff_due(139_000, 90_000, 120, 60))
-        self.assertTrue(orch.handoff_due(151_000, 90_000, 120, 60))
+        """The measured failure: a floor of 45.5k under a ceiling that really stood at 60k, where
+        `room` made the true trigger 85.5k — so a session was sent away after 40k of growth, which
+        is the ~40 turns it spends orienting and not one more. One feature was handed over eleven
+        times in an hour. A handoff costs the new session the whole floor, so a segment that grew
+        less than `room` costs more than it saves."""
+        self.assertFalse(orch.handoff_due(70_000, 45_500, 60, 40))
+        self.assertTrue(orch.handoff_due(86_000, 45_500, 60, 40))
+        self.assertFalse(orch.handoff_due(281_000, 250_000, 280, 40),
+                         "a session that opened on a long note has not grown enough to pass it on")
 
     def test_a_floor_that_cannot_be_read_leaves_the_ceiling_deciding_alone(self):
         """A number that is missing is not a small one — but here the safe reading is the old rule,

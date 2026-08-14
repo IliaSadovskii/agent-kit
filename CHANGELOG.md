@@ -3,6 +3,34 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.11.0
+
+- **The driver was counting every context number twice, and the ceiling has been half of itself all
+  along.** `context_size` and `opening_size` scanned each transcript line for three field names and
+  summed every match — but a usage record carries those three fields twice, once in `usage` and
+  once again inside `usage.iterations[]`. Measured over a full run: **20,249 of 20,260 usage records
+  doubled, by a factor of exactly 2.00 on every one of them**, the eleven exceptions being records
+  with no `iterations` at all. `--ceiling 300` was firing at 150k of real context; the floor read
+  91k where it is 45.5k. `record_size` now parses the record and reads its fields by name, because
+  a field that appears twice is not a number to add up and no pattern over a line can tell the copy
+  from the original.
+
+  With that, the numbers the mechanism is set by are refitted over 170 sessions of two live runs —
+  `cost(n) = 0.48M + 5.3k·n + 75.6·n²`, context `45.5k + 0.97k·n`, re-orientation 40 turns — which
+  puts the bottom of the curve at ~150 turns and 191k, flat from 160k to 250k. `--ceiling` 300 →
+  **280** and `--room` 80 → **40**, which together with the fix leave a run's real behaviour close
+  to where it already was. The point is not the new behaviour. It is that the numbers now mean what
+  they say.
+
+  And the finding underneath: **this mechanism is worth about ±3%.** On the run it was tuned
+  against — 22 children, 41 handoffs — cutting cost ~5M tokens *more* than never cutting, because it
+  loses on two- and three-session features and only pays from five up. A ceiling guards against a
+  session growing without bound; it is not a saving. `handoff_due` now says so in as many words, so
+  the next person looking for money here is sent to where it actually is: 41% of a run's tokens burn
+  before the first edit of a session, and 14 sessions of one run never edited a file at all.
+  Measured in [docs/design/2026-08-14-the-counter-was-doubling.md](docs/design/2026-08-14-the-counter-was-doubling.md),
+  which also corrects every driver-derived figure in the note from the night before.
+
 ## 2.10.7
 
 - **A field's name is not a word in the owner's language.** Caught on a phone while a run was going:

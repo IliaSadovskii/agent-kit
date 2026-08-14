@@ -316,26 +316,52 @@ def read_tail(path: Path, lines: int = 40) -> str:
         return ""
 
 
-USAGE_RE = re.compile(r'"(?:cache_read_input_tokens|cache_creation_input_tokens|input_tokens)"\s*:\s*(\d+)')
+USAGE_FIELDS = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
+
+
+def record_size(line: str) -> int:
+    """The context one transcript record reports: its three input fields, counted once.
+
+    *Counted once* is the whole of it. A record carries those three numbers twice — in `usage` and
+    again inside `usage.iterations[]`, which repeats them per API iteration. The pattern match this
+    replaces summed every occurrence in the line, so it reported exactly double on 20,249 of the
+    20,260 usage records of one run, and the eleven it did not were the ones with no `iterations` at
+    all. A ceiling of 300k fired at 150k of real context and a floor read 91k where it was 45.5k —
+    the run behaved as if configured at half of what its own command line said.
+
+    That is why this parses the record instead of scanning it. A field that appears twice is not a
+    number to add up, and no regular expression over a line can tell the copy from the original.
+
+    Zero for a line that is not a usage record, including the half line a tail read starts on.
+    """
+    try:
+        record = json.loads(line)
+    except (TypeError, ValueError):               # a tail begins mid-line as often as not
+        return 0
+    if not isinstance(record, dict):
+        return 0
+    message = record.get("message")
+    usage = message.get("usage") if isinstance(message, dict) else None
+    if not isinstance(usage, dict):
+        return 0
+    return sum(int(usage.get(field) or 0) for field in USAGE_FIELDS)
 
 
 def context_size(text: str) -> int:
     """How big this session's context has grown, from the usage its own transcript records.
 
-    Every turn re-sends the whole context, so a session's price is the sum of its context over its
-    turns — measured on a live run, one feature reached 340k over 340 turns and cost 70M tokens.
-    Cutting the same work into segments that each start near the floor is worth ~40% of it, and the
-    session cannot see its own size: only the transcript carries it. So the program measures and the
-    session judges what to do about it, which is the split this driver already keeps everywhere else.
+    Every turn re-sends the whole context, so a session's price grows with the square of its
+    turns. Fitted over 170 sessions of two live runs, in tokens priced against a plain input token:
+    `0.48M + 5.3k·n + 75.6·n²`. At 150 turns the square is already 57% of what a session costs, and
+    the session cannot see its own size — only the transcript carries it. So the program measures
+    and the session judges what to do about it, the split this driver keeps everywhere else.
 
     Zero when the tail carries no usage record — a number that cannot be read is not a small one,
     and the caller must not treat it as room to grow.
     """
     largest = 0
     for line in text.splitlines():                # one record per line, so one usage per line
-        found = USAGE_RE.findall(line)
-        if found:
-            largest = max(largest, sum(int(number) for number in found))
+        largest = max(largest, record_size(line))
     return largest
 
 
@@ -344,16 +370,16 @@ def opening_size(path: Path) -> int:
 
     Not the first number the driver happens to poll — that one already includes whatever the
     session did in the first minute, and it moves with the poll interval. The reading set is what a
-    handoff has to buy again, and it is written at the top of the transcript: measured on a live
-    project, 90.8k identically in every session of the same run.
+    handoff has to buy again, and it is written at the top of the transcript: measured over 104
+    sessions of one run, a median of 45.5k with the quartiles at 45.3k and 45.8k.
 
     Zero when the head carries no usage record, and the caller then holds the old rule: a floor that
     cannot be read must not become a floor of nothing.
     """
     for line in read_head(path, lines=40).splitlines():
-        found = USAGE_RE.findall(line)
-        if found:
-            return sum(int(number) for number in found)
+        size = record_size(line)
+        if size:
+            return size
     return 0
 
 
@@ -362,46 +388,54 @@ def handoff_due(size: int, floor: int, ceiling: int, room: int) -> bool:
 
     A handoff is not free: the session that takes it pays the whole reading set again — the skill,
     the rules, the project's own instructions, the run file, the note — before it does anything.
-    Measured on a live project that floor is 90k, against a ceiling of 120k. Thirty thousand tokens
-    of room bought about four minutes of work, and one feature was handed over eleven times in an
-    hour, each session spending most of itself reading its way back to where the last one stood.
-    The rule fired exactly as written and the run went nowhere.
+    Measured over 104 sessions, that floor is 45.5k and a session spends ~40 turns before its first
+    edit. Against the 120k this ceiling once held — which the broken counter above turned into 60k
+    of real context, with `room` making the true trigger 85.5k — a session was sent away after
+    ~40k of growth, which is those same 40 turns and not one more. It handed over the moment it
+    finished orienting, eleven times in an hour on one feature. The rule fired exactly as written
+    and the run went nowhere.
 
     So the ceiling alone cannot decide it: what matters is how much this session did *of its own*,
     over the floor it started at. Below `room` the handoff costs more than it saves, whatever the
     absolute number says. Both conditions, and a size that could not be read is not a small one.
 
     **What sets the ceiling is cost, and not the model's window.** Claude Opus 5 carries a 1M token
-    window as both default and maximum, so at 300k a session is under a third of the way in and
-    nothing is near a limit. The question is only where a segment is cheapest. A turn re-sends the whole
-    context and reads it from cache at a tenth of the price; a handoff writes the floor into a cold
-    cache at a quarter over (twice over on the hour-long cache), and the session that takes it
-    spends its first several turns reading itself back to where the last one stood. Against a 90k
-    floor and a context growing ~2.8k a turn, the cost per useful turn bottoms out over a segment
-    of 40-55 turns — 205k to 286k across every assumption worth making about the re-reading — and
-    the curve is flat from 170k to 290k either side of it. At 120k it was three times the bottom,
-    and worse than never handing over at all.
+    window as both default and maximum, so at 280k a session is under a third of the way in and
+    nothing is near a limit. The question is only where a segment is cheapest. A turn re-sends the
+    whole context and reads it from cache at a tenth of the price; a handoff writes the floor into a
+    cold cache at a quarter over (twice over on the hour-long cache), and the session that takes it
+    spends those ~40 turns reading itself back to where the last one stood.
 
-    **The ceiling sits at the bottom of that curve, and the bottom moved once the re-reading was
-    measured rather than guessed.** It was assumed at 7 turns; measured across sixteen sessions of
-    one run it is 26 — a session spends 33 turns and 140k characters before its first edit, 21 and
-    65k when it takes a handoff. On that figure the cheapest segment is 297k, so the ceiling is
-    300k: about twelve minutes of a session's own work, with the tail after the ask landing near
-    320k, which is short of where long-context measurements start to bite. A handoff is not only tokens: it is a lossy
-    transfer through a note, and the failure that note can carry (a claim nobody can tell was
-    checked) is worth more than ten percent. Past 290k the trade reverses: 400k costs a third more
-    and enters the band where published long-context measurements put visible degradation on
-    million-token models, 300-400k.
+    **Both halves of that trade are now fitted rather than argued.** Over 170 sessions of two runs,
+    a session of `n` turns costs `0.48M + 5.3k·n + 75.6·n²` and its context is `45.5k + 0.97k·n`.
+    Divide by the turns that were not re-orientation and the curve has a bottom:
+
+        turns   context   cost per useful turn (o=25 / o=40 / o=55 turns re-read)
+          100      142k        23.5k / 29.4k / 39.2k
+          150      191k        23.8k / 27.1k / 31.3k
+          200      240k        26.1k / 28.5k / 31.5k
+          300      336k        32.3k / 34.1k / 36.2k
+
+    Measured re-orientation is 40 turns, which puts the bottom at ~150 turns and 191k, and the floor
+    of the curve is flat from 160k to 250k — a few percent across the whole band. **The ceiling is
+    280k**: at the flat end of the bottom, because the error that costs more is cutting early, and
+    because the tail after the ask lands ~20k further on. Past 300k the trade turns: 434k costs half
+    again as much per useful turn and enters the 300-400k band where published long-context
+    measurements put visible degradation on million-token models.
+
+    **What this mechanism is worth is small, and knowing that matters more than the number.** On the
+    run it was measured against — 22 children, 41 handoffs — cutting cost about 5M tokens more than
+    never cutting at all. It loses on two- and three-session features and only pays from five up.
+    A ceiling is a guard against a session growing without bound, not a way to save money. Anyone
+    who comes here looking for a large saving should read that sentence twice and go count the
+    sessions that never edited a file instead.
 
     The harness compacts by itself at about 83% of the window, which is where an uncontrolled
-    version of this would happen anyway — and on heavy work that is only 24 minutes away, because a
-    session's context grows 8-31k a minute. No rule can make a session on that kind of work last
-    much longer than half an hour; this one puts the ask at 6-23 minutes of its own work.
+    version of this would happen anyway.
 
     **A project on a 200k-window model must lower this to about 150k.** There the harness would
-    compact at ~167k and a 280k ceiling would never fire — the very failure this replaced, in the
-    other direction. The 120k that was here before is exactly the 50-60%-of-capacity rule of thumb
-    for a 200k window, applied to a model with five times the room.
+    compact at ~166k and a 280k ceiling would never fire — the very failure this replaced, in the
+    other direction.
     """
     if not size or ceiling <= 0:               # 0 is how the whole mechanism is turned off
         return False
@@ -1088,11 +1122,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("run_dir", type=Path, help=".agent-kit/runs/<slug>/ of the batch")
     parser.add_argument("--poll", type=int, default=60, help="seconds between looks at the run file")
     parser.add_argument("--hang", type=int, default=30, help="minutes of transcript silence before a session is treated as stuck")
-    parser.add_argument("--ceiling", type=int, default=300,
+    parser.add_argument("--ceiling", type=int, default=280,
                         help="thousands of tokens: a session past this is asked to hand its run "
                              "over to a fresh one. What sets it is cost, not the model's window — "
                              "see handoff_due. 0 turns it off")
-    parser.add_argument("--room", type=int, default=80,
+    parser.add_argument("--room", type=int, default=40,
                         help="thousands of tokens a session must have grown by, over the context it "
                              "started with, before the ceiling above can send it away. What stops a "
                              "reading set that nearly fills the ceiling from handing over forever")
