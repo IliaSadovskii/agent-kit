@@ -1,0 +1,28 @@
+{
+  "_": "What one batch leaves in the repository, at `docs/runs/<batch slug>.json`. Written by the closing session in the same commit as the ledger, read by a later gate pricing a scope and by `/agent-kit:next` clearing spent branches, closed by nobody — it is history. `.agent-kit/runs/` is git-ignored, so every run file and every driver log dies with the machine and this is all of a batch that outlives it.",
+  "_counts": "Counts, not copies. What each of these says is already in the pull request and in the knowledge, and a second copy of prose is a second thing to keep true. The fields are numbers for a harder reason: `spent` written as \"about six hours\" reads as filled to a person and is nothing to the gate that prices the next scope from it — and a gate that priced a scope out of prose was measured four times under with nothing to correct it. A number here is what makes that impossible.",
+  "_required": "`slug`, `command`, `pr`, `branches` and `spent` are the five something reads. The rest are counts a person reads, and a batch that has none of a thing writes 0 rather than leaving it out.",
+
+  "slug": "2026-08-05-offers",
+  "command": "sprint",
+  "pr": 21,
+  "branch": "sprint/2026-08-05-offers",
+  "entries": ["developer.create_offer"],
+  "children": 4,
+
+  "_branches": "Every child's branch, copied from its run file — the frame child's and any child that was parked included. The only field here that is not a count, and the only one not derivable from the others: a slug does not give a branch name (the frame child's branch and its slug differ), and the run directory it could be read from dies with the machine. The day this pull request is **squash**-merged, git can no longer tell those branches from unfinished work — measured on one project, 51 of 99 branches were unanswerable by any git question, and the list grew until nobody could read it. `/agent-kit:next` reads this field to know which branches a merged pull request already delivered, and deletes those. The field itself is never edited afterwards: it is history, and a name still in it after the branch is gone is the record of what this batch made.",
+  "branches": ["claude/2026-08-05-offers-01-create", "claude/2026-08-05-offers-02-accept"],
+
+  "_spent": "What the batch cost, in the units a plan is held to rather than in tokens or money: `hours` of wall-clock, `features` built, `sessions` started. Copied from the batch's own run file, where the driver wrote it. The gate of the next epic prices its scope from this and from nothing else.",
+  "spent": { "hours": 6.2, "features": 4, "sessions": 9 },
+  "_per_feature": "How many sessions each child took, by slug — the spread behind `spent.sessions`, which is what says whether one feature ate the night.",
+  "per_feature": { "2026-08-05-offers-01-create": 1, "2026-08-05-offers-02-accept": 4 },
+
+  "suite": "make test → 0, 118 passed",
+  "assumptions": 3,
+  "unmet": 1,
+  "debt": { "closed": 2, "added": 3 },
+  "review": { "findings": 37, "open": 0 },
+  "_blocked": "The children that did not finish, by slug. Empty means every one of them did.",
+  "blocked": []
+}

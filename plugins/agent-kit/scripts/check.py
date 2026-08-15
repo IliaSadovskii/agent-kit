@@ -67,6 +67,11 @@ TALLY_PAIR_RE = re.compile(r"([a-z_]+)=(\d+)")
 # appearing in a sentence is not mistaken for the mark.
 DECLINED_RE = re.compile(r"`declined`")
 LENSES = ("tests", "deps", "scenarios", "security", "performance", "conventions")
+# What else may sit in `docs/audits/` and is not a lens. The baseline is two comparisons that belong
+# to no lens and run once per invocation, so it has no scope to walk and no counters to add up.
+# Declared here rather than skipped by shape, because a file this program cannot place is either
+# this one or a lens nobody wired in, and going quiet on both makes them one thing.
+NON_LENSES = ("baseline",)
 STATE_LINE_RE = re.compile(r"(`key:\s*%s\s*`\s*·\s*`state:\s*)building \(pr:\s*(\d+)\)(\s*`)")
 
 SLOTS = ("product", "actors", "entities", "actions", "screens", "integrations", "scenarios", "stack")
@@ -772,6 +777,11 @@ def delivered_branches(root: Path, base: str, offline: bool) -> tuple:
             written = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
+        # A file that parses into a list or a string is JSON and is not a record. Skipped here and
+        # named by `check_batches`, which is the one that may speak: this runs inside `--state`,
+        # where an exception would take down the whole reading of the work over one bad file.
+        if not isinstance(written, dict):
+            continue
         number = written.get("pr")
         if not isinstance(number, int):
             continue
@@ -965,6 +975,149 @@ def check_runs(root: Path, report: Report) -> None:
                             f"`closed` are how a run is held to closing no critical finding open")
 
 
+def batch_template() -> dict:
+    """The batch record's shape, from the template that ships beside this program."""
+    path = Path(__file__).resolve().parent.parent / "templates" / "batch.json"
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def number(value) -> bool:
+    """A count, and not `true` wearing one — `isinstance(True, int)` is the trap here."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def batch_defects(state: dict) -> list:
+    """What a batch's durable record may not be written as.
+
+    `docs/runs/<slug>.json` is the only part of a batch that outlives the machine, and until now the
+    only thing asked of it was that it exist. Its shape lived as an example inside `sprint`'s closing
+    prose, which meant every closing session re-derived it — and on the one project that has run
+    batches for real, eleven of them left one hand-written file in a shape nothing reads.
+
+    Two of its fields are read by a program and are the reason this is not a matter of taste:
+    `spent` is what the next epic's gate prices a scope from, and `branches` is what `next` clears
+    delivered branches from. A count written as a sentence — *about six hours*, *all of them* —
+    reads as a filled-in field to a person and is nothing to either. The rest are counts a person
+    reads, and they are judged the same way for one reason: a field that may be prose is a field
+    that will be.
+
+    Judged as the batch closes, by the session that is still there to fix it, and reported as drift
+    project-wide afterwards, because a merged batch's record is history and nobody will edit it.
+    """
+    out = []
+    # `branches` is the one that may legitimately be empty — a batch every child of which was
+    # parked has none — so it is required to be *present*, and `[]` is an answer. The rest are
+    # missing when they are empty, because none of them has a meaning at zero.
+    readers = {"slug": "nothing names which batch this is",
+               "command": "nothing says what wrote it",
+               "pr": "nothing ties it to the pull request that delivered it",
+               "branches": "`/agent-kit:next` clears delivered branches from this field; a batch "
+                           "that left none writes `[]`, and leaving it out says nobody looked",
+               "spent": "the gate of the next epic prices a scope from it"}
+    for field, reader in readers.items():
+        empty = state.get(field) is None if field == "branches" \
+            else state.get(field) in (None, "", [], {})
+        if empty:
+            out.append(f"the batch record has no `{field}` — {reader}")
+
+    # Whole, not merely numeric: `delivered_branches` matches this against what `gh` returns for a
+    # pull request, and 21.0 is not 21 to that reader. A record that passed here and was skipped
+    # there would leave exactly the branches this field exists to retire.
+    if state.get("pr") is not None and not (isinstance(state.get("pr"), int)
+                                            and not isinstance(state.get("pr"), bool)):
+        out.append("`pr` in the batch record is not a whole number — the branches of this batch are "
+                   "retired by asking gh about that number, and it is matched as it is written")
+
+    spent = state.get("spent")
+    if spent is not None:
+        if not isinstance(spent, dict):
+            out.append("`spent` in the batch record is written as prose rather than as hours, "
+                       "features and sessions — a gate that prices a scope out of prose was "
+                       "measured four times under, with nothing to correct it")
+        else:
+            wrong = [k for k in ("hours", "features", "sessions") if not number(spent.get(k))]
+            if wrong:
+                out.append(f"`spent` in the batch record does not carry {', '.join(wrong)} as "
+                           f"numbers — that is what the next gate prices its scope from")
+
+    # The three lists, and then every count. A field left out is not judged — a batch that had no
+    # blocked child may say so by writing `[]` or by saying nothing — but a field that is there is
+    # held to its shape, all of them and not the two with a program behind them: a field that may
+    # be prose is a field that will be, and the next reader of this file is a year away.
+    for field in ("branches", "entries", "blocked"):
+        value = state.get(field)
+        if value is not None and (not isinstance(value, list)
+                                  or any(not isinstance(item, str) for item in value)):
+            named = {"branches": "`/agent-kit:next` reads this to know which branches a merged pull "
+                                 "request already delivered, and a branch nobody can account for is "
+                                 "one nobody ever removes",
+                     "entries": "these are entry keys, and a key is what every other reader of the "
+                                "knowledge matches on",
+                     "blocked": "these are the slugs of the children that did not finish"}[field]
+            out.append(f"`{field}` in the batch record is not a list of names — {named}")
+
+    for field in ("children", "assumptions", "unmet"):
+        if state.get(field) is not None and not number(state.get(field)):
+            out.append(f"`{field}` in the batch record is not a number — a count written as a "
+                       f"sentence reads as answered to a person and says nothing to anyone reading "
+                       f"this a year from now")
+
+    for field in ("debt", "review", "per_feature"):
+        value = state.get(field)
+        if value is None:
+            continue
+        if not isinstance(value, dict):
+            out.append(f"`{field}` in the batch record is written as prose rather than as counts — "
+                       f"the template draws it as a record of numbers")
+        else:
+            loose = sorted(k for k, v in value.items() if not number(v))
+            if loose:
+                out.append(f"`{field}` in the batch record does not carry {', '.join(loose)} as "
+                           f"numbers — every value under it is a count")
+    return out
+
+
+def check_batches(root: Path, report: Report) -> None:
+    """Batch records this project already has: what cannot be read, and keys nothing knows.
+
+    A statement rather than a finding, for the same reason a finished run's file is one — it is
+    history, and telling a command about it reaches nobody who can act. What it does buy is that
+    drift is visible while it is still happening.
+    """
+    runs = root / "docs" / "runs"
+    if not runs.is_dir():
+        return
+    known = {k for k in batch_template() if not k.startswith("_")}
+    if not known:
+        return
+    unreadable, strays = [], {}
+    for path in sorted(runs.glob("*.json")):
+        try:
+            record = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            unreadable.append(path.name)
+            continue
+        if not isinstance(record, dict):
+            unreadable.append(path.name)
+            continue
+        for key in record:
+            if key not in known and not key.startswith("_"):
+                strays[key] = strays.get(key, 0) + 1
+    if unreadable:
+        report.drift.append(f"batch records that cannot be read as a record ({len(unreadable)}): "
+                            f"{', '.join(unreadable)} — the shape is in "
+                            f"`templates/batch.json`, and a file nothing can parse is a batch that "
+                            f"left nothing, which must not read like a batch that left a record")
+    if strays:
+        named = ", ".join(f"{k} ({n})" for k, n in sorted(strays.items()))
+        report.drift.append(f"batch records carry fields the template does not: {named} — nothing "
+                            f"reads them, and a field the kit keeps needing is a finding about the "
+                            f"kit rather than a key invented per batch")
+
+
 def check_shape(root: Path, docs: list, manifest: dict, report: Report) -> None:
     """What this project's knowledge is missing against the kit that ships today.
 
@@ -1097,9 +1250,15 @@ def check_audits(root: Path, docs: list, report: Report) -> None:
     if not audits.is_dir():
         return
     entries = len([e for doc in docs for e in doc.entries if not doc.commented(e)])
-    uncounted = []
+    uncounted, unplaced = [], []
     for path in sorted(audits.glob("*.md")):
+        if path.stem in NON_LENSES:
+            continue
         if path.stem not in LENSES:
+            # Skipped in silence until now, which made a lens nobody wired in read exactly like the
+            # baseline: no counters added up, and nothing said so. A report whose scope is added up
+            # by nobody is the failure every lens is written to prevent.
+            unplaced.append(path.name)
             continue
         found = TALLY_RE.search(path.read_text(encoding="utf-8"))
         if not found:
@@ -1120,6 +1279,12 @@ def check_audits(root: Path, docs: list, report: Report) -> None:
         else:
             report.audits.append(f"{path.stem}: walked {walked}, and the knowledge has {entries} "
                                  f"entries")
+    if unplaced:
+        report.drift.append(
+            f"files in {AUDITS}/ that are neither a lens this kit runs nor the baseline "
+            f"({len(unplaced)}): {', '.join(unplaced)} — the lenses are "
+            f"{', '.join(LENSES)}, and nothing adds up the scope of a file outside them. Rename it "
+            f"to the lens that wrote it, or it is a report nobody can tell coverage from silence in")
     if uncounted:
         report.drift.append(
             f"audit files carry no `agent-kit:audit` counters ({len(uncounted)}): "
@@ -1238,12 +1403,25 @@ def run_defects(state: dict, root: Path | None = None) -> list:
 
     # The batch's own durable record. `.agent-kit/runs/` is git-ignored, so what a batch cost lives
     # on one machine until this file is written; the gate of the next epic prices its scope from it.
-    # Existence only — what is inside is the closing session's judgement.
+    # Existence was all this asked for a long time, and existence is what it got: a file that parses
+    # is not a record, and the shape is judged here because this session is the last one that could
+    # fix it.
     if root is not None and state.get("command") == "sprint":
         slug = str(state.get("slug") or "").strip()
-        if slug and not (root / "docs" / "runs" / f"{slug}.json").is_file():
+        path = root / "docs" / "runs" / f"{slug}.json" if slug else None
+        if path is not None and not path.is_file():
             out.append(f"docs/runs/{slug}.json was never written — it is the only record of this "
                        f"batch that outlives the machine, and the next gate prices a scope from it")
+        elif path is not None:
+            try:
+                record = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError) as exc:
+                out.append(f"docs/runs/{slug}.json cannot be read as a record ({exc}) — write it "
+                           f"from `${{CLAUDE_PLUGIN_ROOT}}/templates/batch.json`")
+            else:
+                out.extend(batch_defects(record) if isinstance(record, dict) else
+                           [f"docs/runs/{slug}.json is not a record — the template is "
+                            f"`${{CLAUDE_PLUGIN_ROOT}}/templates/batch.json`"])
 
     return out
 
@@ -1598,6 +1776,7 @@ def main(argv: list | None = None) -> int:
     check_stack(root, manifest, report)
     check_verdicts(manifest, report)
     check_runs(root, report)
+    check_batches(root, report)
     check_channels(root, report)
     check_audits(root, docs, report)
     check_shape(root, docs, manifest, report)

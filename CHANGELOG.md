@@ -3,6 +3,47 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.14.0
+
+- **The one record that outlives the machine had no shape.** `docs/runs/<slug>.json` is all of a
+  batch that survives — `.agent-kit/runs/` is git-ignored, so every run file and driver log dies
+  with it — and until now the only thing asked of it was that it *exist*. Its shape lived as an
+  example inside `sprint`'s closing prose, which meant every closing session re-derived it; on the
+  one project that has run batches for real, eleven of them left a single hand-written file in a
+  shape nothing reads.
+
+  Two of its fields are read by a program, and that is why this is not a matter of taste: a gate
+  prices the next scope from **`spent`**, and `/agent-kit:next` clears delivered branches from
+  **`branches`**. *About six hours* reads as a filled-in field to a person and is nothing to either.
+
+  - **`templates/batch.json`** now carries the shape, and `sprint`'s closing page points at it
+    instead of describing it — the same rule the knowledge templates have had since the beginning:
+    the shape lives in the file being written, never in the command.
+  - `check.py --run` judges the record as the batch closes, while the session that can fix it is
+    still there: the five fields something reads, `spent` as three numbers, `branches`, `entries`
+    and `blocked` as lists of names, `pr` as a whole number — it is matched against what `gh`
+    returns, where 21.0 is not 21 — and every count as a count, `debt`, `review` and `per_feature`
+    included. `[]` for `branches` is an answer; leaving it out is nobody having looked.
+  - Project-wide, a record that cannot be parsed and a key nothing knows are reported as drift — a
+    merged batch's record is history, and nobody is going to edit it.
+
+- **A file in `docs/audits/` that is not a lens was skipped in silence.** Which made a lens nobody
+  wired in, or a typo in a file name, read exactly like `baseline.md`: no counters added up, and
+  nothing said so — the third time this kit has paid for a check that goes quiet on input it cannot
+  place. The baseline is now declared as the one non-lens, and anything else there is named.
+
+- **The channel table is held to the payload.** `rules/channels.md` answers who writes, who reads
+  and who may close for every mechanism the kit has, and nothing checked that the table knew about
+  every file. `validate.sh` now requires a row for each family of paths the payload writes or reads,
+  matched against a row's first cell rather than against the file's text — against the whole file,
+  `docs/audit` would match the row for `docs/audits/`, which is the typo the check above exists for.
+  Three declared exceptions, each with its reason. It found three channels that had been running
+  with no row — `docs/knowledge/`, `docs/advice/` and `.agent-kit/project.yml` — and three named by
+  their file rather than by where they live, now rows under `.agent-kit/runs/<slug>/`.
+
+- `frame.md` reads `per_feature` from the newest batch records — the only measurement in the project
+  of what a feature costs here, and the field's claimed reader, which had never been told to open it.
+
 ## 2.13.0
 
 - **A branch had no answer to "who may close it, and where."** Every mechanism in this kit arrives

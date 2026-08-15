@@ -27,6 +27,14 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --brief <entry key>
 That call prints `stack.md` whole every time, so read the map from the first one and pass
 `--brief` the remaining entries in the same message rather than one turn each.
 
+**And what the last batches here actually cost**, from `per_feature` in the newest one or two of
+`docs/runs/*.json` — sessions per child, by slug. It is the only measurement of that in the project,
+and the average hides the thing worth seeing: a batch reporting 1.67 sessions per feature was one
+child at four and three at one, and the four was a person's action and a background job composed
+into a single feature. A child that looks like that one is what you split before anything is built.
+No record yet, or none that carries the field, means you have nothing to go on and say so — never a
+guess at what a feature costs here.
+
 Then the code where two features look like they meet: the same table, the same model, the same
 screen, the same outbound call. **Only there.** Reading the codebase because it might be relevant
 is how this step comes to cost what a feature costs, and it has no diff to show for it.

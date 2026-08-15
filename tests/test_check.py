@@ -251,6 +251,42 @@ class CheckCase(unittest.TestCase):
         self.audit("baseline", "# Baseline\n")
         _code, output = self.run_check()
         self.assertNotIn("counters", output)
+        self.assertNotIn("neither a lens", output)
+
+    def test_a_file_that_is_no_lens_and_not_the_baseline_is_named_rather_than_skipped(self):
+        """It used to be skipped in silence, which made a lens nobody wired in — or a typo in a
+        file name — read exactly like the baseline: no counters added up, and nothing said so."""
+        self.audit("accessibility", "# Accessibility\n\n- [ ] contrast on the offer card\n")
+        _code, output = self.run_check()
+        self.assertIn("neither a lens this kit runs nor the baseline", output)
+        self.assertIn("accessibility.md", output)
+
+    # ---- the batch records a project already has -----------------------------------------------
+
+    def batch_file(self, name, text):
+        runs = self.root / "docs" / "runs"
+        runs.mkdir(parents=True, exist_ok=True)
+        (runs / name).write_text(text, encoding="utf-8")
+
+    def test_a_batch_record_nothing_can_read_is_said_rather_than_passed(self):
+        self.batch_file("2026-08-05-offers.json", "slug: offers\n")
+        _code, output = self.run_check()
+        self.assertIn("cannot be read as a record (1)", output)
+
+    def test_a_batch_record_with_a_key_nothing_knows(self):
+        self.batch_file("2026-08-05-offers.json",
+                        json.dumps({"slug": "x", "tokens": 400000}))
+        _code, output = self.run_check()
+        self.assertIn("fields the template does not: tokens (1)", output)
+
+    def test_a_batch_record_in_the_shipped_shape_says_nothing(self):
+        template = json.loads((ROOT / "plugins" / "agent-kit" / "templates" / "batch.json")
+                              .read_text(encoding="utf-8"))
+        self.batch_file("2026-08-05-offers.json",
+                        json.dumps({k: v for k, v in template.items() if not k.startswith("_")}))
+        code, output = self.run_check()
+        self.assertEqual(code, 0)
+        self.assertEqual(output, "")
 
     def test_a_refusal_is_marked_and_not_counted_as_an_unsigned_tick(self):
         self.audit("tests", "# Tests\n\n<!-- agent-kit:audit lens=tests walked=1 declined=1 -->\n\n"
@@ -1108,10 +1144,20 @@ class CheckCase(unittest.TestCase):
         state = {"command": "ship", "step": "done", "suite": "green", "deliver": "branch"}
         self.assertEqual(check.run_defects(state, self.root), [])
 
+    def batch_record(self, slug, **fields):
+        """A record in the shape the kit's own template declares, which is what a batch must leave."""
+        record = {"slug": slug, "command": "sprint", "pr": 21, "branches": ["claude/b-01"],
+                  "spent": {"hours": 6.2, "features": 4, "sessions": 9}}
+        record.update(fields)
+        runs = self.root / "docs" / "runs"
+        runs.mkdir(parents=True, exist_ok=True)
+        path = runs / f"{slug}.json"
+        path.write_text(json.dumps(record), encoding="utf-8")
+        return path
+
     def test_a_batch_is_not_asked_to_prove_anything_itself(self):
         self.mutate_declared()
-        (self.root / "docs" / "runs").mkdir(parents=True)
-        (self.root / "docs" / "runs" / "b.json").write_text("{}", encoding="utf-8")
+        self.batch_record("b")
         state = {"command": "sprint", "slug": "b", "step": "done", "suite": "green", "pr": 21}
         self.assertEqual(check.run_defects(state, self.root), [])
 
@@ -1122,11 +1168,79 @@ class CheckCase(unittest.TestCase):
         self.assertTrue(any("docs/runs/2026-08-05-offers.json" in line for line in defects))
 
     def test_a_batch_that_wrote_its_record_says_nothing(self):
-        (self.root / "docs" / "runs").mkdir(parents=True)
-        (self.root / "docs" / "runs" / "2026-08-05-offers.json").write_text("{}", encoding="utf-8")
+        self.batch_record("2026-08-05-offers")
         state = {"command": "sprint", "slug": "2026-08-05-offers", "step": "done",
                  "suite": "green", "pr": 21}
         self.assertEqual(check.run_defects(state, self.root), [])
+
+    # ---- and what that record may not be written as ---------------------------------------------
+
+    def closing(self, slug="2026-08-05-offers"):
+        return {"command": "sprint", "slug": slug, "step": "done", "suite": "green", "pr": 21}
+
+    def test_a_record_that_parses_and_says_nothing_is_not_a_record(self):
+        """Existence was all this ever asked for, and existence is what it got: on the one project
+        that has run batches for real, eleven of them left one file in a shape nothing reads."""
+        (self.root / "docs" / "runs").mkdir(parents=True)
+        (self.root / "docs" / "runs" / "2026-08-05-offers.json").write_text("{}", encoding="utf-8")
+        defects = check.run_defects(self.closing(), self.root)
+        self.assertTrue(any("no `spent`" in line for line in defects))
+        self.assertTrue(any("no `branches`" in line for line in defects))
+
+    def test_spent_written_as_prose_is_named_because_a_gate_prices_from_it(self):
+        self.batch_record("2026-08-05-offers", spent="about six hours, four features")
+        defects = check.run_defects(self.closing(), self.root)
+        self.assertTrue(any("`spent`" in line and "prose" in line for line in defects))
+
+    def test_spent_missing_one_of_its_three_numbers(self):
+        self.batch_record("2026-08-05-offers", spent={"hours": 6.2, "features": 4})
+        defects = check.run_defects(self.closing(), self.root)
+        self.assertTrue(any("does not carry sessions as numbers" in line for line in defects))
+
+    def test_a_batch_that_left_no_branches_writes_an_empty_list(self):
+        """`[]` says somebody looked; leaving the field out says nobody did — the same distinction
+        the run file already draws on `needs`."""
+        self.batch_record("2026-08-05-offers", branches=[])
+        self.assertEqual(check.run_defects(self.closing(), self.root), [])
+
+    def test_branches_written_as_a_sentence_is_named(self):
+        self.batch_record("2026-08-05-offers", branches="all four, merged")
+        defects = check.run_defects(self.closing(), self.root)
+        self.assertTrue(any("`branches`" in line and "not a list of names" in line
+                            for line in defects))
+
+    def test_every_count_is_judged_and_not_only_the_two_a_program_reads(self):
+        """A field that may be prose is a field that will be — and `debt`, `review` and
+        `per_feature` were passing clean while `spent` and `branches` were held to their shape."""
+        self.batch_record("2026-08-05-offers", debt="closed 2, added 3",
+                          review={"findings": 37, "open": "none"},
+                          per_feature={"2026-08-05-offers-01": "one session"},
+                          blocked="none")
+        defects = check.run_defects(self.closing(), self.root)
+        self.assertTrue(any("`debt`" in line and "prose" in line for line in defects))
+        self.assertTrue(any("`review`" in line and "open" in line for line in defects))
+        self.assertTrue(any("`per_feature`" in line for line in defects))
+        self.assertTrue(any("`blocked`" in line and "not a list of names" in line
+                            for line in defects))
+
+    def test_a_pull_request_number_that_is_not_whole(self):
+        """`delivered_branches` matches this against what gh returns, where 21.0 is not 21 — so a
+        record that passed here would leave exactly the branches the field exists to retire."""
+        self.batch_record("2026-08-05-offers", pr=21.0)
+        defects = check.run_defects(self.closing(), self.root)
+        self.assertTrue(any("not a whole number" in line for line in defects))
+
+    def test_a_count_written_as_a_sentence_is_named(self):
+        self.batch_record("2026-08-05-offers", unmet="one, on the offer entry")
+        defects = check.run_defects(self.closing(), self.root)
+        self.assertTrue(any("`unmet`" in line and "is not a number" in line for line in defects))
+
+    def test_a_record_nothing_can_parse_is_not_a_batch_that_left_one(self):
+        runs = self.root / "docs" / "runs"
+        runs.mkdir(parents=True)
+        (runs / "2026-08-05-offers.json").write_text("slug: offers\n", encoding="utf-8")
+        defects = check.run_defects(self.closing(), self.root)
+        self.assertTrue(any("cannot be read as a record" in line for line in defects))
 
     def test_without_a_project_the_record_rule_is_skipped_rather_than_guessed(self):
         state = {"command": "sprint", "slug": "2026-08-05-offers", "step": "done",
@@ -1207,6 +1321,15 @@ class BranchesCase(unittest.TestCase):
     def judge(self, merged=()):
         check.merged_prs = lambda root, numbers, offline: set(merged)
         return check.delivered_branches(self.root, "main", offline=False)
+
+    def test_a_record_that_is_json_but_not_a_record_does_not_take_the_reading_down(self):
+        """It parses, so the guard against unreadable files does not catch it, and every command
+        runs this. Skipped here and named by the check that may speak."""
+        self.branch("claude/one", "two\n")
+        self.record("batch", 7, ["claude/one"])
+        (self.root / "docs" / "runs" / "broken.json").write_text("[]", encoding="utf-8")
+        delivered, _unjudged = self.judge(merged=[7])
+        self.assertIn("claude/one", [name for name, _why in delivered])
 
     def test_a_squashed_branch_is_delivered_by_its_record_and_not_by_git(self):
         self.branch("claude/one", "two\n")

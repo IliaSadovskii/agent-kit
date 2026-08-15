@@ -191,26 +191,23 @@ driver log and everything a child left in `notes` lives on one machine and dies 
 survives a batch today is the pull request's prose — which no program can read, and which nobody can
 read either once it has been rewritten eleven times by an `epic`.
 
-So write **`docs/runs/<batch slug>.json`**, in the same commit as the ledger, and keep it small — a
-few kilobytes, records rather than sentences:
+So write **`docs/runs/<batch slug>.json`**, in the same commit as the ledger, and write it **from
+`${CLAUDE_PLUGIN_ROOT}/templates/batch.json`** — read that file and fill it, rather than from what
+this page says a record looks like. The shape lives there, `check.py --run` judges it against there,
+and a second description of it here is the one that would go out of date. Keep it small: a few
+kilobytes, counts rather than sentences.
 
-```json
-{ "slug": "2026-08-05-offers", "command": "sprint", "pr": 21, "branch": "sprint/2026-08-05-offers",
-  "entries": ["developer.create_offer"], "children": 4, "spent": { "hours": 6.2, "features": 4, "sessions": 9 },
-  "per_feature": { "2026-08-05-offers-01-create": 1, "2026-08-05-offers-02-accept": 4 },
-  "branches": ["claude/2026-08-05-offers-01-create", "claude/2026-08-05-offers-02-accept"],
-  "suite": "make test → 0, 118 passed", "assumptions": 3, "unmet": 1, "debt": { "closed": 2, "added": 3 },
-  "review": { "findings": 37, "open": 0 }, "blocked": [] }
-```
-
-**`branches` is every child's branch, copied from its run file** — including the frame child's and
+Two of its fields are the reason it is judged at all, and both are below. **`branches` is every
+child's branch, copied from its run file** — including the frame child's and
 any child that was parked, because a branch nobody can account for is one nobody will ever remove.
 It is the only field here that is not a count, and it is not derivable from the others: a slug does
 not give a branch name (the frame child's branch and its slug differ), and `.agent-kit/runs/` dies
 with the machine. Without it, the day this pull request is **squash**-merged, git can no longer tell
 those branches from unfinished work — measured on one project, 51 of 99 branches were unanswerable
-by any git question, and the list grew until nobody could read it. `/agent-kit:next` removes them
-from this field and the pull request's state; nothing else may.
+by any git question, and the list grew until nobody could read it. `/agent-kit:next` reads this
+field to know which branches a merged pull request already delivered, and deletes those; **the field
+itself is never edited afterwards** — it is history, and a name still in it after the branch is gone
+is the record of what this batch made.
 
 Counts, not copies: what each of those *says* is already in the pull request and in the knowledge,
 and duplicating it here would give one fact two places to disagree with itself. `per_feature` is `spent.sessions` off each child's own run file, by slug: the average hides the

@@ -12,7 +12,7 @@ kinds of durability, and half the surprises come from a run assuming the wrong o
 
 | Channel | Written by | Read by | Closed by | Lives |
 |---|---|---|---|---|
-| `run.json` | every session, about its own run | the session that resumes it, the closing session, the reviewer, the driver, `check.py --run` | the run itself, by a terminal `step` | the machine only — `.agent-kit/runs/` is git-ignored |
+| `.agent-kit/runs/<slug>/run.json` | every session, about its own run | the session that resumes it, the closing session, the reviewer, the driver, `check.py --run` | the run itself, by a terminal `step` | the machine only — `.agent-kit/runs/` is git-ignored |
 | `run.json` → `children` | the composing session; `--advance` while the batch runs | the driver, before every child | the driver, by reaching the end of it | as above |
 | `run.json` → `handoff` | the session being handed over | the session that takes it | that same session, by **emptying** it once it has moved everything durable into its own field | as above |
 | `run.json` → `manual` | the run that found it — only what needs the owner's hands *and* access | the closing session, composing **Manual actions**; `accept` | the owner, doing it | as above |
@@ -22,8 +22,8 @@ kinds of durability, and half the surprises come from a run assuming the wrong o
 | `run.json` → `prompt` | the composing session | the driver, when it starts the child | the run finishing | as above |
 | `run.json` → `spent` | the driver, and nothing else | a later gate, pricing a scope | never — it is history | as above |
 | `run.json` → `waiting_on` | the session that stopped on a fork, with the owner present | the driver, the window, `next` | the answer landing in `answers` | as above |
-| `run.log` | the driver, and nothing else | a person | never — it is history | as above |
-| `control` | the owner's window, and nobody else | the driver, between children | the driver, which deletes it as it reads, recognised or not | as above |
+| `.agent-kit/runs/<slug>/run.log` | the driver, and nothing else | a person | never — it is history | as above |
+| `.agent-kit/runs/<slug>/control` | the owner's window, and nobody else | the driver, between children | the driver, which deletes it as it reads, recognised or not | as above |
 | `[driver] …` typed into the window | the driver | the window session | nothing — it is speech | nowhere |
 | `[assumed …]` under an entry | `ship` | every later run that builds in that entry | `blueprint`; **or a build command with the owner present**, writing down the answer they just gave | git |
 | `[found …]` under `stack.md` | `ship` | `blueprint` | `blueprint`, folding it into the map | git |
@@ -36,7 +36,10 @@ kinds of durability, and half the surprises come from a run assuming the wrong o
 | `agent-kit:scenario <heading>` beside a test | `ship` | `check.py --state`, an `epic`'s finish | never — it is the proof itself | git |
 | `docs/technical_debt.md` | `ship`, the closing session, and `blueprint` for what the owner brought back from using the product | `check.py`, `sprint`, `next` | the commit that does the work, deleting its line | git |
 | `docs/audits/<lens>.md` | that lens | `sprint`, `epic`, `next`, `accept` | the closing session, `next` or `accept`, ticking a box **with its pull request number**; the lens itself, rewriting the file on its next run | git |
-| `docs/runs/<slug>.json` | the closing session | a later gate; a person | never — it is the durable record of a batch | git |
+| `docs/runs/<slug>.json` | the closing session, from `templates/batch.json` | a later gate, pricing a scope from `spent`; a batch's frame child, reading `per_feature`; `next`, reading `branches` to know which ones a merged pull request delivered; a person | never — it is the durable record of a batch, and `next` deletes the branches without editing the field that named them | git |
+| `docs/advice/<lens>.md` | that lens of `advise` | the next run of the same lens, which may not raise a declined row again | that same lens, rewriting the file; git holds the history | git |
+| `docs/knowledge/<slot>.md` | `blueprint` and `advise`, with the owner present; a build command, the `state:` line and a block only | every command; `check.py` | nobody — an entry is rewritten, never removed | git |
+| `.agent-kit/project.yml` | `blueprint` | every command; `check.py`, which reads the commands and the verdicts | `blueprint`, with the owner — no build command may edit it | git |
 | the pull request body and its comments | the closing session | the owner | the merge | GitHub |
 
 ## What the check enforces
@@ -60,7 +63,13 @@ kinds of durability, and half the surprises come from a run assuming the wrong o
   `commands.mutate` — and an excuse there counts only with the command that was run beside it,
   because *the tool would not start* costs nothing to type;
 - **a batch that closed without `docs/runs/<slug>.json`**, and **a run that owed a pull request and
-  closed with no number**.
+  closed with no number**;
+- **a batch record whose shape nothing can read** — `spent` written as prose instead of hours,
+  features and sessions, `branches` that is not a list of branch names, a count written as a
+  sentence. Those two fields are read by a program: a gate prices the next scope from the first and
+  `next` clears delivered branches from the second;
+- **a file in `docs/audits/` that is neither a lens nor the baseline.** It used to be skipped in
+  silence, which made a lens nobody wired in read exactly like a file that is not one.
 
 ## Why there is no single bus
 

@@ -260,6 +260,71 @@ PY
 [ $? -eq 0 ] || fail "a markdown comment in the payload is malformed"
 
 # --------------------------------------------------------------------------------------------
+step "every durable file the payload names has a row in the channel table"
+
+# `rules/channels.md` says every mechanism arrives with four answers — who writes it, who reads it,
+# who may close it, and what becomes impossible without it — and it is the table of those answers.
+# Nothing held the table to the payload, so a command could start writing a file and the table would
+# not know: `docs/advice/`, `docs/knowledge/` and `.agent-kit/project.yml` were all being written and
+# read with no row, and this check is what found them.
+#
+# The unit is the family — `docs/runs`, `docs/audits` — not the exact path, because the payload
+# writes `<lens>` and `<slug>` where a project has a name. Three families are named in the script as
+# not being channels at all, each with its reason; a fourth is not added without one.
+python3 - "$REPO" "$PLUGIN" <<'PY'
+import re, sys
+from pathlib import Path
+
+root = Path(sys.argv[1]) / sys.argv[2]
+
+NOT_CHANNELS = {
+    "docs/design": "the kit's own design notes; no project a user runs this on has them",
+    "docs/DEVELOPER.md": "an example of the owner's own document, the one a `source:` points at",
+    "docs/advise-<date>": "a git branch `advise` opens, not a path — the only one of these that is",
+}
+
+PATH_RE = re.compile(r"(?:docs|\.agent-kit)/[A-Za-z0-9_.<>*{}-]+(?:/[A-Za-z0-9_.<>*{}-]+)*")
+
+
+def family(text):
+    parts = text.rstrip(".,;:)`").split("/")
+    return "/".join(parts[:2]) if len(parts) > 1 else parts[0]
+
+
+# What the table declares, read from the first cell of each row and from nowhere else. Against the
+# whole file, `docs/audit` — the singular typo this pair of checks exists to catch — would match
+# the row for `docs/audits/<lens>.md`, and a family named only in a prose bullet or in another
+# row's Lives column would read as though it had a row of its own.
+declared = set()
+for line in (root / "rules" / "channels.md").read_text(encoding="utf-8").splitlines():
+    if not line.startswith("|"):
+        continue
+    cell = line.split("|")[1]
+    declared.update(family(found) for found in PATH_RE.findall(cell))
+
+errors, seen = [], {}
+for path in sorted(root.rglob("*")):
+    if not path.is_file() or path.suffix not in (".md", ".py", ".json", ".yml"):
+        continue
+    if "__pycache__" in path.parts:
+        continue
+    for found in PATH_RE.findall(path.read_text(encoding="utf-8", errors="replace")):
+        seen.setdefault(family(found), path.relative_to(root))
+
+for name, where in sorted(seen.items()):
+    if name in NOT_CHANNELS or name in declared:
+        continue
+    errors.append(f"{name} is written or read by the payload ({where}) and has no row in "
+                  f"rules/channels.md — a file with no writer, reader and closer named is not a "
+                  f"mechanism yet")
+
+for e in errors:
+    print(f"ERROR: {e}", file=sys.stderr)
+sys.exit(1 if errors else 0)
+PY
+[ $? -eq 0 ] || fail "a file the payload names is not in the channel table"
+
+# --------------------------------------------------------------------------------------------
 step "every field of the run file has a writer and a reader"
 
 # Half the defects of the 5 August audit were records with only one side: a field a template
@@ -276,21 +341,28 @@ from pathlib import Path
 
 repo, plugin = Path(sys.argv[1]), sys.argv[2]
 root = repo / plugin
-template = root / "templates" / "run.json"
-shape = json.loads(template.read_text(encoding="utf-8"))
-
-payload = [p for p in sorted(root.rglob("*"))
-           if p.is_file() and p.suffix in (".md", ".py", ".json", ".yml")
-           and p != template and "__pycache__" not in p.parts]
-texts = {p: p.read_text(encoding="utf-8", errors="replace") for p in payload}
 
 errors = []
-for field in [k for k in shape if not k.startswith("_")]:
-    named = [p for p, text in texts.items() if re.search(rf"\b{re.escape(field)}\b", text)]
-    if len(named) < 2:
-        where = ", ".join(str(p.relative_to(root)) for p in named) or "nowhere"
-        errors.append(f"run.json field {field!r} is named in {where} — a record with one side "
-                      f"is written by nobody or read by nobody")
+# Both records the kit ships a shape for: the run file, which dies with the machine, and the batch
+# record, which is all of a batch that outlives it. The same rule holds for each.
+records = {name: root / "templates" / name for name in ("run.json", "batch.json")}
+for name, template in records.items():
+    shape = json.loads(template.read_text(encoding="utf-8"))
+
+    # Both templates are out of the payload, not just the one under test. They share eleven field
+    # names — `slug`, `command`, `pr`, `spent` — so leaving the other in would let the two vouch
+    # for each other and a field whose last real reader was deleted would still count two sides.
+    payload = [p for p in sorted(root.rglob("*"))
+               if p.is_file() and p.suffix in (".md", ".py", ".json", ".yml")
+               and p not in records.values() and "__pycache__" not in p.parts]
+    texts = {p: p.read_text(encoding="utf-8", errors="replace") for p in payload}
+
+    for field in [k for k in shape if not k.startswith("_")]:
+        named = [p for p, text in texts.items() if re.search(rf"\b{re.escape(field)}\b", text)]
+        if len(named) < 2:
+            where = ", ".join(str(p.relative_to(root)) for p in named) or "nowhere"
+            errors.append(f"{name} field {field!r} is named in {where} — a record with one side "
+                          f"is written by nobody or read by nobody")
 
 for e in errors:
     print(f"ERROR: {e}", file=sys.stderr)

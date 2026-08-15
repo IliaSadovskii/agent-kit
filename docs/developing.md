@@ -16,6 +16,8 @@ plugins/agent-kit/                the plugin — everything that ships
   templates/knowledge/            the shape of each knowledge file blueprint writes
   templates/project.yml           the shape of a project's own corner
   templates/run.json              the shape of one run's memory; its field list is closed
+  templates/batch.json            the shape of what a batch leaves in the repository, and all of
+                                  a batch that outlives the machine it ran on
   templates/technical_debt.md     the ledger, carrying its own format and rules in its header
 scripts/                          validate.sh, release.sh, measure.py
 docs/design/                      what was decided and why; kit-v1.md is the current one
