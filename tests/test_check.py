@@ -471,6 +471,16 @@ class CheckCase(unittest.TestCase):
             self.assertEqual(code, 1, f"{written} passed in silence")
             self.assertIn("is not a source line this program can read", output)
 
+    def test_a_source_shown_inside_a_fence_is_not_a_source(self):
+        """A fenced block is where a document shows the form rather than uses it. The first file
+        this rule met was the one that teaches `source:` to the owner, and it called the
+        specification a defect — with an exit code, so every command of the kit stopped."""
+        self.write("product.md",
+                   "# Product\n\n```markdown\n`source: path#heading @hash`\n```\n")
+        code, output = self.run_check()
+        self.assertEqual(code, 0, output)
+        self.assertNotIn("is not a source line", output)
+
     def test_a_source_pointing_outside_the_repository_is_said_and_not_judged(self):
         """A live project answered the first draft of this rule the hour it was written: a URL in
         `source:` is where a description came from, said deliberately. Nothing here can fetch a
@@ -1039,12 +1049,14 @@ class CheckCase(unittest.TestCase):
         self.assertEqual(code, 0, output)
         self.assertEqual(output, "", "a marked section is read without a word")
 
-    def test_bounds_found_by_their_heading_still_work_and_are_said(self):
-        """Every project written before the marker existed. It reads, and it says how it read."""
+    def test_bounds_found_by_their_heading_are_read_in_silence(self):
+        """Every project written before the marker existed, and the gate is fatal or silent — its
+        own file promises that. A nudge printed here reads as a refusal to the session standing at
+        the gate, and it would print on every project at every gate for ever."""
         code, output = self.ready_for_mvp(
             product="# Product\n\n## MVP bounds\n\n**In:** sign-in\n\n**Out:** search\n")
         self.assertEqual(code, 0, output)
-        self.assertIn("matched by their heading", output)
+        self.assertEqual(output, "")
 
     def test_a_heading_no_program_can_guess_is_a_gap_and_not_a_defect(self):
         """Without the marker and without the letters MVP, nothing can find the section — and the
@@ -1808,9 +1820,13 @@ class RunBranchCase(unittest.TestCase):
                         found)
 
     def test_a_base_the_chain_cannot_reach(self):
-        found = self.defects(branch="claude/2026-08-05-feed", base="claude/2026-08-05-offers")
+        """The branch exists and the base does not, which is the case: a child chained onto a
+        sibling that never got built. Written the other way round — the branch made *after* the
+        question was asked — this tested a state where neither existed."""
         self.git("branch", "claude/2026-08-05-feed")
+        found = self.defects(branch="claude/2026-08-05-feed", base="claude/2026-08-05-offers")
         self.assertTrue(any("`base` names" in line for line in found), found)
+        self.assertFalse([line for line in found if "`branch` names" in line], found)
 
     def test_a_base_that_resolves_says_nothing(self):
         self.git("branch", "claude/2026-08-05-feed")
@@ -2038,6 +2054,25 @@ class CommandsCase(unittest.TestCase):
 
     def test_a_container_is_judged_on_the_thing_that_starts_it(self):
         self.assertIn("`docker-not-here`", self.defect("docker-not-here compose exec app pytest"))
+
+    def test_a_command_that_runs_somewhere_else_is_not_judged_from_here(self):
+        """A monorepo says `cd apps/api && vendor/bin/phpunit`, and that path is relative to a
+        directory this program is not standing in. The first version resolved it from the root,
+        called a file that exists *nothing is at*, and a finding here stops every command of the
+        kit on that project — which is the one thing this rule may not do."""
+        (self.root / "apps" / "api" / "vendor" / "bin").mkdir(parents=True)
+        (self.root / "apps" / "api" / "vendor" / "bin" / "phpunit").write_text("#!/bin/sh\n",
+                                                                              encoding="utf-8")
+        self.assertEqual(self.defect("cd apps/api && vendor/bin/phpunit"), "")
+
+    def test_make_with_a_directory_of_its_own(self):
+        (self.root / "app").mkdir()
+        (self.root / "app" / "Makefile").write_text("test:\n\techo hi\n", encoding="utf-8")
+        self.assertEqual(self.defect("make -C app test"), "")
+        self.assertEqual(self.defect("make -f app/Makefile test"), "")
+
+    def test_a_subshell_is_punctuation_and_not_a_tool(self):
+        self.assertEqual(self.defect("(cd app && python3 -m pytest)"), "")
 
 
 class ManualCase(unittest.TestCase):
@@ -2273,6 +2308,9 @@ class BranchesCase(unittest.TestCase):
         @property
         def available(self):
             return True
+
+        def states(self):
+            return {}                              # asked, and this repository has none of its own
 
         def merged(self, numbers):
             return {int(n) for n in numbers if int(n) in self._merged}

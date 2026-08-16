@@ -124,7 +124,6 @@ ADVICE_LENSES = ("product", "code", "money")
 # Declared here rather than skipped by shape, because a file this program cannot place is either
 # this one or a lens nobody wired in, and going quiet on both makes them one thing.
 NON_LENSES = ("baseline",)
-STATE_LINE_RE = re.compile(r"(`key:\s*%s\s*`\s*·\s*`state:\s*)building \(pr:\s*(\d+)\)(\s*`)")
 
 SLOTS = ("product", "actors", "entities", "actions", "screens", "integrations", "scenarios", "stack")
 
@@ -364,6 +363,23 @@ def check_orphans(docs: list, report: Report) -> None:
                 report.add("Orphans", f"{doc.path.name}:{entry.line} {entry.key} — named nowhere else")
 
 
+def fenceless(text: str) -> str:
+    """The document with its fenced blocks blanked out, line for line.
+
+    What is inside a fence is shown, not written: an example of a form, a command to type. Reading
+    one as an instance of the form makes a specification into a defect, which is what happened the
+    hour the loose `source:` reading shipped.
+    """
+    kept, fenced = [], False
+    for line in text.splitlines():
+        if line.strip().startswith("```"):
+            fenced = not fenced
+            kept.append("")
+            continue
+        kept.append("" if fenced else line)
+    return "\n".join(kept)
+
+
 def check_sources(root: Path, docs: list, report: Report) -> None:
     stale_format = 0
     for doc in docs:
@@ -395,7 +411,10 @@ def check_sources(root: Path, docs: list, report: Report) -> None:
     outside = 0
     for doc in docs:
         strict = {m.group(0) for m in SOURCE_RE.finditer(doc.text)}
-        for loose in SOURCE_LOOSE_RE.finditer(doc.text):
+        # A fenced block is where a document shows the form rather than uses it, and the file that
+        # teaches `source:` to the owner is the first one this rule met. `read_manual` has skipped
+        # fences since it was written; this did not, and called the specification a defect.
+        for loose in SOURCE_LOOSE_RE.finditer(fenceless(doc.text)):
             if loose.group(0) in strict:
                 continue
             if loose.group(1).strip().startswith(("http://", "https://")):
@@ -493,24 +512,16 @@ def check_epic(root: Path, manifest: dict, docs: list, report: Report) -> list:
     # "MVP" in it at all — *Что входит в первую версию* — was told it has no bounds section, which
     # is this program reporting a defect where it can only report that it cannot read.
     section = section_after(text, MVP_MARK)
-    by_heading = False
     if section is None:
         found = re.search(r"^#{1,6}\s+.*\bMVP\b.*$", text, re.M | re.I)
         section = (section_of(text, "MVP bounds")
                    or (section_of(text, found.group(0).lstrip("# ").strip()) if found else None))
-        by_heading = section is not None
     if not section:
         fatal.append(f"product.md has no MVP bounds section, and no `{MVP_MARK}` marker above one — "
                      f"an epic with no bounds cannot know when it is finished. Where the section is "
                      f"there under a heading in this project's own language, the marker is what "
                      f"makes it readable")
     else:
-        if by_heading:
-            # Not fatal: the bounds are there and the gate can read them. Said because the next
-            # project to write that heading in another language gets a defect instead of a gap.
-            report.drift.append(f"product.md has MVP bounds and they were matched by their "
-                                f"heading, not by `{MVP_MARK}` — put the marker on the line above "
-                                f"them, and a heading in any language keeps working")
         sides = re.findall(r"^\*\*([^*]+):?\*\*[:：]?\s*(.*)$", section, re.M)
         filled = [name for name, rest in sides if len(rest.strip()) > 3]
         if len(filled) < 2:
@@ -549,6 +560,18 @@ PREFIX_SKIPPED = {"env", "exec", "time", "nice"}
 MAKEFILES = ("Makefile", "makefile", "GNUmakefile")
 
 
+def moves_elsewhere(command: str) -> bool:
+    """Whether this command runs somewhere other than the project root.
+
+    `cd apps/api && vendor/bin/phpunit` and `make -C app test` are ordinary in a repository holding
+    more than one thing, and a relative path in them is relative to a directory this program is not
+    standing in. It cannot resolve those, so it says nothing about them — the first version resolved
+    them from the root, called a `vendor/bin/phpunit` that exists *nothing is at*, and a finding
+    here stops every command of the kit on that project.
+    """
+    return bool(re.search(r"\bcd\s|\bmake\b[^|;&]*\s-(C|f)\b|\bdocker\b|\bpodman\b", command))
+
+
 def command_tool(command: str) -> str:
     """The word that has to start for this command to run at all, or "" when nothing here is one.
 
@@ -560,7 +583,8 @@ def command_tool(command: str) -> str:
     for stage in re.split(r"&&|\|\||;|\|", command):
         words = []
         try:
-            words = shlex.split(stage)
+            # A subshell is punctuation, not a tool: `(cd app && npm test)` was judged on `(cd`.
+            words = shlex.split(stage.strip().lstrip("(").rstrip(")"))
         except ValueError:                        # an unbalanced quote is not a tool to look for
             return ""
         while words and ("=" in words[0].split("/")[0] or words[0] in PREFIX_SKIPPED):
@@ -583,9 +607,15 @@ def command_defect(root: Path, command: str) -> str:
     tool = command_tool(command)
     if not tool:
         return ""
-    if "/" in tool:
-        path = Path(tool) if Path(tool).is_absolute() else root / tool
-        if not path.exists():
+    if "/" in tool and not Path(tool).is_absolute():
+        # Relative to *what* is the question this program cannot answer once the command moves, so
+        # it does not answer it.
+        if moves_elsewhere(command):
+            return ""
+        if not (root / tool).exists():
+            return f"nothing is at {tool}"
+    elif "/" in tool:
+        if not Path(tool).exists():
             return f"nothing is at {tool}"
     elif not shutil.which(tool):
         return f"`{tool}` is not on the PATH here"
@@ -593,7 +623,8 @@ def command_defect(root: Path, command: str) -> str:
     # without a makefile, which is the example this check was written against. The target is not
     # judged — includes and pattern rules put targets where no reading of one file finds them, and
     # a guess about a target is exactly what this program may not make.
-    elif tool == "make" and not any((root / name).exists() for name in MAKEFILES):
+    elif tool == "make" and not moves_elsewhere(command) \
+            and not any((root / name).exists() for name in MAKEFILES):
         return "`make` has no makefile in this project"
     return ""
 
@@ -1245,11 +1276,15 @@ def delivered_branches(root: Path, base: str, gh: Github) -> tuple:
             if branch not in parked:
                 owned[branch] = number
     merged = gh.merged(set(owned.values()))
-    # Whether anything could be asked at all. Without this the two answers are printed as one:
-    # `merged_prs` returns an empty set both for "none of them merged" and for "nobody here can
-    # ask", and the branch was then reported as *not merged* — a claim an offline run has no way
-    # of making. It is the same confusion the whole program is written against.
-    unasked = not gh.available
+    # Whether anything could be asked at all. Without this the two answers print as one: an empty
+    # result means both "none of them merged" and "nobody here can ask", and the branch was then
+    # reported as *not merged* — a claim nobody who could not ask has any way of making.
+    #
+    # Keyed on the listing rather than on whether `gh` is installed, which is the narrow half of the
+    # question and the rarer one. A `gh` that is present and cannot answer — unauthenticated, no
+    # network, rate-limited, a repository with no remote — is the case that actually happens, and
+    # the first version of this said "is not merged" through every one of them.
+    unasked = gh.states() is None
 
     def inside(name: str) -> bool:
         done = ran(["git", "merge-base", "--is-ancestor", name, base], root) if base else None
@@ -1836,24 +1871,31 @@ def run_defects(state: dict, root: Path | None = None) -> list:
     feature whose prompt was written out by hand — including the very line `templates/run.json`
     offers as the default — quietly stopped being asked for its suite, for the tree it was proved
     on, and for its mutation result, and nothing said a word. Sixteen run files across three live
-    projects are in that state, all of them features. A run whose kind nothing can work out is
-    named, and judged as a feature: the expensive mistake is the other way round.
+    projects are in that state, and every one of them is a genuine errand — a frame child, an audit
+    lens, a compose session. A run whose kind nothing can work out is judged as an errand, which is
+    what those sixteen are, and is named only while it is still `queued` and somebody can answer.
     """
     out = []
     prompt = str(state.get("prompt") or "").strip()
     of_kind = runfile.kind(state)
-    # `unknown` keeps an errand's silence about the suite rather than a feature's questions, and
-    # says so instead. Asked the questions, every frame child written before the `kind` field —
-    # a prompt in prose, indistinguishable from a feature's by any reading of the file — would close
-    # with two defects that are not defects, which is the noise that hides a real one. The finding
-    # below is the way out, and it costs one field.
+    # `unknown` keeps an errand's silence about the suite rather than a feature's questions. Asked
+    # the questions, every child whose prompt is prose — indistinguishable from a feature's by any
+    # reading of the file — would close with two defects that are not defects, which is the noise
+    # that hides a real one.
     errand = of_kind in ("errand", "unknown")
-    if of_kind == "unknown":
-        out.append(f"nothing here can tell what kind of run this is — `kind` is "
-                   f"{state.get('kind')!r}, and `command` is {state.get('command')!r}, which no "
-                   f"reader knows. Write one of {', '.join(runfile.KINDS)} into `kind`: what is "
-                   f"asked of this file, and what a failure here takes down with it, both follow "
-                   f"from it")
+    # And it is said **only while the child is still queued**, which is the one moment the session
+    # that wrote it is still there. Said at `done` it is a defect nobody can now fix, in the pull
+    # request, for every errand a batch holds — the failure the `prompt` rule below was already
+    # narrowed to avoid, and this reproduced it: sixteen run files across three live projects, all
+    # of them correct errands, closed with this finding the day it shipped.
+    if of_kind == "unknown" and state.get("step") == "queued":
+        why = (f"`kind` says {state.get('kind')!r}, which is not one of them"
+               if str(state.get("kind") or "").strip()
+               else f"`prompt` is prose rather than a command of this kit, and a child started that "
+                    f"way reads the same as a feature")
+        out.append(f"nothing here can tell what kind of run this is — {why}. Write one of "
+                   f"{', '.join(runfile.KINDS)} into `kind`: what is asked of this file, and what a "
+                   f"failure here takes down with it, both follow from it")
 
     # A child that is not a `ship` is started by whatever this field says, and the field is a
     # command. Both rules below were paid for on one live run: thirteen of sixteen children were
@@ -2511,10 +2553,6 @@ def main(argv: list | None = None) -> int:
             print("This project cannot start an epic as it stands:")
             for line in fatal:
                 print(f"  {line}")
-        # What the gate found and can live with. Printed rather than collected, because this branch
-        # returns before the report is: a statement nobody prints is a statement nobody made.
-        for line in report.drift:
-            print(f"  {line}")
         return 1 if fatal else 0
 
     sync_states(root, docs, report, options.sync, gh)

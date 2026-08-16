@@ -45,7 +45,7 @@ FORMATS = [
      "`key: offer`",
      lambda text: first(check.KEY_RE, text) == ("offer", None)),
 
-    ("STATE_LINE_RE", "templates/knowledge/actions.md",
+    ("KEY_RE_WITH_STATE", "templates/knowledge/actions.md",
      "`key: developer.create_offer` · `state: planned`",
      lambda text: first(check.KEY_RE, text) == ("developer.create_offer", "planned")),
 
@@ -110,7 +110,7 @@ class FormatCase(unittest.TestCase):
         """The same rule `validate.sh` enforces, kept here so it fails in the suite too — the two
         cost nothing and a new format slips past neither."""
         declared = set(re.findall(r"^([A-Z][A-Z_]*(?:_RE|_MARK)) = ", check_source(), re.M))
-        covered = {name for name, *_ in FORMATS}
+        covered = {name for name, *_ in FORMATS} | {"KEY_RE"}   # covered twice, with and without a state
         parked = set(NOT_A_FORMAT)
         self.assertEqual(declared - covered - parked, set(),
                          "a pattern with no documented example and no reason to be without one")

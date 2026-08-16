@@ -244,9 +244,15 @@ printf '{"tool_name":"Bash","tool_input":{"command":"echo hi"},"cwd":"/"}' \
   | python3 "$missing/plugin/hooks/guard.py" >"$missing/out" 2>/dev/null
 [ $? -ne 2 ] || fail "the guard denies a command when it cannot load — a broken install would stop every session"
 grep -q '"deny"' "$missing/out" && fail "the guard printed a denial while unable to load"
+# **And it must say so.** Failing open is the rule; failing open in silence is not, because silence
+# here reads exactly like permission. The first version of this step asked only that nothing be
+# denied, which passed while the guard vanished without a word.
+grep -q 'systemMessage' "$missing/out" \
+  || fail "the guard failed open without saying it is no longer protecting the session"
 printf '{"hook_event_name":"Stop","cwd":"/"}' \
-  | python3 "$missing/plugin/hooks/stop.py" >/dev/null 2>&1
+  | python3 "$missing/plugin/hooks/stop.py" >"$missing/stop-out" 2>/dev/null
 [ $? -ne 2 ] || fail "the stop hook blocks a turn when it cannot load"
+grep -q 'systemMessage' "$missing/stop-out" || fail "the stop hook failed open without saying so"
 rm -rf "$missing"
 
 # --------------------------------------------------------------------------------------------

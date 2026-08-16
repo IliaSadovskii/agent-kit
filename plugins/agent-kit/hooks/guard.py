@@ -46,7 +46,19 @@ from pathlib import Path
 # disagreed on the constant, but the questions asked around it did. The module is deliberately tiny
 # and imports only the standard library: this hook runs on every Bash call in every session.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-import runfile                                      # noqa: E402 - the path above is what makes it work
+try:
+    import runfile                                  # noqa: E402 - the path above is what makes it work
+except ImportError as exc:                          # a half-installed plugin, and nothing else
+    # **Loudly.** This hook is the one mechanism an agent cannot talk its way past, so it may fail
+    # open — a broken guard must never stop the work — but it may not fail *quietly*: silence here
+    # is indistinguishable from permission. Before the shared module existed this file could not
+    # fail to load at all, and the first version of that import made the guard disappear without a
+    # word, which is the exact trade this hook is written against.
+    print(json.dumps({"systemMessage":
+                      f"agent-kit's guard could not load and is not protecting this session: {exc}. "
+                      f"Merging, force-pushing and pushing the default branch are unguarded until "
+                      f"the plugin is reinstalled."}))
+    sys.exit(0)
 
 TERMINAL = set(runfile.TERMINAL)
 

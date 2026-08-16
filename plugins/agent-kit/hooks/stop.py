@@ -30,7 +30,13 @@ from pathlib import Path
 # around it, and the one thing worse than four answers is four answers that look like one. The
 # module is deliberately tiny — this runs on every Bash call in every session.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-import runfile                                      # noqa: E402 - the path above is what makes it work
+try:
+    import runfile                                  # noqa: E402 - the path above is what makes it work
+except ImportError as exc:                          # a half-installed plugin, and nothing else
+    print(json.dumps({"systemMessage":
+                      f"agent-kit's stop hook could not load: {exc}. A run may end a turn mid-step "
+                      f"without being asked to finish it."}))
+    sys.exit(0)
 
 TERMINAL = set(runfile.TERMINAL)
 project_root = runfile.project_root

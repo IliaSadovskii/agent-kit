@@ -3,6 +3,56 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.20.4
+
+Everything here came out of a review of the day's own work, which found seven defects in it. The
+worst three were introduced by the changes that were supposed to make this kit harder to fool.
+
+- **The merge guard could disarm itself without a word.** Yesterday both hooks were put on a shared
+  module, and the import sat at the top of the file: a half-installed plugin meant a traceback and
+  nothing else — no denial, and no sentence either. The guard's own docstring promises the opposite,
+  that it fails open *and says so*, because silence there is indistinguishable from permission. It
+  says so now, and the build check that was supposed to cover this asked only that nothing be
+  denied, so it passed while the guard vanished; it now requires the sentence.
+
+- **A run whose kind cannot be worked out was reported at every step**, so sixteen finished errands
+  on live projects — every one of them correct — closed with a defect nobody could act on, straight
+  into a pull request. The rule three lines below it had already been narrowed to `queued` for that
+  exact reason. It is asked there now, where the session that wrote the file can still answer, and
+  the message names the real cause instead of blaming a command the program knows perfectly well.
+
+- **"Nothing could ask" only covered the rare half.** It was keyed on whether `gh` is installed,
+  while the case that happens is a `gh` that is there and cannot answer — unauthenticated, offline,
+  rate-limited, no remote. Those all went on printing *pull request N is not merged*, which is the
+  claim the previous release said it had stopped making. Keyed on the listing now.
+
+- **A declared command that runs somewhere else is no longer judged from here.** `cd apps/api &&
+  vendor/bin/phpunit` and `make -C app test` are ordinary in a repository holding more than one
+  thing, and a relative path in them is relative to a directory this program is not standing in. It
+  resolved them from the root, called a file that exists *nothing is at*, and — since a finding here
+  stops every command of the kit — a monorepo could not run one. `(cd app && npm test)` was judged
+  on `(cd`.
+
+- **A `source:` line inside a fenced block is an example, not a reference.** The first file that rule
+  met was the one that teaches the form to the owner, and it called the specification a defect with
+  an exit code behind it.
+
+- **The `epic` gate is fatal or silent again**, which is what its own file has always promised. A
+  nudge about the MVP marker printed on every project at every gate, and to the session standing
+  there it reads as a refusal.
+
+- **A pattern nothing used, and a registry row that tested something else.** `STATE_LINE_RE` had
+  been dead since `--sync` grew its own; the format registry claimed to cover it while asserting
+  against a different pattern, and both the suite and the build reported it covered.
+
+- **Corrections to the record.** The headline of 2.20.0 was wrong: the sixteen run files it called
+  *features quietly excused from proving anything* are all genuine errands, and the old inference had
+  them right — the `kind` field is insurance, not a rescue, and the case it prevents has no
+  observations behind it. `migrations/2.20.0.md` said commands write the field themselves; nothing
+  writes it yet. Eight bare references exist, not three. And a millisecond figure was quoted in a
+  changelog with no measurement in the repository behind it, which this kit forbids itself; it now
+  says what was done without the number.
+
 ## 2.20.3
 
 - **The window's rule moved to `rules/`, where its readers are.** It sat in `skills/sprint/
@@ -120,9 +170,13 @@ installed it — see [docs/developing.md](docs/developing.md#versioning).
   and where it is missing the kind is inferred — from a prompt that invokes a command of this kit,
   or from `command`. A prompt written in prose answers `unknown`, because it genuinely is: a frame
   child written before this field and a feature whose prompt somebody typed out read exactly alike.
-  `unknown` keeps an errand's silence and **says so in one line** rather than deciding; one field
-  ends it. Measured across three live projects: 91 features, 23 batches, 2 epics, and 16 unknown —
-  all sixteen of them features that had been quietly excused.
+  `unknown` keeps an errand's silence and **says so in one line** rather than deciding — and only
+  while the child is still `queued`, which is where the session that wrote it can still answer; one
+  field ends it. Measured across three live projects: 91 features, 23 batches, 2 epics, 16 unknown.
+  **The first telling of this entry called those sixteen features excusing themselves, and that was
+  wrong**: every one is a genuine errand — a frame child, an audit lens, a compose session — and the
+  old inference had them right. So the field is insurance rather than a rescue, and the case it
+  prevents has no observations behind it yet.
 
 - **A project's language no longer leaks into the payload, and the gap it hid is closed.** The MVP
   bounds are the owner's prose under a heading in their own language, and the check carried a
