@@ -24,6 +24,31 @@ installed it — see [docs/developing.md](docs/developing.md#versioning).
   At an `epic`'s gate the same fact is fatal, beside the two commands that were already required:
   declared and unable to start is *not declared*, arriving later and costing more.
 
+- **A run file's `entries` were held to being strings, and never to matching anything.** `--entries`
+  has named a key that matches no entry loudly since it existed — a filter that quietly matches
+  nothing reads exactly like an entry with nothing to answer — while a run file carrying the very
+  same key passed in silence, and the child sent to build it met that alone at three in the morning.
+  The keys are now matched against the knowledge whenever the file is judged, which includes while
+  the child is still `queued` and the composing session that wrote them is the one reading. The
+  closest key is named beside the wrong one, by similarity rather than by substring, because the way
+  a key is usually got wrong is one letter. A project with no `docs/knowledge/` at all is told that,
+  rather than passed: silence there would mean the same as a key that matches, and they are not the
+  same thing.
+
+- **Where a run says its work is, and what it forked from.** `branch` is what the batch record's
+  `branches` is composed from, and `base` is what the driver chains the next child onto; both were
+  judged on being strings. Two rules, and they are deliberately different. An unresolvable name with
+  no `/` in it is named at any step — that is a slug written where a branch name belongs, the
+  mistake `parked` was invented against, and a name nothing resolves retires nothing, ever. Whether
+  the branch and the base *exist* is asked only while the run is in flight, because a queued child
+  names a branch its sibling has not created yet and a finished run's branch is deleted the moment
+  its pull request merges: reporting either would be reporting the kit working as designed.
+
+  The slash is the whole shape test, and it was measured: two real run files carry
+  `mvp/learning-loop`, a branch a person named and deleted after its merge, and the first draft of
+  this rule called it a slug. Checked across three live projects — 132 run files, 46 of them naming
+  entries, and eleven declared commands: no finding from any of the three rules above.
+
 ## 2.19.2
 
 - **The preflight asked the network one question per entry.** `check.py` runs before every command,

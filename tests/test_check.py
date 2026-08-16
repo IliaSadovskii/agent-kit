@@ -1489,6 +1489,38 @@ class CheckCase(unittest.TestCase):
                  "suite": "green", "pr": 21}
         self.assertEqual(check.run_defects(state, self.root), [])
 
+    # ---- the entries a run says it is about -----------------------------------------------------
+
+    def building(self, entries):
+        return {"command": "ship", "slug": "2026-08-05-feed", "step": "building",
+                "entries": entries}
+
+    def test_an_entry_key_no_entry_matches(self):
+        """`--entries` has named such a key loudly since it existed; the run file carrying the very
+        same key passed in silence, and the child met it alone at three in the morning."""
+        defects = check.run_defects(self.building(["guest.browse_fed"]), self.root)
+        self.assertTrue(any("guest.browse_fed" in line and "no entry" in line for line in defects),
+                        defects)
+
+    def test_the_closest_key_is_named_beside_it(self):
+        defects = check.run_defects(self.building(["guest.browse_fed"]), self.root)
+        self.assertTrue(any("guest.browse_feed" in line for line in defects), defects)
+
+    def test_a_key_that_matches_says_nothing(self):
+        self.assertEqual(check.run_defects(self.building(["guest.browse_feed"]), self.root), [])
+
+    def test_a_project_with_no_knowledge_is_told_rather_than_passed(self):
+        """Silence here would mean the same as a key that matches, and they are not the same."""
+        empty = Path(tempfile.mkdtemp())
+        try:
+            defects = check.run_defects(self.building(["guest.browse_feed"]), empty)
+            self.assertTrue(any("no docs/knowledge/" in line for line in defects), defects)
+        finally:
+            shutil.rmtree(empty, ignore_errors=True)
+
+    def test_without_a_project_nothing_is_guessed(self):
+        self.assertEqual(check.run_defects(self.building(["whatever.at.all"])), [])
+
     # ---- and what that record may not be written as ---------------------------------------------
 
     def closing(self, slug="2026-08-05-offers"):
@@ -1612,6 +1644,89 @@ class CheckCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RunBranchCase(unittest.TestCase):
+    """Where a run says its work is, and what it says it forked from.
+
+    Both were held to being strings while somebody else read them: the batch record's `branches` is
+    composed from one, and the driver chains the next child onto the other. Shape is judged at any
+    step, existence only while the run is in flight — a queued child names a branch its sibling has
+    not made yet, and a finished run's branch is deleted the moment its pull request merges.
+    """
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.root = self.tmp / "proj"
+        self.root.mkdir(parents=True)
+        self.git("init", "-q", "-b", "main")
+        self.git("config", "user.email", "t@t")
+        self.git("config", "user.name", "t")
+        (self.root / "a.txt").write_text("one\n", encoding="utf-8")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "first")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def git(self, *args):
+        subprocess.run(["git", *args], cwd=self.root, capture_output=True, check=False)
+
+    def defects(self, step="building", **fields):
+        state = {"command": "ship", "slug": "2026-08-05-feed", "step": step, **fields}
+        return check.run_defects(state, self.root)
+
+    def test_a_branch_this_run_says_it_is_on_and_nothing_can_check_out(self):
+        found = self.defects(branch="claude/2026-08-05-feed")
+        self.assertTrue(any("does not exist here" in line for line in found), found)
+
+    def test_a_branch_that_exists_says_nothing(self):
+        self.git("branch", "claude/2026-08-05-feed")
+        self.assertEqual(self.defects(branch="claude/2026-08-05-feed"), [])
+
+    def test_a_queued_child_names_a_branch_nobody_has_made_yet(self):
+        """Its sibling makes it, and the sibling has not run. Reporting this would be reporting the
+        chain working as designed."""
+        self.assertEqual(self.defects(step="queued", branch="claude/2026-08-05-feed",
+                                      base="claude/2026-08-05-offers", prompt=""), [])
+
+    def test_a_finished_runs_branch_is_allowed_to_be_gone(self):
+        """It is deleted the moment its pull request merges, by `next`, on purpose. The other rules
+        a finished run meets are not this rule's business, so only this one is asserted about."""
+        found = self.defects(step="done", branch="claude/2026-08-05-feed")
+        self.assertFalse([line for line in found if "does not exist here" in line], found)
+
+    def test_a_branch_somebody_named_by_hand_and_deleted_is_not_called_a_slug(self):
+        """Measured on two real run files carrying `mvp/learning-loop`: the first draft of this
+        rule called every unresolvable name outside the kit's own prefixes a slug, and said so about
+        a branch that was named by a person and removed after its merge."""
+        found = self.defects(step="done", branch="mvp/learning-loop")
+        self.assertEqual([line for line in found if "branch" in line.split("—")[0]], [], found)
+
+    def test_a_slug_written_where_a_branch_name_belongs_is_named_at_any_step(self):
+        """The mistake `parked` was invented against: the two differ, and a name nothing resolves
+        retires nothing, ever."""
+        found = self.defects(step="done", branch="2026-08-05-feed")
+        self.assertTrue(any("slug written where a branch name belongs" in line for line in found),
+                        found)
+
+    def test_a_base_the_chain_cannot_reach(self):
+        found = self.defects(branch="claude/2026-08-05-feed", base="claude/2026-08-05-offers")
+        self.git("branch", "claude/2026-08-05-feed")
+        self.assertTrue(any("`base` names" in line for line in found), found)
+
+    def test_a_base_that_resolves_says_nothing(self):
+        self.git("branch", "claude/2026-08-05-feed")
+        self.assertEqual(self.defects(branch="claude/2026-08-05-feed", base="main"), [])
+
+    def test_outside_a_repository_nothing_is_guessed(self):
+        outside = Path(tempfile.mkdtemp())
+        try:
+            self.assertEqual(
+                check.run_defects({"command": "ship", "slug": "x", "step": "building",
+                                   "branch": "claude/x", "base": "main"}, outside), [])
+        finally:
+            shutil.rmtree(outside, ignore_errors=True)
 
 
 class CommandsCase(unittest.TestCase):

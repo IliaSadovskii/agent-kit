@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import difflib
 import hashlib
 import json
 import re
@@ -99,6 +100,11 @@ SLOTS = ("product", "actors", "entities", "actions", "screens", "integrations", 
 # What `step` may hold. The first eight are a run's own; `building` and `closing` are written by the
 # driver on a batch's file. Kept here rather than only in the template's prose, because a value
 # nothing recognises leaves whatever is watching that field waiting for a state that never comes.
+# The steps after which nothing about a run can be fixed, and the branch names this kit makes. Both
+# were literals in three places before a rule needed them in a fourth.
+TERMINAL = ("done", "blocked", "skipped")
+BRANCH_PREFIXES = ("claude/", "sprint/", "epic/")
+
 STEPS = ("queued", "design", "build", "verify", "deliver", "done", "blocked", "skipped",
          "building", "closing",
          # an epic's own phases, written by `epic` on its own file as it moves between them
@@ -1019,7 +1025,7 @@ def work_branches(root: Path, base: str) -> list:
     listed = git(root, "for-each-ref", "--format=%(refname:short)\t%(upstream:short)", "refs/heads")
     for row in listed.splitlines():
         name, _, upstream = row.partition("\t")
-        if not name.startswith(("claude/", "sprint/", "epic/")):
+        if not name.startswith(BRANCH_PREFIXES):
             continue
         counts = git(root, "rev-list", "--left-right", "--count", f"{base}...{name}") if base else ""
         behind, _, ahead = counts.partition("\t")
@@ -1060,7 +1066,7 @@ def delivered_branches(root: Path, base: str, offline: bool) -> tuple:
     remote = git(root, "for-each-ref", "--format=%(refname:short)", "refs/remotes/origin")
     for row in remote.splitlines():
         name = row.partition("/")[2]
-        if name.startswith(("claude/", "sprint/", "epic/")) and name not in names:
+        if name.startswith(BRANCH_PREFIXES) and name not in names:
             names.append(name)
     if not names:
         return [], []
@@ -1682,6 +1688,68 @@ def run_defects(state: dict, root: Path | None = None) -> list:
             out.append("`tasks` is empty and this run is being handed over — nothing says which "
                        "task the handoff stopped after, or what is left")
         # Its shape is judged below, on every run and not only the ones being handed over.
+
+    # The keys a run names were held to being strings and to nothing else. A key that matches no
+    # entry sends a child to build something described nowhere, and it meets that alone at three in
+    # the morning — with a task line, an invented entry, or a night spent on the wrong thing.
+    # `--entries` has named such a key loudly since it existed, because a filter that quietly
+    # matches nothing reads like an entry with nothing to answer; a run file carrying the very same
+    # key passed in silence. Asked whenever this file is judged, which is the only moment it can
+    # still be fixed for free: the composing session is the one that wrote it.
+    named = [k for k in (state.get("entries") or []) if isinstance(k, str) and k.strip()]
+    if named and root is not None:
+        knowledge = root / KNOWLEDGE
+        if not knowledge.is_dir():
+            out.append(f"`entries` names {', '.join(named[:3])} and this project has no "
+                       f"{KNOWLEDGE}/ — there is nothing here for a key to match, so whoever reads "
+                       f"this file is reading a promise about a description that does not exist")
+        else:
+            known = keys([Doc(path) for path in sorted(knowledge.glob("*.md"))])
+            unknown = [k for k in named if k not in known]
+            if unknown:
+                # A substring match finds nothing on the way a key is usually got wrong — one
+                # letter — so this is a similarity, cut high enough that a suggestion is either
+                # obviously the key or absent.
+                near = [m for u in unknown
+                        for m in difflib.get_close_matches(u, sorted(known), n=2, cutoff=0.8)]
+                out.append(f"`entries` names {', '.join(unknown)}, which no entry in {KNOWLEDGE}/ "
+                           f"matches — a key is what every other reader of the knowledge matches "
+                           f"on, and a child sent to build one arrives at a description nobody "
+                           f"wrote" + (f". The closest keys here: {', '.join(near[:3])}"
+                                       if near else ""))
+
+    # Where the work is and what it forks from were held to being strings, and both are read by
+    # somebody else: `branches` in the batch record is composed from `branch`, and the driver chains
+    # the next child onto it through `base`. The two failures are different and are judged
+    # differently. **Shape, at any step**: an unresolvable name with no `/` in it is almost always a
+    # slug written where a branch name belongs — the mistake `parked` was invented against, and a
+    # name nobody can resolve retires nothing, ever. The slash is the whole test, because a branch
+    # somebody named by hand and deleted after its merge looks like nothing else: measured on two
+    # real run files carrying `mvp/learning-loop`, which the first draft of this rule called a slug. **Existence, only in flight**:
+    # a queued child may name a branch its sibling has not created yet, and a finished run's branch
+    # is deleted the moment its pull request merges — reporting either would be reporting the kit
+    # working as designed.
+    step = str(state.get("step") or "")
+    in_flight = step and step not in TERMINAL and step != "queued"
+    branch = str(state.get("branch") or "").strip()
+    base = str(state.get("base") or "").strip()
+    if root is not None and (branch or base) and git(root, "rev-parse", "--git-dir"):
+        def resolves(name: str) -> bool:
+            return bool(git(root, "rev-parse", "--verify", "--quiet", name))
+
+        if branch and not resolves(branch):
+            if "/" not in branch:
+                out.append(f"`branch` is {branch!r} — nothing here resolves it and it carries no "
+                           f"`/`, which is what a slug written where a branch name belongs looks "
+                           f"like. The batch record's `branches` is composed from this field, and "
+                           f"a name nothing resolves retires nothing")
+            elif in_flight:
+                out.append(f"`branch` names {branch}, which does not exist here — this run says its "
+                           f"work is on a branch nobody can check out")
+        if base and in_flight and not resolves(base):
+            out.append(f"`base` names {base}, which does not exist here — a run forks from its "
+                       f"base, and a chained child is based on the branch of the child before it, "
+                       f"so a base nothing resolves is a chain with a hole in it")
 
     # A field of records filled with sentences reads as answered to a person and is empty to the
     # closing session, the reviewer and this program. Checked whenever this file is judged and not
