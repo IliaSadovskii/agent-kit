@@ -3,6 +3,27 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.19.3
+
+- **A declared command was held to being written, not to starting anything.** `commands.test: make
+  test` on a project with no makefile passed every rule this program had — emptiness was the whole
+  test — and the run that met it was a child at three in the morning, told to run a suite that
+  cannot run, with nothing it could do about it. The field is written once, by `blueprint`, with the
+  owner in the room, which is the moment this is answerable for the price of a `which`.
+
+  The check now resolves the word that has to start, and nothing beyond it: a flag, a target, a path
+  inside a container are the tool's business and this program does not know them. `cd app && npm
+  test` is judged on `npm`, not on `cd`; `APP_ENV=testing pytest` on `pytest`; a path like
+  `vendor/bin/phpunit` against the project rather than the PATH, because that is where it is
+  installed. `make` is the one tool whose absence is not its own — it resolves everywhere and
+  answers for nothing without a makefile — so a makefile is required beside it, while the target is
+  not judged at all: includes and pattern rules put targets where no reading of one file finds them,
+  and a guess about a target is what this program may not make. What it cannot read — an unbalanced
+  quote, an empty string — it says nothing about, since a finding here blocks a whole project.
+
+  At an `epic`'s gate the same fact is fatal, beside the two commands that were already required:
+  declared and unable to start is *not declared*, arriving later and costing more.
+
 ## 2.19.2
 
 - **The preflight asked the network one question per entry.** `check.py` runs before every command,

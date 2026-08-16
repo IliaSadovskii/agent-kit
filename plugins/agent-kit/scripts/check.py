@@ -28,6 +28,7 @@ import datetime as dt
 import hashlib
 import json
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -417,13 +418,90 @@ def check_epic(root: Path, manifest: dict, docs: list, report: Report) -> list:
 
     commands = manifest.get("commands") or {}
     for name, what in (("run", "start the application"), ("test", "run the suite")):
-        if not (commands.get(name) or "").strip():
+        declared = (commands.get(name) or "").strip()
+        if not declared:
             fatal.append(f"project.yml has no `commands.{name}` — nothing says how to {what}, and "
                          f"the finish line is walked against a running application")
+            continue
+        # Declared and unable to start is the same fact as not declared, arriving later and costing
+        # more: the gate is where the owner is standing and a wrong string is a minute's fix.
+        defect = command_defect(root, declared)
+        if defect:
+            fatal.append(f"`commands.{name}: {declared}` says how to {what}, and {defect}")
 
     for line in fatal:
         report.add("MVP", line)
     return fatal
+
+
+# Tokens that are not the tool: a stage that only moves or sets something, and the words that come
+# before the tool inside a stage. Judging `cd app && npm test` on `cd` would be a finding about the
+# shell, which is not what anybody declared.
+STAGE_SKIPPED = {"cd", "export", "source", ".", "set", "unset", "eval"}
+PREFIX_SKIPPED = {"env", "exec", "time", "nice"}
+MAKEFILES = ("Makefile", "makefile", "GNUmakefile")
+
+
+def command_tool(command: str) -> str:
+    """The word that has to start for this command to run at all, or "" when nothing here is one.
+
+    Only the first word of the first real stage is judged, because it is the only part with a
+    mechanical answer: a flag, a target, a path inside a container are the tool's own business and
+    this program does not know them. What it can say is whether anything on this machine answers to
+    the name at the front.
+    """
+    for stage in re.split(r"&&|\|\||;|\|", command):
+        words = []
+        try:
+            words = shlex.split(stage)
+        except ValueError:                        # an unbalanced quote is not a tool to look for
+            return ""
+        while words and ("=" in words[0].split("/")[0] or words[0] in PREFIX_SKIPPED):
+            words.pop(0)
+        if not words or words[0] in STAGE_SKIPPED:
+            continue
+        return words[0]
+    return ""
+
+
+def command_defect(root: Path, command: str) -> str:
+    """Why this command cannot start here, or "". It reads; it never runs anything.
+
+    **Emptiness was the whole test until 2.19.3**, and a string that starts nothing passed it:
+    `test: make test` on a project with no Makefile is a suite the run cannot run, and it is found
+    out by a child at three in the morning with nothing it can do about it. The field is written
+    once, by `blueprint`, with the owner in the room — which is the moment this is answerable for
+    the price of a `which`.
+    """
+    tool = command_tool(command)
+    if not tool:
+        return ""
+    if "/" in tool:
+        path = Path(tool) if Path(tool).is_absolute() else root / tool
+        if not path.exists():
+            return f"nothing is at {tool}"
+    elif not shutil.which(tool):
+        return f"`{tool}` is not on the PATH here"
+    # The one tool whose absence is not its own: `make` resolves everywhere and answers for nothing
+    # without a makefile, which is the example this check was written against. The target is not
+    # judged — includes and pattern rules put targets where no reading of one file finds them, and
+    # a guess about a target is exactly what this program may not make.
+    elif tool == "make" and not any((root / name).exists() for name in MAKEFILES):
+        return "`make` has no makefile in this project"
+    return ""
+
+
+def check_commands(root: Path, manifest: dict, report: Report) -> None:
+    commands = manifest.get("commands")
+    if not isinstance(commands, dict):
+        return                                    # said by `print_state`, which owns that shape
+    for name, command in commands.items():
+        text = str(command or "").strip()
+        if not text:
+            continue                              # empty is a real answer, and the gate reads it
+        defect = command_defect(root, text)
+        if defect:
+            report.add("Commands", f"`commands.{name}: {text}` — {defect}")
 
 
 def check_verdicts(manifest: dict, report: Report) -> None:
@@ -2205,6 +2283,7 @@ def main(argv: list | None = None) -> int:
     check_orphans(docs, report)
     check_sources(root, docs, report)
     check_stack(root, manifest, report)
+    check_commands(root, manifest, report)
     check_verdicts(manifest, report)
     check_runs(root, report)
     check_batches(root, report)

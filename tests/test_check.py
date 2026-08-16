@@ -964,6 +964,10 @@ class CheckCase(unittest.TestCase):
         if commands:
             (self.root / ".agent-kit" / "project.yml").write_text(
                 MANIFEST + "commands:\n  test: make test\n  run: make up\n", encoding="utf-8")
+            # A declared command is now judged on whether it starts anything, and this fixture is a
+            # project that may start an MVP — so it owns the makefile it says it runs.
+            (self.root / "Makefile").write_text("test:\n\techo hi\nup:\n\techo up\n",
+                                                encoding="utf-8")
         return self.run_check("--epic")
 
     def test_a_project_that_may_start_an_mvp(self):
@@ -998,6 +1002,32 @@ class CheckCase(unittest.TestCase):
         code, output = self.ready_for_mvp(commands=False)
         self.assertEqual(code, 1)
         self.assertIn("commands.run", output)
+
+    def test_a_command_that_is_declared_and_starts_nothing(self):
+        """Declared and unable to start is the same fact as not declared, arriving later and
+        costing more — mid-run, in a child, with the suite it was told to run unrunnable."""
+        self.ready_for_mvp()
+        (self.root / "Makefile").unlink()
+        code, output = self.run_check("--epic")
+        self.assertEqual(code, 1)
+        self.assertIn("`commands.test: make test`", output)
+        self.assertIn("no makefile", output)
+
+    def test_a_declared_command_that_starts_nothing_is_named_before_every_command(self):
+        """Not only at the gate: the gate happens once and every other command meets this too."""
+        (self.root / ".agent-kit" / "project.yml").write_text(
+            MANIFEST + "commands:\n  test: definitely-not-a-tool-here\n", encoding="utf-8")
+        code, output = self.run_check()
+        self.assertEqual(code, 1)
+        self.assertIn("commands.test", output)
+        self.assertIn("not on the PATH", output)
+
+    def test_a_command_that_starts_something_says_nothing(self):
+        (self.root / ".agent-kit" / "project.yml").write_text(
+            MANIFEST + "commands:\n  test: python3 -m pytest\n  lint:\n", encoding="utf-8")
+        code, output = self.run_check()
+        self.assertEqual(code, 0, output)
+        self.assertEqual(output, "")
 
     # ---- what a run may not close with ---------------------------------------------------------
     #
@@ -1582,6 +1612,63 @@ class CheckCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CommandsCase(unittest.TestCase):
+    """A declared command that starts nothing.
+
+    Emptiness was the whole test: `test: make test` on a project with no makefile passed every rule
+    this program had, and the run that met it was a child at three in the morning with a suite it
+    could not run. Only the first word is judged — the rest is the tool's business — and everything
+    this cannot read it says nothing about, because a guess here would block a whole project.
+    """
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.root = self.tmp / "proj"
+        self.root.mkdir(parents=True)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def defect(self, command):
+        return check.command_defect(self.root, command)
+
+    def test_make_without_a_makefile(self):
+        self.assertIn("no makefile", self.defect("make test"))
+
+    def test_make_with_a_makefile_is_silent(self):
+        (self.root / "Makefile").write_text("test:\n\techo hi\n", encoding="utf-8")
+        self.assertEqual(self.defect("make test"), "")
+
+    def test_a_tool_no_machine_here_has(self):
+        self.assertIn("not on the PATH", self.defect("definitely-not-a-tool-here run"))
+
+    def test_the_shell_that_moves_first_is_not_the_tool(self):
+        """`cd app && npm test` judged on `cd` would be a finding about the shell, which is not
+        what anybody declared."""
+        self.assertEqual(self.defect("cd app && python3 -m pytest"), "")
+        self.assertIn("nope-tool", self.defect("cd app && nope-tool --ci"))
+
+    def test_the_environment_in_front_of_the_tool_is_not_the_tool(self):
+        self.assertEqual(self.defect("APP_ENV=testing python3 -m pytest"), "")
+        self.assertEqual(self.defect("env FOO=1 python3 -m pytest"), "")
+
+    def test_a_path_is_judged_against_the_project_and_not_the_path(self):
+        """`vendor/bin/phpunit` is installed into the project, so `which` says nothing about it."""
+        self.assertIn("nothing is at vendor/bin/phpunit", self.defect("vendor/bin/phpunit --colors"))
+        (self.root / "vendor" / "bin").mkdir(parents=True)
+        (self.root / "vendor" / "bin" / "phpunit").write_text("#!/bin/sh\n", encoding="utf-8")
+        self.assertEqual(self.defect("vendor/bin/phpunit --colors"), "")
+
+    def test_what_it_cannot_read_it_says_nothing_about(self):
+        """An unbalanced quote is not a tool to go looking for, and neither is an empty string. The
+        alternative is a finding that blocks every command in a project over a guess."""
+        self.assertEqual(self.defect('sh -c "echo unbalanced'), "")
+        self.assertEqual(self.defect("   "), "")
+
+    def test_a_container_is_judged_on_the_thing_that_starts_it(self):
+        self.assertIn("`docker-not-here`", self.defect("docker-not-here compose exec app pytest"))
 
 
 class ManualCase(unittest.TestCase):
