@@ -3,7 +3,7 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
-## 2.19.5
+## 2.20.0
 
 - **A reference to code, written slightly wrong, was invisible rather than wrong.** An entry can
   name the code its description came from — `source: path#heading @hash` — and the check compares
@@ -17,6 +17,8 @@ installed it — see [docs/developing.md](docs/developing.md#versioning).
   corrected the first draft of the rule within the hour: a `source:` pointing at a URL is not a
   broken reference to a local file, it is where a description came from, said deliberately, so
   those are counted and named rather than judged — nothing here can fetch a page.
+
+  A project that changes nothing keeps working; two lines are worth adding by hand, and they are in [migrations/2.20.0.md](migrations/2.20.0.md).
 
 - **The merge guard used to disarm itself on a file it could not read.** It arms while a run of the
   kit is in flight, and it decided that by walking the run files and skipping any it could not
