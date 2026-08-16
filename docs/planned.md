@@ -12,7 +12,42 @@ Order below is the order to do the work in, not the order of importance.
 
 ---
 
-## 1. A home for manual actions, with a proof that runs
+## 1. A bench for the kit itself — on `claude plugin eval`
+
+**The problem.** Checking a change to the kit costs a live overnight run on a real project. That is
+why talking about the kit cost 26% of one measured week — more than two thirds of a whole `epic` —
+and why discussion substitutes for measurement. It is also why no two versions of the kit have ever
+been compared with each other.
+
+**Do not build a harness — Claude Code ships one.** `claude plugin eval` runs cases from
+`evals/**/case.yaml` with graders in `graders/*.md` against a plugin, and carries everything this
+would otherwise need:
+
+- `--ablation with-without` runs each case **with the plugin and without it** and reports the delta.
+  Nothing in this kit has ever measured what the kit itself is worth;
+- `--runs <n>` (3 by default) — the result is probabilistic and one run says nothing;
+- `--threshold <0..1>` exits non-zero when a case drops below it, which is a CI gate;
+- `--max-cost-usd` is a hard ceiling, which is what makes a bench safe to run against a weekly quota;
+- `--json` and `--report` give a machine result and a self-contained HTML report with per-grader
+  verdicts;
+- `claude plugin eval init` authors a suite through an interview.
+
+**What to write, then, is only the cases.** A sample repository with a blueprint and traps planted
+in it. The bench does not judge whether the code the kit wrote is good — that is not measurable. It
+judges **whether the kit's own mechanisms fired**, and a grader can be a script:
+
+| Trap in the sample | What must happen |
+|---|---|
+| an entry promising what the code does not do | a test marked `unmet`, a line in `unmet`, the suite still green |
+| a scenario with no harness | named at the gate, not discovered at the finish |
+| two features quietly writing to one table | the frame child links them through `needs` |
+| a debt line the feature closes | the line deleted in the same commit |
+| an entry whose prose the feature makes false | a `[stale …]` block under it |
+| a task closed with no commit | the check names it |
+
+**First, not last**, because it is the instrument every other item below is checked with.
+
+## 2. A home for manual actions, with a proof that runs
 
 **The problem.** `manual` records — a secret to place, a migration to apply, an account to create —
 live in `.agent-kit/runs/<slug>/run.json`, which is git-ignored and dies with the machine. The only
@@ -36,7 +71,7 @@ merge. So the one class of work that genuinely needs the owner is also the one w
 proofs, print what is due), `rules/pull-requests.md` and `skills/accept/SKILL.md` (they compose from
 the field today).
 
-## 2. A journal of questions and answers, with Telegram as its transport
+## 3. A journal of questions and answers, with Telegram as its transport
 
 **The problem.** An answer from the owner lives in the context of the session that asked. The
 session dies, the answer is gone. `answers` in the run file dies with the machine. Five children of
@@ -68,7 +103,7 @@ owner faster. Where nobody is waiting (`gate: none`, a night run), the channel o
 run has already taken its default and built on it, so there is no answer to apply. See the refusal
 of *an asynchronous channel with a deadline* below; this is the half of it that survived.
 
-## 3. A merge policy — a program, not a decision
+## 4. A merge policy — a program, not a decision
 
 **The problem.** The kit never merges, by construction and by hook. That is right as a default and
 is a dead end for the goal: one instruction from the owner, a finished result in the default branch.
@@ -82,6 +117,11 @@ bottleneck rather than production speed.
   finding, no `unmet` on any entry this branch touched, the diff inside paths the project allows,
   manual actions of `when: before_merge` all proved. Every item already exists somewhere in the kit;
   what is missing is one place that collects them and one program that reads it.
+- **At least one item of the package must not come from the kit.** Everything the package holds
+  today is the kit's own word about itself — its tests, its reviewer, its suite. A static analyser
+  (Semgrep, CodeQL) is deterministic, costs seconds and no tokens, and is produced by something
+  other than the model that wrote the diff. It does not replace `/security-review`, which is
+  agentic, expensive and triggered: one goes in the package, the other goes at a suspicious diff.
 - **The program merges what passes and never judges.** What fails comes back to the owner as three
   lines, not as a pull request to read.
 - The guard hook stays exactly as it is: it forbids *an agent* from merging. A policy is not an
@@ -90,29 +130,6 @@ bottleneck rather than production speed.
   a very short body and the manual actions named.
 
 **Blocked on.** Item 1 (the proofs are part of the package) and the branch bookkeeping in item 5.
-
-## 4. A bench for the kit itself
-
-**The problem.** Checking a change to the kit costs a live overnight run on a real project. That is
-why talking about the kit cost 26% of one measured week — more than two thirds of a whole `epic` —
-and why the discussion substitutes for measurement.
-
-**What to build.** A sample repository with a blueprint, and traps planted in it. The bench does not
-judge whether the code the kit wrote is good — that is not measurable. It judges **whether the kit's
-own mechanisms fired**, which is:
-
-| Trap in the sample | What must happen |
-|---|---|
-| an entry promising what the code does not do | a test marked `unmet`, a line in `unmet`, the suite still green |
-| a scenario with no harness | named at the gate, not discovered at the finish |
-| two features quietly writing to one table | the frame child links them through `needs` |
-| a debt line the feature closes | the line deleted in the same commit |
-| an entry whose prose the feature makes false | a `[stale …]` block under it |
-| a task closed with no commit | the check names it |
-
-A run of the bench is `/ship` and `/sprint` over the sample, then a script that reads the run files,
-the diff and `check.py` and counts the traps caught. Minutes and a predictable price, against a
-night. It is also the only place two versions of the kit can be compared with each other.
 
 ## 5. Small, and each one already argued
 
@@ -143,6 +160,36 @@ night. It is also the only place two versions of the kit can be compared with ea
   carry on until the owner switches it off. Started by the owner, at a moment they chose.
 
 ---
+
+# Outside tools, examined
+
+Surveyed August 2026, against the question *what would the kit stop having to build itself.*
+
+**Taken.**
+
+| Tool | Where it goes | Why this one |
+|---|---|---|
+| **`claude plugin eval`** | item 1 | Ships with Claude Code. Cases, graders, a with/without ablation, repeated runs, a cost ceiling, a JSON result and an HTML report. Building this would have been the largest thing on this page |
+| **`@playwright/cli`** | the recommended value of `commands.e2e` on a project with an interface | Microsoft's CLI companion to Playwright MCP, measured at roughly a quarter of the tokens for the same work (≈27k against ≈114k), because it is plain shell commands. MCP is for agents with no filesystem; Claude Code has one |
+| **Semgrep** (or CodeQL) | item 4, the evidence package | The only cheap signal in the package not produced by the model that wrote the diff. Studies put generated code at a 25–40% vulnerability rate, and this costs seconds |
+
+**Examined and not taken, with the reason still true.**
+
+- **Cloud sandboxes** — E2B (Firecracker microVMs, ~150 ms cold start), Daytona (Docker snapshots,
+  ~90 ms, stateful sessions). They earn their price when many agents run in the cloud. One server and
+  a fixed weekly quota is answered by a local worktree plus a container, for nothing. Revisit
+  together with parallel building.
+- **Agent observability platforms** — Braintrust, Langfuse, OpenTelemetry GenAI conventions. They
+  measure trajectories of LLM applications. The question this kit asks is *what did a feature cost*,
+  and `scripts/measure.py` is closer to it than any of them.
+- **Orchestration frameworks.** The kit's driver is a program that holds the flow while agents decide
+  at marked points — which the literature now describes as the desired shape rather than as a
+  compromise (*A Deterministic Control Plane for LLM Coding Agents*, arXiv 2606.26924). Replacing it
+  with a framework would be a step back.
+- **MCP servers for intake** — GitHub, Linear, Jira all publish OAuth endpoints now. Not needed:
+  `blueprint` is the intake, and what was missing was a trigger and a view. See item 6.
+- **Anything for Telegram.** Thirty lines around one HTTP call. A framework here would be the whole
+  cost of the feature.
 
 # Refused, with the reason
 
