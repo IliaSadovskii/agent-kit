@@ -10,14 +10,13 @@ answering the reason is the same proposal.
 
 ## Next, in order
 
-1. **The three gaps in coverage** — item 6, second bullet. Small, independent, one commit each.
-2. **The journal of questions** — item 3.
-3. **Codes and levels on findings, and judging a run before it closes** — item 6, third bullet and
+1. **The journal of questions** — item 3.
+2. **Codes and levels on findings, and judging a run before it closes** — item 6, third bullet and
    fourth, together. A day, and it rewrites the check's output; the merge policy needs it, and needs
    it first, because a policy reads an exit code. The fourth rides with the third because both move
    the same code — what a finding is and when it is asked — and apart they rewrite one file twice.
 
-Done since this page was written: one `gh` call instead of N, in 2.19.2.
+Done since this page was written: one `gh` call instead of N in 2.19.2, and the three gaps in coverage in 2.19.3.
 
 Deferred by the owner, with the reason: the bench (item 1), the merge policy (item 4), parallel
 building, the backlog command, the schedule, the continuous mode (item 7). Until the bench exists,
@@ -264,15 +263,12 @@ Four findings, cheapest first.
   record names. A number outside the listing's cap is still asked about on its own, because an
   entry closed on a listing's silence is an entry closed on a guess.
 
-- **Three gaps in what is checked**, all small:
-  - **a declared command is never checked for existing.** `test: make test` with no Makefile is
-    found out mid-run; only the string's emptiness is judged today. It matters most for the new
-    `commands.e2e` and for `mutate`.
-  - **a run file's `entries` are not matched against the knowledge.** `--entries` names a key that
-    matches no entry; a run file carrying the same key passes in silence, and the child meets it at
-    three in the morning.
-  - **`base` and `branch` in a run file are not checked for existing.** The driver catches part of
-    this; the check does not.
+- ~~**Three gaps in what is checked**~~ Done in 2.19.3. A declared command is resolved to the word
+  that has to start, and `make` is held to owning a makefile. A run file's `entries` are matched
+  against the knowledge whenever the file is judged, with the closest key named beside a wrong one.
+  `branch` and `base` are held to the repository — shape at any step, existence only while the run
+  is in flight, because a queued child names a branch its sibling has not made and a finished run's
+  branch is deleted when its pull request merges.
 
 - **A finding has neither a code nor a level, and that is the root of the rest.** The difference
   between *stop* and *note this* is carried by the prose alone: nine groups reach the exit code,
