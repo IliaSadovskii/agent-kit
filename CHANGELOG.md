@@ -18,6 +18,25 @@ installed it — see [docs/developing.md](docs/developing.md#versioning).
   broken reference to a local file, it is where a description came from, said deliberately, so
   those are counted and named rather than judged — nothing here can fetch a page.
 
+- **A project's language no longer leaks into the payload, and the gap it hid is closed.** The MVP
+  bounds are the owner's prose under a heading in their own language, and the check carried a
+  hard-coded Russian heading to find it. That bought nothing — the fallback already matched it,
+  since `Границы MVP` carries the letters MVP — while hiding the real case: a project whose heading
+  has no Latin MVP in it at all was told it *has no bounds section*, which is a program reporting a
+  defect where it can only report that it cannot read. A marker, `<!-- agent-kit:mvp-bounds -->`,
+  now names the section the way every other mark in this kit does; a heading still works and the
+  gate says so, so nothing written before this needs changing.
+
+- **The program describes itself honestly.** Its own docstring said "the one thing it writes is an
+  entry's state line" for two releases after `--record` and `--manual` arrived — and `--manual`
+  executes commands out of a project file. Whoever reads that paragraph is deciding whether it is
+  safe to call.
+
+- **The build now catches a reference written without the variable.** Only
+  `${CLAUDE_PLUGIN_ROOT}/…` paths were checked; three bare ones exist, two of which the driver types
+  into a live session as literal strings. Rename the file behind one and nothing noticed, because
+  the reader is a model reading a sentence rather than an import that anything resolves.
+
 - **The kit's own doctrine named one file as the home for every mechanical rule**, and that is how
   that file reached 2500 lines: it became the default address for anything checkable, whatever the
   rule was about. The home is now *a program*, with the program chosen by what is being judged — the

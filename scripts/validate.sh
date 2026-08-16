@@ -198,6 +198,16 @@ while IFS= read -r ref; do
 done < <(grep -rhoE '\$\{CLAUDE_PLUGIN_ROOT\}/[A-Za-z0-9_./-]+' "$PLUGIN" \
            | sed 's|${CLAUDE_PLUGIN_ROOT}/||' | sed 's|[.,)]*$||' | sort -u)
 
+# And the same paths written bare, without the variable — which the rule above never saw. Three of
+# them exist: the driver types two into a live session as literal strings, and a skill points at a
+# rule. Rename the file behind one and nothing notices, because the reader is a model reading a
+# sentence rather than an import anything resolves.
+while IFS= read -r ref; do
+  [ -e "$PLUGIN/${ref}" ] || fail "dangling reference: $ref"
+done < <(grep -rhoE '(^|[^/A-Za-z0-9_.-])(skills|rules|agents|templates|scripts|hooks)/[A-Za-z0-9_./-]+\.(md|py|json|yml)' "$PLUGIN" \
+           | grep -oE '(skills|rules|agents|templates|scripts|hooks)/[A-Za-z0-9_./-]+\.(md|py|json|yml)' \
+           | sort -u)
+
 # --------------------------------------------------------------------------------------------
 step "both hooks are registered and run"
 

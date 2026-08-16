@@ -61,6 +61,7 @@ build without asking.
 <!-- Where it runs, and the constraints that shape the build: offline, permissions, latency,
      volumes, platform rules. Only what is real for this product. -->
 
+<!-- agent-kit:mvp-bounds -->
 ## MVP bounds
 
 **In:** <!-- explicit list -->

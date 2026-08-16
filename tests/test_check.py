@@ -987,8 +987,8 @@ class CheckCase(unittest.TestCase):
 
     def ready_for_mvp(self, product=None, scenarios=None, commands=True):
         self.write("product.md", product if product is not None else
-                   "# Product\n\n## MVP bounds\n\n**In:** sign-in, the composer\n\n"
-                   "**Out:** comments, search\n")
+                   "# Product\n\n<!-- agent-kit:mvp-bounds -->\n## MVP bounds\n\n"
+                   "**In:** sign-in, the composer\n\n**Out:** comments, search\n")
         self.write("scenarios.md", scenarios if scenarios is not None else
                    "# Scenarios\n\n### Anna publishes a story\n\n**Who:** Anna\n")
         if commands:
@@ -1006,11 +1006,34 @@ class CheckCase(unittest.TestCase):
         self.assertEqual(output, "")
 
     def test_bounds_written_in_another_language_are_still_bounds(self):
-        """The bounds are the owner's prose, in the project's own language — the heading is too."""
+        """The bounds are the owner's prose, in the project's own language — the heading is too.
+
+        A Russian heading used to be hard-coded in the program for this, which was the one place a
+        project's language reached the payload, and it bought nothing: `Границы MVP` carries the
+        letters MVP and the fallback already matched it. The marker is what makes a heading with no
+        Latin MVP in it at all readable — and that is the case the hard-coded string never covered.
+        """
         code, output = self.ready_for_mvp(
-            product="# Продукт\n\n## Границы MVP\n\n**Входит:** вход, композер\n\n"
-                    "**Не входит:** комментарии, поиск\n")
+            product="# Продукт\n\n<!-- agent-kit:mvp-bounds -->\n## Что входит в первую версию\n\n"
+                    "**Входит:** вход, композер\n\n**Не входит:** комментарии, поиск\n")
         self.assertEqual(code, 0, output)
+        self.assertEqual(output, "", "a marked section is read without a word")
+
+    def test_bounds_found_by_their_heading_still_work_and_are_said(self):
+        """Every project written before the marker existed. It reads, and it says how it read."""
+        code, output = self.ready_for_mvp(
+            product="# Product\n\n## MVP bounds\n\n**In:** sign-in\n\n**Out:** search\n")
+        self.assertEqual(code, 0, output)
+        self.assertIn("matched by their heading", output)
+
+    def test_a_heading_no_program_can_guess_is_a_gap_and_not_a_defect(self):
+        """Without the marker and without the letters MVP, nothing can find the section — and the
+        program says the marker is missing rather than claiming the bounds are."""
+        code, output = self.ready_for_mvp(
+            product="# Продукт\n\n## Что входит в первую версию\n\n**Входит:** вход\n\n"
+                    "**Не входит:** поиск\n")
+        self.assertEqual(code, 1)
+        self.assertIn("agent-kit:mvp-bounds", output)
 
     def test_no_bounds_at_all(self):
         code, output = self.ready_for_mvp(product="# Product\n\n## What it is for\n\nStories.\n")

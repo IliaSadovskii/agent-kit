@@ -9,10 +9,18 @@ starts. It exists as a program rather than as instructions because a skill canno
 another skill: told to "run blueprint --check", a build command went looking for an executable,
 found none, and carried on without the check — silently, in every autonomous run.
 
-It reads. It judges nothing: no quality, no research, no opinion about the prose. The one thing it
-writes is an entry's state line — only what a merged pull request already decided, and only when
-asked with `--sync`. A preflight that writes is how a command that meant to read left the tree dirty
-for the next one.
+It reads. It judges nothing: no quality, no research, no opinion about the prose. **It writes in
+exactly three places, each asked for by a flag**, and never as a side effect of being run:
+
+- `--sync` moves an entry's state line, and only where a merged pull request already decided it;
+- `--record` rewrites the source and dependency hashes in place;
+- `--manual` runs the proof of every action in `docs/manual.md` — **the one place this program
+  executes something a run wrote** — and deletes the lines whose work has happened.
+
+A preflight that writes is how a command that meant to read left the tree dirty for the next one,
+which is why the writing is behind flags. This paragraph said "the one thing it writes is an entry's
+state line" for two releases after the other two arrived: a program that misdescribes itself is read
+by whoever is deciding whether it is safe to call.
 
 Silent when clean, except for tests marked `agent-kit:unmet`: those are listed whenever they exist,
 because nothing else in a run ever mentions them, and they change no exit code — a recorded promise
@@ -68,6 +76,10 @@ READ_TIMEOUT = 30
 KEY_RE = re.compile(r"^`key:\s*([^`·]+?)\s*`(?:\s*·\s*`state:\s*([^`]+?)\s*`)?", re.M)
 HEADING_RE = re.compile(r"^###\s+(.+)$", re.M)
 FIELDS_RE = re.compile(r"^fields:\s*(.+)$", re.M)
+# The MVP bounds sit under a heading in the project own language, so the section is found by a
+# marker rather than by matching words — the same arrangement as every other mark this kit reads
+# out of a document.
+MVP_MARK = "<!-- agent-kit:mvp-bounds -->"
 SOURCE_RE = re.compile(r"`source:\s*([^#`]+)#([^@`]+?)\s*@([0-9a-f]+)`")
 # The same line, read loosely, so that one written wrong is *seen* wrong instead of not seen at
 # all. The strict form above wants a hash: a `source:` with none — or with `@HEAD`, or with the
@@ -396,6 +408,20 @@ def check_sources(root: Path, docs: list, report: Report) -> None:
                             f"what it said")
 
 
+def section_after(text: str, mark: str) -> str | None:
+    """The section a marker sits above — from the heading under the mark to the next heading.
+
+    A heading cannot be matched by its words when it is written in the project own language, and
+    guessing at it is what this program may not do. The mark is language-free and whoever writes
+    the document puts it there, exactly as `agent-kit:unmet` and `agent-kit:scenario` are put.
+    """
+    at = text.find(mark)
+    if at < 0:
+        return None
+    found = re.search(r"^#{1,6}\s+.+$", text[at:], re.M)
+    return section_of(text, found.group(0).lstrip("# ").strip()) if found else None
+
+
 def section_of(text: str, heading: str) -> str | None:
     marks = [(m.start(), m.group(0)) for m in re.finditer(r"^#{1,6}\s+.+$", text, re.M)]
     for i, (start, line) in enumerate(marks):
@@ -455,14 +481,31 @@ def check_epic(root: Path, manifest: dict, docs: list, report: Report) -> list:
     fatal = []
     product = next((d for d in docs if d.slot == "product"), None)
     text = product.text if product else ""
-    section = section_of(text, "MVP bounds") or section_of(text, "Границы MVP")
+    # The marker first, because this section is the owner's prose under a heading in their own
+    # language. A Russian heading used to be hard-coded here — the one place a project's language
+    # reached the payload — and it bought nothing, since the fallback below already matched it: the
+    # letters MVP are in it. What it hid is the real gap. A project whose heading has no Latin
+    # "MVP" in it at all — *Что входит в первую версию* — was told it has no bounds section, which
+    # is this program reporting a defect where it can only report that it cannot read.
+    section = section_after(text, MVP_MARK)
+    by_heading = False
     if section is None:
         found = re.search(r"^#{1,6}\s+.*\bMVP\b.*$", text, re.M | re.I)
-        section = section_of(text, found.group(0).lstrip("# ").strip()) if found else None
+        section = (section_of(text, "MVP bounds")
+                   or (section_of(text, found.group(0).lstrip("# ").strip()) if found else None))
+        by_heading = section is not None
     if not section:
-        fatal.append("product.md has no MVP bounds section — an epic with no bounds cannot know when "
-                     "it is finished")
+        fatal.append(f"product.md has no MVP bounds section, and no `{MVP_MARK}` marker above one — "
+                     f"an epic with no bounds cannot know when it is finished. Where the section is "
+                     f"there under a heading in this project's own language, the marker is what "
+                     f"makes it readable")
     else:
+        if by_heading:
+            # Not fatal: the bounds are there and the gate can read them. Said because the next
+            # project to write that heading in another language gets a defect instead of a gap.
+            report.drift.append(f"product.md has MVP bounds and they were matched by their "
+                                f"heading, not by `{MVP_MARK}` — put the marker on the line above "
+                                f"them, and a heading in any language keeps working")
         sides = re.findall(r"^\*\*([^*]+):?\*\*[:：]?\s*(.*)$", section, re.M)
         filled = [name for name, rest in sides if len(rest.strip()) > 3]
         if len(filled) < 2:
@@ -2424,6 +2467,10 @@ def main(argv: list | None = None) -> int:
             print("This project cannot start an epic as it stands:")
             for line in fatal:
                 print(f"  {line}")
+        # What the gate found and can live with. Printed rather than collected, because this branch
+        # returns before the report is: a statement nobody prints is a statement nobody made.
+        for line in report.drift:
+            print(f"  {line}")
         return 1 if fatal else 0
 
     sync_states(root, docs, report, options.sync, options.offline)
