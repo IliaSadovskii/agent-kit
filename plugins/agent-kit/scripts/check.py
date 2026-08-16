@@ -52,6 +52,12 @@ PROMPT_MAX = 400
 # seventy-row table of assumptions was the part that made the rest unusable.
 PR_OPEN_MAX = 12000
 PR_TABLE_MAX = 15
+# How many pull requests one listing carries — one page, because `gh` fetches a hundred rows per
+# request and a larger cap spends a round trip per extra page on a repository that has them. The
+# numbers anybody here ever asks about belong to work still in flight: an entry at `building`, and a
+# batch record whose branches still exist, since `next` removes the delivered ones. Those are the
+# newest, which is what a page holds. Anything older is asked about one at a time.
+PR_LIST_MAX = 100
 
 KEY_RE = re.compile(r"^`key:\s*([^`·]+?)\s*`(?:\s*·\s*`state:\s*([^`]+?)\s*`)?", re.M)
 HEADING_RE = re.compile(r"^###\s+(.+)$", re.M)
@@ -696,7 +702,69 @@ def quoted_block(text: str, start: int) -> str:
     return "\n".join(kept).strip()
 
 
-def sync_states(docs: list, report: Report, sync: bool, offline: bool) -> None:
+# Every pull request this repository has, asked once and answered from memory after that. The two
+# readers below — an entry's state line, and the number a batch record carries — asked `gh pr view`
+# per number, so a project with 21 entries in flight made 21 network calls before *every* command,
+# and a night of eighty sessions paid for all of them. One `gh pr list` carries the same answer.
+#
+# Cleared when `main` starts, because a process that reads two projects — the tests do — must not
+# answer for one out of the other's listing.
+_LISTED_PRS: dict = {}
+
+
+def pr_states(root: Path, offline: bool):
+    """Number → state for this repository's pull requests, or `None` when the listing cannot be read.
+
+    `None` is not "there are none": a repository with no pull requests answers with an empty map.
+    The difference matters to the callers, which fall back to asking about a single number the way
+    they asked about every number before — so an unreadable listing costs what it used to cost and
+    says what it used to say.
+    """
+    key = str(root)
+    if key in _LISTED_PRS:
+        return _LISTED_PRS[key]
+    listed = None
+    if not offline and shutil.which("gh"):
+        done = subprocess.run(
+            ["gh", "pr", "list", "--state", "all", "--limit", str(PR_LIST_MAX),
+             "--json", "number,state"],
+            cwd=root, capture_output=True, text=True)
+        if done.returncode == 0:
+            try:
+                rows = json.loads(done.stdout or "[]")
+            except ValueError:
+                rows = None
+            if isinstance(rows, list):
+                listed = {row["number"]: row.get("state") or "" for row in rows
+                          if isinstance(row, dict) and isinstance(row.get("number"), int)}
+    _LISTED_PRS[key] = listed
+    return listed
+
+
+def pr_state(root: Path, number: int, offline: bool):
+    """What one pull request's state is. `None` when nothing here can say.
+
+    Answered from the listing where the number is in it. It is not in it when the listing could not
+    be read at all, and it is not in it when the repository has more pull requests than `PR_LIST_MAX`
+    and this one is older than that — so the number is asked about directly rather than assumed to
+    be closed, which would move an entry's state line on a guess.
+    """
+    listed = pr_states(root, offline)
+    if listed is not None and number in listed:
+        return listed[number]
+    if offline or not shutil.which("gh"):
+        return None
+    done = subprocess.run(["gh", "pr", "view", str(number), "--json", "state"],
+                          cwd=root, capture_output=True, text=True)
+    if done.returncode != 0:
+        return None
+    try:
+        return (json.loads(done.stdout or "{}") or {}).get("state") or ""
+    except ValueError:
+        return None
+
+
+def sync_states(root: Path, docs: list, report: Report, sync: bool, offline: bool) -> None:
     """A merged pull request is the only thing that moves an entry to `built`.
 
     **Looking is free; writing is asked for.** Every run of this program compares an entry marked
@@ -717,12 +785,10 @@ def sync_states(docs: list, report: Report, sync: bool, offline: bool) -> None:
             if not found:
                 continue
             number = found.group(1)
-            done = subprocess.run(["gh", "pr", "view", number, "--json", "state"],
-                                  cwd=doc.path.parent, capture_output=True, text=True)
-            if done.returncode != 0:
+            state = pr_state(root, int(number), offline)
+            if state is None:
                 report.add("States", f"{doc.path.name} {entry.key} — pull request {number} unreadable")
                 continue
-            state = (json.loads(done.stdout or "{}") or {}).get("state", "")
             if state == "MERGED":
                 new = "built"
             elif state == "CLOSED":
@@ -891,15 +957,8 @@ def merged_prs(root: Path, numbers: set, offline: bool) -> set:
         return set()
     out = set()
     for number in sorted(numbers):
-        done = subprocess.run(["gh", "pr", "view", str(number), "--json", "state"],
-                              cwd=root, capture_output=True, text=True)
-        if done.returncode != 0:
-            continue
-        try:
-            if (json.loads(done.stdout or "{}") or {}).get("state") == "MERGED":
-                out.add(int(number))
-        except ValueError:
-            continue
+        if pr_state(root, int(number), offline) == "MERGED":
+            out.add(int(number))
     return out
 
 
@@ -2070,6 +2129,7 @@ def main(argv: list | None = None) -> int:
     options = parser.parse_args(argv)
 
     root = options.root.resolve()
+    _LISTED_PRS.clear()
 
     if options.pr_body:
         return pr_body_defects(Path(options.pr_body))
@@ -2139,7 +2199,7 @@ def main(argv: list | None = None) -> int:
                 print(f"  {line}")
         return 1 if fatal else 0
 
-    sync_states(docs, report, options.sync, options.offline)
+    sync_states(root, docs, report, options.sync, options.offline)
     check_fields(docs, report)
     check_references(docs, report)
     check_orphans(docs, report)

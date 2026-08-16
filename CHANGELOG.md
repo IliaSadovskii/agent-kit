@@ -3,6 +3,20 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.19.2
+
+- **The preflight asked the network one question per entry.** `check.py` runs before every command,
+  and for each entry at `state: building (pr: N)` it ran `gh pr view N` — one process and one
+  network round trip apiece, with nothing remembered between them. `--state` then did it again for
+  every pull request a batch record names. On a project with 21 entries in flight — a real number
+  from one run — that is 21 calls in front of *every* command, times the eighty sessions of a night.
+
+  One `gh pr list --state all` now answers for all of them, read once per process. A number the
+  listing does not carry is still asked about directly: the listing is capped, and a repository with
+  more pull requests than the cap knows nothing about the oldest of them — closing an entry on that
+  silence would be closing it on a guess. Nothing else changes, including what is said when `gh` is
+  absent or a number is unreadable.
+
 ## 2.19.1
 
 - **The list that closes itself had nobody who ran it.** `docs/manual.md` empties when somebody runs

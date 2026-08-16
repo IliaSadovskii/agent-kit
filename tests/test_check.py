@@ -10,6 +10,7 @@ import contextlib
 import importlib.util
 import json
 import io
+import os
 import shutil
 import subprocess
 import tempfile
@@ -689,13 +690,27 @@ class CheckCase(unittest.TestCase):
         self.assertIn("Promises the product does not keep (15)", output)
         self.assertEqual(output.count("guest.browse_feed"), 15)
 
-    def with_merged_pr(self, *args, line="`state: building (pr: 7)`"):
-        """The check run against a `gh` that says every pull request has merged."""
-        import os
-        self.write("actions.md", ACTIONS.replace("`state: built`", line))
+    def with_merged_pr(self, *args, line="`state: building (pr: 7)`",
+                       listing='[{"number": 7, "state": "MERGED"}]', view='{"state":"MERGED"}',
+                       extra=""):
+        """The check run against a `gh` that says the pull request has merged.
+
+        `listing` is what `gh pr list` answers and `view` what `gh pr view` answers — `None` for a
+        call that fails. Everything the fake is asked is appended to `self.asked`, because how many
+        times it is asked is itself a rule here.
+        """
+        self.write("actions.md", ACTIONS.replace("`state: built`", line) + extra)
         fake = self.root / "bin"
         fake.mkdir(exist_ok=True)
-        (fake / "gh").write_text('#!/bin/sh\nprintf \'{"state":"MERGED"}\\n\'\n', encoding="utf-8")
+        self.asked = fake / "asked.txt"
+        answer = "exit 1" if view is None else f"printf '%s\\n' '{view}'"
+        (fake / "gh").write_text(
+            "#!/bin/sh\n"
+            f'echo "$@" >> {self.asked}\n'
+            'case "$2" in\n'
+            f"  list) printf '%s\\n' '{listing}' ;;\n"
+            f"  view) {answer} ;;\n"
+            "esac\n", encoding="utf-8")
         (fake / "gh").chmod(0o755)
         was = os.environ["PATH"]
         os.environ["PATH"] = f"{fake}:{was}"
@@ -742,9 +757,48 @@ class CheckCase(unittest.TestCase):
         self.assertIn("pull request 7 has merged", output)
         self.assertIn("guest.browse_feed", output)
 
+    def test_the_pull_requests_are_asked_about_in_one_call(self):
+        """It was one `gh pr view` per entry, before every command. A project with 21 entries in
+        flight — a real number — paid 21 network calls for every session of a night."""
+        second = ("\n### Guest opens an item\n`key: guest.open_item` · `state: building (pr: 8)`\n\n"
+                  "**Who:** guest\n**What happens:** the item is shown\n"
+                  "**Can go wrong:** nothing that matters\n")
+        _code, output = self.with_merged_pr(
+            "--sync", extra=second,
+            listing='[{"number": 7, "state": "MERGED"}, {"number": 8, "state": "CLOSED"}]')
+        self.assertIn("building (pr: 7) → built", output)
+        self.assertIn("building (pr: 8) → planned", output)
+        asked = self.asked.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(asked), 1, asked)
+        self.assertTrue(asked[0].startswith("pr list"), asked[0])
+
+    def test_a_number_the_listing_does_not_carry_is_asked_about_directly(self):
+        """The listing is capped, so a repository with more pull requests than the cap says nothing
+        about the oldest of them. A state line moved on that silence would be moved on a guess."""
+        _code, output = self.with_merged_pr("--sync", listing="[]")
+        self.assertIn("building (pr: 7) → built", output)
+        asked = self.asked.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(asked), 2, asked)
+        self.assertTrue(asked[1].startswith("pr view 7"), asked[1])
+
+    def test_a_listing_nothing_can_parse_falls_back_rather_than_believing_it(self):
+        """An empty listing and one that came back as something else are different answers, and
+        reading the second as "this repository has no pull requests" would close every entry."""
+        _code, output = self.with_merged_pr("--sync", listing="not json at all")
+        self.assertIn("building (pr: 7) → built", output)
+
+    def test_a_pull_request_neither_call_can_read_is_named(self):
+        """The listing does not carry it and asking directly fails: nothing here knows what that
+        pull request did, and that is said rather than left as `building` in silence."""
+        _code, output = self.with_merged_pr(listing="[]", view=None)
+        self.assertIn("pull request 7 unreadable", output)
+
     def test_offline_asks_gh_nothing_at_all(self):
+        """Silence was all this asserted, and silence is what a call whose answer is thrown away
+        also produces — the name of the test was checked by nothing until the fake kept a log."""
         _code, output = self.with_merged_pr("--offline")
         self.assertEqual(output, "")
+        self.assertFalse(self.asked.exists(), "`--offline` reached the network")
 
     # ---- the debt ledger -----------------------------------------------------------------------
 
@@ -1626,6 +1680,58 @@ class ManualCase(unittest.TestCase):
         report = check.Report()
         check.collect_manual(self.root, {}, report)
         self.assertEqual(report.manual, [])
+
+
+class MergedPrsCase(unittest.TestCase):
+    """The other reader of the listing, which had no test of its own.
+
+    Every test that reaches `merged_prs` goes through `delivered_branches` and replaces it with a
+    lambda — so the half of the one-call change that serves batch records was covered by nothing,
+    and a drift in what the listing returns would have left every squashed branch unjudged with the
+    suite still green.
+    """
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.root = self.tmp / "proj"
+        (self.root / "bin").mkdir(parents=True)
+        self.asked = self.root / "asked.txt"
+        gh = self.root / "bin" / "gh"
+        gh.write_text(
+            "#!/bin/sh\n"
+            f'echo "$@" >> {self.asked}\n'
+            'case "$2" in\n'
+            "  list) printf '%s\\n' "
+            "'[{\"number\": 7, \"state\": \"MERGED\"}, {\"number\": 8, \"state\": \"OPEN\"}]' ;;\n"
+            "  view) printf '{\"state\":\"MERGED\"}\\n' ;;\n"
+            "esac\n", encoding="utf-8")
+        gh.chmod(0o755)
+        self.was = os.environ["PATH"]
+        os.environ["PATH"] = f"{self.root / 'bin'}:{self.was}"
+        check._LISTED_PRS.clear()
+
+    def tearDown(self):
+        os.environ["PATH"] = self.was
+        check._LISTED_PRS.clear()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def asked_lines(self):
+        return self.asked.read_text(encoding="utf-8").splitlines() if self.asked.exists() else []
+
+    def test_the_numbers_a_record_names_are_answered_from_one_listing(self):
+        self.assertEqual(check.merged_prs(self.root, {7, 8}, offline=False), {7})
+        self.assertEqual(len(self.asked_lines()), 1, self.asked_lines())
+
+    def test_a_number_the_listing_does_not_carry_is_asked_about_directly(self):
+        """An old batch record whose branches are still around names a pull request older than one
+        page of the listing. Unasked, its branches read as undelivered for ever."""
+        self.assertEqual(check.merged_prs(self.root, {9}, offline=False), {9})
+        self.assertEqual([line.split(" --json")[0] for line in self.asked_lines()],
+                         ["pr list --state all --limit 100", "pr view 9"])
+
+    def test_offline_asks_nothing(self):
+        self.assertEqual(check.merged_prs(self.root, {7}, offline=True), set())
+        self.assertEqual(self.asked_lines(), [])
 
 
 class BranchesCase(unittest.TestCase):
