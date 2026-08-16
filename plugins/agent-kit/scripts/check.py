@@ -602,9 +602,22 @@ def sync_states(docs: list, report: Report, sync: bool, offline: bool) -> None:
                     f"{entry.key}: pull request {number} has {state.lower()}, and the line still "
                     f"says building — /agent-kit:next moves it, or blueprint --check")
                 continue
-            text = text.replace(f"`key: {entry.key}` · `state: building (pr: {number})`",
-                                f"`key: {entry.key}` · `state: {new}`")
-            report.states.append(f"{entry.key}: building (pr: {number}) → {new}")
+            # Rewritten where the line is, not where a canonical line would be. This replaced a
+            # literal `str.replace` carrying one space around the `·` and one after `pr:`, while
+            # `KEY_RE` above reads any spacing at all — so a line written `(pr:  7)` was found by
+            # every other check, matched nothing here, and left the file untouched. What made it a
+            # defect rather than a miss is the line below: the report was appended unconditionally,
+            # so the program announced a move it had not made, and the next run announced it again.
+            moved = re.compile(rf"(`key:\s*{re.escape(entry.key)}\s*`\s*·\s*`state:\s*)"
+                               rf"building\s*\(\s*pr:\s*{number}\s*\)(\s*`)")
+            text, count = moved.subn(rf"\g<1>{new}\g<2>", text)
+            if count:
+                report.states.append(f"{entry.key}: building (pr: {number}) → {new}")
+            else:
+                report.states.append(
+                    f"{entry.key}: pull request {number} has {state.lower()} and the line was not "
+                    f"moved — nothing in {doc.path.name} matched it as a state line, so it is still "
+                    f"`building` and needs a hand")
         if text != doc.text:
             doc.path.write_text(text, encoding="utf-8")
             doc.text = text
@@ -1390,6 +1403,32 @@ def run_defects(state: dict, root: Path | None = None) -> list:
                        f"says so at its head, and the pull request is composed from it by a "
                        f"session that reads run files and never the code")
 
+    # A task says it is done and nothing says where. The commit is the boundary a session is cut at
+    # — the driver's handoff line is *finish the task you are on* — so a closed task with no SHA
+    # leaves both the session that resumes this run and the reviewer to find that work by reading
+    # the whole diff. Judged here rather than at `done` for the reason the shape rules above are:
+    # heard at the first handoff it is fixed in a minute, and at `done` there is nothing left to do
+    # but report it.
+    #
+    # The SHA is also what makes this checkable at all. A field asking *how is this task proved*
+    # would be answered with "covered by unit tests" for free; a commit either resolves in this
+    # repository or does not, which is the artefact the cheap path cannot produce. A task whose
+    # change rode along in a neighbour's commit names that neighbour's SHA — a fact, not a breach.
+    closed = [t for t in (state.get("tasks") or []) if isinstance(t, dict) and t.get("done")]
+    unbound = [str(t.get("id") or "?") for t in closed if not str(t.get("commit") or "").strip()]
+    if unbound:
+        out.append(f"task(s) {', '.join(unbound)} are done and name no `commit` — the SHA that "
+                   f"closed each is where a session continuing this run is cut, and what the "
+                   f"reviewer reads instead of hunting that work in the diff")
+    if root is not None and git(root, "rev-parse", "--git-dir"):
+        unreachable = [str(t.get("id") or "?") for t in closed
+                       if str(t.get("commit") or "").strip()
+                       and git(root, "cat-file", "-t", str(t["commit"]).strip()) != "commit"]
+        if unreachable:
+            out.append(f"task(s) {', '.join(unreachable)} name a `commit` this repository does not "
+                       f"have — a SHA that resolves nowhere says less than an empty field, because "
+                       f"it reads as evidence")
+
     if state.get("step") != "done":
         return out
 
@@ -1645,6 +1684,20 @@ def print_state(root: Path, offline: bool) -> None:
     for name in orphaned:
         print(f"  a test claims scenario \"{name}\" — no scenario by that heading exists")
 
+    manifest_path = root / MANIFEST
+    commands = read_manifest(manifest_path).get("commands")
+
+    # What walks the whole product, said beside the scenarios it would walk. A scenario is proved
+    # against a running application and a feature's own suite never touches one, so a project that
+    # describes scenarios and declares no command to walk them has a finish line nothing can reach
+    # mechanically — which is a fact to say at the gate, where the run is being priced and somebody
+    # is standing, and not a discovery for the last phase. Only where scenarios exist: a project
+    # with none is not owed this line.
+    if described and isinstance(commands, dict) and not str(commands.get("e2e") or "").strip():
+        print("  scenarios: nothing walks them — project.yml declares no `commands.e2e`, so no run "
+              "can prove one against a running application and the finish is the owner's hands "
+              "rather than a green suite. Adding one is /agent-kit:blueprint's")
+
     # Silence here means the project can measure whether its tests are able to fail. Said at the
     # gate because that is where a scope is priced and somebody is present: without it the fact
     # surfaces per feature, at the end, as one line of a report nobody reads twice — and a suite
@@ -1654,8 +1707,6 @@ def print_state(root: Path, offline: bool) -> None:
     # must never be said as a fact about the project. `commands` arrives as a string when somebody
     # wrote `commands: make all`, which is the shape that took `--state` down entirely — and
     # `--state` is what an epic's gate, `next` and `accept` all run.
-    manifest_path = root / MANIFEST
-    commands = read_manifest(manifest_path).get("commands")
     if not manifest_path.is_file():
         print(f"  tests: no {MANIFEST} here, so nothing says whether this project can prove its "
               f"tests able to fail — /agent-kit:blueprint writes that file")

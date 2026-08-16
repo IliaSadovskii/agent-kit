@@ -791,6 +791,7 @@ class Driver:
         state = child.state()
         if child.own_pr(state) or state.get("step") == "done":
             self.audit(child, state)
+            self.costly(child, state)
             child.event("built", state.get("branch") or "")
             return "built"
         branch = state.get("branch")
@@ -836,6 +837,29 @@ class Driver:
         child.set(blockers=(state.get("blockers") or []) + defects)
         child.event("closed-with-defects", "; ".join(defects))
         self.tell(f"{child.slug} closed with {len(defects)} thing(s) it should not have: {defects[0]}")
+
+    def costly(self, child: Run, state: dict) -> None:
+        """The decisions this child took with nobody there, said while the night is still running.
+
+        `assumptions[].expensive` has been written by every `ship` since the field existed and read
+        by nothing — a record with a writer and no reader, which by this kit's own rule is a defect
+        and not a spare field. The owner meets these in the morning, in a pull request that on one
+        measured run carried seventy of them, while the channel to their phone was open all night.
+
+        One line per child, the expensive ones only, and **no way back**. An answer cannot be
+        applied to a decision the child has already built on, and a run that stands still for one
+        was measured twice arriving exactly where it would have arrived without waiting — which is
+        why `wait` was cut in 2.5.0 and is not being rebuilt here. What this buys is the hours
+        between the decision and the morning: the owner can stop the run, skip what is behind it, or
+        type into the session themselves, all of which they can only do while it is still running.
+        """
+        costly = [a for a in (state.get("assumptions") or [])
+                  if isinstance(a, dict) and a.get("expensive")]
+        if not costly:
+            return
+        first = " ".join(str(costly[0].get("what") or "").split())[:120] or "unnamed"
+        self.tell(f"{child.slug} took {len(costly)} decision(s) with nobody to ask that are "
+                  f"expensive to reverse — first: {first}")
 
     def apply_frame(self, child: Run, state: dict) -> None:
         """Take the frame child's map of what needs what, and make it the queue.

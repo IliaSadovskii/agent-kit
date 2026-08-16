@@ -1311,6 +1311,35 @@ class WindowNoticeCase(unittest.TestCase):
         made.tell("the batch is finished")
         self.assertEqual(made.launcher.told, [])
 
+    # ---- the decisions taken with nobody there --------------------------------------------------
+    #
+    # `assumptions[].expensive` has been written by every feature since the field existed and read
+    # by nothing. The owner met them in the morning, in a pull request that on one measured run
+    # carried seventy — while the channel to their phone was open all night. There is no way back
+    # along it: an answer cannot be applied to a decision the child has already built on, and that
+    # is what `wait` was cut for in 2.5.0.
+
+    def test_an_expensive_decision_reaches_the_window_the_hour_it_is_taken(self):
+        made = self.driver("ccp-proj")
+        child = types.SimpleNamespace(slug="2026-08-16-offers-02-accept")
+        made.costly(child, {"assumptions": [
+            {"what": "cheap one", "expensive": False},
+            {"what": "offers are stored\n  on the order, not on the user", "expensive": True}]})
+        sent = [text for _target, text in made.launcher.told]
+        self.assertIn("2026-08-16-offers-02-accept took 1 decision", sent[-1])
+        self.assertIn("offers are stored on the order", sent[-1])   # folded onto one line
+
+    def test_a_child_that_decided_nothing_expensive_says_nothing(self):
+        made = self.driver("ccp-proj")
+        made.costly(types.SimpleNamespace(slug="x"),
+                    {"assumptions": [{"what": "a default nobody will notice", "expensive": False}]})
+        self.assertEqual(made.launcher.told, [])
+
+    def test_a_run_file_with_no_assumptions_at_all(self):
+        made = self.driver("ccp-proj")
+        made.costly(types.SimpleNamespace(slug="x"), {})
+        self.assertEqual(made.launcher.told, [])
+
 
 class SilenceCase(unittest.TestCase):
     """How long a session has actually been quiet.

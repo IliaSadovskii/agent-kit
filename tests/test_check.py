@@ -689,10 +689,10 @@ class CheckCase(unittest.TestCase):
         self.assertIn("Promises the product does not keep (15)", output)
         self.assertEqual(output.count("guest.browse_feed"), 15)
 
-    def with_merged_pr(self, *args):
+    def with_merged_pr(self, *args, line="`state: building (pr: 7)`"):
         """The check run against a `gh` that says every pull request has merged."""
         import os
-        self.write("actions.md", ACTIONS.replace("`state: built`", "`state: building (pr: 7)`"))
+        self.write("actions.md", ACTIONS.replace("`state: built`", line))
         fake = self.root / "bin"
         fake.mkdir(exist_ok=True)
         (fake / "gh").write_text('#!/bin/sh\nprintf \'{"state":"MERGED"}\\n\'\n', encoding="utf-8")
@@ -714,6 +714,18 @@ class CheckCase(unittest.TestCase):
         self.assertIn("building (pr: 7) → built", output)
         self.assertIn("state: built",
                       (self.root / "docs" / "knowledge" / "actions.md").read_text(encoding="utf-8"))
+
+    def test_a_state_line_with_other_spacing_is_moved_rather_than_announced(self):
+        """The literal replace this replaced carried one space around the `·` and one after `pr:`,
+        while the parser reads any spacing at all. A line written `(pr:  7)` was found by every
+        other check, matched nothing here, and the report announced a move that never happened."""
+        code, output = self.with_merged_pr("--sync", line="`state:  building (pr:  7)`")
+        self.assertEqual(code, 0, output)
+        self.assertIn("→ built", output)
+        # Whatever spacing the line had, it keeps: the substitution is on the match.
+        written = (self.root / "docs" / "knowledge" / "actions.md").read_text(encoding="utf-8")
+        self.assertIn("built`", written)
+        self.assertNotIn("building", written)
 
     def test_the_check_writes_nothing_unless_it_is_asked_to(self):
         """Every command runs this before it starts; only `blueprint --check` may leave a change."""
@@ -1014,7 +1026,7 @@ class CheckCase(unittest.TestCase):
     def handover(self, **fields):
         state = {"slug": "x", "command": "ship", "step": "build", "suite": None,
                  "approach": "the endpoint, then the screen",
-                 "tasks": [{"id": 1, "what": "the endpoint", "done": True}],
+                 "tasks": [{"id": 1, "what": "the endpoint", "done": True, "commit": "9c1f0aa"}],
                  "handoff": "stopped after task 1; the queue seam deadlocks under sqlite"}
         state.update(fields)
         directory = self.root / ".agent-kit" / "runs" / "x"
@@ -1025,6 +1037,22 @@ class CheckCase(unittest.TestCase):
     def test_a_handoff_that_stands_on_its_own_says_nothing(self):
         code, output = self.handover()
         self.assertEqual(code, 0)
+        self.assertEqual(output, "")
+
+    def test_a_task_closed_with_no_commit_is_a_boundary_nobody_can_find(self):
+        """The driver cuts a long run at a task boundary, so a closed task with no SHA leaves both
+        the session that continues it and the reviewer to hunt that work in the whole diff."""
+        code, output = self.handover(
+            tasks=[{"id": 1, "what": "the endpoint", "done": True},
+                   {"id": 2, "what": "the screen", "done": False}])
+        self.assertEqual(code, 1)
+        self.assertIn("name no `commit`", output)
+        self.assertIn("task(s) 1", output)          # and never the one still open
+
+    def test_a_task_still_open_is_never_asked_for_a_commit(self):
+        code, output = self.handover(
+            tasks=[{"id": 1, "what": "the endpoint", "done": False}])
+        self.assertEqual(code, 0, output)
         self.assertEqual(output, "")
 
     def test_a_note_that_outgrew_the_field_is_named(self):

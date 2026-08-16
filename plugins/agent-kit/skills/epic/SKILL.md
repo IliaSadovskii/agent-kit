@@ -105,6 +105,15 @@ derived, not chosen: what must exist before what. Group the result into batches 
 batch one topic, and put the batch that makes a whole scenario walkable first — that is what the
 owner can click after the first few hours.
 
+**And that same ordering says who writes each scenario's test.** The feature that closes a
+scenario's last step is the one that writes its end-to-end test, marked
+`agent-kit:scenario <the scenario's heading>`, and its `task` says so. Nothing else in this run is
+allowed to leave a scenario for later: a test written at the finish is written by a session reading
+the code it is meant to judge, which is the one way this run can quietly move its own goalposts.
+Written with the feature, the join is proved the hour it becomes provable, the suite stays green
+throughout, and the diff is under the reviewer like any other. A scenario whose last step falls
+outside this scope keeps no test and is named as such on the screen.
+
 **Do not choose the lenses.** They are chosen later, by the `--advance` that reaches the audit,
 which has seen the product built and can say what it is made of — where a gate can only guess from
 prose. What the gate settles is the ceiling: **three waves**, and that number is what makes the run

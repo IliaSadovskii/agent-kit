@@ -3,6 +3,69 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.16.0
+
+Six proposals came out of a review of the kit's own architecture; six independent passes over the
+payload refused every one of them as written and left what is below. The reasoning, and what each
+proposal was replaced by, is in
+[docs/design/2026-08-16-what-the-review-refused.md](docs/design/2026-08-16-what-the-review-refused.md).
+
+- **`--sync` announced a move it had not made.** The state line was rewritten with a literal
+  `str.replace` carrying one space around the `·` and one after `pr:`, while every other check reads
+  the same line with a parser that allows any spacing — so an entry written `(pr:  7)` was matched
+  by nothing here, the file was left untouched, and the report said `building (pr: 7) → built`
+  anyway. Next run, the same announcement. It is a substitution on the match now, the report follows
+  the result rather than the intent, and a line that could not be moved says so and asks for a hand.
+
+- **`ship` was told not to walk the whole product and did it 144 times across 80 feature sessions.**
+  A feature proves itself; the product is proved by whatever integrates a batch. That has been in
+  `ship`'s Verify step since it was written, and an instruction competing with a cheap path loses —
+  this one cost hours rather than tokens, which is why nothing noticed.
+
+  - **`commands.e2e` in `project.yml`**, written by `blueprint` in the same breath as the harness
+    question it already asks. Empty is a real answer.
+  - **The guard hook refuses it inside a feature's own session**, matched on the session name the
+    driver registered — so the audit's scenarios lens, the closing session, an `epic`'s proving
+    phase and the owner's own terminal are untouched by construction.
+  - **`check.py --state` says when a project describes scenarios and declares no command to walk
+    them.** At the gate, where the run is being priced and somebody is standing, rather than in the
+    finish phase, where it is too late to be worth anything.
+
+- **A task said it was done and nothing said where.** The commit is the boundary a long run is cut
+  at — the driver's line is *finish the task you are on* — so a closed task with no SHA left both
+  the session continuing that run and the reviewer to find its work by reading the whole diff.
+  `tasks[].commit` now carries it, `check.py --run` asks for it at the handoff rather than at the
+  end, and the reviewer answers *is this task's work here* with one `git show`. A field asking how a
+  task is proved would have been answered with "covered by unit tests" for free; a SHA either
+  resolves in this repository or does not.
+
+  `tasks` was also the one record in the run file with no description of its own — every other field
+  carries one, and the four questions every mechanism owes had never been asked of this one.
+
+- **The decisions taken with nobody there now reach the owner the hour they are taken.**
+  `assumptions[].expensive` had been written by every feature since the field existed and read by
+  nothing — a record with a writer and no reader. The owner met them in the morning, in a pull
+  request that on one measured run carried seventy, while the channel to their phone was open all
+  night. The driver says one line per child as it closes. **There is no way back along it**: an
+  answer cannot be applied to a decision already built on, and a run that stands still for one was
+  measured twice arriving where it would have arrived anyway — which is what `wait` was cut for in
+  2.5.0. What this buys is the hours in which the owner can still stop the run, skip what follows,
+  or type into the session themselves.
+
+- **A scenario's end-to-end test now rides with the feature that closes its last step.** It was
+  written at the finish, by a session reading the code it was meant to judge, which is the one way a
+  run can quietly move its own goalposts. The gate already derives which feature closes which
+  scenario — it orders the batches by exactly that — so the assignment costs nothing and the join is
+  proved the hour it becomes provable. A scenario arriving at the finish uncovered is now a recovery
+  and says which of the two it is: the feature was parked, or the assignment was missed.
+
+- **A batch says which of three things is true about the product's scenarios** — they ran in CI on
+  this branch and what they returned, or the project declares no command to walk them, or the
+  command exists and no pipeline runs it. The third is the one worth a line: a batch chains every
+  feature onto the last precisely so the joins can be judged, and nothing judged them. The closing
+  session still never runs them itself — a walk in the tree the children built in proves that an
+  application already running still runs, and its artefacts leave that tree dirty for the next batch.
+
 ## 2.15.0
 
 - **A pull request was the one thing the owner had to read, and nothing held it to a size.** One

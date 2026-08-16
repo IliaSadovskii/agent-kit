@@ -23,8 +23,9 @@
 
   "approach": "one sentence: how this is being built here",
   "seams": ["the points the tests sit at"],
+  "_tasks": "The run's own plan, written at Design and closed one at a time. Each task is the smallest unit that carries its own verification, because the commit is the boundary a session is cut at: a driver that asks a long run to hand over says `finish the task you are on`, and half a task is the one thing the next session cannot pick up. `commit` is what makes that checkable rather than promised — the SHA that closed the task, written in the same movement as `done: true`. It is asked for by the check, resolved against this run's own branch, and read by the reviewer, which otherwise has to find a task's work by walking the whole diff. A task whose change rode along in a neighbour's commit names that neighbour's SHA; that is a fact, not a breach. Written by the run, read by the session that resumes it and by `agent-kit:reviewer`, closed by nobody — it dies with the run directory.",
   "tasks": [
-    { "id": 1, "what": "", "done": false }
+    { "id": 1, "what": "", "done": false, "commit": null }
   ],
 
   "step": "design",

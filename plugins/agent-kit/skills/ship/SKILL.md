@@ -213,6 +213,11 @@ recalling it.
 Design ends when the run file holds the approach, the seams, and a task list in which each task is
 the smallest unit that carries its own verification.
 
+That is checkable and is checked: **a task closed writes the SHA that closed it** into its own
+`commit`, in the same movement as `done: true`. It is the boundary a session is cut at, so without
+it the session that continues this run — and the reviewer — has to find that task's work by reading
+the whole diff. A task whose change rode along in a neighbour's commit names that neighbour's SHA.
+
 ## Build
 
 Task by task, one commit each.
@@ -305,8 +310,9 @@ language.
 Fix what fails, then run the suite once more at the end. Record in the run file what ran and what it
 returned: the pull request is written from that, not from memory.
 
-Do not run the product's end-to-end scenarios here. They prove the product rather than this feature,
-and belong to whatever integrates a batch. When the task **is** a scenario — a run composed from the
+Do not run the product's end-to-end scenarios here — `project.yml` → `commands.e2e`, and the guard
+hook refuses it inside a feature's own session, so this is machinery rather than a request. They
+prove the product rather than this feature, and belong to whatever integrates a batch. When the task **is** a scenario — a run composed from the
 scenarios lens — the test carries `agent-kit:scenario <the scenario's heading>` in a comment, which
 is how anything afterwards knows that scenario is covered by something other than a reading of the
 code.

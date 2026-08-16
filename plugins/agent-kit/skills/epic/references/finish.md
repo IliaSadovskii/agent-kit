@@ -84,7 +84,11 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --state
 ```
 
 A scenario with no such test is work: one more sprint, composed from the scenarios lens, which
-already knows how to say which harness is missing before the tests themselves. A scenario whose test
+already knows how to say which harness is missing before the tests themselves. **That is the
+recovery, not the plan** — the gate assigns each scenario's test to the feature that closes its last
+step, so a scenario arriving here uncovered means that feature was parked or the assignment was
+missed. Say which of the two, because a test written now is written by a session that has read the
+code it is about to judge. A scenario whose test
 fails is a `fix`, and its cause is the most valuable thing this run will produce — it is a break at
 a join, which no test written at the level of one feature can see.
 

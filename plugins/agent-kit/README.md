@@ -245,6 +245,13 @@ merge a pull request, to force-push and to push to the default branch, and it ru
 model, where nothing can talk it round. It has an opinion only while a run is at a non-terminal
 step, so your own sessions never meet it.
 
+The same hook refuses one thing that is not irreversible at all: **`commands.e2e` inside a feature's
+own session.** A feature proves itself and the product is proved by whatever integrates a batch —
+which `ship` has said since it was written, and lost, 144 times across 80 feature sessions of two
+measured runs. It binds only inside a session the driver registered as a `ship`, so the audit's
+scenarios lens, the closing session, an `epic`'s proving phase and your own terminal never meet it
+either.
+
 Two kinds of write are the exception, and both are bookkeeping rather than change: an entry's state
 line moves when the pull request behind it merges, and an audit's box is ticked once the work behind
 it is verified done. `blueprint --check` and `next` are what do them. Neither touches code, neither

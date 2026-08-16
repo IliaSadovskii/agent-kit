@@ -88,7 +88,13 @@ uncollapsed at the top:
 Then **Proven**: a row per feature naming which of the entry's lines have a test, what the suite
 returned, its `mutation` — how many changes to the product's logic the tests caught, how many they
 slept through, or that the step did not run — and what is *not* proven, plus the batch-level fact
-that the product's end-to-end scenarios were not run here.
+about the product's end-to-end scenarios: **which of the three it is.** They ran in CI on this
+branch and what they returned; or this project declares no `commands.e2e`, so nothing can walk them
+and the finish is somebody's hands; or the command exists and no pipeline runs it, which is the one
+of the three worth a line of its own — the batch chained every feature onto the last precisely so
+that the joins could be judged, and nothing judged them. You never run them yourself: a walk in the
+tree the children built in proves that an application already running still runs, and the artefacts
+it leaves make that tree dirty for the next batch.
 
 Inside it, uncollapsed, **the promises this batch did not keep**: every line of every child's
 `unmet`, with the entry, what the code does instead, and which feature met it. A batch that ends

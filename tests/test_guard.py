@@ -60,6 +60,60 @@ class VerdictCase(unittest.TestCase):
     def test_a_branch_named_after_the_default_one_is_not_the_default_one(self):
         self.assertIsNone(self.refused("git push -u origin claude/mainline-fix"))
 
+    # ---- walking the whole product from inside one feature -------------------------------------
+    #
+    # `ship` has been told since it was written that the scenarios are not its to run, and over two
+    # measured runs it started them 144 times across 80 feature sessions. This is that instruction
+    # moved to where it cannot be argued with — and narrowed, so that everything which *should*
+    # walk the product still can.
+
+    def test_the_end_to_end_command_inside_a_feature(self):
+        why = guard.verdict("make e2e", "claude/x", "main", e2e="make e2e", building=True)
+        self.assertIn("walks the whole product", why)
+
+    def test_the_same_command_where_walking_the_product_is_the_work(self):
+        """The audit's scenarios lens, the closing session, an epic's proving phase, the owner."""
+        self.assertIsNone(guard.verdict("make e2e", "claude/x", "main",
+                                        e2e="make e2e", building=False))
+
+    def test_a_project_that_declares_no_such_command_is_never_refused(self):
+        self.assertIsNone(guard.verdict("make e2e", "claude/x", "main", e2e="", building=True))
+
+    def test_the_suite_a_feature_is_supposed_to_run(self):
+        self.assertIsNone(guard.verdict("make test", "claude/x", "main",
+                                        e2e="make e2e", building=True))
+
+
+class ManifestCase(unittest.TestCase):
+    """`commands.e2e`, read without importing the check — the hook has to stay cheap and alone."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        (self.tmp / ".agent-kit").mkdir(parents=True)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def manifest(self, text):
+        (self.tmp / ".agent-kit" / "project.yml").write_text(text, encoding="utf-8")
+        return guard.declared_e2e(self.tmp)
+
+    def test_the_declared_command(self):
+        self.assertEqual(self.manifest("commands:\n  test: make test\n  e2e: make e2e\n"),
+                         "make e2e")
+
+    def test_a_comment_is_not_a_command(self):
+        self.assertEqual(self.manifest("commands:\n  e2e:   # nothing here yet\n"), "")
+
+    def test_a_key_of_the_same_name_under_something_else(self):
+        """Only `commands.e2e`. A hook that refused on any line saying `e2e` would refuse the
+        moment somebody wrote the word in another section."""
+        self.assertEqual(self.manifest("checks:\n  e2e: make e2e\ncommands:\n  test: make test\n"),
+                         "")
+
+    def test_no_manifest_at_all(self):
+        self.assertEqual(guard.declared_e2e(self.tmp), "")
+
 
 class EventCase(unittest.TestCase):
     """End to end, the way Claude Code calls it: JSON on stdin, JSON on stdout."""

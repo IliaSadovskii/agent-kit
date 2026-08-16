@@ -22,6 +22,18 @@ commands:                         # the project's real commands; the only place 
   lint:
   types:                          # leave empty where the project has no type checker
   run:                            # what starts the application, for the run that has to click it
+  e2e:                            # what walks the product end to end — the scenarios of
+                                  # docs/knowledge/scenarios.md, against a running application.
+                                  # It is a different command from `test` because it is a different
+                                  # thing: `test` proves one feature and every feature runs it,
+                                  # while this proves the product and only what integrates a batch
+                                  # runs it. A feature never does — measured on one run, `ship`
+                                  # started this 144 times across 80 sessions against its own
+                                  # instruction, and the guard hook now refuses it there.
+                                  # Empty is a real answer and is said at the gate, where the owner
+                                  # is standing and the price of a run is being named: without it
+                                  # the finish line is somebody's hands on a phone rather than a
+                                  # green suite, and that is a fact about the run, not a defect.
   mutate:                         # what proves the tests can fail: it changes the product's own
                                   # logic in small valid ways and reports how many of those changes
                                   # the suite noticed. A test written after the code and never seen

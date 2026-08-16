@@ -45,6 +45,11 @@ first: code can be correct, tested and still not be what the run set out to buil
 in the kit compares those two. A deviation that is in the diff and not in the file is a finding on
 its own; so is a task marked done whose work is not there.
 
+A closed task names the commit that closed it. Use it — `git show <sha> --stat` answers *is this
+task's work here* in one call, where the alternative is walking the whole diff looking for it. A
+task closed with no commit named, or with one this repository does not have, is a finding of its
+own: the run's own account of what it did is then unbound to anything.
+
 **Do the tests cover the entry?** Take the entry's lines one at a time and find the test for each.
 A line with no test is a finding, and it is usually the most valuable one you will produce: tests
 that exist but avoid the risky path are the standard way a feature looks proven and is not.

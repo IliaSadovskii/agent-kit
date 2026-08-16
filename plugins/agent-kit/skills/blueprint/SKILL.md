@@ -261,6 +261,12 @@ usually fills a screen, several actions and an entity at once.
    passes*, so it is the one gap that decides whether that command can finish at all. Name the tool
    and where it runs, or write plainly that there is none and the scenarios are proved by hand. Both
    are legitimate; neither may be left to be inferred.
+
+   **The answer goes into `commands.e2e`**, not only into the prose. That field is what the gate of
+   an `epic` reads to say whether this run's finish line can be reached mechanically, what a batch
+   runs over its own chain, and what the guard hook keeps out of a feature's session — a command
+   only a paragraph names is a command no program can act on. Empty is a real answer and is said as
+   one.
 4. **Each part, told by the owner.** One part is one telling, and it goes through the five steps
    like anything else: they talk, you read what is recorded about that part, you put the comparison
    up, you write, then you ask what is still open. A part is finished when you can write its records
