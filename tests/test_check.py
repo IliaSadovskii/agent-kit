@@ -439,6 +439,35 @@ class CheckCase(unittest.TestCase):
         _code, output = self.run_check()
         self.assertIn("does not exist", output)
 
+    def test_a_source_written_wrong_is_seen_wrong_and_not_missed(self):
+        """Three of the four ways this line gets written matched nothing at all, so an entry that
+        names its source read exactly like one that names none — for ever, and `--record` never
+        filled it in either. The format whose whole job is to notice drift was itself invisible."""
+        (self.root / "idea.md").write_text("# Idea\n\nWhat it is for.\n", encoding="utf-8")
+        for written in ("`source: idea.md#Idea`", "`source: idea.md#Idea @`",
+                        "`source: idea.md#Idea @HEAD`"):
+            self.write("product.md", f"# Product\n\n{written}\n")
+            code, output = self.run_check()
+            self.assertEqual(code, 1, f"{written} passed in silence")
+            self.assertIn("is not a source line this program can read", output)
+
+    def test_a_source_pointing_outside_the_repository_is_said_and_not_judged(self):
+        """A live project answered the first draft of this rule the hour it was written: a URL in
+        `source:` is where a description came from, said deliberately. Nothing here can fetch a
+        page, and a rule demanding a local file would tell a project to stop recording provenance."""
+        self.write("product.md",
+                   "# Product\n\n`source: https://example.org/corpus`\n")
+        code, output = self.run_check()
+        self.assertEqual(code, 0, output)
+        self.assertIn("point outside this repository", output)
+        self.assertNotIn("is not a source line", output)
+
+    def test_a_source_written_right_is_not_named_twice(self):
+        (self.root / "idea.md").write_text("# Idea\n\nWhat it is for.\n", encoding="utf-8")
+        self.write("product.md", "# Product\n\n`source: idea.md#Idea @deadbeef`\n")
+        _code, output = self.run_check()
+        self.assertNotIn("is not a source line", output)
+
     def test_whitespace_at_the_end_of_a_line_does_not_move_the_hash(self):
         self.assertEqual(check.digest("a\nb\n"), check.digest("a   \nb\t\n"))
 

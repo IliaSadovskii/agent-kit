@@ -67,6 +67,11 @@ with no writer or no reader; the ones found the day after were records nobody wa
 — a ledger line whose resolver could not delete it, a merged feature no command was permitted to
 mark. A record with no closer is not a slow leak, it is a list that grows until it stops being read.
 
+**And a rule is a mechanism.** Its closer went unwritten for as long as the third question did, and
+the answer differs by home: a rule in a program is closed by deleting the check and its test in one
+commit, and a rule in prose is closed by a design note that retires it. Nothing else may remove
+either — "it looked stale" is how a rule that was paid for in a defect goes back out of the payload.
+
 ## A check that does not understand its input says so
 
 Silence means *nothing is wrong*. A check that also goes quiet when it cannot read what it was

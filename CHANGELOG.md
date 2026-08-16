@@ -3,6 +3,35 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.19.5
+
+- **A reference to code, written slightly wrong, was invisible rather than wrong.** An entry can
+  name the code its description came from — `source: path#heading @hash` — and the check compares
+  the hash on every run, which is the whole mechanism by which a document notices that the code
+  moved under it. Written without the hash, or with `@HEAD`, or with the `@` and nothing after it,
+  it matched nothing: the entry then read exactly like one that names no source at all, for ever,
+  and `--record` never filled it in either. The format whose only job is to notice drift was itself
+  undetectable when written slightly wrong.
+
+  A second, loose reading now takes everything the strict one left, and says so. A live project
+  corrected the first draft of the rule within the hour: a `source:` pointing at a URL is not a
+  broken reference to a local file, it is where a description came from, said deliberately, so
+  those are counted and named rather than judged — nothing here can fetch a page.
+
+- **The kit's own doctrine named one file as the home for every mechanical rule**, and that is how
+  that file reached 2500 lines: it became the default address for anything checkable, whatever the
+  rule was about. The home is now *a program*, with the program chosen by what is being judged — the
+  project's files, a run file, or the kit itself, which `scripts/validate.sh` has been enforcing all
+  along without ever being listed. And the rule against splitting a file now says what it always
+  meant: **a file a model reads**. Its whole argument is that a reference may go unread, which is a
+  fact about a model choosing whether to open a file and says nothing about Python, where an import
+  is executed and cannot be declined — read generally, it argued against every module the code half
+  of this repository needs.
+
+  A rule is a mechanism, so it owes the same four answers as everything else, and its third was
+  never written down: a rule in a program is closed by deleting the check and its test in one
+  commit, a rule in prose by a design note that retires it. Nothing else may remove either.
+
 ## 2.19.4
 
 Three ways this program's silence meant something other than *nothing is wrong* — the failure its

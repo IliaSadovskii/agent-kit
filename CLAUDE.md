@@ -12,8 +12,12 @@ Read that file before a change of any size. This is the short form.
 A rule lands in a command's `SKILL.md` by default, because prose is the only place with no barrier
 to entry. Prose is the **last** choice, not the first. Four homes, in order of preference:
 
-1. **A program** — `scripts/check.py`. Anything checkable mechanically stops being a thing to
-   remember: the run calls the check and reacts to what it says.
+1. **A program.** Anything checkable mechanically stops being a thing to remember: the run calls the
+   check and reacts to what it says. **Which** program follows the thing being judged — a rule about
+   the project's own files belongs in `scripts/check.py`, a rule about a run file in the module that
+   owns run files, a rule about the kit itself in `scripts/validate.sh`, which already enforces six
+   of them and was never on this list. Naming one file here is how that file reached 2500 lines: it
+   became the default address for everything mechanical, whatever it was about.
 2. **A template** — `templates/`. The shape of a record lives in the file being written, and is read
    by whoever writes one, once.
 3. **The reviewer** — `agents/reviewer.md`. A rule that is checked *on the result* can live entirely
@@ -30,6 +34,11 @@ without it.
 
 No fourth answer, no mechanism. Records with no writer or no reader cost this kit a release; records
 nobody was allowed to remove cost it another.
+
+**A rule is a mechanism too, and its third answer was never written down.** A rule that lives in a
+program is closed by deleting the check and its test, in one commit. A rule that lives in prose is
+closed by a design note that says so — not by whoever noticed it and felt it was stale. Without that
+line, prose rules only ever accumulate.
 
 ## A check that cannot read its input says so
 
@@ -52,10 +61,14 @@ quoting are unfounded and are kept only as smoke alarms: Anthropic's *500 lines 
 published without a justification, and the 12k-token ceiling was proposed by a model and agreed to
 without a measurement. Neither is a rule to act on.
 
-**Splitting a file is not the tool.** Anthropic warns that a referenced file may go unread, and this
-kit already rejected splitting `blueprint`'s interview for that reason. Two moves are safe and both
-are in the four homes above: a rule that moves **into a program** stops being held at all, and a
-rule that moves **to its only reader** is not a split — the one who reads it reads it every time.
+**Splitting a file a model reads is not the tool** — and only those. The whole argument is that a
+*reference* may go unread, which is a fact about a model deciding whether to open a file, and says
+nothing about Python, where an import is executed and cannot be declined. Half this repository is
+Python; read generally, this rule has argued against every module the code half needs. Anthropic
+warns that a referenced file may go unread, and this kit already rejected splitting `blueprint`'s
+interview for that reason. Two moves are safe and both are in the four homes above: a rule that
+moves **into a program** stops being held at all, and a rule that moves **to its only reader** is
+not a split — the one who reads it reads it every time.
 That is why the batch chapters left `rules/pull-requests.md`: no feature ever opens a batch's pull
 request. Measured while doing it, in
 [docs/design/2026-08-11-review.md](docs/design/2026-08-11-review.md).

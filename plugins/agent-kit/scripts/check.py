@@ -69,6 +69,12 @@ KEY_RE = re.compile(r"^`key:\s*([^`·]+?)\s*`(?:\s*·\s*`state:\s*([^`]+?)\s*`)?
 HEADING_RE = re.compile(r"^###\s+(.+)$", re.M)
 FIELDS_RE = re.compile(r"^fields:\s*(.+)$", re.M)
 SOURCE_RE = re.compile(r"`source:\s*([^#`]+)#([^@`]+?)\s*@([0-9a-f]+)`")
+# The same line, read loosely, so that one written wrong is *seen* wrong instead of not seen at
+# all. The strict form above wants a hash: a `source:` with none — or with `@HEAD`, or with the
+# `@` and nothing after it — matched nothing, so it read exactly like an entry that names no
+# source, for ever, and `--record` never filled it in either. A format whose whole job is to
+# notice drift was itself invisible when written slightly wrong.
+SOURCE_LOOSE_RE = re.compile(r"`source:([^`]*)`")
 NOTE_RE = re.compile(r"^>\s*\*\*\[(assumed|found|stale|accepted|frame)\b([^\]]*)\]\*\*\s*(.*)$", re.M)
 REF_RE = re.compile(r"`([a-z][a-z0-9_]*\.[a-z0-9_]+)`")
 # A path into an installed plugin, with the version in it. What a session expanded for itself is
@@ -363,6 +369,31 @@ def check_sources(root: Path, docs: list, report: Report) -> None:
     if stale_format:
         report.add("Sources", f"{stale_format} source hashes predate this program and mean nothing "
                               f"— re-record them with `check.py . --record`; no document changed")
+
+    # Every `source:` the strict form did not take, split in two — because a live project answered
+    # the first draft of this rule immediately. A line pointing at a URL is not a broken reference
+    # to a file in this repository; it is where a description came from, said deliberately, and
+    # this program has no jurisdiction over it. Anything else is a form nobody can read: it says
+    # exactly what an entry with no source at all says, for ever, and `--record` never fills it in.
+    outside = 0
+    for doc in docs:
+        strict = {m.group(0) for m in SOURCE_RE.finditer(doc.text)}
+        for loose in SOURCE_LOOSE_RE.finditer(doc.text):
+            if loose.group(0) in strict:
+                continue
+            if loose.group(1).strip().startswith(("http://", "https://")):
+                outside += 1
+                continue
+            report.add("Sources", f"{doc.path.name} → `source:{loose.group(1)}` is not a source "
+                                  f"line this program can read — the form is "
+                                  f"`source: path#heading @hash`, and until it is one, nothing "
+                                  f"here notices when that code changes")
+    if outside:
+        # Said, not judged: nothing here can fetch a page, and a rule that demanded a local file
+        # would be telling a project to stop recording where its description came from.
+        report.drift.append(f"{outside} source line(s) point outside this repository — where a "
+                            f"description came from, and nothing here can check that it still says "
+                            f"what it said")
 
 
 def section_of(text: str, heading: str) -> str | None:
