@@ -1826,6 +1826,43 @@ class RunBranchCase(unittest.TestCase):
             shutil.rmtree(outside, ignore_errors=True)
 
 
+class StepsCase(unittest.TestCase):
+    """The step vocabulary, and its description in the template.
+
+    Two lists of the same thirteen words, one read by programs and one by whoever writes a run file,
+    with nothing holding them together — they agreed by luck, exactly as the lens names did until a
+    program was told to check those. A step in the template and not in the program is a step the
+    check calls unknown; a step in the program and not in the template is a step nobody was told to
+    write.
+    """
+
+    def setUp(self):
+        spec = importlib.util.spec_from_file_location(
+            "runfile", ROOT / "plugins" / "agent-kit" / "scripts" / "runfile.py")
+        self.runfile = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.runfile)
+        self.described = json.loads(
+            (ROOT / "plugins" / "agent-kit" / "templates" / "run.json").read_text(encoding="utf-8")
+        )["_step"]
+
+    def named_in_the_template(self):
+        """Every word the description offers as a choice — the groups written `a | b | c`."""
+        words = set()
+        for group in re.findall(r"[a-z]+(?:\s*\|\s*[a-z]+)+", self.described):
+            words.update(w.strip() for w in group.split("|"))
+        return words
+
+    def test_the_template_and_the_program_name_the_same_steps(self):
+        self.assertEqual(self.named_in_the_template(), set(self.runfile.STEPS))
+
+    def test_every_terminal_step_is_a_step(self):
+        self.assertTrue(set(self.runfile.TERMINAL) <= set(self.runfile.STEPS))
+
+    def test_the_template_says_which_ones_end_a_run(self):
+        """A driver stops watching a run that reaches one, so the writer has to know which."""
+        self.assertIn("terminal", self.described)
+
+
 class KindCase(unittest.TestCase):
     """What a run is, decided in one place instead of eight.
 

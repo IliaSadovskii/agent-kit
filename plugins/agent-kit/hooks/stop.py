@@ -59,12 +59,12 @@ def my_run(root: Path, session: str) -> tuple[str, str] | None:
     `window` holds the owner's own session so a batch can be narrated to them; matching it would
     block the one session this design exists to keep free.
     """
-    for path in sorted((root / ".agent-kit" / "runs").glob("*/run.json")):
-        try:
-            state = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            continue
-        if not isinstance(state, dict) or state.get("session") != session:
+    for directory, state in runfile.runs(root):
+        # A file nothing can parse is not this session's run — it cannot be shown to be. Failing
+        # open is this hook's own rule, and it is safe here in a way it is not for the guard: the
+        # cost is a turn that ends early, not a merge nobody reviewed. That it happened at all is
+        # said by `check.py`, which names an unreadable run file before every command.
+        if state is None or state.get("session") != session:
             continue
         # A handed-over run stops mid-step on purpose: the driver asked for it, the note is written,
         # and the next session carries on from the same file. Refusing here would hold the session
@@ -73,7 +73,7 @@ def my_run(root: Path, session: str) -> tuple[str, str] | None:
             return None
         step = state.get("step")
         if isinstance(step, str) and step not in TERMINAL:
-            return path.parent.name, step
+            return directory.name, step
     return None
 
 
