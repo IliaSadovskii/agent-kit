@@ -45,7 +45,7 @@ settle the rest now, leave the whole item as a block and say so.
 
 ## Never write a hash by hand
 
-Where an entry points at the owner's own document — `source: docs/DEVELOPER.md#offers @a3f1c9d` —
+Where an entry points at the owner's own document — `source: docs/DEVELOPER.md#offers @a3f1c9d1` —
 the hash is recorded by the program that computes it, never typed and never copied from printed
 output:
 

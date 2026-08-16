@@ -3,6 +3,31 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.20.1
+
+- **Every format this kit reads out of a document now has an example that is checked against its
+  parser.** The kit invents small markdown formats — a key line, a source reference, a block under
+  an entry, a mark beside a test, a counter in an audit — writes them with prose in one file and
+  reads them with a pattern in another, and nothing connected the two. That gap shipped twice in a
+  day: an action wrapped onto a second line whose parser read only the first, and a `source:` line
+  written without its hash that matched nothing at all. Both were found by reading, which is not a
+  method.
+
+  `tests/test_formats.py` holds each format's own documented example — lifted verbatim from the file
+  that teaches it — and asserts both that the file still writes it that way and that the parser
+  still reads it. `validate.sh` closes the other side: a pattern in `check.py` that the registry
+  neither covers nor declares as *not a format, and why* fails the build. It found one defect while
+  being written — the hash in the source example was seven characters against the eight this program
+  produces, so the kit's own documentation showed a hash its own check calls meaningless.
+
+- **The step vocabulary is held to the words the template offers.** Thirteen steps were named twice,
+  once for programs and once for whoever writes a run file, and they agreed by luck — exactly as the
+  lens names agreed until a program was told to check them.
+
+- The stop hook reads run files through the same module as everything else. It still fails open on
+  one it cannot parse, which is its own rule and is right there: the cost is a turn that ends early,
+  not a merge nobody reviewed.
+
 ## 2.20.0
 
 - **A reference to code, written slightly wrong, was invisible rather than wrong.** An entry can

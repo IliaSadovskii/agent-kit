@@ -351,6 +351,33 @@ PY
 [ $? -eq 0 ] || fail "a file the payload names is not in the channel table"
 
 # --------------------------------------------------------------------------------------------
+step "every format the check reads has a documented example"
+
+# The kit invents small markdown formats, writes them with prose and reads them with a pattern in
+# another file, and nothing connected the two: the specification was checked against the parser by
+# whoever last touched one. That gap shipped twice — an action wrapped onto a second line that its
+# parser read only the first line of, and a `source:` written without its hash that matched nothing
+# at all. `tests/test_formats.py` holds each format's documented example against its parser; this is
+# the other half, so a new pattern cannot arrive without one.
+python3 - "$REPO" <<'FORMATPY'
+import re, sys
+from pathlib import Path
+
+repo = Path(sys.argv[1])
+source = (repo / "plugins" / "agent-kit" / "scripts" / "check.py").read_text(encoding="utf-8")
+registry = (repo / "tests" / "test_formats.py").read_text(encoding="utf-8")
+
+declared = set(re.findall(r"^([A-Z][A-Z_]*(?:_RE|_MARK)) = ", source, re.M))
+named = set(re.findall(r'"([A-Z][A-Z_]*)"', registry))
+orphans = sorted(declared - named)
+for name in orphans:
+    print(f"ERROR: check.py declares {name} and tests/test_formats.py neither covers it with a "
+          f"documented example nor says why it is not a format", file=sys.stderr)
+sys.exit(1 if orphans else 0)
+FORMATPY
+[ $? -eq 0 ] || fail "a format the check reads has no documented example"
+
+# --------------------------------------------------------------------------------------------
 step "every knob of the driver is named where a person reads"
 
 # The rule is that an interface with no reader is a defect. Four of the driver's flags have one — the
