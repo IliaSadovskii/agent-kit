@@ -3,6 +3,36 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.19.4
+
+Three ways this program's silence meant something other than *nothing is wrong* — the failure its
+own first rule is written against. Found by reviewing the kit's structure rather than its behaviour,
+which is why they had survived: each is on a path nothing exercised.
+
+- **The kit taught a form its own parser could not read.** Both worked examples in
+  `templates/manual.md` wrap the action onto a second line and put `· before_release` there, while
+  `read_manual` took `what` from the first line alone and looked for `when` inside it. A project
+  copying that form — which is what a template is for — got an action with no `when` at all, so a
+  release action printed on a project at `development`: exactly the thing `stage` exists to prevent.
+  It never showed here because the examples sit inside a fenced block the parser skips, and the test
+  that existed had been written from the parser instead of from the file. The parser now reads a
+  wrapped action's own words, and the test lifts the examples out of the template and runs them
+  through it — the specification checking the code, rather than the code checking itself.
+
+- **A run file nothing can parse was skipped in silence.** It passed every rule about run files
+  while the run whose memory it is had lost it: a session resuming reads no tasks, no approach and
+  no handoff, and the driver waits for a terminal step it will never read. The same case was already
+  answered honestly for batch records three hundred lines below. It is a finding now, not drift.
+
+- **Nothing this program starts is unbounded any more, and "could not ask" is no longer printed as
+  an answer.** Its `git` helper and both of its network calls had no timeout at all — and this runs
+  in front of every command, so one unreachable remote stopped the project rather than the call.
+  Every call out now goes through one place with a bound, and a call that could not be made comes
+  back as *could not ask* rather than as an empty result. The same distinction reached the branch
+  listing: an offline run said "pull request 7 is not merged", which offline has no way of knowing,
+  and now says nothing could ask. A test parses this file and fails on any call started without a
+  timeout, because the failure it prevents needs a network that hangs rather than refuses.
+
 ## 2.19.3
 
 - **A declared command was held to being written, not to starting anything.** `commands.test: make

@@ -60,6 +60,10 @@ PR_TABLE_MAX = 15
 # batch record whose branches still exist, since `next` removes the delivered ones. Those are the
 # newest, which is what a page holds. Anything older is asked about one at a time.
 PR_LIST_MAX = 100
+# How long anything this program starts may take. It only ever reads, it runs in front of
+# every command of the kit, and a network call with no bound stops the project rather than
+# the call.
+READ_TIMEOUT = 30
 
 KEY_RE = re.compile(r"^`key:\s*([^`·]+?)\s*`(?:\s*·\s*`state:\s*([^`]+?)\s*`)?", re.M)
 HEADING_RE = re.compile(r"^###\s+(.+)$", re.M)
@@ -115,6 +119,25 @@ STEPS = ("queued", "design", "build", "verify", "deliver", "done", "blocked", "s
 MANIFEST_NAMES = ("composer.json", "package.json", "requirements.txt", "pyproject.toml", "go.mod",
                   "Gemfile", "Cargo.toml", "pom.xml", "build.gradle", "build.gradle.kts",
                   "Package.swift", "mix.exs", "pubspec.yaml")
+
+
+def ran(command: list, cwd: Path, timeout: int = READ_TIMEOUT):
+    """Run something that only reads, and neither hang on it nor die of it.
+
+    Returns the finished process, or `None` when it could not be run at all — no such tool, a
+    timeout, a broken pipe. **`None` is "could not ask", which is not an empty answer**, and the
+    callers here have to tell those apart: this program's silence has to mean *nothing is wrong*
+    and nothing else, and that rule has been broken three times by exactly this confusion.
+
+    Every call out of this program goes through here, for the timeout above all. `check.py` runs in
+    front of every command of the kit, and until 2.19.4 its `git` helper and both of its network
+    calls had no bound at all — one unreachable remote and every command in the project waits for
+    as long as the network takes to give up.
+    """
+    try:
+        return subprocess.run(command, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+    except (OSError, subprocess.SubprocessError):
+        return None
 
 
 def digest(text: str) -> str:
@@ -379,9 +402,8 @@ def check_stack(root: Path, manifest: dict, report: Report) -> None:
 
 
 def tracked_manifests(root: Path) -> list:
-    listed = subprocess.run(["git", "-c", "core.quotePath=false", "ls-files"],
-                            cwd=root, capture_output=True, text=True)
-    if listed.returncode != 0:
+    listed = ran(["git", "-c", "core.quotePath=false", "ls-files"], root)
+    if not listed or listed.returncode != 0:
         return []
     return sorted(p for p in listed.stdout.splitlines() if Path(p).name in MANIFEST_NAMES)
 
@@ -598,10 +620,16 @@ def read_manual(root: Path) -> list:
         if fenced or not item.startswith("- [ ]"):
             continue
         what = item[5:].strip()
-        when = next((s for s in STAGES if f"· {s}" in what or f"·{s}" in what), "")
         proof, last = None, number
         # The proof rides under its action, and so does a wrapped line of the action itself. Read
         # forward to the next box or the end of the block, so a two-line action keeps its proof.
+        #
+        # **And keeps its own words.** `when` used to be read off the first line alone, while both
+        # worked examples in `templates/manual.md` wrap the action and put `· before_release` on the
+        # second — so the form this kit teaches parsed with no `when` at all, and a release action
+        # printed on a project at `development`, which is the one thing the field exists to prevent.
+        # It never showed here because the examples sit inside a fenced block this loop skips: the
+        # spec was checked against nothing, and the test was written from the parser instead.
         for ahead in range(number + 1, len(lines)):
             following = lines[ahead].strip()
             if not following or following.startswith(("- [ ]", "- [x]", "#", "```")):
@@ -611,6 +639,8 @@ def read_manual(root: Path) -> list:
             if found:
                 proof = found.group(1)
                 break
+            what = f"{what} {following}"
+        when = next((s for s in STAGES if f"· {s}" in what or f"·{s}" in what), "")
         out.append({"what": what, "when": when, "proof": proof,
                     "first": number, "last": last, "line": number + 1})
     return out
@@ -669,14 +699,16 @@ def prove_manual(root: Path, timeout: int = 60) -> int:
         if not action["proof"]:
             continue
         try:
-            ran = subprocess.run(action["proof"], shell=True, cwd=root,
-                                 capture_output=True, text=True, timeout=timeout)
+            # Not through `ran` above: this is the one place the program executes something a
+            # run wrote, with a shell and a timeout of its own, and it is asked for by `--manual`.
+            proved = subprocess.run(action["proof"], shell=True, cwd=root,
+                                    capture_output=True, text=True, timeout=timeout)
         except (OSError, subprocess.SubprocessError) as exc:
             broken.append((action, str(exc)))
             continue
-        if ran.returncode == 0:
+        if proved.returncode == 0:
             done.append(action)
-        elif ran.returncode == 127:                # the command does not exist here
+        elif proved.returncode == 127:             # the command does not exist here
             broken.append((action, "no such command on this machine"))
 
     if done:
@@ -705,12 +737,12 @@ def prove_manual(root: Path, timeout: int = 60) -> int:
 
 def grep(root: Path, needle: str) -> list:
     """Every `path, line number, line` where the needle appears, outside `docs/`."""
-    found = subprocess.run(
+    found = ran(
         # core.quotePath=false or a path with a non-ASCII character comes back escaped and unusable
         ["git", "-c", "core.quotePath=false", "grep", "-n", "-I", "--no-color", "-F",
          "-e", needle, "--", ":!docs"],
-        cwd=root, capture_output=True, text=True)
-    if found.returncode in (0, 1):                       # 1 is git grep for "no matches"
+        root)
+    if found and found.returncode in (0, 1):                       # 1 is git grep for "no matches"
         hits = []
         for row in found.stdout.splitlines():
             path, _, rest = row.partition(":")
@@ -809,11 +841,9 @@ def pr_states(root: Path, offline: bool):
         return _LISTED_PRS[key]
     listed = None
     if not offline and shutil.which("gh"):
-        done = subprocess.run(
-            ["gh", "pr", "list", "--state", "all", "--limit", str(PR_LIST_MAX),
-             "--json", "number,state"],
-            cwd=root, capture_output=True, text=True)
-        if done.returncode == 0:
+        done = ran(["gh", "pr", "list", "--state", "all", "--limit", str(PR_LIST_MAX),
+                    "--json", "number,state"], root)
+        if done and done.returncode == 0:
             try:
                 rows = json.loads(done.stdout or "[]")
             except ValueError:
@@ -838,9 +868,8 @@ def pr_state(root: Path, number: int, offline: bool):
         return listed[number]
     if offline or not shutil.which("gh"):
         return None
-    done = subprocess.run(["gh", "pr", "view", str(number), "--json", "state"],
-                          cwd=root, capture_output=True, text=True)
-    if done.returncode != 0:
+    done = ran(["gh", "pr", "view", str(number), "--json", "state"], root)
+    if not done or done.returncode != 0:
         return None
     try:
         return (json.loads(done.stdout or "{}") or {}).get("state") or ""
@@ -1003,8 +1032,8 @@ def record(root: Path, docs: list, manifest_path: Path) -> list:
 
 
 def git(root: Path, *args: str) -> str:
-    done = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)
-    return done.stdout.strip() if done.returncode == 0 else ""
+    done = ran(["git", *args], root)
+    return done.stdout.strip() if done and done.returncode == 0 else ""
 
 
 def default_branch(root: Path) -> str:
@@ -1098,11 +1127,15 @@ def delivered_branches(root: Path, base: str, offline: bool) -> tuple:
             if branch not in parked:
                 owned[branch] = number
     merged = merged_prs(root, set(owned.values()), offline)
+    # Whether anything could be asked at all. Without this the two answers are printed as one:
+    # `merged_prs` returns an empty set both for "none of them merged" and for "nobody here can
+    # ask", and the branch was then reported as *not merged* — a claim an offline run has no way
+    # of making. It is the same confusion the whole program is written against.
+    unasked = offline or not shutil.which("gh")
 
     def inside(name: str) -> bool:
-        return bool(base) and subprocess.run(
-            ["git", "merge-base", "--is-ancestor", name, base],
-            cwd=root, capture_output=True).returncode == 0
+        done = ran(["git", "merge-base", "--is-ancestor", name, base], root) if base else None
+        return bool(done) and done.returncode == 0
 
     delivered, unknown = [], []
     for name in sorted(names):
@@ -1113,7 +1146,8 @@ def delivered_branches(root: Path, base: str, offline: bool) -> tuple:
         elif name in left:
             unknown.append((name, "a batch parked this child — the work on it was never delivered"))
         elif name in owned:
-            unknown.append((name, f"pull request {owned[name]} is not merged"))
+            unknown.append((name, f"nothing here could ask about pull request {owned[name]}"
+                                  if unasked else f"pull request {owned[name]} is not merged"))
         else:
             unknown.append((name, "no run record names it"))
     return delivered, unknown
@@ -1255,10 +1289,20 @@ def check_runs(root: Path, report: Report) -> None:
     records = record_lists(template)
     strays: dict = {}
     prose: dict = {}
+    unreadable = []
     for path in sorted((root / ".agent-kit" / "runs").glob("*/run.json")):
         try:
             run = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
+            # It used to be `continue`, and that made this program's silence mean two things at
+            # once — the failure its own first rule is written against. A run file nothing can
+            # parse passes every rule about run files, and the run whose memory it is has lost it:
+            # the session that resumes reads no tasks, no approach and no handoff. The same case
+            # was already answered honestly three hundred lines below, for batch records.
+            unreadable.append(path.parent.name)
+            continue
+        if not isinstance(run, dict):
+            unreadable.append(path.parent.name)
             continue
         for field in stringly(run, records):
             prose.setdefault(field, 0)
@@ -1271,6 +1315,14 @@ def check_runs(root: Path, report: Report) -> None:
             if key not in known and not key.startswith("_"):
                 strays.setdefault(key, 0)
                 strays[key] += 1
+    if unreadable:
+        # A finding, unlike the drift below it: the others are about files that read fine and say
+        # something odd, and this is about a run whose memory nothing can open. Whoever resumes it
+        # gets no tasks, no approach and no handoff, and the driver watching for a terminal step
+        # waits for a step it will never read.
+        report.add("Runs", f"run file(s) nothing can parse ({len(unreadable)}): "
+                           f"{', '.join(unreadable[:3])} — the run they belong to has lost its "
+                           f"memory, and a session resuming one reads nothing")
     if strays:
         # Not a finding: a finished run's file is history, and nobody is going to edit it. It is
         # said so that the drift is visible while it is still happening, and so that a field the
@@ -1843,12 +1895,12 @@ def run_defects(state: dict, root: Path | None = None) -> list:
             # about what is being handed over: a suite run on a branch that was then abandoned, or
             # before a rebase, passes the test above and says nothing. Asked only where the branch
             # itself can be resolved, because a run whose branch is gone is a different report.
-            elif branch and git(root, "rev-parse", "--verify", "--quiet", branch) and \
-                    subprocess.run(["git", "merge-base", "--is-ancestor", at, branch],
-                                   cwd=root, capture_output=True, timeout=5).returncode != 0:
-                out.append(f"`proved_at` names {at[:12]}, which is not in {branch} — the suite ran "
-                           f"on a tree this branch does not contain, so nothing it returned is "
-                           f"about what is being delivered")
+            elif branch and git(root, "rev-parse", "--verify", "--quiet", branch):
+                inside = ran(["git", "merge-base", "--is-ancestor", at, branch], root)
+                if inside and inside.returncode != 0:
+                    out.append(f"`proved_at` names {at[:12]}, which is not in {branch} — the suite "
+                               f"ran on a tree this branch does not contain, so nothing it returned "
+                               f"is about what is being delivered")
 
     # The one piece of evidence in the kit that a test can fail, asked for only where the project
     # has declared a way to produce it. Judged on the field being answered, never on the numbers:
@@ -1914,7 +1966,7 @@ def open_runs(root: Path) -> list:
             run = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        if run.get("step") in ("done", "blocked", "skipped"):
+        if not isinstance(run, dict) or run.get("step") in TERMINAL:
             continue
         out.append({"slug": run.get("slug") or path.parent.name,
                     "command": run.get("command", "?"), "step": run.get("step", "?"),
@@ -1963,11 +2015,9 @@ def audit_lenses(root: Path) -> list:
 def pull_requests(root: Path, offline: bool) -> list:
     if offline or not shutil.which("gh"):
         return []
-    done = subprocess.run(
-        ["gh", "pr", "list", "--state", "open", "--json",
-         "number,title,headRefName,isDraft,mergeable,statusCheckRollup,updatedAt"],
-        cwd=root, capture_output=True, text=True)
-    if done.returncode != 0:
+    done = ran(["gh", "pr", "list", "--state", "open", "--json",
+                "number,title,headRefName,isDraft,mergeable,statusCheckRollup,updatedAt"], root)
+    if not done or done.returncode != 0:
         return []
     try:
         rows = json.loads(done.stdout or "[]")

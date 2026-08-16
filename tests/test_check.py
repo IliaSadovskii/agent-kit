@@ -11,6 +11,7 @@ import importlib.util
 import json
 import io
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -1729,6 +1730,76 @@ class RunBranchCase(unittest.TestCase):
             shutil.rmtree(outside, ignore_errors=True)
 
 
+class OutsideCase(unittest.TestCase):
+    """Everything this program starts, and the two rules that hold for all of it.
+
+    It runs in front of every command of the kit, so a call with no bound stops the project rather
+    than the call — one unreachable remote used to be enough. And a call that could not be made is
+    not an empty answer: that confusion is the one this whole program is written against, and it
+    has been paid for three times.
+    """
+
+    SOURCE = (ROOT / "plugins" / "agent-kit" / "scripts" / "check.py").read_text(encoding="utf-8")
+
+    def test_nothing_is_started_without_a_timeout(self):
+        """A static rule, because the failure it prevents cannot be provoked in a test: it needs a
+        network that hangs rather than refuses."""
+        import ast
+        tree = ast.parse(self.SOURCE)
+        untimed = [node.lineno for node in ast.walk(tree)
+                   if isinstance(node, ast.Call)
+                   and isinstance(node.func, ast.Attribute) and node.func.attr == "run"
+                   and isinstance(node.func.value, ast.Name) and node.func.value.id == "subprocess"
+                   and not any(kw.arg == "timeout" for kw in node.keywords)]
+        self.assertEqual(untimed, [], f"subprocess.run with no timeout at line(s) {untimed}")
+
+    def test_a_command_that_cannot_be_run_is_not_an_empty_answer(self):
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            self.assertIsNone(check.ran(["definitely-not-a-tool-here"], tmp))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_a_command_that_runs_comes_back_whole(self):
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            done = check.ran(["printf", "hello"], tmp)
+            self.assertEqual((done.returncode, done.stdout), (0, "hello"))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_offline_never_says_a_pull_request_is_not_merged(self):
+        """It cannot know. `merged_prs` answers with an empty set both for *none of them merged*
+        and for *nobody here can ask*, and the second was printed as the first."""
+        tmp = Path(tempfile.mkdtemp())
+        root = tmp / "proj"
+        (root / "docs" / "runs").mkdir(parents=True)
+        try:
+            for args in (("init", "-q", "-b", "main"), ("config", "user.email", "t@t"),
+                         ("config", "user.name", "t")):
+                subprocess.run(["git", *args], cwd=root, capture_output=True, check=False)
+            (root / "a.txt").write_text("one\n", encoding="utf-8")
+            subprocess.run(["git", "add", "-A"], cwd=root, capture_output=True, check=False)
+            subprocess.run(["git", "commit", "-qm", "first"], cwd=root, capture_output=True,
+                           check=False)
+            subprocess.run(["git", "checkout", "-q", "-b", "claude/one"], cwd=root,
+                           capture_output=True, check=False)
+            (root / "a.txt").write_text("two\n", encoding="utf-8")
+            subprocess.run(["git", "commit", "-qam", "work"], cwd=root, capture_output=True,
+                           check=False)
+            subprocess.run(["git", "checkout", "-q", "main"], cwd=root, capture_output=True,
+                           check=False)
+            (root / "docs" / "runs" / "batch.json").write_text(
+                json.dumps({"slug": "batch", "pr": 7, "branches": ["claude/one"]}),
+                encoding="utf-8")
+            _delivered, unknown = check.delivered_branches(root, "main", offline=True)
+            self.assertEqual([name for name, _why in unknown], ["claude/one"])
+            self.assertIn("could ask", unknown[0][1])
+            self.assertNotIn("is not merged", unknown[0][1])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
 class CommandsCase(unittest.TestCase):
     """A declared command that starts nothing.
 
@@ -1807,6 +1878,41 @@ class ManualCase(unittest.TestCase):
         (self.root / "docs" / "manual.md").write_text(text, encoding="utf-8")
         (self.root / ".agent-kit" / "project.yml").write_text(
             f"stage: {stage}\ncommands:\n  test: make test\n", encoding="utf-8")
+
+    def worked_examples(self):
+        """The actions `templates/manual.md` teaches by example, lifted out of their fences.
+
+        The template is the specification and a project copies its form out of it, so these are the
+        only inputs whose parsing is a promise to somebody. Nothing ran them through the parser
+        until 2.19.4, and they did not parse: both wrap the action onto a second line and put
+        `· before_release` there, while `when` was read off the first line alone. Inside the
+        template the loop skips them, because a fenced block is not an action — so the check was
+        silent on exactly the input it publishes, and the test that existed had been written from
+        the parser rather than from the file.
+        """
+        spec = (ROOT / "plugins" / "agent-kit" / "templates" / "manual.md").read_text(
+            encoding="utf-8")
+        blocks = [b for b in re.findall(r"```markdown\n(.*?)```", spec, re.S)
+                  if "- [ ]" in b and "<what to do>" not in b]
+        self.assertTrue(blocks, "the template stopped carrying a worked example")
+        return "# Manual actions\n\n" + "\n".join(blocks)
+
+    def test_every_form_the_template_teaches_is_read_the_way_it_is_written(self):
+        self.manual(self.worked_examples())
+        actions = check.read_manual(self.root)
+        self.assertEqual(len(actions), 2, actions)
+        for action in actions:
+            self.assertIn(action["when"], check.STAGES, action)
+            self.assertTrue(action["proof"], action)
+
+    def test_a_release_action_written_the_way_the_template_writes_it_waits(self):
+        """The whole point of `when`: on a project with no release, those lines are kept and not
+        shown. Unreadable, they were shown — which is the failure this mechanism exists against."""
+        self.manual(self.worked_examples())
+        report = check.Report()
+        check.collect_manual(self.root, {"stage": "development"}, report)
+        self.assertTrue(any("wait for a release" in line for line in report.manual), report.manual)
+        self.assertFalse([line for line in report.manual if "Stripe" in line], report.manual)
 
     def prove(self):
         out = io.StringIO()
