@@ -95,34 +95,56 @@ the field today).
 ## 3. A journal of questions and answers, with Telegram as its transport
 
 **The problem.** An answer from the owner lives in the context of the session that asked. The
-session dies, the answer is gone. `answers` in the run file dies with the machine. Five children of
-one batch can ask the same question in turn, and each gets it answered separately or not at all.
-And the existing channel — the driver typing into the owner's tmux window, which the app turns into
-a notification — is drowned by its own volume: a push fires for every session that starts, so the
-one push that carries a question is lost among them.
+session dies, the answer is gone. `answers` in the run file reaches nobody outside that run. Five
+children of one batch can ask the same question in turn, and each gets it answered separately or not
+at all. And the existing channel — the driver typing into the owner's tmux window, which the app
+turns into a notification — is drowned by its own volume: a push fires for every session that
+starts, so the one push that carries a question is lost among them.
 
-**What to build.**
+**What to build.** Settled with the owner on 16 August 2026, on one principle: a run neither waits
+nor replays.
 
 - **A directory, not a file**: `.agent-kit/asks/<id>.json`, one file per question. A single shared
-  file means two sessions and a bot writing at once; one file per question is append-only and needs
-  no locking. The "journal" is a view over that directory.
+  file means two sessions and a bot writing at once; one file per question needs no locking. It
+  lives on the machine, beside the run files: what has to survive here is **the death of a session**
+  — which is what makes an answer given at three in the morning worth anything — and not the loss of
+  the machine, which is a different problem with a different home. The "journal" is a view over that
+  directory.
 - Each question carries: which run asked it, when, what it is about (**the entry keys and the files
   it touches** — not a "share with siblings" flag, which would ask the writer to predict who needs
-  the answer), what the run will do if nobody answers, and the answer when it lands.
-- **The bot never writes into a run file.** It writes the answer into that question's own file, and
-  — where the asking session is still alive and waiting — types it into that session exactly as the
-  driver already types `continue`. The rule that only a run writes its own run file stays intact.
-- **The reader is the preflight.** `check.py` already prints the debt and the open blocks before
-  every command; open questions and fresh answers go in the same output. Nothing new to remember.
-- **Closing.** An answer applied closes its question. A question still unanswered when the run ends
-  becomes an `[assumed …]` block under the entry — it flows into a mechanism that already works
-  rather than accumulating in a directory nobody prunes.
+  the answer), **the default this run took**, and the answer when it lands.
+- **The run takes its default and carries on.** A session that is genuinely waiting (`gate: owner`)
+  is typed into by the bot exactly as the driver already types `continue` — that case is unchanged
+  and is pure gain. A session that has already gone past the fork **is not told the answer**: it
+  cannot act on it without redoing decided work, and a night run that starts redoing its own
+  finished tasks is the failure that got `wait <hours>` removed in 2.5.0.
+- **The reader of the answer is `blueprint`**, and that is not a new mechanism. Closing a block with
+  the owner and writing their answer into the knowledge is what `blueprint` already does. So the run,
+  as it closes, leaves the record that points back at the question — `[assumed 2026-08-16 ·
+  ask:<id>]` — and the answer meets the owner there. An answer that agrees with the default closes
+  the block and touches no code. One that disagrees rewrites the entry, and where the build was
+  wrong the entry goes back to `planned`, which `next` picks up: the disagreement becomes work
+  instead of a patch behind a merged commit.
+- **Where that record hangs follows the question, not the mechanism.** About the product — a block
+  under the entry. About the stack — a block under `stack.md`. Something only the owner's hands can
+  do, a domain to buy or a plan to pick — a line in `docs/manual.md` with its proof. All three exist
+  already; the question file only records which one was used.
+- **The reader of the open ones is the preflight.** `check.py` already prints the debt and the open
+  blocks before every command; questions still open, and answers that have landed and not yet been
+  settled, go in the same output. Nothing new to remember.
+- **Closed by the program, on a fact it can check.** `check.py` deletes a question file once its run
+  has reached a terminal step and nothing in the project references its `ask:<id>` any more — the
+  block gone means `blueprint` settled it, the line gone from `docs/manual.md` means the proof
+  passed. Both are facts, not promises, which is the whole reason this closes at all: a record whose
+  removal waits on somebody remembering has cost this kit a release before.
 
-**Two cases, and they are different.** Where the session is genuinely waiting (`gate: owner`), this
-is pure gain and no new semantics: the session stands as it stood, the question just reaches the
-owner faster. Where nobody is waiting (`gate: none`, a night run), the channel only announces — the
-run has already taken its default and built on it, so there is no answer to apply. See the refusal
-of *an asynchronous channel with a deadline* below; this is the half of it that survived.
+**Open, and deliberately not decided yet**: whether the bot is one process on the server for every
+project or a script inside the plugin, one per project. The files and their reader come first — the
+transport bolts onto them either way.
+
+See the refusal of *an asynchronous channel with a deadline* below. This is the half that survived,
+and the half that did not is the one where an answer is *applied* to a run already built on its
+default.
 
 ## 4. A merge policy — a program, not a decision · **deferred**
 
