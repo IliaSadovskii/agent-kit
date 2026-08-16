@@ -16,7 +16,11 @@ answering the reason is the same proposal.
    it first, because a policy reads an exit code. The fourth rides with the third because both move
    the same code — what a finding is and when it is asked — and apart they rewrite one file twice.
 
-Done since this page was written: one `gh` call instead of N in 2.19.2, and the three gaps in coverage in 2.19.3.
+Done since this page was written: one `gh` call instead of N (2.19.2), the three gaps in coverage
+(2.19.3), and the structural work of 17 August — three silences, the run-file module and its `kind`,
+the format registry, the gateway to the outside world, the lens and driver-flag checks, the doctrine
+itself (2.19.4 through 2.20.4). The argument for all of it is in
+[docs/design/2026-08-17-what-the-structure-review-changed.md](design/2026-08-17-what-the-structure-review-changed.md).
 
 Deferred by the owner, with the reason: the bench (item 1), the merge policy (item 4), parallel
 building, the backlog command, the schedule, the continuous mode (item 7), and **the transcript
@@ -341,6 +345,39 @@ Surveyed August 2026, against the question *what would the kit stop having to bu
   `blueprint` is the intake, and what was missing was a trigger and a view. See item 7.
 - **Anything for Telegram.** Thirty lines around one HTTP call. A framework here would be the whole
   cost of the feature.
+
+## 9. Small, and each one left open by the review of 17 August
+
+Five things that review found and this page would otherwise be the only record of. None is urgent;
+each is the same class as something already fixed, which is why they are written down rather than
+carried in somebody's head.
+
+- **`resolves()` and `tracked_manifests` turn "could not ask" back into an answer.** Both call
+  helpers that answer `""` or `None` on failure and read that as *no such branch* / *no manifests*.
+  The whole day was spent removing exactly this, and these two are inside the functions that
+  removed it.
+- **`open_runs` still skips an unreadable run file in silence**, so `--state` will not list a run
+  that is in flight. `check_runs` names it, so the fact reaches a reader — by another road, which
+  is how two readers of one fact come to disagree.
+- **Three soft spots in the new build checks.** The format registry sees only module-level patterns,
+  so one built inline is invisible to it, and it counts a name as covered from any quoted mention,
+  including inside `NOT_A_FORMAT`. The driver-flag check is one-way: a flag deleted while the prose
+  still describes it passes. The bare-path check greps `__pycache__` and could fail on a byte
+  sequence in compiled output.
+- **The timeout rule covers `check.py` alone**, and only calls written as `subprocess.run`. The
+  driver and the hooks make their own calls and are held to nothing.
+- **`kind` has no third answer.** Who writes it and who reads it are settled; who may remove the
+  field, and where, is not — which is what `CLAUDE.md` asks of every mechanism, including this one.
+
+## 10. Executing a proof from `docs/manual.md` · **accepted, deliberately**
+
+`check.py --manual` runs each action's `proof` with a shell, and those lines are written by runs and
+committed into the project. What stands between that and a line doing something other than checking
+is one sentence in `templates/manual.md` saying a proof only reads. The owner was asked on
+17 August and decided to leave it: the projects are theirs and so are the runs. Written down because
+an accepted risk that nobody wrote down is indistinguishable from one nobody noticed. The cheap half,
+if it is ever wanted, is two steps — print each proof before running it, and refuse to run one that
+is not in `git show HEAD:docs/manual.md`, which removes *a run wrote a proof and then ran it*.
 
 ## 8. The transcript, and what would actually guard it · **deferred**
 
