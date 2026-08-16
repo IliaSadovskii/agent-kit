@@ -8,7 +8,21 @@ nothing said which ideas had already been examined and rejected. This is that pa
 against the payload, and refused for a reason that is still true. A proposal that reappears without
 answering the reason is the same proposal.
 
-Order below is the order to do the work in, not the order of importance.
+## Next, in order
+
+1. **One `gh` call instead of N** — item 6, first bullet. Half an hour, and every command in every
+   run gets faster.
+2. **The three gaps in coverage** — item 6, second bullet. Small, independent, one commit each.
+3. **The journal of questions** — item 3.
+4. **Codes and levels on findings** — item 6, third bullet. A day, and it rewrites the check's
+   output; do it before the merge policy, which needs something a program can read.
+5. **The merge policy** — item 4, and start it in a mode that only says what *would* merge.
+
+Deferred by the owner, with the reason: the bench (item 1), parallel building, the backlog command,
+the schedule, the continuous mode (item 7). Until the bench exists, changes to the kit are checked
+by real runs.
+
+Everything below is the reasoning, and the second half is what was refused.
 
 ---
 
@@ -150,7 +164,57 @@ bottleneck rather than production speed.
   beside `branches` in the batch record, held out of retirement, with the mismatch between the two
   named by the check. This was what blocked retiring branches by program rather than by hand.
 
-## 6. Later, and deliberately not now
+## 6. The check system, looked at as one thing
+
+Surveyed August 2026, by inventorying every check the kit runs. There are five layers and they do
+not overlap by audience: `validate.sh` (about the kit itself), `check.py` before every command,
+`check.py --run` about one run, the two hooks (outside the model, while work is happening), and the
+passes over a result — the reviewer, `/security-review`, the six lenses, the project's CI.
+
+**What is right and is not to be traded away:** looking is free and writing is asked for (`--sync`);
+a check that cannot read its input says so rather than guessing; and there is no verifying pass over
+a verifying pass.
+
+Four findings, cheapest first.
+
+- **`gh` is called once per entry, on every preflight.** `sync_states` loops over entries at
+  `state: building (pr: N)` and runs `gh pr view N` for each, with no cache; `--state` adds more.
+  On a project with 21 entries mid-flight — a real number from one run — that is 21 network calls
+  before *every* command, times eighty sessions in a night. One `gh pr list --json number,state`
+  replaces all of them. This is the cheapest thing on this whole page and the most visible.
+
+- **Three gaps in what is checked**, all small:
+  - **a declared command is never checked for existing.** `test: make test` with no Makefile is
+    found out mid-run; only the string's emptiness is judged today. It matters most for the new
+    `commands.e2e` and for `mutate`.
+  - **a run file's `entries` are not matched against the knowledge.** `--entries` names a key that
+    matches no entry; a run file carrying the same key passes in silence, and the child meets it at
+    three in the morning.
+  - **`base` and `branch` in a run file are not checked for existing.** The driver catches part of
+    this; the check does not.
+
+- **A finding has neither a code nor a level, and that is the root of the rest.** The difference
+  between *stop* and *note this* is carried by the prose alone: nine groups reach the exit code,
+  twenty-seven other places print beside them and do not. `rules/preflight.md` exists to translate
+  between the output and the reaction, and its rows do not map one-to-one onto the groups.
+  Consequences: the exit code means three different things across `main`, `--run` and `--epic`, so
+  **nothing can be automated on it** — which the merge policy will need; findings cannot be counted
+  or compared between runs; and a rule that fires and is ignored looks exactly like one that did not
+  fire. Give each finding a code (`KNOW-FIELDS`, `RUN-PROOF`, `BATCH-SPENT`) and a level
+  (`stop` / `statement`), and `preflight.md` shrinks to two sentences.
+
+- **Almost everything about a run is judged at `step: done`**, which is the moment nothing can be
+  fixed — the session is closing and the finding becomes a line in a report nobody can act on at 3am.
+  The shape rules, `prompt`, `handoff` and now `tasks[].commit` were moved early, and that is the
+  direction to keep going: `proved_at` and `mutation` can be asked on entering Deliver rather than
+  at the end of it.
+
+One thing deliberately not changed: the check recomputes everything on every run and remembers
+nothing, so the same finding prints thirty times a night. That is the price of silence meaning *all
+clear*, and it is the right trade. With codes it becomes cheap to print what is new in full and what
+was already standing in one line.
+
+## 7. Later, and deliberately not now
 
 - **A backlog command** — `next` widened from one recommendation to a ranked list, so the owner can
   see the whole queue without reading files. All the data is already read by `check.py`.
