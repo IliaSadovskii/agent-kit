@@ -113,11 +113,30 @@ nor replays.
 - Each question carries: which run asked it, when, what it is about (**the entry keys and the files
   it touches** — not a "share with siblings" flag, which would ask the writer to predict who needs
   the answer), **the default this run took**, and the answer when it lands.
-- **The run takes its default and carries on.** A session that is genuinely waiting (`gate: owner`)
-  is typed into by the bot exactly as the driver already types `continue` — that case is unchanged
-  and is pure gain. A session that has already gone past the fork **is not told the answer**: it
-  cannot act on it without redoing decided work, and a night run that starts redoing its own
-  finished tasks is the failure that got `wait <hours>` removed in 2.5.0.
+- **A window, and then the default.** `asks.wait_minutes` in `project.yml`, twenty by default: a
+  question stops the run for that long and no longer. Answered inside it, the run goes on the
+  answer — no assumption, no block, nothing to settle later, which is the whole reason to wait at
+  all. Unanswered, the run takes its default and carries on.
+- **An unanswered window closes the next ones for three hours.** An owner who did not answer at
+  02:10 is asleep, and the second question of that night must not spend another twenty minutes
+  finding that out again. Three hours on, the next question opens a window as normal. It needs no
+  new state: the newest question that expired unanswered is in the directory, so every child of a
+  batch reads the same fact without being told. This is the whole answer to what killed
+  `wait <hours>` — that wait had no ceiling and no cooldown, so a night paid for its hours over and
+  over.
+- **The window must stay under the driver's hang timer** — `--hang`, thirty minutes of transcript
+  silence, after which the driver types into the session and eventually rebuilds it from nothing.
+  Twenty against thirty is where the default comes from, and the check can hold the two to each
+  other: it reads `project.yml`, and the flag has a default it can name.
+- **A window at `gate: none` too.** With a push that reaches a phone, *nobody is present* stops
+  being a property of the run and becomes a property of the moment — the owner may be awake at
+  02:10, and if they are, the run gets a real answer instead of an assumption for twenty minutes of
+  patience. `rules/asking.md` says today that a `gate: none` run does not ask and does not wait; that
+  section is rewritten when this is built, and what it keeps is the part that is still true — the
+  run never *stops* on an unanswered question.
+- **A session that has already gone past the fork is not told the answer.** It cannot act on it
+  without redoing decided work, and a night run that starts redoing its own finished tasks is the
+  other half of what got `wait <hours>` removed in 2.5.0.
 - **The reader of the answer is `blueprint`**, and that is not a new mechanism. Closing a block with
   the owner and writing their answer into the knowledge is what `blueprint` already does. So the run,
   as it closes, leaves the record that points back at the question — `[assumed 2026-08-16 ·
@@ -142,9 +161,12 @@ nor replays.
 project or a script inside the plugin, one per project. The files and their reader come first — the
 transport bolts onto them either way.
 
-See the refusal of *an asynchronous channel with a deadline* below. This is the half that survived,
-and the half that did not is the one where an answer is *applied* to a run already built on its
-default.
+See the refusal of *an asynchronous channel with a deadline* below, which this partly reverses and
+partly keeps. Reversed: a run may stop and wait, because twenty minutes with a push on a phone is
+not the same instrument as `wait <hours>` in front of a tmux window nobody was looking at, and
+because an unanswered window now shuts the rest for three hours instead of charging the night for
+each one. Kept, and it is the part that mattered: **an answer that arrives after the window is never
+applied**. It goes to `blueprint`, and a disagreement becomes work.
 
 ## 4. A merge policy — a program, not a decision · **deferred**
 
@@ -304,7 +326,7 @@ Nothing here is an open question. Each was proposed, checked against the payload
 | **Named views over `run.json`** so readers fetch a subset | Measured on 113 real run files: the whole traffic is 3.9% of a run and views would save 0.5–0.9%. The premise that the file is mostly the template's inline documentation is false — no real run file carries a single `_` key. |
 | **A ceiling on the run file's prose fields** (`review`, `notes`, `task` are 51% of its bytes) | The saving is real and small; the cost is losing context that exists nowhere else. Not worth it. |
 | **A task carries a free-text "how this is proved"** | Answered with "covered by unit tests" for free, and judged at a moment no command reaches. Replaced by `tasks[].commit`: a SHA either resolves in this repository or it does not. |
-| **An asynchronous question channel with a deadline** — the child asks, takes its default, continues, and an answer landing within N minutes is applied | Tried and cut: `wait <hours>` shipped in 1.4.0 with this exact argument and was removed in 2.5.0 because every wait spent its hours and arrived where the run would have arrived anyway. "Applied" has no coherent meaning: an expensive fork is one whose cost *is* the cost of reversing it, and the answer arrives after the commits built on the default. The surviving half is item 3. |
+| **An asynchronous question channel with a deadline** — the child asks, takes its default, continues, and an answer landing within N minutes is applied | Tried and cut: `wait <hours>` shipped in 1.4.0 with this exact argument and was removed in 2.5.0 because every wait spent its hours and arrived where the run would have arrived anyway. "Applied" has no coherent meaning: an expensive fork is one whose cost *is* the cost of reversing it, and the answer arrives after the commits built on the default. **Half of this was reinstated on 16 August 2026** and now lives in item 3: a run may wait, but for twenty minutes against a push on a phone rather than hours against a window nobody watched, and an unanswered window shuts the rest for three hours so a sleeping owner is paid for once a night. What stays refused is the sentence above — an answer that lands after the window is never applied to work already built. |
 | **Splitting `ship`'s Verify into a subagent** | Priced both ways and it is a wash: the tokens saved by keeping tool output out of the builder's context roughly equal what a subagent's own context floor costs. The remaining argument — a cleaner context — cannot be settled without a measurement nobody has. |
 | **The kit learning from its own outcomes** — recording whether a merged feature later needed fixes | Not refused on merit; the owner set it aside as too large and too early. |
 | **Rewriting the driver onto the Agent SDK**, so liveness, cost and limits come from the API instead of from parsing transcripts | The three most expensive driver defects all came from that parsing, and the SDK removes the whole class. Refused because it costs the visible tmux session per feature, which is what makes a stalled child rescuable by hand and a limit recoverable by typing one line. The owner values that more. |
