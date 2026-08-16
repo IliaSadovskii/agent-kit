@@ -97,9 +97,9 @@ what this reading prints. It writes only to `docs/manual.md`, and only lines who
 the work is done — so on a tree that is not clean, keep the change and say you did rather than
 leaving a list you have already proved wrong.
 
-**And never `--offline`.** It would cut you off from GitHub altogether, and rungs 3, 4 and 5 are
-entirely about open pull requests and their CI — a run that cannot see them walks straight past the
-most urgent thing on the list.
+**And never `--offline`** — rungs 3, 4 and 5 are entirely about open pull requests and their CI,
+and a run that cannot see them walks past the most urgent thing on the list. It is a test seam, not
+a setting, and no longer appears in `--help`.
 
 That is the whole mechanical half: the knowledge findings, what is `planned`, the debt, unkept
 promises, open notes — and then branches with their drift, pull requests with their CI, runs left

@@ -1975,7 +1975,7 @@ class OutsideCase(unittest.TestCase):
             (root / "docs" / "runs" / "batch.json").write_text(
                 json.dumps({"slug": "batch", "pr": 7, "branches": ["claude/one"]}),
                 encoding="utf-8")
-            _delivered, unknown = check.delivered_branches(root, "main", offline=True)
+            _delivered, unknown = check.delivered_branches(root, "main", check.Offline(root))
             self.assertEqual([name for name, _why in unknown], ["claude/one"])
             self.assertIn("could ask", unknown[0][1])
             self.assertNotIn("is not merged", unknown[0][1])
@@ -2199,29 +2199,30 @@ class MergedPrsCase(unittest.TestCase):
         gh.chmod(0o755)
         self.was = os.environ["PATH"]
         os.environ["PATH"] = f"{self.root / 'bin'}:{self.was}"
-        check._LISTED_PRS.clear()
 
     def tearDown(self):
         os.environ["PATH"] = self.was
-        check._LISTED_PRS.clear()
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def asked_lines(self):
         return self.asked.read_text(encoding="utf-8").splitlines() if self.asked.exists() else []
 
     def test_the_numbers_a_record_names_are_answered_from_one_listing(self):
-        self.assertEqual(check.merged_prs(self.root, {7, 8}, offline=False), {7})
+        self.assertEqual(check.Github(self.root).merged({7, 8}), {7})
         self.assertEqual(len(self.asked_lines()), 1, self.asked_lines())
 
     def test_a_number_the_listing_does_not_carry_is_asked_about_directly(self):
         """An old batch record whose branches are still around names a pull request older than one
         page of the listing. Unasked, its branches read as undelivered for ever."""
-        self.assertEqual(check.merged_prs(self.root, {9}, offline=False), {9})
+        self.assertEqual(check.Github(self.root).merged({9}), {9})
         self.assertEqual([line.split(" --json")[0] for line in self.asked_lines()],
                          ["pr list --state all --limit 100", "pr view 9"])
 
     def test_offline_asks_nothing(self):
-        self.assertEqual(check.merged_prs(self.root, {7}, offline=True), set())
+        """The offline object is the same object with the answers removed — never an empty result
+        standing in for one nobody asked for."""
+        self.assertEqual(check.Offline(self.root).merged({7}), set())
+        self.assertEqual(check.Offline(self.root).states(), None)
         self.assertEqual(self.asked_lines(), [])
 
 
@@ -2237,7 +2238,6 @@ class BranchesCase(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.root = self.tmp / "proj"
-        self._real = check.merged_prs
         (self.root / "docs" / "runs").mkdir(parents=True)
         self.git("init", "-q", "-b", "main")
         self.git("config", "user.email", "t@t")
@@ -2247,7 +2247,6 @@ class BranchesCase(unittest.TestCase):
         self.git("commit", "-qm", "first")
 
     def tearDown(self):
-        check.merged_prs = self._real
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def git(self, *args):
@@ -2264,9 +2263,22 @@ class BranchesCase(unittest.TestCase):
             json.dumps({"slug": name, "pr": number, "branches": branches,
                         "parked": list(parked)}), encoding="utf-8")
 
+    class Answers(check.Github):
+        """A GitHub that says exactly what the test says, and is asked the same way the real one is."""
+
+        def __init__(self, root, merged):
+            super().__init__(root)
+            self._merged = {int(n) for n in merged}
+
+        @property
+        def available(self):
+            return True
+
+        def merged(self, numbers):
+            return {int(n) for n in numbers if int(n) in self._merged}
+
     def judge(self, merged=()):
-        check.merged_prs = lambda root, numbers, offline: set(merged)
-        return check.delivered_branches(self.root, "main", offline=False)
+        return check.delivered_branches(self.root, "main", self.Answers(self.root, merged))
 
     def test_a_record_that_is_json_but_not_a_record_does_not_take_the_reading_down(self):
         """It parses, so the guard against unreadable files does not catch it, and every command

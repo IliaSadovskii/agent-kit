@@ -3,6 +3,22 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.20.2
+
+- **Everything this program asks the outside world now goes through one object.** Whether it may
+  ask was a flag threaded through seven signatures, and each caller separately remembered what to do
+  when the answer could not be had. They remembered differently: one returned *could not ask*, the
+  next returned an empty result — which reads as *nothing merged* — and a branch was then reported
+  as belonging to a pull request that "is not merged", a claim an offline run has no way of making.
+  One object, one rule, and the offline case is that same object with the answers removed rather
+  than a flag every function has to carry.
+
+- **`--offline` is out of `--help`, because it was never a setting.** Nothing in the payload passes
+  it, the one command that mentions it says never to use it, and every real caller is a test holding
+  this program away from the network. Advertised as an option it invited exactly one thing: a run
+  switching it on and going blind to every pull request without saying so. It still works when
+  typed, and `next` still warns against it, in one line instead of three.
+
 ## 2.20.1
 
 - **Every format this kit reads out of a document now has an example that is checked against its

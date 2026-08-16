@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Audit a project's knowledge documents, mechanically.
 
-    check.py [project root] [--status] [--state] [--sync] [--offline]
+    check.py [project root] [--status] [--state] [--sync]
     check.py . --run .agent-kit/runs/<slug>      what a run at step done may not leave behind
 
 This is what `/agent-kit:blueprint --check` runs, and what every other command runs before it
@@ -897,66 +897,116 @@ def quoted_block(text: str, start: int) -> str:
     return "\n".join(kept).strip()
 
 
-# Every pull request this repository has, asked once and answered from memory after that. The two
-# readers below — an entry's state line, and the number a batch record carries — asked `gh pr view`
-# per number, so a project with 21 entries in flight made 21 network calls before *every* command,
-# and a night of eighty sessions paid for all of them. One `gh pr list` carries the same answer.
-#
-# Cleared when `main` starts, because a process that reads two projects — the tests do — must not
-# answer for one out of the other's listing.
-_LISTED_PRS: dict = {}
+class Github:
+    """Everything this program asks GitHub, in one object made once in `main`.
 
+    **A question that could not be asked is not an empty answer**, and that rule used to live in
+    seven places that each remembered it separately. They remembered it differently: one returned
+    `None` for *nobody here can ask*, the next returned an empty set — which reads as *none of them
+    merged* — and a branch was then reported as belonging to a pull request that *is not merged*, a
+    claim an offline run has no way of making. One object, one rule.
 
-def pr_states(root: Path, offline: bool):
-    """Number → state for this repository's pull requests, or `None` when the listing cannot be read.
-
-    `None` is not "there are none": a repository with no pull requests answers with an empty map.
-    The difference matters to the callers, which fall back to asking about a single number the way
-    they asked about every number before — so an unreadable listing costs what it used to cost and
-    says what it used to say.
+    `Offline` below is the same object with the answers removed. It exists because a caller that has
+    to remember a flag is a caller that will forget it, and because `--offline` was never a setting
+    anybody used: nothing in the payload passes it, the one command that mentions it says never to,
+    and every real caller is a test. A seam, not a feature.
     """
-    key = str(root)
-    if key in _LISTED_PRS:
-        return _LISTED_PRS[key]
-    listed = None
-    if not offline and shutil.which("gh"):
-        done = ran(["gh", "pr", "list", "--state", "all", "--limit", str(PR_LIST_MAX),
-                    "--json", "number,state"], root)
-        if done and done.returncode == 0:
-            try:
-                rows = json.loads(done.stdout or "[]")
-            except ValueError:
-                rows = None
-            if isinstance(rows, list):
-                listed = {row["number"]: row.get("state") or "" for row in rows
-                          if isinstance(row, dict) and isinstance(row.get("number"), int)}
-    _LISTED_PRS[key] = listed
-    return listed
+
+    def __init__(self, root: Path):
+        self.root = root
+        self._listed = None                       # the listing, asked at most once per run
+        self._asked = False
+
+    @property
+    def available(self) -> bool:
+        return bool(shutil.which("gh"))
+
+    def states(self):
+        """Number → state for every pull request here, or `None` when the listing cannot be read.
+
+        `None` is not "there are none": a repository with no pull requests answers with an empty
+        map. The callers tell those apart, which is the whole point of this object.
+        """
+        if self._asked:
+            return self._listed
+        self._asked = True
+        if self.available:
+            done = ran(["gh", "pr", "list", "--state", "all", "--limit", str(PR_LIST_MAX),
+                        "--json", "number,state"], self.root)
+            if done and done.returncode == 0:
+                try:
+                    rows = json.loads(done.stdout or "[]")
+                except ValueError:
+                    rows = None
+                if isinstance(rows, list):
+                    self._listed = {row["number"]: row.get("state") or "" for row in rows
+                                    if isinstance(row, dict) and isinstance(row.get("number"), int)}
+        return self._listed
+
+    def state(self, number: int):
+        """One pull request's state, or `None` when nothing here can say.
+
+        From the listing where the number is in it. It is not in it when the listing could not be
+        read at all, and it is not in it when this repository has more pull requests than one page
+        and this one is older than that — so the number is asked about directly rather than assumed
+        closed, which would move an entry's state line on a guess.
+        """
+        listed = self.states()
+        if listed is not None and number in listed:
+            return listed[number]
+        if not self.available:
+            return None
+        done = ran(["gh", "pr", "view", str(number), "--json", "state"], self.root)
+        if not done or done.returncode != 0:
+            return None
+        try:
+            return (json.loads(done.stdout or "{}") or {}).get("state") or ""
+        except ValueError:
+            return None
+
+    def merged(self, numbers: set) -> set:
+        """Which of these have merged. Empty when none did **and** when nothing could be asked —
+        which is why `asked` exists beside it rather than inside it."""
+        return {int(n) for n in sorted(numbers) if self.state(int(n)) == "MERGED"}
+
+    def open_requests(self) -> list:
+        """The open pull requests, with what a reader needs to decide: CI, draft, conflicts."""
+        done = ran(["gh", "pr", "list", "--state", "open", "--json",
+                    "number,title,headRefName,isDraft,mergeable,statusCheckRollup,updatedAt"],
+                   self.root) if self.available else None
+        if not done or done.returncode != 0:
+            return []
+        try:
+            rows = json.loads(done.stdout or "[]")
+        except ValueError:
+            return []
+        out = []
+        for row in rows:
+            checks = row.get("statusCheckRollup") or []
+            verdicts = {c.get("conclusion") or c.get("state") for c in checks if isinstance(c, dict)}
+            if not checks:
+                ci = "none"
+            elif verdicts & {"FAILURE", "TIMED_OUT", "CANCELLED", "ERROR"}:
+                ci = "failing"
+            elif verdicts & {"PENDING", "IN_PROGRESS", "QUEUED", None}:
+                ci = "pending"
+            else:
+                ci = "green"
+            out.append({"number": row.get("number"), "branch": row.get("headRefName"),
+                        "draft": row.get("isDraft"), "mergeable": row.get("mergeable"),
+                        "ci": ci, "updated": (row.get("updatedAt") or "")[:10]})
+        return out
 
 
-def pr_state(root: Path, number: int, offline: bool):
-    """What one pull request's state is. `None` when nothing here can say.
+class Offline(Github):
+    """The same object with nothing to ask. Every answer is *could not ask*, and never an empty one."""
 
-    Answered from the listing where the number is in it. It is not in it when the listing could not
-    be read at all, and it is not in it when the repository has more pull requests than `PR_LIST_MAX`
-    and this one is older than that — so the number is asked about directly rather than assumed to
-    be closed, which would move an entry's state line on a guess.
-    """
-    listed = pr_states(root, offline)
-    if listed is not None and number in listed:
-        return listed[number]
-    if offline or not shutil.which("gh"):
-        return None
-    done = ran(["gh", "pr", "view", str(number), "--json", "state"], root)
-    if not done or done.returncode != 0:
-        return None
-    try:
-        return (json.loads(done.stdout or "{}") or {}).get("state") or ""
-    except ValueError:
-        return None
+    @property
+    def available(self) -> bool:
+        return False
 
 
-def sync_states(root: Path, docs: list, report: Report, sync: bool, offline: bool) -> None:
+def sync_states(root: Path, docs: list, report: Report, sync: bool, gh: Github) -> None:
     """A merged pull request is the only thing that moves an entry to `built`.
 
     **Looking is free; writing is asked for.** Every run of this program compares an entry marked
@@ -968,7 +1018,7 @@ def sync_states(root: Path, docs: list, report: Report, sync: bool, offline: boo
     Without this split the two failure modes swapped places: it wrote silently until 0.41.0, and
     then went quiet altogether — a merged feature sat at `building` with nothing anywhere saying so.
     """
-    if offline or not shutil.which("gh"):
+    if not gh.available:
         return
     for doc in docs:
         text = doc.text
@@ -977,7 +1027,7 @@ def sync_states(root: Path, docs: list, report: Report, sync: bool, offline: boo
             if not found:
                 continue
             number = found.group(1)
-            state = pr_state(root, int(number), offline)
+            state = gh.state(int(number))
             if state is None:
                 report.add("States", f"{doc.path.name} {entry.key} — pull request {number} unreadable")
                 continue
@@ -1143,18 +1193,7 @@ def work_branches(root: Path, base: str) -> list:
     return out
 
 
-def merged_prs(root: Path, numbers: set, offline: bool) -> set:
-    """Which of these pull request numbers have merged. Empty when nothing can be asked."""
-    if offline or not numbers or not shutil.which("gh"):
-        return set()
-    out = set()
-    for number in sorted(numbers):
-        if pr_state(root, int(number), offline) == "MERGED":
-            out.add(int(number))
-    return out
-
-
-def delivered_branches(root: Path, base: str, offline: bool) -> tuple:
+def delivered_branches(root: Path, base: str, gh: Github) -> tuple:
     """Branches whose work is in the default branch, and the ones nothing here can judge.
 
     **Two tests, because either one alone leaves half the branches undecided.** Ancestry answers it
@@ -1205,12 +1244,12 @@ def delivered_branches(root: Path, base: str, offline: bool) -> tuple:
         for branch in written.get("branches") or []:
             if branch not in parked:
                 owned[branch] = number
-    merged = merged_prs(root, set(owned.values()), offline)
+    merged = gh.merged(set(owned.values()))
     # Whether anything could be asked at all. Without this the two answers are printed as one:
     # `merged_prs` returns an empty set both for "none of them merged" and for "nobody here can
     # ask", and the branch was then reported as *not merged* — a claim an offline run has no way
     # of making. It is the same confusion the whole program is written against.
-    unasked = offline or not shutil.which("gh")
+    unasked = not gh.available
 
     def inside(name: str) -> bool:
         done = ran(["git", "merge-base", "--is-ancestor", name, base], root) if base else None
@@ -2132,36 +2171,7 @@ def audit_lenses(root: Path) -> list:
     return out
 
 
-def pull_requests(root: Path, offline: bool) -> list:
-    if offline or not shutil.which("gh"):
-        return []
-    done = ran(["gh", "pr", "list", "--state", "open", "--json",
-                "number,title,headRefName,isDraft,mergeable,statusCheckRollup,updatedAt"], root)
-    if not done or done.returncode != 0:
-        return []
-    try:
-        rows = json.loads(done.stdout or "[]")
-    except ValueError:
-        return []
-    out = []
-    for row in rows:
-        checks = row.get("statusCheckRollup") or []
-        verdicts = {c.get("conclusion") or c.get("state") for c in checks if isinstance(c, dict)}
-        if not checks:
-            ci = "none"
-        elif verdicts & {"FAILURE", "TIMED_OUT", "CANCELLED", "ERROR"}:
-            ci = "failing"
-        elif verdicts & {"PENDING", "IN_PROGRESS", "QUEUED", None}:
-            ci = "pending"
-        else:
-            ci = "green"
-        out.append({"number": row.get("number"), "branch": row.get("headRefName"),
-                    "draft": row.get("isDraft"), "mergeable": row.get("mergeable"),
-                    "ci": ci, "updated": (row.get("updatedAt") or "")[:10]})
-    return out
-
-
-def print_state(root: Path, offline: bool) -> None:
+def print_state(root: Path, gh: Github) -> None:
     """Runs and audits do not need git; everything about branches does, so it degrades in pieces."""
     base = default_branch(root)
     print("\nWork:")
@@ -2185,7 +2195,7 @@ def print_state(root: Path, offline: bool) -> None:
     # though it were is how one project reached 99 of them: every listing said "unmerged", nobody
     # could tell which were finished, so none was ever removed. Delivered ones are counted and
     # named to whoever may remove them; the rest are listed as before.
-    delivered, unjudged = delivered_branches(root, base, offline) if base else ([], [])
+    delivered, unjudged = delivered_branches(root, base, gh) if base else ([], [])
     done_names = {name for name, _ in delivered}
     live = [b for b in work_branches(root, base) if b["ahead"] and b["branch"] not in done_names] \
         if base else []
@@ -2203,7 +2213,7 @@ def print_state(root: Path, offline: bool) -> None:
         if name not in {b["branch"] for b in live}:
             print(f"  branch {name}: nothing says it is finished — {why}")
 
-    for pr in pull_requests(root, offline):
+    for pr in gh.open_requests():
         print(f"  PR #{pr['number']} ({pr['branch']}): CI {pr['ci']}"
               f"{', draft' if pr['draft'] else ''}"
               f"{', conflicts' if pr['mergeable'] == 'CONFLICTING' else ''}, "
@@ -2409,8 +2419,11 @@ def main(argv: list | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("root", nargs="?", default=".", type=Path)
     parser.add_argument("--status", action="store_true", help="always print where the project stands")
-    parser.add_argument("--offline", action="store_true",
-                        help="ask gh about nothing — the state of the work is then read from git alone")
+    # A seam, and it is kept out of `--help` because that is what it is. Nothing in the payload
+    # passes it, the one command that mentions it says never to use it, and every caller is a test
+    # holding this program away from the network. Advertised as a setting it invited exactly one
+    # thing: a run switching it on and going blind to every pull request without saying so.
+    parser.add_argument("--offline", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--sync", action="store_true",
                         help="move an entry whose pull request has merged or closed. The only thing "
                              "this program writes into knowledge; `blueprint --check` asks for it")
@@ -2443,7 +2456,9 @@ def main(argv: list | None = None) -> int:
     options = parser.parse_args(argv)
 
     root = options.root.resolve()
-    _LISTED_PRS.clear()
+    # One object for everything outside this program, made here and passed down: a caller
+    # that has to remember a flag is a caller that will forget it.
+    gh = Offline(root) if options.offline else Github(root)
 
     if options.pr_body:
         return pr_body_defects(Path(options.pr_body))
@@ -2474,7 +2489,7 @@ def main(argv: list | None = None) -> int:
         if options.status or options.state:
             print(f"no {KNOWLEDGE}/ — this project has no blueprint yet")
         if options.state:
-            print_state(root, options.offline)
+            print_state(root, gh)
         return 0
 
     docs = [Doc(p) for p in sorted(knowledge.glob("*.md"))]
@@ -2502,7 +2517,7 @@ def main(argv: list | None = None) -> int:
             print(f"  {line}")
         return 1 if fatal else 0
 
-    sync_states(root, docs, report, options.sync, options.offline)
+    sync_states(root, docs, report, options.sync, gh)
     check_fields(docs, report)
     check_references(docs, report)
     check_orphans(docs, report)
@@ -2603,7 +2618,7 @@ def main(argv: list | None = None) -> int:
         if options.entries:
             print_entry_blocks(report, docs, options.entries)
         if options.state:
-            print_state(root, options.offline)
+            print_state(root, gh)
         return 0
 
     if options.status:
@@ -2649,7 +2664,7 @@ def main(argv: list | None = None) -> int:
         print_entry_blocks(report, docs, options.entries)
 
     if options.state:
-        print_state(root, options.offline)
+        print_state(root, gh)
 
     print("\nNot checked here: whether an answer is any good, whether a status an action sets is "
           "one the entity declares, and anything that needs the code read.")
