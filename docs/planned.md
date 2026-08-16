@@ -19,7 +19,8 @@ answering the reason is the same proposal.
 Done since this page was written: one `gh` call instead of N in 2.19.2, and the three gaps in coverage in 2.19.3.
 
 Deferred by the owner, with the reason: the bench (item 1), the merge policy (item 4), parallel
-building, the backlog command, the schedule, the continuous mode (item 7). Until the bench exists,
+building, the backlog command, the schedule, the continuous mode (item 7), and **the transcript
+module** — see below. Until the bench exists,
 changes to the kit are checked by real runs.
 
 Everything below is the reasoning, and the second half is what was refused.
@@ -340,6 +341,25 @@ Surveyed August 2026, against the question *what would the kit stop having to bu
   `blueprint` is the intake, and what was missing was a trigger and a view. See item 7.
 - **Anything for Telegram.** Thirty lines around one HTTP call. A framework here would be the whole
   cost of the feature.
+
+## 8. The transcript, and what would actually guard it · **deferred**
+
+The driver reads Claude Code's own transcript — a format nobody here owns, which can change with any
+release and takes three of the driver's most expensive defects with it. The obvious proposal is to
+lift `read_tail`, `record_size`, `opening_size` and `limit_reset` into a module of their own with
+fixtures beside them.
+
+**Half of that is packaging and the useful half is elsewhere**, which is worth writing down before
+somebody proposes it again. A frozen fixture proves this kit still reads *yesterday's* format; it
+says nothing about the day the format changes, which is the only day that matters. What catches that
+is a question asked of the live file at the moment it is read: *does this record still carry the
+fields I came for?* If none does, the driver says `transcript-unreadable` once and treats the
+context size as **unknown** rather than zero — because zero means *this session is small, nobody
+needs to hand over*, so a changed format would look exactly like a quiet night and every session
+would run to the wall.
+
+That is about fifteen lines and needs no move at all. The move is tidiness and can follow it, or
+not. Deferred by the owner, 17 August 2026.
 
 # Refused, with the reason
 
