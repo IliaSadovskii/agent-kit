@@ -29,6 +29,12 @@ installed it — see [docs/developing.md](docs/developing.md#versioning).
   - `accept` runs the proofs before it lists anything: half of these are usually done by the time
     anybody reads them, and an action the owner has to work out they can skip costs more than one
     they simply do.
+  - **And `next` runs them first of all, which is what keeps the list from going stale.** The
+    closing session writes it and never comes back; `accept` runs at delivery and not after it; the
+    command somebody actually types a week later is this one. Without it a line the owner cleared on
+    Monday is still printed by every command on Friday — the failure this record was moved out of a
+    run file to avoid, arriving by the other road. It is the fourth thing `next` may write, and the
+    only one of the four it does not have to judge: the line's own command answers it.
 
 ## 2.18.0
 

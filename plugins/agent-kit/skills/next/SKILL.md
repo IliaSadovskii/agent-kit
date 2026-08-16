@@ -16,8 +16,24 @@ open. This one exists for the cold start — a week later, in a new session, wit
 **You change nothing and start nothing.** Not a branch, not a file, not another command. You read,
 you rank, you say one line. The owner runs it.
 
-The single exception is bookkeeping that has already happened somewhere else. **Three facts, and only
-these three, you may write down where they belong:**
+The single exception is bookkeeping that has already happened somewhere else. **Four facts, and only
+these four, you may write down where they belong:**
+
+- **a manual action the owner has already done.** Every line in `docs/manual.md` carries a command
+  that exits 0 once its work has happened, so this is the one of the four you do not have to judge
+  at all — run them and let the lines that pass go:
+
+  ```bash
+  python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --manual
+  ```
+
+  **First, before you read anything else**, because the answer changes what you are about to say: an
+  action that is done is not something to put in front of them again. You are the reason this list
+  is ever refreshed — the closing session writes it and never comes back, `accept` runs at delivery
+  and not afterwards, and you are the command somebody types after a week away. Left to nobody, a
+  line the owner cleared on Monday is still being printed by every command on Friday. Say the count
+  you removed and nothing more; what is left belongs in *What is in the way* only when its `when`
+  has arrived.
 
 - **an audit's box whose work is done** — tick it right then, per
   `${CLAUDE_PLUGIN_ROOT}/rules/audit-boxes.md`, which is where the evidence, the form and the commit
@@ -45,19 +61,19 @@ these three, you may write down where they belong:**
   branches — 51 of them unanswerable by any git question, because the run's pull request was
   squashed and their commits are nowhere in the base branch.
 
-You are the one holding the evidence in all three cases, and if you leave them the next run repeats
+You are the one holding the evidence in all four cases, and if you leave them the next run repeats
 the same comparison and the lists keep lying.
 
-All three go straight to the default branch, with no pull request: none is a decision anybody needs
+All four go straight to the default branch, with no pull request: none is a decision anybody needs
 to approve, each is a fact catching up with itself. Which is exactly why they are fenced:
 
-- **only those three things** — the boxes in `docs/audits/*`, an entry's `state:` line, and a
-  delivered branch. Not a line
+- **only those four things** — the boxes in `docs/audits/*`, an entry's `state:` line, a delivered
+  branch, and a manual action whose own proof says it happened. Not a line
   of anything else in that commit, or the next run will fix "just one more thing" in the same
   breath. The prose of an entry is never yours: `blueprint` owns it, and a state line that is right
   beside stale prose is still worth moving;
-- **its own commit** — `docs(audits): …` or `docs(knowledge): …`, so it reads as bookkeeping in the
-  history rather than hiding inside work;
+- **its own commit** — `docs(audits): …`, `docs(knowledge): …` or `docs(manual): …`, so it reads as
+  bookkeeping in the history rather than hiding inside work;
 - **switch branches only when it costs nothing**: a clean tree and a current branch already merged.
   Otherwise leave the boxes alone and say it — *ten of eleven are closed, I will tick them when the
   tree is free* — because moving somebody off their branch is a bigger intrusion than a stale list;
@@ -75,6 +91,11 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --status --state
 their merged pull requests — `--sync` comes after, as the fenced bookkeeping above, and only when
 the tree is clean. A command whose first rung is *uncommitted changes* does not start by making
 some.
+
+**`--manual` is the exception and runs before this**, for the reason above: what it removes changes
+what this reading prints. It writes only to `docs/manual.md`, and only lines whose own command says
+the work is done — so on a tree that is not clean, keep the change and say you did rather than
+leaving a list you have already proved wrong.
 
 **And never `--offline`.** It would cut you off from GitHub altogether, and rungs 3, 4 and 5 are
 entirely about open pull requests and their CI — a run that cannot see them walks straight past the
@@ -178,7 +199,10 @@ Three blocks, always in this order, in the project's language.
 
 **Where it stands** — five or six lines of fact, no adjectives: the branch and the tree, the open
 pull request and its CI, runs left mid-flight, the counts of debt, unkept promises and `planned`,
-and when each lens last ran.
+and when each lens last ran. Manual actions belong in this block and not below it — how many are
+still waiting, and how many you cleared as already done. They are a fact about the project, not
+something in the way of the work: what is in the way is one at `before_run`, because nothing starts
+without it.
 
 **What is in the way** — up to five findings, ladder order, one line each. Nothing beyond five: this
 is a starting point, not an audit.
