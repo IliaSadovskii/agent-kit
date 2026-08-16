@@ -3,6 +3,20 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.19.1
+
+- **The list that closes itself had nobody who ran it.** `docs/manual.md` empties when somebody runs
+  the proofs, and both commands that did were at delivery: the closing session writes the file and
+  never comes back, `accept` runs when the work is handed over and not afterwards. The command a
+  person actually types a week later is `next`, and it did not — so a line the owner cleared on
+  Monday went on being printed by every command on Friday, which is exactly the failure this record
+  was moved out of a run file to avoid, arriving by the other road.
+
+  `next` now runs `check.py --manual` first of all, before the reading whose output it changes. It is
+  the fourth fact `next` may write down and the only one of the four it does not have to judge: the
+  line's own command answers it. Manual actions go in its *Where it stands* block — a fact about the
+  project — and only one at `before_run` is *in the way*, because nothing starts without it.
+
 ## 2.19.0
 
 - **The one class of work that needs the owner had nowhere to live.** A `manual` record — a secret to
@@ -29,12 +43,6 @@ installed it — see [docs/developing.md](docs/developing.md#versioning).
   - `accept` runs the proofs before it lists anything: half of these are usually done by the time
     anybody reads them, and an action the owner has to work out they can skip costs more than one
     they simply do.
-  - **And `next` runs them first of all, which is what keeps the list from going stale.** The
-    closing session writes it and never comes back; `accept` runs at delivery and not after it; the
-    command somebody actually types a week later is this one. Without it a line the owner cleared on
-    Monday is still printed by every command on Friday — the failure this record was moved out of a
-    run file to avoid, arriving by the other road. It is the fourth thing `next` may write, and the
-    only one of the four it does not have to judge: the line's own command answers it.
 
 ## 2.18.0
 
