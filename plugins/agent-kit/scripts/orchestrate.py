@@ -36,8 +36,10 @@ except ImportError:                               # pragma: no cover - fallback 
 # which is the only moment a defect in a run file can still be acted on.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check import run_defects                     # noqa: E402 - the path above is what makes it work
+import runfile                                    # noqa: E402 - what a run is, for every reader of one
 
-TERMINAL_STEPS = {"done", "blocked", "skipped"}
+# What a run is has one home now, and this is the name the driver uses for it.
+TERMINAL_STEPS = set(runfile.TERMINAL)
 HANDOFF_LINE = ("[driver] your context has grown past what one session should carry — hand this run "
                 "over: finish the task you are on, close it in the run file, fill `handoff`, and "
                 "stop. The rule is the Handing over section of skills/ship/SKILL.md. Do not start "
@@ -771,11 +773,12 @@ class Driver:
     def build(self, child: Run) -> str:
         # The child's slug already carries the batch's, and it is what the owner sees in the app.
         name = child.slug[:60]
-        # A child with a `prompt` of its own is not a `ship` — an audit between two waves, a review
-        # — and handing a run on is a rule of `ship` alone. Asking one of those to hand over sends
-        # it to a section of a file it never read, and there is no next session to take it.
+        # Handing a run on is a rule of `ship` alone: asking anything else to hand over sends it to
+        # a section of a file it never read, and there is no next session to take it. Which is which
+        # comes from `runfile.kind` — a child whose kind nothing can work out is not asked, because
+        # that is the harmless half of being wrong.
         why = self.watch(name, child, self.prompt_for(child),
-                         hand_over=not (child.state().get("prompt") or "").strip())
+                         hand_over=runfile.kind(child.state()) == "feature")
         self.launcher.stop(self.watched or name)
         # What this feature cost, on the feature itself. The batch's total says 1.67 sessions per
         # feature and hides the shape: on a measured batch one feature took four while three took
@@ -1054,13 +1057,18 @@ class Driver:
                     self.apply_frame(child, child.state())
                 continue
 
-            # A child that carries its own `prompt` is not a feature — the frame child, an audit
-            # between two waves. Nothing is built on it, so it is never anybody's dependency and
-            # its failure cascades to nobody. Without this the batch opens with its own most
-            # fragile link: a frame child whose session died would skip every feature behind it,
-            # which is the exact failure this release was written to end.
+            # A child that is not a feature — the frame child, an audit between two waves — has
+            # nothing built on it, so it is never anybody's dependency and its failure cascades to
+            # nobody. Without this the batch opens with its own most fragile link: a frame child
+            # whose session died would skip every feature behind it, which is the exact failure
+            # that release was written to end.
+            #
+            # Asked of `runfile.kind`, which every reader of a run file now asks. It used to be
+            # *does this child carry a prompt*, and that made a feature whose prompt was typed out
+            # — the very line the template offers as its default — into an errand: nothing behind
+            # it was skipped when it failed, though everything behind it was built on it.
             state_of = child.state()
-            errand = bool((state_of.get("prompt") or "").strip())
+            errand = runfile.kind(state_of) != "feature"
 
             # What this feature cannot be built without. `[]` is somebody's answer; the field
             # missing altogether is nobody's, and then the fallback is the `parent` the composing

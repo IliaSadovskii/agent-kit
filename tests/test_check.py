@@ -1242,7 +1242,7 @@ class CheckCase(unittest.TestCase):
     def test_a_feature_inside_a_batch_owes_no_pull_request(self):
         """`deliver` decides it, not `command`: a child pushes a branch, and a batch's own file
         carries no `deliver` at all — both fall outside this by construction."""
-        child = {"deliver": "branch", "step": "done", "suite": "green",
+        child = {"deliver": "branch", "kind": "feature", "step": "done", "suite": "green",
                  "proved_at": "c0ffee1",
                  "pr": None}
         self.assertEqual(check.run_defects(child), [])
@@ -1302,11 +1302,33 @@ class CheckCase(unittest.TestCase):
 
     def test_a_child_that_is_not_a_ship_is_asked_for_neither(self):
         """The frame child and an audit between waves have no suite and no code to mutate. Asked
-        anyway, every batch of three or more closes with two defects that are not defects."""
+        anyway, every batch of three or more closes with two defects that are not defects.
+
+        Its prompt is prose, so nothing in the file can tell it from a feature — which is said in
+        one line rather than guessed at either way. `kind` is the way out, and the test below takes
+        it. Until then the silence is the old one: manufacturing two defects per errand is the
+        worse of the two mistakes."""
         self.mutate_declared()
         state = {"command": "ship", "step": "done", "deliver": "branch", "suite": None,
                  "prompt": "Read .../references/frame.md and follow it"}
+        found = check.run_defects(state, self.root)
+        self.assertEqual([line for line in found if "kind of run" not in line], [])
+
+    def test_a_child_that_says_what_kind_it_is_is_asked_nothing_at_all(self):
+        """One field, and the ambiguity is gone for every reader of this file."""
+        self.mutate_declared()
+        state = {"command": "ship", "kind": "errand", "step": "done", "deliver": "branch",
+                 "suite": None, "prompt": "Read .../references/frame.md and follow it"}
         self.assertEqual(check.run_defects(state, self.root), [])
+
+    def test_a_feature_whose_prompt_was_written_out_is_still_a_feature(self):
+        """The live defect. `templates/run.json` offers this very line as the default, and writing
+        it out used to turn the run into an errand — no suite asked, no tree, no mutation."""
+        self.mutate_declared()
+        state = {"command": "ship", "step": "done", "deliver": "branch", "suite": None,
+                 "prompt": "/agent-kit:ship --run .agent-kit/runs/2026-08-05-feed"}
+        found = check.run_defects(state, self.root)
+        self.assertTrue(any("`suite` is empty" in line for line in found), found)
 
     def test_a_manifest_that_cannot_be_read_does_not_take_the_driver_down(self):
         """`run_defects` runs after every child, all night, with no `try` above it."""
@@ -1412,7 +1434,8 @@ class CheckCase(unittest.TestCase):
         close, every errand in it would put a defect nobody can now fix into the pull request."""
         state = {"command": "ship", "step": "done", "deliver": "branch", "suite": None,
                  "prompt": "Read the old references/frame.md and follow it. " + "x" * 500}
-        self.assertEqual(check.run_defects(state), [])
+        found = check.run_defects(state)
+        self.assertEqual([line for line in found if "kind of run" not in line], [])
 
     # ---- what a green suite is bound to --------------------------------------------------------
 
@@ -1432,7 +1455,8 @@ class CheckCase(unittest.TestCase):
         three or more would close with a defect that is not one."""
         state = {"command": "ship", "step": "done", "deliver": "branch", "suite": None,
                  "prompt": "Read .../references/frame.md and follow it"}
-        self.assertEqual(check.run_defects(state, self.root), [])
+        found = check.run_defects(state, self.root)
+        self.assertEqual([line for line in found if "kind of run" not in line], [])
 
     def test_a_tree_that_is_not_in_this_repository(self):
         self.suite("it('x');\n")
@@ -1780,6 +1804,56 @@ class RunBranchCase(unittest.TestCase):
                                    "branch": "claude/x", "base": "main"}, outside), [])
         finally:
             shutil.rmtree(outside, ignore_errors=True)
+
+
+class KindCase(unittest.TestCase):
+    """What a run is, decided in one place instead of eight.
+
+    A feature is built and must prove itself; an errand has no suite of its own; a batch is a queue
+    of children and an epic a queue of batches. Every program used to work this out from whatever
+    signal was nearest, and the nearest one — *does this file carry a prompt* — was wrong for the
+    line the template itself offers as the default.
+    """
+
+    def of(self, **fields):
+        spec = importlib.util.spec_from_file_location(
+            "runfile", ROOT / "plugins" / "agent-kit" / "scripts" / "runfile.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.kind(fields)
+
+    def test_what_the_file_says_wins(self):
+        self.assertEqual(self.of(kind="errand", command="ship"), "errand")
+
+    def test_a_kind_no_reader_knows_is_not_a_kind(self):
+        self.assertEqual(self.of(kind="chore", command="ship"), "unknown")
+
+    def test_a_prompt_that_invokes_a_command_says_which_kind(self):
+        self.assertEqual(self.of(command="ship", prompt="/agent-kit:ship --run .agent-kit/runs/x"),
+                         "feature")
+        self.assertEqual(self.of(command="ship", prompt="/agent-kit:audit tests --run x"), "errand")
+
+    def test_a_prompt_in_prose_is_not_read_as_anything(self):
+        """A frame child written before `kind` existed and a feature whose prompt somebody typed
+        out read exactly alike. Guessing either way is what this replaces."""
+        self.assertEqual(self.of(command="ship", prompt="Read the frame reference and follow it"),
+                         "unknown")
+
+    def test_without_a_prompt_the_command_answers(self):
+        for command, expected in (("ship", "feature"), ("fix", "feature"), ("sprint", "batch"),
+                                  ("epic", "epic"), ("audit", "errand")):
+            self.assertEqual(self.of(command=command), expected, command)
+
+    def test_a_command_no_reader_knows(self):
+        self.assertEqual(self.of(command="polish"), "unknown")
+        self.assertEqual(self.of(), "unknown")
+
+    def test_the_template_ships_a_kind_that_is_one_of_the_four(self):
+        """The template is the specification, and the run that copies it must land on a kind."""
+        shape = json.loads((ROOT / "plugins" / "agent-kit" / "templates" / "run.json")
+                           .read_text(encoding="utf-8"))
+        self.assertEqual(self.of(**{k: v for k, v in shape.items() if not k.startswith("_")}),
+                         "feature")
 
 
 class OutsideCase(unittest.TestCase):

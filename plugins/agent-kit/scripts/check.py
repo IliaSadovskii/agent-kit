@@ -43,6 +43,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import runfile                                    # noqa: E402 - the path above is what makes it work
+
 KNOWLEDGE = "docs/knowledge"
 AUDITS = "docs/audits"
 MANIFEST = ".agent-kit/project.yml"
@@ -122,15 +125,11 @@ SLOTS = ("product", "actors", "entities", "actions", "screens", "integrations", 
 # What `step` may hold. The first eight are a run's own; `building` and `closing` are written by the
 # driver on a batch's file. Kept here rather than only in the template's prose, because a value
 # nothing recognises leaves whatever is watching that field waiting for a state that never comes.
-# The steps after which nothing about a run can be fixed, and the branch names this kit makes. Both
-# were literals in three places before a rule needed them in a fourth.
-TERMINAL = ("done", "blocked", "skipped")
-BRANCH_PREFIXES = ("claude/", "sprint/", "epic/")
-
-STEPS = ("queued", "design", "build", "verify", "deliver", "done", "blocked", "skipped",
-         "building", "closing",
-         # an epic's own phases, written by `epic` on its own file as it moves between them
-         "gate", "auditing", "proving")
+# What a run is lives in `runfile.py`, which the hooks and the driver read as well — these are the
+# names this file uses for it.
+TERMINAL = runfile.TERMINAL
+BRANCH_PREFIXES = runfile.BRANCH_PREFIXES
+STEPS = runfile.STEPS
 
 # What a dependency manifest is called, across the ecosystems a project here might use. Only their
 # names are known — the check reads none of them, it just notices one nobody recorded.
@@ -1760,15 +1759,35 @@ def run_defects(state: dict, root: Path | None = None) -> list:
     `root` is the project, and only the rules that have to look at the repository need it: without
     one they are skipped rather than guessed at.
 
-    Three of them are asked of features and not of errands — `suite`, `proved_at` and `mutation`. A
-    child carrying its own `prompt` is not a `ship` — the frame child of a batch, an audit between
-    two waves — and it has no suite to run and no code to mutate. Asked anyway, every batch of three
-    or more would close with defects that are not defects, in the pull request, every night: exactly
-    the noise that makes a real one unfindable.
+    Three of them are asked of features and not of errands — `suite`, `proved_at` and `mutation`.
+    An errand has no suite to run and no code to mutate: the frame child of a batch, an audit
+    between two waves. Asked anyway, every batch of three or more would close with defects that are
+    not defects, in the pull request, every night — exactly the noise that makes a real one
+    unfindable.
+
+    **Which of the two this is comes from `runfile.kind` and from nowhere else.** It used to be
+    `bool(prompt)` here and in the driver: a run carrying any prompt at all was an errand. So a
+    feature whose prompt was written out by hand — including the very line `templates/run.json`
+    offers as the default — quietly stopped being asked for its suite, for the tree it was proved
+    on, and for its mutation result, and nothing said a word. Sixteen run files across three live
+    projects are in that state, all of them features. A run whose kind nothing can work out is
+    named, and judged as a feature: the expensive mistake is the other way round.
     """
     out = []
     prompt = str(state.get("prompt") or "").strip()
-    errand = bool(prompt)
+    of_kind = runfile.kind(state)
+    # `unknown` keeps an errand's silence about the suite rather than a feature's questions, and
+    # says so instead. Asked the questions, every frame child written before the `kind` field —
+    # a prompt in prose, indistinguishable from a feature's by any reading of the file — would close
+    # with two defects that are not defects, which is the noise that hides a real one. The finding
+    # below is the way out, and it costs one field.
+    errand = of_kind in ("errand", "unknown")
+    if of_kind == "unknown":
+        out.append(f"nothing here can tell what kind of run this is — `kind` is "
+                   f"{state.get('kind')!r}, and `command` is {state.get('command')!r}, which no "
+                   f"reader knows. Write one of {', '.join(runfile.KINDS)} into `kind`: what is "
+                   f"asked of this file, and what a failure here takes down with it, both follow "
+                   f"from it")
 
     # A child that is not a `ship` is started by whatever this field says, and the field is a
     # command. Both rules below were paid for on one live run: thirteen of sixteen children were

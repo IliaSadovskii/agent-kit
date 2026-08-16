@@ -18,6 +18,27 @@ installed it — see [docs/developing.md](docs/developing.md#versioning).
   broken reference to a local file, it is where a description came from, said deliberately, so
   those are counted and named rather than judged — nothing here can fetch a page.
 
+- **A run file said what kind of run it is by accident, and a feature could excuse itself from
+  proving anything.** Four different things live in that one file — a feature, an errand, a batch,
+  an epic — and which one it was got worked out in eight independent places, each from whatever
+  signal was nearest. The nearest one was *does this file carry a `prompt`*, and it was wrong in the
+  most expensive direction: writing out the very line `templates/run.json` offers as the default,
+  `/agent-kit:ship --run <this directory>`, turned a feature into an errand. It then stopped being
+  asked what its tests returned, which tree they ran on, and what its mutation run found — silently,
+  because those three questions are deliberately not asked of errands. The driver read the same
+  signal, so nothing behind such a child was skipped when it failed, though everything behind it was
+  built on it.
+
+  `scripts/runfile.py` is what a run is, in one place, for the four programs that open one: the
+  terminal steps, the step vocabulary, the branch prefixes, a read that returns `None` rather than
+  `{}` when it cannot parse, and `kind()`. **A `kind` field in the run file wins over everything**,
+  and where it is missing the kind is inferred — from a prompt that invokes a command of this kit,
+  or from `command`. A prompt written in prose answers `unknown`, because it genuinely is: a frame
+  child written before this field and a feature whose prompt somebody typed out read exactly alike.
+  `unknown` keeps an errand's silence and **says so in one line** rather than deciding; one field
+  ends it. Measured across three live projects: 91 features, 23 batches, 2 epics, and 16 unknown —
+  all sixteen of them features that had been quietly excused.
+
 - **A project's language no longer leaks into the payload, and the gap it hid is closed.** The MVP
   bounds are the owner's prose under a heading in their own language, and the check carried a
   hard-coded Russian heading to find it. That bought nothing — the fallback already matched it,
