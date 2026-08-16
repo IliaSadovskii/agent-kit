@@ -62,6 +62,16 @@ judges **whether the kit's own mechanisms fired**, and a grader can be a script:
 | an entry whose prose the feature makes false | a `[stale …]` block under it |
 | a task closed with no commit | the check names it |
 
+**Half that table is out of reach of a bench, and it was written without saying so.** An eval case
+is *one agent run* under a turn limit — so the rows that are one command in one session are
+reachable (a `ship` against a planted entry, a gate meeting a scenario with no harness), and the row
+about two features and one table is not: it needs a batch, a frame child and the driver starting
+several sessions, which is a night, not a case. The last row — the check naming a task closed with
+no commit — is already covered by `tests/test_check.py`, where it costs nothing and runs in
+milliseconds; putting it in front of a model would be paying tokens for an answer a unit test
+already gives. What is left for the bench is what only a bench can do: **the with/without ablation**,
+which says what the kit itself is worth, and the behaviour of one command under a trap.
+
 **First, not last**, because it is the instrument every other item below is checked with.
 
 ## 2. A home for manual actions, with a proof that runs · **done in 2.19.0**
@@ -101,8 +111,8 @@ at all. And the existing channel — the driver typing into the owner's tmux win
 turns into a notification — is drowned by its own volume: a push fires for every session that
 starts, so the one push that carries a question is lost among them.
 
-**What to build.** Settled with the owner on 16 August 2026, on one principle: a run neither waits
-nor replays.
+**What to build.** Settled with the owner on 16 August 2026, on two rules: a run waits only inside a
+window it cannot lengthen, and it never replays what it has already built.
 
 - **A directory, not a file**: `.agent-kit/asks/<id>.json`, one file per question. A single shared
   file means two sessions and a bot writing at once; one file per question needs no locking. It
@@ -113,10 +123,15 @@ nor replays.
 - Each question carries: which run asked it, when, what it is about (**the entry keys and the files
   it touches** — not a "share with siblings" flag, which would ask the writer to predict who needs
   the answer), **the default this run took**, and the answer when it lands.
-- **A window, and then the default.** `asks.wait_minutes` in `project.yml`, twenty by default: a
-  question stops the run for that long and no longer. Answered inside it, the run goes on the
-  answer — no assumption, no block, nothing to settle later, which is the whole reason to wait at
-  all. Unanswered, the run takes its default and carries on.
+- **A window, and then the default.** Twenty minutes: a question stops the run for that long and no
+  longer. Answered inside it, the run goes on the answer — no assumption, no block, nothing to
+  settle later, which is the whole reason to wait at all. Unanswered, the run takes its default and
+  carries on.
+- **The number is the kit's, not a project's**, and it lives beside the hang timer in the driver
+  rather than in `project.yml`, so that no configuration can put a window past the timer that kills
+  the session waiting in it. Two numbers in two files drift; two numbers in one file are held to
+  each other by the program that owns both — and `--hang` is refused below the window rather than
+  quietly winning against it.
 - **An unanswered window closes the next ones for three hours.** An owner who did not answer at
   02:10 is asleep, and the second question of that night must not spend another twenty minutes
   finding that out again. Three hours on, the next question opens a window as normal. It needs no
@@ -124,10 +139,13 @@ nor replays.
   batch reads the same fact without being told. This is the whole answer to what killed
   `wait <hours>` — that wait had no ceiling and no cooldown, so a night paid for its hours over and
   over.
-- **The window must stay under the driver's hang timer** — `--hang`, thirty minutes of transcript
-  silence, after which the driver types into the session and eventually rebuilds it from nothing.
-  Twenty against thirty is where the default comes from, and the check can hold the two to each
-  other: it reads `project.yml`, and the flag has a default it can name.
+- **The driver holds the window, and that is why it can be trusted.** A session that stops on a
+  question writes `waiting_on` and says nothing more; the driver — which already reads that field,
+  already watches the transcript and already types into a live session — waits out the window and
+  then types one line: *no answer, take your default*. So the two timers are enforced by the same
+  program, twenty against a hang of thirty, and a session's own prose carries no number to get
+  wrong. A `ship` the owner started by hand has no driver and needs none: they are at the keyboard,
+  and the question is asked the way it is asked today.
 - **A window at `gate: none` too.** With a push that reaches a phone, *nobody is present* stops
   being a property of the run and becomes a property of the moment — the owner may be awake at
   02:10, and if they are, the run gets a real answer instead of an assumption for twenty minutes of
@@ -293,8 +311,8 @@ Surveyed August 2026, against the question *what would the kit stop having to bu
 | Tool | Where it goes | Why this one |
 |---|---|---|
 | **`claude plugin eval`** | item 1 | Ships with Claude Code. Cases, graders, a with/without ablation, repeated runs, a cost ceiling, a JSON result and an HTML report. Building this would have been the largest thing on this page |
-| **`@playwright/cli`** | the recommended value of `commands.e2e` on a project with an interface | Microsoft's CLI companion to Playwright MCP, measured at roughly a quarter of the tokens for the same work (≈27k against ≈114k), because it is plain shell commands. MCP is for agents with no filesystem; Claude Code has one |
-| **Semgrep** (or CodeQL) | item 4, the evidence package | The only cheap signal in the package not produced by the model that wrote the diff. Studies put generated code at a 25–40% vulnerability rate, and this costs seconds |
+| **`@playwright/cli`** | the recommended value of `commands.e2e` on a project with an interface | Microsoft's CLI companion to Playwright MCP, reported at roughly a quarter of the tokens for the same work (≈27k against ≈114k), because it is plain shell commands — **their number, not one measured here**, and worth re-measuring on a real project before it is quoted again. MCP is for agents with no filesystem; Claude Code has one |
+| **Semgrep** (or CodeQL) | item 4, the evidence package | The only cheap signal in the package not produced by the model that wrote the diff. Published studies put generated code at a 25–40% vulnerability rate — **quoted, not measured here** — and this costs seconds either way |
 
 **Examined and not taken, with the reason still true.**
 
