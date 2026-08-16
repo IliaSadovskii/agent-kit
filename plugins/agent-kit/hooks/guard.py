@@ -42,7 +42,13 @@ import sys
 import time
 from pathlib import Path
 
-TERMINAL = {"done", "blocked", "skipped"}
+# What a run is comes from one place, for every program that opens a run file — the copies never
+# disagreed on the constant, but the questions asked around it did. The module is deliberately tiny
+# and imports only the standard library: this hook runs on every Bash call in every session.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+import runfile                                      # noqa: E402 - the path above is what makes it work
+
+TERMINAL = set(runfile.TERMINAL)
 
 # How long a run file may sit untouched and still be read as a run in flight. A run that was
 # abandoned — the server restarted, the driver was killed, nobody ran `--resume` — never reaches a
@@ -64,22 +70,24 @@ def runs_in_flight(root: Path) -> bool:
     merging in this project for good, and the fix is a hand editing a file — which is exactly the
     kind of thing this hook exists to make unnecessary.
     """
-    for path in (root / ".agent-kit" / "runs").glob("*/run.json"):
+    for directory, state in runfile.runs(root):
         try:
-            state = json.loads(path.read_text(encoding="utf-8"))
-            age = time.time() - path.stat().st_mtime
-        except (OSError, ValueError):
+            age = time.time() - (directory / "run.json").stat().st_mtime
+        except OSError:
             continue
-        if isinstance(state, dict) and state.get("step") not in TERMINAL and age < STALE_AFTER:
+        if age >= STALE_AFTER:
+            continue
+        # A run file nothing can parse is **not** "no run here". It used to be read as exactly that
+        # — the loop skipped it — so a project whose run files were all broken disarmed the one
+        # hook that forbids an agent from merging its own work, and said nothing. Unreadable and
+        # fresh is treated as a run in flight: the cost of being wrong is a refused merge the owner
+        # can do themselves, against a merge nobody reviewed.
+        if state is None or state.get("step") not in TERMINAL:
             return True
     return False
 
 
-def project_root(start: Path) -> Path | None:
-    for candidate in [start, *start.parents]:
-        if (candidate / ".agent-kit").is_dir():
-            return candidate
-    return None
+project_root = runfile.project_root
 
 
 def git(root: Path, *args: str) -> str:
@@ -120,14 +128,10 @@ def building_a_feature(root: Path) -> bool:
     session = my_session()
     if not session:
         return False
-    for path in (root / ".agent-kit" / "runs").glob("*/run.json"):
-        try:
-            state = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+    for _directory, state in runfile.runs(root):
+        if state is None or state.get("session") != session:
             continue
-        if not isinstance(state, dict) or state.get("session") != session:
-            continue
-        return state.get("command") == "ship" and state.get("step") not in TERMINAL
+        return runfile.kind(state) == "feature" and state.get("step") not in TERMINAL
     return False
 
 

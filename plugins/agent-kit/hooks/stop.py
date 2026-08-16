@@ -25,14 +25,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-TERMINAL = {"done", "blocked", "skipped"}
+# What a run is comes from one place, for every program that opens a run file. A hook may not carry
+# its own copy: the copies never disagreed on the constant, but they did on the questions asked
+# around it, and the one thing worse than four answers is four answers that look like one. The
+# module is deliberately tiny — this runs on every Bash call in every session.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+import runfile                                      # noqa: E402 - the path above is what makes it work
 
-
-def project_root(start: Path) -> Path | None:
-    for candidate in [start, *start.parents]:
-        if (candidate / ".agent-kit").is_dir():
-            return candidate
-    return None
+TERMINAL = set(runfile.TERMINAL)
+project_root = runfile.project_root
 
 
 def my_session() -> str | None:

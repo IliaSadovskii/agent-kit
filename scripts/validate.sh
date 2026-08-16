@@ -233,6 +233,22 @@ printf '{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"echo hi\"},\"cwd\"
 printf '{\"hook_event_name\":\"Stop\",\"cwd\":\"/\"}' \
   | python3 "$PLUGIN/hooks/stop.py" >/dev/null 2>&1 || fail "the stop hook failed outside a project"
 
+# And neither may block anybody's Bash when it cannot load at all. Both now import a module from
+# `scripts/`, which is the price of having one answer to what a run is instead of four — so the
+# broken-install case is checked rather than assumed. A hook that cannot load may complain; what it
+# may not do is exit 2, which is the only code that denies the tool call.
+missing="$(mktemp -d)"
+cp -r "$PLUGIN" "$missing/plugin"
+rm -rf "$missing/plugin/scripts"
+printf '{"tool_name":"Bash","tool_input":{"command":"echo hi"},"cwd":"/"}' \
+  | python3 "$missing/plugin/hooks/guard.py" >"$missing/out" 2>/dev/null
+[ $? -ne 2 ] || fail "the guard denies a command when it cannot load — a broken install would stop every session"
+grep -q '"deny"' "$missing/out" && fail "the guard printed a denial while unable to load"
+printf '{"hook_event_name":"Stop","cwd":"/"}' \
+  | python3 "$missing/plugin/hooks/stop.py" >/dev/null 2>&1
+[ $? -ne 2 ] || fail "the stop hook blocks a turn when it cannot load"
+rm -rf "$missing"
+
 # --------------------------------------------------------------------------------------------
 step "the payload's own markdown is not malformed"
 
@@ -333,6 +349,77 @@ for e in errors:
 sys.exit(1 if errors else 0)
 PY
 [ $? -eq 0 ] || fail "a file the payload names is not in the channel table"
+
+# --------------------------------------------------------------------------------------------
+step "every knob of the driver is named where a person reads"
+
+# The rule is that an interface with no reader is a defect. Four of the driver's flags have one — the
+# owner, at three in the morning, on a night that is already going badly — and that is exactly why
+# the kit refused to hand the driver to an SDK. But a flag named nowhere the owner reads is a flag
+# they do not have, so the reader has to be real: the flag appears in the prose that starts the
+# driver, or it does not exist.
+python3 - "$PLUGIN" <<'FLAGPY'
+import re, sys
+from pathlib import Path
+
+plugin = Path(sys.argv[1])
+source = (plugin / "scripts" / "orchestrate.py").read_text(encoding="utf-8")
+flags = set(re.findall(r'add_argument\("(--[a-z-]+)"', source))
+prose = "".join((plugin / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+                for name in ("sprint", "epic"))
+unnamed = sorted(f for f in flags if f"`{f}`" not in prose)
+for flag in unnamed:
+    print(f"ERROR: orchestrate.py takes {flag} and no command names it — the reader of a driver "
+          f"flag is the owner, and one they cannot find is one they do not have", file=sys.stderr)
+sys.exit(1 if unnamed else 0)
+FLAGPY
+[ $? -eq 0 ] || fail "a driver flag is named nowhere a person reads"
+
+# --------------------------------------------------------------------------------------------
+step "each command and its lenses agree on their names"
+
+# Two commands write one file per lens, and each states its lens names three times: as a tuple in
+# `check.py`, as a reference file per lens, and in the command's own prose. Nothing held the three
+# together. Rename a lens in one place and `check_audits` starts calling a perfectly good report
+# "neither a lens this kit runs nor the baseline" — a finding about a file that is fine, which is
+# worse than none, and the kind of drift only a program catches.
+python3 - "$PLUGIN" <<'LENSPY'
+import re, sys
+from pathlib import Path
+
+plugin = Path(sys.argv[1])
+source = (plugin / "scripts" / "check.py").read_text(encoding="utf-8")
+errors = []
+
+for command, constant in (("audit", "LENSES"), ("advise", "ADVICE_LENSES")):
+    found = re.search(rf"^{constant} = \(([^)]*)\)", source, re.M)
+    if not found:
+        errors.append(f"check.py declares no {constant} — the lenses of {command} are named "
+                      f"nowhere a program reads")
+        continue
+    declared = set(re.findall(r'"([a-z_]+)"', found.group(1)))
+    references = {p.stem for p in (plugin / "skills" / command / "references").glob("*.md")}
+    prose = (plugin / "skills" / command / "SKILL.md").read_text(encoding="utf-8")
+
+    missing = declared - references
+    if missing:
+        errors.append(f"{command}: {constant} names {', '.join(sorted(missing))}, and "
+                      f"skills/{command}/references/ has no file for them")
+    extra = references - declared
+    if extra:
+        errors.append(f"{command}: skills/{command}/references/ holds {', '.join(sorted(extra))}, "
+                      f"which {constant} does not name — a lens nobody wired in, or a reference "
+                      f"file that is not a lens")
+    unnamed = [lens for lens in sorted(declared) if f"`{lens}`" not in prose]
+    if unnamed:
+        errors.append(f"{command}: SKILL.md never names {', '.join(unnamed)} in backticks — the "
+                      f"session that dispatches a lens reads that file and nothing else")
+
+for e in errors:
+    print(f"ERROR: {e}", file=sys.stderr)
+sys.exit(1 if errors else 0)
+LENSPY
+[ $? -eq 0 ] || fail "a lens is named differently in the program, its reference and its command"
 
 # --------------------------------------------------------------------------------------------
 step "every field of the run file has a writer and a reader"

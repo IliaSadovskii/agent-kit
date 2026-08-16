@@ -51,6 +51,7 @@ AUDITS = "docs/audits"
 MANIFEST = ".agent-kit/project.yml"
 DEBT = "docs/technical_debt.md"
 MANUAL = "docs/manual.md"
+ADVICE = "docs/advice"
 MARK = "agent-kit:unmet"
 SCENARIO_MARK = "agent-kit:scenario"
 DIGEST_LEN = 8
@@ -113,6 +114,11 @@ TALLY_PAIR_RE = re.compile(r"([a-z_]+)=(\d+)")
 # appearing in a sentence is not mistaken for the mark.
 DECLINED_RE = re.compile(r"`declined`")
 LENSES = ("tests", "deps", "scenarios", "security", "performance", "conventions")
+# The other command that writes one file per lens. `docs/audits/` has been held to its own
+# list since a lens nobody wired in read exactly like the baseline; `docs/advice/` was held to
+# nothing at all, so a report there under any name at all was a report whose scope nobody adds
+# up — the same defect, already paid for once on the other side.
+ADVICE_LENSES = ("product", "code", "money")
 # What else may sit in `docs/audits/` and is not a lens. The baseline is two comparisons that belong
 # to no lens and run once per invocation, so it has no scope to walk and no counters to add up.
 # Declared here rather than skipped by shape, because a file this program cannot place is either
@@ -1743,6 +1749,27 @@ def check_audits(root: Path, docs: list, report: Report) -> None:
             f"written before the counters existed are in this count")
 
 
+def check_advice(root: Path, report: Report) -> None:
+    """A file in `docs/advice/` that no lens of `advise` wrote.
+
+    The same rule `docs/audits/` has had since a lens nobody wired in read exactly like the
+    baseline, and this side had none of it: a report named anything at all sat there, its scope
+    added up by nobody, and the silence read as a clean directory. Only the name is judged — what a
+    lens found is its own business, and `advise` proposes rather than counts, so there are no
+    counters to add up here.
+    """
+    advice = root / ADVICE
+    if not advice.is_dir():
+        return
+    unplaced = [p.name for p in sorted(advice.glob("*.md")) if p.stem not in ADVICE_LENSES]
+    if unplaced:
+        report.drift.append(
+            f"files in {ADVICE}/ that no lens of `advise` writes ({len(unplaced)}): "
+            f"{', '.join(unplaced)} — the lenses are {', '.join(ADVICE_LENSES)}, and a file outside "
+            f"them is a report the next run of that lens will never read, because it reads its own "
+            f"file and no other")
+
+
 def run_defects(state: dict, root: Path | None = None) -> list:
     """What a run may not close with.
 
@@ -2393,8 +2420,6 @@ def main(argv: list | None = None) -> int:
     parser.add_argument("--state", action="store_true",
                         help="also print the state of the work: branches, pull requests, runs left "
                              "mid-flight, when each lens last ran")
-    parser.add_argument("--hash", nargs="+", metavar="ARG",
-                        help="print the digest of a file, or of one heading inside it: --hash FILE [HEADING]")
     parser.add_argument("--epic", action="store_true",
                         help="the gate of /agent-kit:epic: bounds, scenarios, and the commands that "
                              "start and test the application. Silent when it may start")
@@ -2444,21 +2469,6 @@ def main(argv: list | None = None) -> int:
                 print(f"  {line}")
         return 1 if defects else 0
 
-    if options.hash:
-        target = root / options.hash[0] if not Path(options.hash[0]).is_absolute() else Path(options.hash[0])
-        if not target.is_file():
-            print(f"no such file: {target}", file=sys.stderr)
-            return 2
-        text = target.read_text(encoding="utf-8")
-        if len(options.hash) > 1:
-            section = section_of(text, " ".join(options.hash[1:]))
-            if section is None:
-                print(f"no such heading: {' '.join(options.hash[1:])}", file=sys.stderr)
-                return 2
-            text = section
-        print(digest(text))
-        return 0
-
     knowledge = root / KNOWLEDGE
     if not knowledge.is_dir():
         if options.status or options.state:
@@ -2504,6 +2514,7 @@ def main(argv: list | None = None) -> int:
     check_batches(root, report)
     check_channels(root, report)
     check_audits(root, docs, report)
+    check_advice(root, report)
     check_shape(root, docs, manifest, report)
     collect_unmet(root, manifest, keys(docs), report)
     collect_debt(root, report)

@@ -18,6 +18,40 @@ installed it — see [docs/developing.md](docs/developing.md#versioning).
   broken reference to a local file, it is where a description came from, said deliberately, so
   those are counted and named rather than judged — nothing here can fetch a page.
 
+- **The merge guard used to disarm itself on a file it could not read.** It arms while a run of the
+  kit is in flight, and it decided that by walking the run files and skipping any it could not
+  parse — so a project whose run files were all broken silently lost the one hook that stops an
+  agent merging its own work. Unreadable and recent now counts as a run in flight: being wrong that
+  way costs a merge the owner makes by hand, and being wrong the other way costs a merge nobody
+  reviewed.
+
+- **Both hooks now read what a run is from the same module as everything else**, rather than each
+  carrying a copy. The copies never disagreed about the constant; they disagreed about the questions
+  asked around it, which is the harder kind to notice. A hook runs on every Bash call in every
+  session, so the module is deliberately tiny and the cost was measured before and after — 42 ms,
+  unchanged — and `validate.sh` now runs both hooks against an install with `scripts/` removed and
+  fails if either **denies** anything: a hook that cannot load may complain, but it may never block
+  a tool call.
+
+- **The end-to-end ban now covers `fix` as well as `ship`**, because it asks `kind` instead of
+  `command`. A fix run proves one change like a feature does; walking the whole product from inside
+  it was never the intent, only the wording.
+
+- **The lens names are held together by a program.** Two commands write one file per lens, and each
+  names its lenses three times — a tuple in `check.py`, a reference file per lens, and its own
+  prose. Nothing kept the three in step, so renaming a lens in one place would have `check_audits`
+  calling a perfectly good report *neither a lens this kit runs nor the baseline*: a finding about a
+  file that is fine, which is worse than no finding. And `docs/advice/` had none of the rule that
+  `docs/audits/` has had since a lens nobody wired in read exactly like the baseline — a report
+  there under any name at all sat with its scope added up by nobody. Both are checked now.
+
+- **Two dead interfaces, answered differently.** `check.py --hash` is gone: nothing but one test
+  ever called it, and that test now asks the function every writer of a hash goes through. The
+  driver's six knobs are not dead — their reader is the owner, at three in the morning, on a night
+  that is going badly, and that is exactly why this kit refused to hand the driver to an SDK. They
+  were named nowhere that owner reads, which makes them flags nobody has, so `sprint` names them and
+  `validate.sh` fails if a flag is added without being named.
+
 - **A run file said what kind of run it is by accident, and a feature could excuse itself from
   proving anything.** Four different things live in that one file — a feature, an errand, a batch,
   an epic — and which one it was got worked out in eight independent places, each from whatever

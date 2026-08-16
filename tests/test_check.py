@@ -263,6 +263,26 @@ class CheckCase(unittest.TestCase):
         self.assertIn("neither a lens this kit runs nor the baseline", output)
         self.assertIn("accessibility.md", output)
 
+    def advice(self, name, text):
+        path = self.root / "docs" / "advice"
+        path.mkdir(parents=True, exist_ok=True)
+        (path / f"{name}.md").write_text(text, encoding="utf-8")
+
+    def test_a_file_no_lens_of_advise_writes_is_named(self):
+        """`docs/audits/` has had this rule since a lens nobody wired in read exactly like the
+        baseline. This side had none of it: a report under any name at all sat there with its scope
+        added up by nobody, and the silence read as a clean directory."""
+        self.advice("prodcut", "# Продукт\n\n- what users cannot finish\n")
+        _code, output = self.run_check()
+        self.assertIn("no lens of `advise` writes", output)
+        self.assertIn("prodcut.md", output)
+
+    def test_the_three_lenses_of_advise_say_nothing(self):
+        for lens in ("product", "code", "money"):
+            self.advice(lens, f"# {lens}\n\n- something\n")
+        _code, output = self.run_check()
+        self.assertNotIn("no lens of `advise` writes", output)
+
     # ---- the batch records a project already has -----------------------------------------------
 
     def batch_file(self, name, text):
@@ -419,11 +439,11 @@ class CheckCase(unittest.TestCase):
     # ---- the hash both sides have to agree on --------------------------------------------------
 
     def test_a_source_is_clean_at_the_hash_this_program_prints(self):
+        """Asked of the function every writer of a hash goes through — `--record` and the check
+        itself. It used to go through a `--hash` flag that nothing but this test ever called."""
         (self.root / "idea.md").write_text("# Idea\n\nWhat it is for.\n", encoding="utf-8")
-        out = io.StringIO()
-        with contextlib.redirect_stdout(out):
-            check.main([str(self.root), "--hash", "idea.md", "Idea"])
-        recorded = out.getvalue().strip()
+        idea = (self.root / "idea.md").read_text(encoding="utf-8")
+        recorded = check.digest(check.section_of(idea, "Idea"))
         self.write("product.md", f"# Product\n\n`source: idea.md#Idea @{recorded}`\n")
         code, output = self.run_check()
         self.assertEqual(code, 0, output)

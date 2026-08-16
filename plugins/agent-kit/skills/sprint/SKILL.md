@@ -239,6 +239,14 @@ It builds the children in order, each as its own visible session. It survives th
 sleeping until the reset named in the record and typing one line into the session, which is still
 alive with its context — so a limit costs the wait and nothing more.
 
+**Its knobs are the owner's, for a night that is already going badly**, and they are named here
+because a flag nobody can find is a flag nobody has: `--poll` (seconds between looks at the run
+file), `--hang` (minutes of silence before a session counts as stuck), `--max-wait` (hours; a reset
+further off than this is a weekly limit and the run stops), `--model` for the children, and
+`--ceiling` with `--room`, which decide when a session is asked to hand over. Do not pass them by
+default — every one is a measured number, and `--ceiling` is a live experiment whose next value
+waits on a measurement rather than on an opinion.
+
 ## Then stay, as the window
 
 You are the only session the owner has for this batch, and you already know why it looks the way it

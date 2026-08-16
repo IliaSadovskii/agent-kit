@@ -146,6 +146,22 @@ class EventCase(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(out.strip(), "")
 
+    def test_a_run_file_nothing_can_parse_does_not_disarm_the_guard(self):
+        """It used to be skipped, so a project whose run files were all broken quietly lost the one
+        hook that stops an agent merging its own work — silence meaning *no run here* when it meant
+        *nothing here can be read*. Being wrong this way costs a merge the owner does by hand;
+        being wrong the other way costs a merge nobody reviewed."""
+        (self.tmp / ".agent-kit" / "runs" / "x" / "run.json").write_text(
+            "{ this is not json", encoding="utf-8")
+        done = subprocess.run(
+            [sys.executable, str(GUARD)], input=json.dumps(
+                {"tool_name": "Bash", "tool_input": {"command": "gh pr merge 42"},
+                 "cwd": str(self.tmp)}),
+            capture_output=True, text=True, timeout=30)
+        self.assertEqual(done.returncode, 0)
+        self.assertEqual(json.loads(done.stdout)["hookSpecificOutput"]["permissionDecision"],
+                         "deny")
+
     def test_a_run_nobody_has_touched_for_a_day_is_not_in_flight(self):
         """A run that was abandoned never reaches a terminal step. Without a limit it arms this
         hook for ever, and every session in the project — the owner's own included — loses the
