@@ -566,7 +566,7 @@ class Driver:
 
     WINDOW_RULE = ("[driver] you are this run's window: turn the lines below into one sentence for "
                    "the owner, decide nothing, investigate nothing, and never put a question to "
-                   "them — the rule is skills/sprint/references/window.md, read it before you "
+                   "them — the rule is rules/window.md, read it before you "
                    "answer anything")
 
     def tell(self, message: str) -> None:

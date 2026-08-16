@@ -20,7 +20,7 @@ will have read more of the code than you have.
 | `/agent-kit:sprint --resume <run dir>` | the brief, restarting a driver over children already written |
 | `/agent-kit:sprint --frame <run dir>` | the frame child, started by the driver — `${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/frame.md` |
 | `/agent-kit:sprint --close <run dir>` | the closing session, started by the driver — `${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/close.md` |
-| `/agent-kit:sprint --window <run dir>` | stand beside a run somebody else started — `${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/window.md` |
+| `/agent-kit:sprint --window <run dir>` | stand beside a run somebody else started — `${CLAUDE_PLUGIN_ROOT}/rules/window.md` |
 
 Read the file named for you and nothing else in this table.
 
@@ -253,7 +253,7 @@ You are the only session the owner has for this batch, and you already know why 
 does — a session raised later would have to read that back out of files. So say in one line that the
 run has started and that they can ask you how it is going, and then **stop and wait**.
 
-From here on you follow `${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/window.md`: you answer when
+From here on you follow `${CLAUDE_PLUGIN_ROOT}/rules/window.md`: you answer when
 asked, you say the driver's news when it types a `[driver]` line at you, and you relay *skip* and
 *stop*. You do not narrate on your own, you do not poll anything, and you never take work
 back on yourself — the run does not depend on you, and if the owner closes you it carries on without

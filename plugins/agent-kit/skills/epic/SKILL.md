@@ -273,7 +273,7 @@ nohup python3 "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrate.py" .agent-kit/runs/<fi
 ```
 
 Close per `${CLAUDE_PLUGIN_ROOT}/rules/closing.md`, then stay as the window —
-`${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/window.md`, unchanged. The owner steers with the
+`${CLAUDE_PLUGIN_ROOT}/rules/window.md`, unchanged. The owner steers with the
 same two words, and closing you costs the run nothing but its narrator.
 
 **Read that file before you close, not when the driver first pokes you.** By then hours have passed,

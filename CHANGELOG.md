@@ -3,6 +3,14 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.20.3
+
+- **The window's rule moved to `rules/`, where its readers are.** It sat in `skills/sprint/
+  references/`, which `docs/developing.md` defines as *what one command needs at one step* — and it
+  had three readers: `sprint`, `epic`, and the driver, which types the path into a live session. A
+  rule two commands share is a shared rule by this kit's own table, and one in a private directory
+  is a rule the next command copies rather than points at.
+
 ## 2.20.2
 
 - **Everything this program asks the outside world now goes through one object.** Whether it may
