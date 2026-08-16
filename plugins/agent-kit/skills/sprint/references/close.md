@@ -105,19 +105,16 @@ and it is the list the next `sprint` composes a batch from.
 `closed_debt` — and write in the batch's leftovers, every child's `deferred`, one line each, newest
 first, copying `${CLAUDE_PLUGIN_ROOT}/templates/technical_debt.md` if it is not there yet. Commit
 it on the batch's branch, before the pull request, and say the movement in one line of the report:
-nine items, three closed, two added. This is the only step of yours that leaves something behind in
-the repository, and it is the difference between work the project remembers and work that lived in a
-pull request until it was merged.
+nine items, three closed, two added. This and the tick below are the only steps of yours that leave
+something behind in the repository, and they are the difference between work the project remembers
+and work that lived in a pull request until it was merged.
 
 A child that says it closed an item whose line is still there did not finish it — carry the line
 over untouched and name the feature in the report, rather than deleting on its word.
 
-**Tick what the batch closed in the audits' work lists too**, when it was composed from one:
-`- [x] закрыто PR #<n>` on each item its features finished, in `docs/audits/<lens>.md`, in the same
-commit. Only three things ever tick them — this step, `next` and `accept`, each
-only when it has verified an item is done — and the lens itself rewrites that file only on its next run, which may be months out. Until
-then every command reads the list as though the work were still waiting.
-Untouched items stay untouched: a box ticked on a guess costs more than one left open.
+**Tick what the batch closed in the audits' work lists too**, when it was composed from one — each
+item its features finished, per `${CLAUDE_PLUGIN_ROOT}/rules/audit-boxes.md`, which is where the
+evidence, the form and the commit are.
 
 Then a collapsed block per feature, about eight lines: what it does now in the product's terms, the
 approach in one sentence, where the tests sit, its branch, and the command that opens it as its own

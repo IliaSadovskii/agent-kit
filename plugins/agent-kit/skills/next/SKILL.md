@@ -16,13 +16,12 @@ open. This one exists for the cold start — a week later, in a new session, wit
 **You change nothing and start nothing.** Not a branch, not a file, not another command. You read,
 you rank, you say one line. The owner runs it.
 
-The single exception is bookkeeping that has already happened somewhere else. **Two facts, and only
-these two, you may write down where they belong:**
+The single exception is bookkeeping that has already happened somewhere else. **Three facts, and only
+these three, you may write down where they belong:**
 
-- **an audit's box whose work is done** — the entry is built, the pull request that closed it is
-  merged. Tick it right then: `- [x]` with that pull request, in `docs/audits/<lens>.md`, in the
-  project's language. Tick only what you verified; a box ticked on a guess costs more than one left
-  open.
+- **an audit's box whose work is done** — tick it right then, per
+  `${CLAUDE_PLUGIN_ROOT}/rules/audit-boxes.md`, which is where the evidence, the form and the commit
+  are. You are one of the three allowed to.
 - **an entry still marked `building` whose pull request has merged.** The check names these on
   every run; moving the line is one command, and until somebody runs it the knowledge says a
   finished feature is still in flight:

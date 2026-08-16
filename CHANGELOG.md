@@ -3,6 +3,41 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.18.0
+
+- **Three commands ticked a box in an audit's work list, each by its own paragraph.** The closing
+  session, `next` and `accept` all write `- [x]` into `docs/audits/<lens>.md`, and what they were
+  told about it differed: one carried the form and the three actors, one carried the commit rule and
+  the licence, one carried a clause. A rule held in three files is already in the wrong place, and
+  the loop's own table says one kind of content has one decider.
+
+  `rules/audit-boxes.md` now holds it once — who may tick and that each ticks only what it verified,
+  the evidence a tick rests on (the item's work in a merged pull request, or an entry `built` with
+  the change in that diff, never a guess), the form, its own `docs(audits):` commit, and that
+  untouched items stay untouched. The three keep one line each and whatever is genuinely theirs:
+  `next` still ticks only on a clean tree and says what it does when the tree is not. No program can
+  do this job — an item is free prose in the project's language and settling it means reading it
+  against a diff — which is what makes it a shared rule rather than a check.
+
+  Writing it down found the drift it exists to prevent: three of the five places that name who ticks
+  had never learned about `accept`, including the loop's own graph and the README's table of
+  records. All three now name the rule instead of listing the actors, which is the point of having
+  one.
+
+- **`epic --advance` re-did the closing session's work.** Its instruction is *decide what follows,
+  start it, stop*; measured on one real run, of its seven sessions five ran the suite, two wrote
+  `docs/runs/<batch>.json` and one rewrote the pull request's body — 3% of the run, spent on work
+  `sprint`'s closing session had already done, and none of it noticing whether that session had
+  done it.
+
+  It now asks `check.py --run` about the batch that just closed, as its first act. Silence is the
+  answer that matters: the record, `pr`, `branches` and `spent` are there, the batch is closed, and
+  nothing about it is to be done a second time. Output means it closed badly, and that goes into the
+  report and the pull request beside a blocked batch rather than being quietly finished by a session
+  that did not build it. The check already existed —
+  [docs/design/2026-08-14-where-the-tokens-burn.md](docs/design/2026-08-14-where-the-tokens-burn.md)
+  proposed exactly this — and nothing called it here.
+
 ## 2.17.0
 
 - **A branch nobody delivered was retired as delivered.** A parked child keeps its branch pushed and

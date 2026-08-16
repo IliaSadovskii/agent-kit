@@ -283,8 +283,22 @@ middle of the night. The rule it never read is the one that says a window report
 
 ## `--advance`: what follows a batch
 
-The driver starts you when a batch has closed. Read this run's file and the batch's, and do one
-thing:
+The driver starts you when a batch has closed. **Ask the check whether it really closed, first,
+before reading anything else:**
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --run .agent-kit/runs/<the batch that just closed>
+```
+
+**Silence means it is closed** — its `docs/runs/<slug>.json` record is there and carries `pr`,
+`branches` and `spent` — and none of the closing session's work is yours to do again: not the suite,
+not that record, not the pull request's body. **Output means it closed badly**, and it is named in
+your report and in the pull request, like a blocked batch, rather than finished here: you did not
+build this batch, and a session that quietly does the job again hides that it was skipped. Measured
+on one run: of seven `--advance` sessions, five ran the suite, two wrote the batch record and one
+rewrote the pull request body — 3% of the run, none of it asking first.
+
+Then read this run's file and the batch's, and do one thing:
 
 | Where the run is | What you do |
 |---|---|

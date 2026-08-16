@@ -104,8 +104,9 @@ becomes a second document nobody reads.
 ## What you may write down
 
 The same two facts `next` may, and nothing else, each in its own `docs(...)` commit: an audit's box
-whose work you verified is done, naming the pull request; and an entry still `building` whose pull
-request has merged — `check.py --sync`. Both only on a clean tree.
+whose work you verified is done, per `${CLAUDE_PLUGIN_ROOT}/rules/audit-boxes.md` — you are one of
+the three allowed to — and an entry still `building` whose pull request has merged — `check.py
+--sync`. Both only on a clean tree.
 
 Everything else you found is a sentence in your report. **This command does not fix, does not
 merge, does not answer its own questions, and does not open anything.**

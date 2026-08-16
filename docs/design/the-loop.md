@@ -41,7 +41,7 @@ until 0.44.0.
 | what a run built made the entry's prose false | `ship`, `fix` | `[stale …]` block under the entry | the check, before every command | `blueprint` — rewrites the prose and deletes the block | the batch's closing session applies it in the pull request; otherwise the preflight of the next command to touch that entry, or a `blueprint` session |
 | work understood and not done | `ship`, `fix` | a line in `docs/technical_debt.md` | the check counts it; `sprint` with no theme offers it | whoever does that work — `ship`, `fix`, or `blueprint` where the work was prose — deleting the line in the same commit | in the commit that does the work |
 | the product does what it should and does it badly, or does not do it — seen by the owner using it | `blueprint`, from their telling | a line in `docs/technical_debt.md` marked `owner` | as above | as above | as above |
-| a gap between the code and the description | `audit` | a box in `docs/audits/<lens>.md` | `next`; `sprint` composes a batch from it | `ship`, `fix` do the work; the closing session or `next` tick the box | in the batch's own commit, or in `next`'s bookkeeping commit |
+| a gap between the code and the description | `audit` | a box in `docs/audits/<lens>.md` | `next`; `sprint` composes a batch from it | `ship`, `fix` do the work; the closing session, `next` or `accept` tick the box, per `rules/audit-boxes.md` | each in its own bookkeeping commit |
 | a rule the project never wrote, where the code is plainly worse | `audit` | "also noticed" in the lens's file | that lens's next run | `blueprint`, by making it a rule — or nobody, deliberately | in a `blueprint` session |
 | a scenario with no end-to-end test | nobody records it — it is computed | the absence of `agent-kit:scenario` in the suite | `check.py --state`, and `next` at rung 8 | `ship`, writing the test — via the scenarios lens and a batch | in a `sprint` composed from that lens |
 | a feature delivered | `ship` or the closing session | `state: building (pr: n)` on the entry | the check compares against the pull request on every run | `next` or `blueprint --check`, with `--sync` | in their own `docs(knowledge):` commit |
@@ -63,7 +63,7 @@ because each was added on its own and nobody looked at the column.
 | `docs/knowledge/stack.md` — a `[frame …]` block | a batch's frame child | one line per agreement, each checkable against a diff and carrying its reason; deleted by `blueprint` after the batch merges |
 | `docs/technical_debt.md` | `ship`, `fix`, the closing session, and `blueprint` — for a line whose work was prose, and for what the owner brought back from using the product | a line appended, or a finished line deleted; never a ticked box |
 | `docs/audits/<lens>.md` | `audit` | the lens's own work list, rewritten whole on each run |
-| `docs/audits/<lens>.md` — the boxes | the closing session, `next` | `- [x]` on an item verified as done, and nothing else in that commit |
+| `docs/audits/<lens>.md` — the boxes | the closing session, `next`, `accept` — one rule between them, `rules/audit-boxes.md` | `- [x]` on an item verified as done, and nothing else in that commit |
 | `.agent-kit/project.yml` | `blueprint` | all of it; no build command edits its own settings |
 | `.agent-kit/runs/<slug>/run.json` | the run it belongs to, and the driver | the run writes its own state; the driver writes `step`, `blockers` and the batch's own file |
 | `.agent-kit/runs/<slug>/run.log` | the driver | when a session started, stalled, waited out a limit, finished |
