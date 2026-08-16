@@ -10,17 +10,16 @@ answering the reason is the same proposal.
 
 ## Next, in order
 
-1. **One `gh` call instead of N** — item 6, first bullet. Half an hour, and every command in every
-   run gets faster.
-2. **The three gaps in coverage** — item 6, second bullet. Small, independent, one commit each.
-3. **The journal of questions** — item 3.
-4. **Codes and levels on findings** — item 6, third bullet. A day, and it rewrites the check's
-   output; do it before the merge policy, which needs something a program can read.
-5. **The merge policy** — item 4, and start it in a mode that only says what *would* merge.
+1. **The three gaps in coverage** — item 6, second bullet. Small, independent, one commit each.
+2. **The journal of questions** — item 3.
+3. **Codes and levels on findings** — item 6, third bullet. A day, and it rewrites the check's
+   output; the merge policy needs it, and needs it first, because a policy reads an exit code.
 
-Deferred by the owner, with the reason: the bench (item 1), parallel building, the backlog command,
-the schedule, the continuous mode (item 7). Until the bench exists, changes to the kit are checked
-by real runs.
+Done since this page was written: one `gh` call instead of N, in 2.19.2.
+
+Deferred by the owner, with the reason: the bench (item 1), the merge policy (item 4), parallel
+building, the backlog command, the schedule, the continuous mode (item 7). Until the bench exists,
+changes to the kit are checked by real runs.
 
 Everything below is the reasoning, and the second half is what was refused.
 
@@ -125,7 +124,11 @@ owner faster. Where nobody is waiting (`gate: none`, a night run), the channel o
 run has already taken its default and built on it, so there is no answer to apply. See the refusal
 of *an asynchronous channel with a deadline* below; this is the half of it that survived.
 
-## 4. A merge policy — a program, not a decision
+## 4. A merge policy — a program, not a decision · **deferred**
+
+**Deferred by the owner**, 16 August 2026, until the check has codes and levels — a policy reads an
+exit code, and today that code means three different things. Two things below were checked against
+the payload on the same day and are wrong as written; they are marked where they stand.
 
 **The problem.** The kit never merges, by construction and by hook. That is right as a default and
 is a dead end for the goal: one instruction from the owner, a finished result in the default branch.
@@ -137,8 +140,12 @@ bottleneck rather than production speed.
 
 - A declared **evidence package**: CI green, acceptance green, no open critical or major review
   finding, no `unmet` on any entry this branch touched, the diff inside paths the project allows,
-  manual actions of `when: before_merge` all proved. Every item already exists somewhere in the kit;
-  what is missing is one place that collects them and one program that reads it.
+  manual actions of `when: before_merge` all proved. **Two of those do not exist**, checked in the
+  payload on 16 August 2026: there is no field anywhere saying which paths a project allows —
+  `templates/project.yml` has no such thing — and `accept` leaves no verdict a program could read,
+  by its own boundary (*"`accept` changes nothing"*). So either they are dropped from the package or
+  they are built, and building the second one costs `accept` the boundary that keeps it cheap. The
+  rest — CI, review findings, `unmet`, the proofs — is there and only needs collecting.
 - **At least one item of the package must not come from the kit.** Everything the package holds
   today is the kit's own word about itself — its tests, its reviewer, its suite. A static analyser
   (Semgrep, CodeQL) is deterministic, costs seconds and no tokens, and is produced by something
@@ -147,11 +154,15 @@ bottleneck rather than production speed.
 - **The program merges what passes and never judges.** What fails comes back to the owner as three
   lines, not as a pull request to read.
 - The guard hook stays exactly as it is: it forbids *an agent* from merging. A policy is not an
-  agent.
+  agent — **and the hook cannot tell them apart**. It matches the string `gh pr merge` in a Bash
+  call (`hooks/guard.py`), so a program that merges inside itself walks past it, and any session
+  could merge by starting that program. What actually holds the invariant is therefore who is
+  allowed to start the policy, and that has to be decided before a line of it is written.
 - Two modes, and they are the same machine: straight to the default branch, or one pull request with
   a very short body and the manual actions named.
 
-**Blocked on.** Item 1 (the proofs are part of the package) and the branch bookkeeping in item 5.
+**Was blocked on** the proofs (item 2) and the branch bookkeeping (item 5). Both landed — 2.19.0 and
+2.17.0 — so what stands in front of this now is only the codes and levels of item 6.
 
 ## 5. Small, and each one already argued
 
@@ -177,11 +188,10 @@ a verifying pass.
 
 Four findings, cheapest first.
 
-- **`gh` is called once per entry, on every preflight.** `sync_states` loops over entries at
-  `state: building (pr: N)` and runs `gh pr view N` for each, with no cache; `--state` adds more.
-  On a project with 21 entries mid-flight — a real number from one run — that is 21 network calls
-  before *every* command, times eighty sessions in a night. One `gh pr list --json number,state`
-  replaces all of them. This is the cheapest thing on this whole page and the most visible.
+- ~~**`gh` is called once per entry, on every preflight.**~~ Done in 2.19.2: one
+  `gh pr list --state all`, read once per process, answers for every entry and every number a batch
+  record names. A number outside the listing's cap is still asked about on its own, because an
+  entry closed on a listing's silence is an entry closed on a guess.
 
 - **Three gaps in what is checked**, all small:
   - **a declared command is never checked for existing.** `test: make test` with no Makefile is
@@ -256,7 +266,7 @@ Surveyed August 2026, against the question *what would the kit stop having to bu
   compromise (*A Deterministic Control Plane for LLM Coding Agents*, arXiv 2606.26924). Replacing it
   with a framework would be a step back.
 - **MCP servers for intake** — GitHub, Linear, Jira all publish OAuth endpoints now. Not needed:
-  `blueprint` is the intake, and what was missing was a trigger and a view. See item 6.
+  `blueprint` is the intake, and what was missing was a trigger and a view. See item 7.
 - **Anything for Telegram.** Thirty lines around one HTTP call. A framework here would be the whole
   cost of the feature.
 
@@ -268,15 +278,15 @@ Nothing here is an open question. Each was proposed, checked against the payload
 |---|---|
 | **Batch zero writes frozen acceptance tests** for every scenario before any feature exists | It blinds the only mechanical check the finish has: `check.py --state` counts a scenario as covered when the marker appears in the suite, so the count would read *10 of 10* in the first hour with nothing working. A deliberately red test also has nowhere to live — `unmet` is forbidden for what the run itself was sent to build, and the strict form must be edited exactly when it starts passing. Replaced by: the test rides with the feature that closes the scenario's last step. |
 | **The closing session runs the end-to-end tests** after every batch | No command existed to run (now `commands.e2e` does); the driver's 30-minute silence timer would restart the session mid-run; a walk in the tree the children built in proves only that an already-running application still runs; and a red result has no one allowed to close it, since most scenarios are red by construction until the batch that completes them. The home is CI on the batch's branch. |
-| **`--sync` also ticks audit boxes and deletes branches** | The state line has been in the program since 0.41.0 — what is distributed is the right to *run* it, deliberately, so that nothing writes as a side effect of reading. A box cannot be ticked by a program at all. Branch deletion is unsafe until item 5 above. |
+| **`--sync` also ticks audit boxes and deletes branches** | The state line has been in the program since 0.41.0 — what is distributed is the right to *run* it, deliberately, so that nothing writes as a side effect of reading. A box cannot be ticked by a program at all. The third reason — that branch deletion was unsafe — expired in 2.17.0, and `next` deletes delivered branches today; the read/write split is what keeps this refused. |
 | **Named views over `run.json`** so readers fetch a subset | Measured on 113 real run files: the whole traffic is 3.9% of a run and views would save 0.5–0.9%. The premise that the file is mostly the template's inline documentation is false — no real run file carries a single `_` key. |
 | **A ceiling on the run file's prose fields** (`review`, `notes`, `task` are 51% of its bytes) | The saving is real and small; the cost is losing context that exists nowhere else. Not worth it. |
 | **A task carries a free-text "how this is proved"** | Answered with "covered by unit tests" for free, and judged at a moment no command reaches. Replaced by `tasks[].commit`: a SHA either resolves in this repository or it does not. |
-| **An asynchronous question channel with a deadline** — the child asks, takes its default, continues, and an answer landing within N minutes is applied | Tried and cut: `wait <hours>` shipped in 1.4.0 with this exact argument and was removed in 2.5.0 because every wait spent its hours and arrived where the run would have arrived anyway. "Applied" has no coherent meaning: an expensive fork is one whose cost *is* the cost of reversing it, and the answer arrives after the commits built on the default. The surviving half is item 2. |
+| **An asynchronous question channel with a deadline** — the child asks, takes its default, continues, and an answer landing within N minutes is applied | Tried and cut: `wait <hours>` shipped in 1.4.0 with this exact argument and was removed in 2.5.0 because every wait spent its hours and arrived where the run would have arrived anyway. "Applied" has no coherent meaning: an expensive fork is one whose cost *is* the cost of reversing it, and the answer arrives after the commits built on the default. The surviving half is item 3. |
 | **Splitting `ship`'s Verify into a subagent** | Priced both ways and it is a wash: the tokens saved by keeping tool output out of the builder's context roughly equal what a subagent's own context floor costs. The remaining argument — a cleaner context — cannot be settled without a measurement nobody has. |
 | **The kit learning from its own outcomes** — recording whether a merged feature later needed fixes | Not refused on merit; the owner set it aside as too large and too early. |
 | **Rewriting the driver onto the Agent SDK**, so liveness, cost and limits come from the API instead of from parsing transcripts | The three most expensive driver defects all came from that parsing, and the SDK removes the whole class. Refused because it costs the visible tmux session per feature, which is what makes a stalled child rescuable by hand and a limit recoverable by typing one line. The owner values that more. |
 | **A pull request per batch instead of one per run** | The owner does not want a pile of pull requests after an `epic`. The early-integration argument was answered separately, by CI on the batch's branch. |
 | **Counting an `epic`'s price in the weekly quota** rather than in hours | The owner reads the quota themselves and decides what to start. |
-| **A cron picking work up on its own** | It solves the wrong problem: the value is not that the kit starts without the owner, it is that it does not need them after it starts. And it has two real costs — a run nobody started is a run with `gate: none`, so every expensive fork becomes an assumption; and it cannot know the owner is spending this week's quota on another project. Replaced by the continuous mode in item 6. |
-| **A separate `intake` mechanism** for new ideas | `blueprint` already is one: `planned` entries, the debt, the audits' work lists. What was missing was a trigger and a view, which are item 6. |
+| **A cron picking work up on its own** | It solves the wrong problem: the value is not that the kit starts without the owner, it is that it does not need them after it starts. And it has two real costs — a run nobody started is a run with `gate: none`, so every expensive fork becomes an assumption; and it cannot know the owner is spending this week's quota on another project. Replaced by the continuous mode in item 7. |
+| **A separate `intake` mechanism** for new ideas | `blueprint` already is one: `planned` entries, the debt, the audits' work lists. What was missing was a trigger and a view, which are item 7. |
