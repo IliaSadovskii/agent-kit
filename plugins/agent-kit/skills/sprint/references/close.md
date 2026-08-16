@@ -112,6 +112,14 @@ and work that lived in a pull request until it was merged.
 A child that says it closed an item whose line is still there did not finish it — carry the line
 over untouched and name the feature in the report, rather than deleting on its word.
 
+**The children's `manual` records move in that same commit**, into `docs/manual.md`, copying
+`${CLAUDE_PLUGIN_ROOT}/templates/manual.md` if the file is not there yet. The pull request's own
+section is still where the owner meets them; this file is what remembers them the day after the
+merge, when nobody opens that pull request again. Copy the `proof` **as the command it is** — the
+program runs it later and deletes the line itself, which is the only reason a list like this is
+still true a month on. A record whose proof is a sentence rather than a command goes in with
+`proof: none` and the reason, and it is the exception.
+
 **Tick what the batch closed in the audits' work lists too**, when it was composed from one — each
 item its features finished, per `${CLAUDE_PLUGIN_ROOT}/rules/audit-boxes.md`, which is where the
 evidence, the form and the commit are.

@@ -217,6 +217,7 @@ is allowed to remove is a record that grows for ever:
 | `[frame …]` under `stack.md` | how one batch's features agreed to build alike, settled by the batch itself with nobody present | the frame child a batch opens with | `blueprint`, folding it into the stack once that batch has merged |
 | `agent-kit:unmet` on a test | a promise the entry makes and the product does not keep — the test is written and marked so the suite stays green | `ship`, when the entry and the code contradict each other | you choose the side; then the product changes or the entry does |
 | `docs/technical_debt.md` | work a run understood and did not do | `ship`, `fix`, and the session that closes a batch | whoever does the work, deleting the line in the same commit |
+| `docs/manual.md` | what only you can do — a secret, an account, a device — each with a command that proves it done | the session that closes a batch, from every child's `manual` | **the program**: `check.py --manual` runs each proof and deletes what has happened. The few no command can answer wait for you |
 | `docs/audits/*.md` | a lens's work list, boxes ticked as they are closed | `audit` writes; a batch, `next` and `accept` tick, by one rule between them | that lens's next run, which rewrites the file |
 | `.agent-kit/runs/*/run.json` | one run's memory: approach, tasks, assumptions, review, answers, what it left behind | the run itself, and the driver | nobody — it is history, and everything meant to outlive the branch is in one of the records above |
 

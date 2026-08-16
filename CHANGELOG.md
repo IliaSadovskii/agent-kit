@@ -3,6 +3,33 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.19.0
+
+- **The one class of work that needs the owner had nowhere to live.** A `manual` record — a secret to
+  place, an account to open, a device to hold — sat in `.agent-kit/runs/<slug>/run.json`, which is
+  git-ignored and dies with the machine, and reached them once, through a pull request's **Manual
+  actions**. The day after the merge nothing held it: the pull request is closed, the run directory
+  is gone, and the only command that reads those records is `accept`, which composes them out of the
+  body of that same pull request.
+
+  - **`docs/manual.md`** is the record now, written from `templates/manual.md` by the closing session
+    in the same commit as the ledger — one movement, both files. The pull request's section is
+    unchanged and is still where the owner meets the list.
+  - **`proof` is a command, not a sentence about how they will know.** One that exits 0 once the
+    action has been done: the key reads in the environment, the account exists, the endpoint answers.
+    `check.py --manual` runs every proof and **deletes the lines whose work has happened**, so
+    nothing has to be ticked and a list stays true a month later, which no hand-closed list has ever
+    been. A proof only ever reads — one that migrates or deploys is the action itself.
+  - **`stage` decides what is shown.** On a project at `development` there is no release, so
+    `before_release` lines are kept and not printed. Measured on one run, that group was a third of a
+    list of nineteen, and it was what made the six that genuinely needed a person unfindable.
+  - Where no command can answer — a store listing went live, a device was held — the line says
+    `proof: none` and why. Legitimate and rare, and the check says how many there are, because a
+    file where most lines say it was written the lazy way.
+  - `accept` runs the proofs before it lists anything: half of these are usually done by the time
+    anybody reads them, and an action the owner has to work out they can skip costs more than one
+    they simply do.
+
 ## 2.18.0
 
 - **Three commands ticked a box in an audit's work list, each by its own paragraph.** The closing

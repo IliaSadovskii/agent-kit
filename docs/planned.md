@@ -12,7 +12,11 @@ Order below is the order to do the work in, not the order of importance.
 
 ---
 
-## 1. A bench for the kit itself — on `claude plugin eval`
+## 1. A bench for the kit itself — on `claude plugin eval` · **deferred**
+
+**Deferred by the owner**, August 2026: until it exists, changes to the kit are checked by real
+runs, which is what they were checked by before. Everything below stands as written — the reason to
+build it has not changed, only its turn.
 
 **The problem.** Checking a change to the kit costs a live overnight run on a real project. That is
 why talking about the kit cost 26% of one measured week — more than two thirds of a whole `epic` —
@@ -47,7 +51,11 @@ judges **whether the kit's own mechanisms fired**, and a grader can be a script:
 
 **First, not last**, because it is the instrument every other item below is checked with.
 
-## 2. A home for manual actions, with a proof that runs
+## 2. A home for manual actions, with a proof that runs · **done in 2.19.0**
+
+`docs/manual.md` written from a template of its own, `proof` as an executable command,
+`check.py --manual` running them and deleting what has happened, `stage` deciding what is shown,
+`accept` running the proofs before it lists anything. Kept here for the reasoning.
 
 **The problem.** `manual` records — a secret to place, a migration to apply, an account to create —
 live in `.agent-kit/runs/<slug>/run.json`, which is git-ignored and dies with the machine. The only
@@ -133,13 +141,11 @@ bottleneck rather than production speed.
 
 ## 5. Small, and each one already argued
 
-- **One rule for ticking an audit box.** Three actors may do it today — the closing session, `next`,
-  `accept` — each by its own paragraph. A program cannot do it (the item is free prose in the
-  project's language), so the fix is one rule in `rules/` that the three point at.
-- **A batch that is closed is not re-closed.** `epic --advance` is told *decide what follows, start
-  it, stop*; measured, five of seven ran the suite, two wrote the batch record, one rewrote the pull
-  request body — all of it the closing session's work, done twice. The check is mechanical: a batch
-  whose `docs/runs` record, `spent` and `pr` are all present is closed.
+- ~~**One rule for ticking an audit box.**~~ Done in 2.18.0: `rules/audit-boxes.md`, with the three
+  callers pointing at it. Writing it down found the drift it exists against — three of the five
+  places naming who ticks had never learned about `accept`.
+- ~~**A batch that is closed is not re-closed.**~~ Done in 2.18.0: `epic --advance` asks
+  `check.py --run` about the batch that just closed, before doing anything.
 - ~~**Parked children's branches, recorded apart from delivered ones.**~~ Done in 2.17.0: `parked`
   beside `branches` in the batch record, held out of retirement, with the mismatch between the two
   named by the check. This was what blocked retiring branches by program rather than by hand.

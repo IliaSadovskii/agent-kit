@@ -37,6 +37,7 @@ KNOWLEDGE = "docs/knowledge"
 AUDITS = "docs/audits"
 MANIFEST = ".agent-kit/project.yml"
 DEBT = "docs/technical_debt.md"
+MANUAL = "docs/manual.md"
 MARK = "agent-kit:unmet"
 SCENARIO_MARK = "agent-kit:scenario"
 DIGEST_LEN = 8
@@ -224,6 +225,7 @@ class Report:
         self.states: list = []
         self.unmet: list = []
         self.debt: list = []
+        self.manual: list = []
         self.drift: list = []
         self.shape: list = []
         self.audits: list = []
@@ -479,6 +481,136 @@ def collect_debt(root: Path, report: Report) -> None:
             fenced = not fenced
         elif item.startswith("- [ ]") and not fenced:
             report.debt.append(f"{DEBT}:{number} {item[5:].strip()[:96]}")
+
+
+STAGES = ("before_run", "before_merge", "before_release")
+PROOF_RE = re.compile(r"^\s*proof:\s*(?:`([^`]+)`|(none\b.*))", re.I)
+
+
+def read_manual(root: Path) -> list:
+    """The open actions in `docs/manual.md`: what, when it is due, and what would prove it done.
+
+    One record per open box, carrying the line numbers it spans so a pass that closes one can cut
+    exactly those and nothing else. `proof` is the command that says the action has happened;
+    `None` where the file says `none`, which is the honest answer for something only a person can
+    see and is meant to be rare.
+    """
+    path = root / MANUAL
+    if not path.is_file():
+        return []
+    lines = path.read_text(encoding="utf-8").splitlines()
+    out, fenced = [], False
+    for number, raw in enumerate(lines):
+        item = raw.strip()
+        if item.startswith("```"):                 # the file explains its own format in a fence
+            fenced = not fenced
+            continue
+        if fenced or not item.startswith("- [ ]"):
+            continue
+        what = item[5:].strip()
+        when = next((s for s in STAGES if f"· {s}" in what or f"·{s}" in what), "")
+        proof, last = None, number
+        # The proof rides under its action, and so does a wrapped line of the action itself. Read
+        # forward to the next box or the end of the block, so a two-line action keeps its proof.
+        for ahead in range(number + 1, len(lines)):
+            following = lines[ahead].strip()
+            if not following or following.startswith(("- [ ]", "- [x]", "#", "```")):
+                break
+            last = ahead
+            found = PROOF_RE.match(lines[ahead])
+            if found:
+                proof = found.group(1)
+                break
+        out.append({"what": what, "when": when, "proof": proof,
+                    "first": number, "last": last, "line": number + 1})
+    return out
+
+
+def collect_manual(root: Path, manifest: dict, report: Report) -> None:
+    """What the owner still has to do by hand, and only what they could do today.
+
+    Read on every run and never executed here: a proof is a command out of a file, and running one
+    as a side effect of a preflight would be this program changing the world it was asked to look
+    at. `--manual` is what runs them.
+
+    `stage` decides what is printed. On a project at `development` there is no release, so
+    `before_release` lines are kept and not shown — measured on one run, that group was a third of a
+    list of nineteen, and it was what made the six that mattered unfindable.
+    """
+    open_actions = read_manual(root)
+    if not open_actions:
+        return
+    stage = str(manifest.get("stage") or "").strip()
+    due = [a for a in open_actions
+           if not (stage == "development" and a["when"] == "before_release")]
+    later = len(open_actions) - len(due)
+    for action in due[:UNMET_SHOWN]:
+        report.manual.append(f"{MANUAL}:{action['line']} {action['what'][:96]}")
+    if len(due) > UNMET_SHOWN:
+        report.manual.append(f"… and {len(due) - UNMET_SHOWN} more")
+    if later:
+        report.manual.append(f"({later} more wait for a release this project has not reached)")
+    # A file where most actions cannot be proved by a command was written the lazy way, and the
+    # count is the only thing that says so — each `none` on its own is a legitimate answer.
+    blind = [a for a in due if not a["proof"]]
+    if len(blind) > len(due) / 2 and len(due) > 2:
+        report.manual.append(f"{len(blind)} of {len(due)} carry no command that would prove them "
+                             f"done, so nothing here closes itself")
+
+
+def prove_manual(root: Path, timeout: int = 60) -> int:
+    """Run every proof and delete the lines whose action has happened. `--manual` and nothing else.
+
+    This is the whole reason a proof is a command rather than a sentence: a list closed by hand is a
+    list nobody closes. A run of this is the only moment the kit executes anything out of that file,
+    it is asked for explicitly, and the template says a proof may only read.
+
+    A proof that fails is not a defect — it means the owner has not done that thing yet, which is
+    what the line is for. A proof that cannot run at all is reported and the line is kept, because
+    a command that errors and one that says *not yet* must not read alike.
+    """
+    actions = read_manual(root)
+    if not actions:
+        print("No manual actions are recorded.")
+        return 0
+
+    done, broken = [], []
+    for action in actions:
+        if not action["proof"]:
+            continue
+        try:
+            ran = subprocess.run(action["proof"], shell=True, cwd=root,
+                                 capture_output=True, text=True, timeout=timeout)
+        except (OSError, subprocess.SubprocessError) as exc:
+            broken.append((action, str(exc)))
+            continue
+        if ran.returncode == 0:
+            done.append(action)
+        elif ran.returncode == 127:                # the command does not exist here
+            broken.append((action, "no such command on this machine"))
+
+    if done:
+        cut = {n for action in done for n in range(action["first"], action["last"] + 1)}
+        lines = (root / MANUAL).read_text(encoding="utf-8").splitlines()
+        kept = [line for number, line in enumerate(lines) if number not in cut]
+        (root / MANUAL).write_text("\n".join(kept) + "\n", encoding="utf-8")
+        print(f"Done and removed ({len(done)}):")
+        for action in done:
+            print(f"  {action['what'][:96]}")
+        print(f"  Commit {MANUAL} on its own, as `docs(manual): …`.")
+
+    left = [a for a in actions if a not in done]
+    if left:
+        print(f"Still waiting on the owner ({len(left)}):")
+        for action in left:
+            mark = "" if action["proof"] else "  (nothing here can prove this — only they can see it)"
+            print(f"  {action['what'][:96]}{mark}")
+    for action, why in broken:
+        print(f"  the proof of \"{action['what'][:60]}\" could not run — {why}. The line is kept: a "
+              f"proof that errors and one that says *not yet* must not read alike")
+    if not done and not left:
+        print("No manual action carries a proof, so nothing could be closed.")
+    return 0
 
 
 def grep(root: Path, needle: str) -> list:
@@ -1928,6 +2060,10 @@ def main(argv: list | None = None) -> int:
     parser.add_argument("--run", metavar="DIR",
                         help="judge one run file as it closes: what a run at step done may not "
                              "leave behind. Silent when there is nothing")
+    parser.add_argument("--manual", action="store_true",
+                        help="run the proof of every action in docs/manual.md and delete the lines "
+                             "whose work has been done. The one place this program executes "
+                             "anything a run wrote, and it is asked for")
     parser.add_argument("--pr-body", metavar="FILE",
                         help="measure a pull request's body before it is opened: how much of it a "
                              "reader must walk past, and the biggest table they cannot collapse")
@@ -1937,6 +2073,9 @@ def main(argv: list | None = None) -> int:
 
     if options.pr_body:
         return pr_body_defects(Path(options.pr_body))
+
+    if options.manual:
+        return prove_manual(root)
 
     if options.run:
         target = Path(options.run)
@@ -2014,6 +2153,7 @@ def main(argv: list | None = None) -> int:
     check_shape(root, docs, manifest, report)
     collect_unmet(root, manifest, keys(docs), report)
     collect_debt(root, report)
+    collect_manual(root, manifest, report)
     collect_notes(docs, report)
 
     if report.states:
@@ -2030,6 +2170,18 @@ def main(argv: list | None = None) -> int:
         for line in report.unmet:
             print(f"  {line}")
         print("  Not this run's work. They are offered as a batch by /agent-kit:sprint with no theme.")
+
+    # Beside the unmet promises and for the same reason: a statement about the project, printed
+    # whether or not anything else is open. An action at `before_run` is the one record here that
+    # can stop the product from starting at all, so a clean report is exactly when it must still be
+    # visible — the debt below is inside the noisy half, and this is not.
+    if report.manual:
+        print(f"\nWaiting on the owner's hands ({len(read_manual(root))}) — nothing else can do "
+              f"these:")
+        for line in report.manual:
+            print(f"  {line}")
+        print("  Closed by them doing it; `check.py --manual` runs each proof and removes what has "
+              "already happened.")
 
     if report.stale:
         print(f"\nProse a feature has already outdated ({len(report.stale)}) — the entry carries "
@@ -2064,6 +2216,7 @@ def main(argv: list | None = None) -> int:
             print(f"  {line}")
         if len(report.debt) > UNMET_SHOWN:
             print(f"  … and {len(report.debt) - UNMET_SHOWN} more")
+
 
     # `stale` and `accepted` are statements; an `[assumed …]` is still a finding, because the run
     # that took it had nobody to ask and the owner has still not seen it.

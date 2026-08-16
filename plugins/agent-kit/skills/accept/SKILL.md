@@ -49,9 +49,15 @@ that is red or a branch with conflicts makes this line, whatever else is in the 
 
 **2. Manual actions, numbered, in the order they must be done.** Each: what to do, where, and **how
 to tell it worked**. A secret goes somewhere and something starts working; say which. These come
-from the runs' own `manual` records — what, where, `proof`, `when` — merged and ordered, never
-re-derived from the pull request's prose. Where a run file is gone from this machine and only the
-body is left, say that the list is the body's and could not be checked against a record.
+from `docs/manual.md` on that branch, and from the runs' own `manual` records while they are still
+here — what, where, `proof`, `when` — merged and ordered, never re-derived from the pull request's
+prose. The file is the one that survives the merge, so where the two disagree it is the record.
+
+**Run the proofs before you list anything** — `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" .
+--manual` — and list what is left. Half of these are usually already done by the time anybody reads
+them, and an action the owner has to work out they can skip costs more than one they simply do.
+Where a run file is gone from this machine and only the body is left, say that the list is the
+body's and could not be checked against a record.
 
 **3. What is waiting on a decision.** Every `waiting_on` that timed out, every fork the run took as
 an assumption *because* nobody was there, and anything the body names as the owner's to settle. Each

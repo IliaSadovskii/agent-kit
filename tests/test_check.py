@@ -1530,6 +1530,104 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class ManualCase(unittest.TestCase):
+    """What only the owner can do, and the proof that closes it without them saying so.
+
+    These lived in a git-ignored run file and reached the owner through one pull request, so the day
+    after the merge nothing held them. The file is the record; the proof being a command rather than
+    a sentence is what keeps the list true a month later.
+    """
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.root = self.tmp / "proj"
+        (self.root / "docs").mkdir(parents=True)
+        (self.root / ".agent-kit").mkdir(parents=True)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def manual(self, text, stage="development"):
+        (self.root / "docs" / "manual.md").write_text(text, encoding="utf-8")
+        (self.root / ".agent-kit" / "project.yml").write_text(
+            f"stage: {stage}\ncommands:\n  test: make test\n", encoding="utf-8")
+
+    def prove(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            check.prove_manual(self.root)
+        return out.getvalue(), (self.root / "docs" / "manual.md").read_text(encoding="utf-8")
+
+    ACTIONS = ("- [ ] place the key — payments read it · before_release · PR #21\n"
+               "      proof: `test -n \"$NOT_SET_ANYWHERE\"`\n"
+               "- [ ] create the moderator — nothing can be reviewed · before_run · PR #21\n"
+               "      proof: `true`\n"
+               "- [ ] confirm the listing went live · before_merge · PR #21\n"
+               "      proof: none — only a person can see it\n")
+
+    def test_a_proof_that_passes_takes_its_line_with_it(self):
+        self.manual(self.ACTIONS)
+        output, left = self.prove()
+        self.assertIn("Done and removed (1)", output)
+        self.assertNotIn("create the moderator", left)
+        self.assertIn("place the key", left)          # its proof still says not yet
+        self.assertIn("confirm the listing", left)    # nothing can prove this one
+
+    def test_a_proof_that_fails_is_the_owner_not_having_done_it_yet(self):
+        self.manual(self.ACTIONS)
+        output, _left = self.prove()
+        self.assertIn("Still waiting on the owner (2)", output)
+
+    def test_an_action_with_no_proof_is_named_as_one_nobody_can_close(self):
+        self.manual(self.ACTIONS)
+        output, _left = self.prove()
+        self.assertIn("only they can see it", output)
+
+    def test_the_line_under_an_action_goes_with_it_and_nothing_else_does(self):
+        """The proof rides under its action, so closing one cuts exactly its own lines — a cut that
+        took one line too many would leave a stray `proof:` belonging to nothing."""
+        self.manual(self.ACTIONS)
+        _output, left = self.prove()
+        self.assertNotIn("`true`", left)
+        self.assertEqual(left.count("proof:"), 2)
+
+    def test_a_release_this_project_has_not_reached_is_kept_and_not_shown(self):
+        self.manual(self.ACTIONS)
+        report = check.Report()
+        check.collect_manual(self.root, {"stage": "development"}, report)
+        shown = "\n".join(report.manual)
+        self.assertNotIn("place the key", shown)      # before_release, and there is no release
+        self.assertIn("create the moderator", shown)
+        self.assertIn("1 more wait for a release", shown)
+
+    def test_a_released_project_is_shown_all_of_them(self):
+        self.manual(self.ACTIONS, stage="released")
+        report = check.Report()
+        check.collect_manual(self.root, {"stage": "released"}, report)
+        self.assertIn("place the key", "\n".join(report.manual))
+
+    def test_a_fenced_example_is_not_an_action(self):
+        """The template explains its own format in a fence, exactly as the ledger's does."""
+        self.manual("```markdown\n- [ ] the example — · before_run · PR #1\n      proof: `true`\n"
+                    "```\n")
+        report = check.Report()
+        check.collect_manual(self.root, {}, report)
+        self.assertEqual(report.manual, [])
+
+    def test_a_file_that_is_mostly_unprovable_says_so(self):
+        self.manual("".join(
+            f"- [ ] action {n} · before_run · PR #1\n      proof: none — a person sees it\n"
+            for n in range(4)))
+        report = check.Report()
+        check.collect_manual(self.root, {}, report)
+        self.assertTrue(any("nothing here closes itself" in line for line in report.manual))
+
+    def test_no_file_at_all_says_nothing(self):
+        report = check.Report()
+        check.collect_manual(self.root, {}, report)
+        self.assertEqual(report.manual, [])
+
+
 class BranchesCase(unittest.TestCase):
     """Which branches a merged pull request has already delivered.
 

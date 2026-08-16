@@ -85,6 +85,12 @@ what is thin, and that nothing they just read depends on them remembering it.
   is what made the six that genuinely needed a person unfindable. Empty `stage` is not `development`:
   print everything and say the field is unanswered.
 
+  **Each line carries its proof, and the proof is a command** — one that exits 0 once the action has
+  been done. The same records go into `docs/manual.md` on this branch, where `check.py --manual`
+  runs them later and deletes what has happened: this section is where the owner meets the list, and
+  that file is what still holds it the day after the merge, when nobody opens this pull request
+  again.
+
   Two things that look like manual actions and are not, because a list that holds them stops being
   read. **Anything a script can do belongs in the script**: a migration to apply, a build argument,
   a port, a file mode. If you did it by hand, fold it into `commands.run` and say you did.
