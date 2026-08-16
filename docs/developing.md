@@ -24,6 +24,9 @@ plugins/agent-kit/                the plugin — everything that ships
   templates/technical_debt.md     the ledger, carrying its own format and rules in its header
 scripts/                          validate.sh, release.sh, measure.py
 docs/design/                      what was decided and why; kit-v1.md is the current one
+docs/planned.md                   what is planned next — and, in its second half, what was
+                                  proposed, checked against the payload and refused, with the
+                                  reason. Read that half before proposing anything
 ```
 
 The invariant: **behavior lives in exactly one file.** A skill that restates a rule instead of
