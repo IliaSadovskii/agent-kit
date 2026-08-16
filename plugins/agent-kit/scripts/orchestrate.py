@@ -854,7 +854,10 @@ class Driver:
             # Only where one was owed. A frame child that wrote its prose and forgot the map would
             # otherwise close green and leave the batch on the fallback, which is indistinguishable
             # from a batch where nothing depends on anything.
-            if "frame.md" in (state.get("prompt") or ""):
+            # Both forms: `--frame <dir>` is what a batch writes now, and `frame.md` is what run
+            # files written before 2.15.0 carry. A `--resume` reads those, and reading one as an
+            # ordinary child would drop the defect this line exists to report.
+            if re.search(r"--frame\b|frame\.md", state.get("prompt") or ""):
                 self.note_defect(f"{child.slug} left no `frame` map, so no feature knows what it "
                                  f"needs and the batch falls back to the queue order")
             return

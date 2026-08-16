@@ -7,6 +7,38 @@ is the whole design goal: everything below either serves that decision or collap
 Write it in the project's language (`.agent-kit/project.yml` → `language`); the section names below
 are canonical, so translate them with the body.
 
+## The brief, and its ceiling
+
+**Every pull request opens with four questions and answers nothing else in them.** They are the
+whole of what the owner has to read; everything after is for whoever wants it.
+
+1. **What works now that did not.** One line per feature, or per batch on a run of many. What the
+   product does, in the owner's words — not what was built.
+2. **What is needed from them to run it here.** From the `manual` records, and only those whose
+   `when` this project has reached — see the stage rule under *Manual actions*. "Nothing" when there
+   is nothing, and that is the common answer.
+3. **What went wrong.** Composed from fields and never from judgement: parked or skipped features,
+   `unmet` promises, red or unrun tests, `blockers`. Empty only when those fields are empty.
+4. **What only they can decide.** At most five, each a question with the answer this run took as its
+   default. The rest are recorded and raise themselves; see the table below.
+
+**Two thousand five hundred characters, and the program counts them.** Before opening or editing a
+pull request, write the body to a file and read it back:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --pr-body <that file>
+```
+
+The ceiling is on the brief and on the uncollapsed part below it, not on the whole body: a reader
+who wants the detail should find it, and a reader who wants the decision should not have to walk
+past it. It is a number rather than a paragraph asking for restraint because restraint was what the
+rule asked for before, and one measured run answered with 45 000 characters — of which a table of
+seventy assumptions was uncollapsed and *What was hard*, three to five lines by the rule below, was
+a hundred and eighty-seven.
+
+Length is also a property of the model rather than of this kit: the documents Claude writes to disk
+run long unless a length is named, so naming one here is what makes the rest of this file work.
+
 ## Nothing is left on the owner
 
 **Never write that something is the owner's to do.** Not *your call*, not *this one is on you*, not
@@ -45,6 +77,14 @@ what is thin, and that nothing they just read depends on them remembering it.
   merges, before it ships. Never collapsed; this is the section they act on. "None." when there is
   nothing.
 
+  **`stage` in `.agent-kit/project.yml` decides which of those groups is printed at all.** On a
+  project at `development` there is no release, so `before it ships` is not a list of things for the
+  owner: each of those lines goes into `docs/deployment.md` on this same branch and is named here in
+  one line with a count. A push credential for an app nobody has published is not something anybody
+  is going to do this week, and on one measured run that group was a third of nineteen items — which
+  is what made the six that genuinely needed a person unfindable. Empty `stage` is not `development`:
+  print everything and say the field is unanswered.
+
   Two things that look like manual actions and are not, because a list that holds them stops being
   read. **Anything a script can do belongs in the script**: a migration to apply, a build argument,
   a port, a file mode. If you did it by hand, fold it into `commands.run` and say you did.
@@ -63,8 +103,11 @@ what is thin, and that nothing they just read depends on them remembering it.
   first proved half a fix. This is the part of a run that exists nowhere else — the code shows the
   answer and never the two answers before it — and it is what tells the owner whether the ground
   here is solid or was made to hold by one careful decision.
-- **Proven** — which of the entry's lines have a test, what the suite returned, and whether the app
-  was started and exercised. Name what is *not* proven and why. **And what `mutation` says**: how
+- **Proven** — which of the entry's lines have a test, what the suite returned **and the commit it
+  returned it on**, from `proved_at`, and whether the app was started and exercised. Name what is *not* proven and why — **including every seam a proof went
+  through a stand-in at**, by name, from the run files' `suite`: a fake gateway, a fake sign-in, a
+  fixed clock. A feature proved entirely against doubles has proved the doubles, and on one measured
+  run the real model was never called once in thirty hours. **And what `mutation` says**: how
   many changes to the product's own logic the suite caught and how many it slept through, or that
   the step did not run and why. Everything else in this section is a green tick reporting on
   itself; that pair of numbers is the only line in a pull request that says the tests would have

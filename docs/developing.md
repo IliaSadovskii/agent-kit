@@ -9,7 +9,10 @@ plugins/agent-kit/                the plugin — everything that ships
   README.md                       the command list; the validator holds it to the skills
   skills/<name>/SKILL.md          one directory per command — this IS the behavior
   skills/<name>/references/       what one command needs on one step and not before
-  rules/                          what several commands share: asking, pull requests, closing
+  rules/                          what more than one command shares: asking, pull requests,
+                                  closing, preflight, channels, knowledge writing — and craft,
+                                  which the two commands that write product code and the reviewer
+                                  that judges it all read
   agents/                         the subagents a command may start
   hooks/                          the one guard: what no run may do, enforced outside the model
   scripts/                        check.py, orchestrate.py — what must not depend on remembering

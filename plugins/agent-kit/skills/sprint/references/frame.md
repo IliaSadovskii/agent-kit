@@ -6,7 +6,7 @@ out of you and nothing else:
 1. **What the batch's features must build alike** — a `[frame …]` block under `docs/knowledge/stack.md`.
 2. **Which feature cannot be built without which** — the `frame` field of your own run file.
 
-**Before anything else, say one line about yourself**, per `${CLAUDE_PLUGIN_ROOT}/rules/closing.md` — which run this is, what it builds in the owner's words, where it lands. The owner meets an unattended session by opening it mid-flight, and what greets them is whatever it said first.
+**Before anything else, say who you are in one line** — `${CLAUDE_PLUGIN_ROOT}/rules/closing.md`, its first section, which carries the shape and the example.
 
 **You write no product code.** The features are not written yet, so anything you build for them in
 advance is built against a guess: the third feature does not fit it, breaks it, and now two runs

@@ -941,6 +941,7 @@ class CheckCase(unittest.TestCase):
     def close(self, **fields):
         """A run file at `done` with everything filled in, minus whatever the test breaks."""
         state = {"slug": "x", "command": "ship", "step": "done", "suite": "made 41 green, lint ok",
+                 "proved_at": "c0ffee1",
                  "review": {"verdict": "ok", "findings": [], "security": None}}
         state.update(fields)
         directory = self.root / ".agent-kit" / "runs" / "x"
@@ -1058,24 +1059,31 @@ class CheckCase(unittest.TestCase):
             (ROOT / "plugins" / "agent-kit" / "templates" / "run.json").read_text(encoding="utf-8"))
         template["step"] = "done"
         template["suite"] = "green"
+        template["proved_at"] = "c0ffee1"
         template["pr"] = 21
         self.assertEqual(check.run_defects(template), [])
 
     def test_a_run_that_owed_a_pull_request_and_has_no_number(self):
-        state = {"deliver": "pr", "step": "done", "suite": "green", "tasks": [], "pr": None}
+        state = {"deliver": "pr", "step": "done", "suite": "green",
+                 "proved_at": "c0ffee1",
+                 "tasks": [], "pr": None}
         self.assertTrue(any("`pr` is empty" in line for line in check.run_defects(state)))
 
     def test_a_run_that_hit_a_blocker_may_close_without_one(self):
-        state = {"deliver": "pr", "step": "done", "suite": "green", "pr": None,
+        state = {"deliver": "pr", "step": "done", "suite": "green", "proved_at": "c0ffee1", "pr": None,
                  "blockers": ["the gateway has no sandbox key"]}
         self.assertFalse(any("`pr` is empty" in line for line in check.run_defects(state)))
 
     def test_a_feature_inside_a_batch_owes_no_pull_request(self):
         """`deliver` decides it, not `command`: a child pushes a branch, and a batch's own file
         carries no `deliver` at all — both fall outside this by construction."""
-        child = {"deliver": "branch", "step": "done", "suite": "green", "pr": None}
+        child = {"deliver": "branch", "step": "done", "suite": "green",
+                 "proved_at": "c0ffee1",
+                 "pr": None}
         self.assertEqual(check.run_defects(child), [])
-        batch = {"command": "sprint", "step": "done", "suite": "green", "pr": None}
+        batch = {"command": "sprint", "step": "done", "suite": "green",
+                 "proved_at": "c0ffee1",
+                 "pr": None}
         self.assertFalse(any("`pr` is empty" in line for line in check.run_defects(batch)))
 
     # ---- the one evidence that a test can fail ------------------------------------------------
@@ -1087,7 +1095,9 @@ class CheckCase(unittest.TestCase):
 
     def test_a_project_that_can_prove_its_tests_and_a_run_that_did_not(self):
         self.mutate_declared()
-        state = {"command": "ship", "step": "done", "suite": "green", "deliver": "branch"}
+        state = {"command": "ship", "step": "done", "suite": "green",
+                 "proved_at": "c0ffee1",
+                 "deliver": "branch"}
         defects = check.run_defects(state, self.root)
         self.assertTrue(any("`mutation` is empty" in line for line in defects))
 
@@ -1097,7 +1107,9 @@ class CheckCase(unittest.TestCase):
         self.mutate_declared()
         for mutation in ({"killed": 12, "survived": 1},
                          {"why": "infection exits 127 here", "command": "vendor/bin/infection"}):
-            state = {"command": "ship", "step": "done", "suite": "green", "deliver": "branch",
+            state = {"command": "ship", "step": "done", "suite": "green",
+                     "proved_at": "c0ffee1",
+                     "deliver": "branch",
                      "mutation": mutation}
             self.assertEqual(check.run_defects(state, self.root), [], repr(mutation))
 
@@ -1105,7 +1117,9 @@ class CheckCase(unittest.TestCase):
         """`why` on its own costs nothing to write and reads like a result. The command that was
         actually run is the smallest artefact not running the tool does not produce."""
         self.mutate_declared()
-        state = {"command": "ship", "step": "done", "suite": "green", "deliver": "branch",
+        state = {"command": "ship", "step": "done", "suite": "green",
+                 "proved_at": "c0ffee1",
+                 "deliver": "branch",
                  "mutation": {"why": "the tool would not start"}}
         self.assertTrue(any("`mutation` is empty" in line
                             for line in check.run_defects(state, self.root)))
@@ -1115,7 +1129,9 @@ class CheckCase(unittest.TestCase):
         self.mutate_declared()
         template = json.loads(
             (ROOT / "plugins" / "agent-kit" / "templates" / "run.json").read_text(encoding="utf-8"))
-        template.update({"step": "done", "suite": "green", "deliver": "branch", "pr": 21})
+        template.update({"step": "done", "suite": "green",
+                         "proved_at": "c0ffee1",
+                         "deliver": "branch", "pr": 21})
         self.assertTrue(any("`mutation` is empty" in line
                             for line in check.run_defects(template, self.root)))
 
@@ -1131,7 +1147,9 @@ class CheckCase(unittest.TestCase):
         """`run_defects` runs after every child, all night, with no `try` above it."""
         path = self.root / ".agent-kit" / "project.yml"
         path.parent.mkdir(parents=True, exist_ok=True)
-        state = {"command": "ship", "step": "done", "suite": "green", "deliver": "branch"}
+        state = {"command": "ship", "step": "done", "suite": "green",
+                 "proved_at": "c0ffee1",
+                 "deliver": "branch"}
         path.write_bytes(b"commands:\n  mutate: \xff\xfe not utf-8\n")
         self.assertEqual(check.run_defects(state, self.root), [])
         path.write_text("commands: make all\n", encoding="utf-8")   # a scalar where a map is meant
@@ -1141,8 +1159,192 @@ class CheckCase(unittest.TestCase):
         path = self.root / ".agent-kit" / "project.yml"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("commands:\n  test: make test\n  mutate:\n", encoding="utf-8")
-        state = {"command": "ship", "step": "done", "suite": "green", "deliver": "branch"}
+        state = {"command": "ship", "step": "done", "suite": "green",
+                 "proved_at": "c0ffee1",
+                 "deliver": "branch"}
         self.assertEqual(check.run_defects(state, self.root), [])
+
+    # ---- what a pull request puts in front of a reader -----------------------------------------
+
+    def body(self, text):
+        path = self.root / "body.md"
+        path.write_text(text, encoding="utf-8")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = check.pr_body_defects(path)
+        return code, out.getvalue()
+
+    def test_a_body_short_enough_to_decide_from(self):
+        code, output = self.body("## What & why\n\nIt sends the letter now.\n")
+        self.assertEqual(code, 0)
+        self.assertIn("characters", output)
+
+    def test_a_body_that_makes_the_reader_walk(self):
+        code, output = self.body("# Run\n" + ("Prose nobody asked for. " * 600))
+        self.assertEqual(code, 1)
+        self.assertIn("stand uncollapsed", output)
+
+    def test_what_is_folded_away_is_not_counted(self):
+        """`<details>` is how a body is complete and short at once. Counting it would push a
+        writer to delete the evidence rather than fold it."""
+        code, _ = self.body("# Run\n\n<details><summary>Every file</summary>\n"
+                            + ("Prose nobody asked for. " * 600) + "\n</details>\n")
+        self.assertEqual(code, 0)
+
+    def test_a_table_nobody_can_finish_reading(self):
+        table = "| Decision | Why |\n|---|---|\n" + "".join(
+            f"| decision {n} | because |\n" for n in range(28))
+        code, output = self.body("# Run\n\n" + table)
+        self.assertEqual(code, 1)
+        self.assertIn("28 rows", output)
+
+    def test_the_same_table_folded_is_an_answer(self):
+        table = "| Decision | Why |\n|---|---|\n" + "".join(
+            f"| decision {n} | because |\n" for n in range(28))
+        code, _ = self.body("# Run\n\n<details><summary>28 assumptions</summary>\n\n"
+                            + table + "\n</details>\n")
+        self.assertEqual(code, 0)
+
+    def test_a_body_that_is_not_there(self):
+        code = check.pr_body_defects(self.root / "nothing.md")
+        self.assertEqual(code, 2)
+
+    # ---- what starts a child that is not a ship ------------------------------------------------
+
+    def test_a_prompt_that_briefs_instead_of_invoking(self):
+        """Thirteen of sixteen children on one live run were started by two to five kilobytes of
+        prose composed on the spot. What the child must know belongs in fields that outlive it."""
+        state = {"command": "ship", "step": "queued", "prompt": "You are the second child of the "
+                                                                "proving phase. " + "х" * 500}
+        self.assertTrue(any("`prompt` is" in line for line in check.run_defects(state)))
+
+    def test_a_prompt_that_is_a_command_and_a_directory(self):
+        state = {"command": "ship", "step": "queued",
+                 "prompt": "/agent-kit:audit tests --run .agent-kit/runs/2026-08-14-w2-03-tests"}
+        self.assertEqual(check.run_defects(state), [])
+
+    def test_a_prompt_pinned_to_the_version_that_wrote_it(self):
+        """Three different versions of this kit in one night, so its children read rules three
+        weeks apart — and nothing said so."""
+        state = {"command": "ship", "step": "queued", "prompt":
+                 "Read /home/dev/.claude/plugins/cache/agent-kit/agent-kit/2.9.0/skills/audit/"
+                 "SKILL.md and follow it. Lens: tests."}
+        defects = check.run_defects(state)
+        self.assertTrue(any("pinned to a version" in line for line in defects))
+        self.assertTrue(any("2.9.0" in line for line in defects))
+
+    def test_a_short_path_is_still_a_briefing(self):
+        """Under the ceiling and with no version in it, so the two other rules stay quiet. A
+        prompt that names a file instead of a command is the thing all three exist against."""
+        state = {"command": "ship", "step": "queued",
+                 "prompt": "Read /home/dev/.claude/plugins/cache/agent-kit/skills/audit/SKILL.md "
+                           "and follow it."}
+        defects = check.run_defects(state)
+        self.assertTrue(any("does not start with a command" in line for line in defects))
+
+    def test_a_child_that_has_already_run_is_not_reported(self):
+        """A batch written before this rule existed is what `--resume` carries on with. Judged at
+        close, every errand in it would put a defect nobody can now fix into the pull request."""
+        state = {"command": "ship", "step": "done", "deliver": "branch", "suite": None,
+                 "prompt": "Read the old references/frame.md and follow it. " + "x" * 500}
+        self.assertEqual(check.run_defects(state), [])
+
+    # ---- what a green suite is bound to --------------------------------------------------------
+
+    def test_a_suite_result_bound_to_no_tree_at_all(self):
+        """Every other field is the run's own account of itself. This one is the only claim in the
+        file that anybody else can check, and unbound it says nothing at all."""
+        state = {"command": "ship", "step": "done", "deliver": "branch", "suite": "41 green"}
+        self.assertTrue(any("`proved_at`" in line for line in check.run_defects(state)))
+
+    def test_a_suite_result_that_names_its_tree_says_nothing(self):
+        state = {"command": "ship", "step": "done", "deliver": "branch",
+                 "suite": "41 green", "proved_at": "c0ffee1"}
+        self.assertEqual(check.run_defects(state), [])
+
+    def test_an_errand_is_not_asked_which_tree_it_proved(self):
+        """A child carrying its own prompt has no suite of its own — asked anyway, every batch of
+        three or more would close with a defect that is not one."""
+        state = {"command": "ship", "step": "done", "deliver": "branch", "suite": None,
+                 "prompt": "Read .../references/frame.md and follow it"}
+        self.assertEqual(check.run_defects(state, self.root), [])
+
+    def test_a_tree_that_is_not_in_this_repository(self):
+        self.suite("it('x');\n")
+        self.git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "base")
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.root,
+                              capture_output=True, text=True).stdout.strip()
+        state = {"command": "ship", "step": "done", "deliver": "branch", "suite": "41 green",
+                 "proved_at": head}
+        self.assertEqual(check.run_defects(state, self.root), [])
+        state["proved_at"] = "0" * 40
+        self.assertTrue(any("not a commit in this repository" in line
+                            for line in check.run_defects(state, self.root)))
+
+    def test_a_tree_that_exists_but_is_not_on_the_branch_being_delivered(self):
+        """A commit that exists somewhere is not evidence about what is being handed over: a suite
+        run on a branch that was then abandoned passes existence and says nothing."""
+        self.suite("it('x');\n")
+        self.git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "base")
+        self.git("checkout", "-q", "-b", "claude/elsewhere")
+        (self.root / "other.txt").write_text("two\n", encoding="utf-8")
+        self.git("add", "-A")
+        self.git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "elsewhere")
+        stray = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.root,
+                               capture_output=True, text=True).stdout.strip()
+        self.git("checkout", "-q", "-b", "claude/delivered", "HEAD~1")
+        state = {"command": "ship", "step": "done", "deliver": "branch", "suite": "41 green",
+                 "branch": "claude/delivered", "proved_at": stray}
+        self.assertTrue(any("is not in claude/delivered" in line
+                            for line in check.run_defects(state, self.root)))
+        state["proved_at"] = subprocess.run(["git", "rev-parse", "claude/delivered"],
+                                            cwd=self.root, capture_output=True,
+                                            text=True).stdout.strip()
+        self.assertEqual(check.run_defects(state, self.root), [])
+
+    def test_a_batch_is_not_asked_which_tree_it_proved(self):
+        """Its `suite` is what the children reported, measured on trees it never stood on. Asked
+        for one of its own it would have to invent one."""
+        state = {"command": "sprint", "step": "done", "suite": "green", "pr": 21}
+        self.assertFalse(any("`proved_at`" in line for line in check.run_defects(state)))
+
+    def test_outside_a_repository_the_tree_is_not_judged(self):
+        """A check that cannot reach its input says nothing rather than guessing: the field is
+        still asked for, and whether it names a real commit is not askable here."""
+        state = {"command": "ship", "step": "done", "deliver": "branch", "suite": "41 green",
+                 "proved_at": "whatever-this-is"}
+        self.assertEqual(check.run_defects(state, self.root), [])
+
+    def test_state_says_when_nothing_measures_whether_the_tests_can_fail(self):
+        self.suite("it('x');\n", form=None)
+        _code, output = self.run_check("--state")
+        self.assertIn("nothing measures whether they can fail", output)
+
+    def test_state_survives_a_commands_key_that_is_not_a_map(self):
+        """`commands: make all` is a scalar where a map is meant, and it took `--state` down
+        entirely — which is the gate of an epic, and what `next` and `accept` both run."""
+        (self.root / ".agent-kit").mkdir(parents=True, exist_ok=True)
+        (self.root / ".agent-kit" / "project.yml").write_text("commands: make all\n",
+                                                              encoding="utf-8")
+        code, output = self.run_check("--state")
+        self.assertNotEqual(code, 2)
+        self.assertIn("not a map this program can read", output)
+        self.assertNotIn("declares no", output)
+
+    def test_state_does_not_say_a_project_declared_nothing_when_there_is_no_project(self):
+        """Two states that must not read alike: a project that answered and a file that is not
+        there. Saying the second as the first is the failure this kit has shipped three times."""
+        (self.root / ".agent-kit" / "project.yml").unlink()
+        code, output = self.run_check("--state")
+        self.assertNotEqual(code, 2)
+        self.assertIn("no .agent-kit/project.yml here", output)
+
+    def test_a_project_that_declared_the_command_is_not_told_about_it(self):
+        (self.root / ".agent-kit").mkdir(parents=True, exist_ok=True)
+        (self.root / ".agent-kit" / "project.yml").write_text(
+            "commands:\n  test: make test\n  mutate: make mutate\n", encoding="utf-8")
+        _code, output = self.run_check("--state")
+        self.assertNotIn("nothing measures whether they can fail", output)
 
     def batch_record(self, slug, **fields):
         """A record in the shape the kit's own template declares, which is what a batch must leave."""
@@ -1158,7 +1360,9 @@ class CheckCase(unittest.TestCase):
     def test_a_batch_is_not_asked_to_prove_anything_itself(self):
         self.mutate_declared()
         self.batch_record("b")
-        state = {"command": "sprint", "slug": "b", "step": "done", "suite": "green", "pr": 21}
+        state = {"command": "sprint", "slug": "b", "step": "done", "suite": "green",
+                 "proved_at": "c0ffee1",
+                 "pr": 21}
         self.assertEqual(check.run_defects(state, self.root), [])
 
     def test_a_batch_that_left_no_durable_record(self):
@@ -1176,7 +1380,9 @@ class CheckCase(unittest.TestCase):
     # ---- and what that record may not be written as ---------------------------------------------
 
     def closing(self, slug="2026-08-05-offers"):
-        return {"command": "sprint", "slug": slug, "step": "done", "suite": "green", "pr": 21}
+        return {"command": "sprint", "slug": slug, "step": "done", "suite": "green",
+                "proved_at": "c0ffee1",
+                "pr": 21}
 
     def test_a_record_that_parses_and_says_nothing_is_not_a_record(self):
         """Existence was all this ever asked for, and existence is what it got: on the one project

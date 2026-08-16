@@ -20,11 +20,19 @@ unit, one child. Measured: six lens-shaped batches on one run cost six closing s
 hand-backs on top of the work, for batches of two and three children. Split a wave only where one
 lens's findings genuinely have to land before another's can be built, and say which and why.
 
-**The audit itself is a child of the batch**, with `prompt` in its run file naming the lens and
-telling it to close that file when it is done. It is not a `ship`, which is why the driver reads
-that field — before it did, a live run wrote itself a shell script to launch the audit and another
-to hand control back, neither of them tracked, neither of them knowing anything about limits or
-stalls.
+**The audit itself is a child of the batch**, and its whole `prompt` is
+`/agent-kit:audit <lens> --run <its own run directory>`. It is not a `ship`, which is why the driver
+reads that field — before it did, a live run wrote itself a shell script to launch the audit and
+another to hand control back, neither of them tracked, neither of them knowing anything about limits
+or stalls.
+
+**What that lens needs to know goes in its run file, never in the prompt**: the area in `entries`,
+and in `task` the two or three things the lens cannot work out for itself — which wave this is and
+whether it is the last, what moved since the previous one, what is already settled and is not a
+finding again. `${CLAUDE_PLUGIN_ROOT}/skills/audit/SKILL.md` reads both, and everything a lens
+always does is written there rather than retyped per child. Measured on the run that made this rule:
+the same instructions were composed from scratch thirteen times in one night, at two to five
+kilobytes each, and three of them pinned a different version of this kit.
 
 **Two lenses take a scope, and the rest may not.** A run finishing off what an MVP left over is
 walking a product most of which a previous audit already read — and on a measured run the lenses and
@@ -38,11 +46,10 @@ code nobody touched is the largest avoidable number in this phase.
   is not inside anybody's feature, an attack surface does not stop at the edge of a batch, and a
   convention is a property of the codebase or of nothing.
 
-**A narrowed lens carries the old file forward.** `docs/audits/<lens>.md` is rewritten whole on
-every run, so a walk over five entries would silently drop what a walk over forty found and left
-open. Say it in the `prompt`: keep every item of the previous file that is still open, then add
-what this walk found. Without that line the narrowing is not a saving, it is a deletion — and the
-`walked=` count in the header would be the only trace, on a file nobody diffs.
+**A narrowed lens carries the old file forward** — `docs/audits/<lens>.md` is rewritten whole, so a
+walk over five entries would otherwise drop what a walk over forty found and left open, and the
+`walked=` count in the header would be the only trace, on a file nobody diffs. That rule belongs to
+the lens and is written where a lens reads it, so nothing here repeats it into a prompt.
 
 **The lenses are chosen here, not at the gate.** You have read what was built; the gate had only the
 owner's prose. Take them from what this product is made of — `tests` and `scenarios` always, `deps`

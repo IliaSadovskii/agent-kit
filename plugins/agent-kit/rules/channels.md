@@ -19,7 +19,8 @@ kinds of durability, and half the surprises come from a run assuming the wrong o
 | `run.json` → `needs` | the composing session where it knows; the driver, from the frame child's map | the driver, deciding whether a failed feature takes this one with it | the run finishing | as above |
 | `run.json` → `frame` | the batch's frame child | the driver, once, the moment that child is built | nothing — the driver applies it and it stays as the record of what was applied | as above |
 | `run.json` → `mutation` | the run, from what `commands.mutate` returned | the closing session, into **Proven**; `check.py --run` | the run finishing | as above |
-| `run.json` → `prompt` | the composing session | the driver, when it starts the child | the run finishing | as above |
+| `run.json` → `proved_at` | the run that last ran the suite — `ship` and `fix` | `check.py --run`, which holds a recorded `suite` to naming a tree in this repository and on this branch; the closing session, which says in **Proven** what the result is bound to | the run finishing | as above |
+| `run.json` → `prompt` | the composing session — a command and the child's own directory, never prose | the driver, when it starts the child; `check.py --run` while the child is still `queued` | the run finishing | as above |
 | `run.json` → `spent` | the driver, and nothing else | a later gate, pricing a scope | never — it is history | as above |
 | `run.json` → `waiting_on` | the session that stopped on a fork, with the owner present | the driver, the window, `next` | the answer landing in `answers` | as above |
 | `.agent-kit/runs/<slug>/run.log` | the driver, and nothing else | a person | never — it is history | as above |
@@ -37,6 +38,7 @@ kinds of durability, and half the surprises come from a run assuming the wrong o
 | `docs/technical_debt.md` | `ship`, the closing session, and `blueprint` for what the owner brought back from using the product | `check.py`, `sprint`, `next` | the commit that does the work, deleting its line | git |
 | `docs/audits/<lens>.md` | that lens | `sprint`, `epic`, `next`, `accept` | the closing session, `next` or `accept`, ticking a box **with its pull request number**; the lens itself, rewriting the file on its next run | git |
 | `docs/runs/<slug>.json` | the closing session, from `templates/batch.json` | a later gate, pricing a scope from `spent`; a batch's frame child, reading `per_feature`; `next`, reading `branches` to know which ones a merged pull request delivered; a person | never — it is the durable record of a batch, and `next` deletes the branches without editing the field that named them | git |
+| `docs/deployment.md` | any run that finds something only a release needs, while `project.yml` says `stage: development` — the pull request then names the count and not the items | the owner, on the day they first release; the run that finds the next one, so the list stays one list | the owner, doing it — nothing else may delete a line, because nothing else can tell a step that was taken from one that was dropped | git |
 | `docs/advice/<lens>.md` | that lens of `advise` | the next run of the same lens, which may not raise a declined row again | that same lens, rewriting the file; git holds the history | git |
 | `docs/knowledge/<slot>.md` | `blueprint` and `advise`, with the owner present; a build command, the `state:` line and a block only | every command; `check.py` | nobody — an entry is rewritten, never removed | git |
 | `.agent-kit/project.yml` | `blueprint` | every command; `check.py`, which reads the commands and the verdicts | `blueprint`, with the owner — no build command may edit it | git |
@@ -62,6 +64,14 @@ kinds of durability, and half the surprises come from a run assuming the wrong o
 - **a finished `ship` or `fix` that left `mutation` empty** where the project declares
   `commands.mutate` — and an excuse there counts only with the command that was run beside it,
   because *the tool would not start* costs nothing to type;
+- **a recorded test result bound to no tree**, or to one this repository does not hold, or to one
+  the branch being delivered does not contain. Every other field in a run file is that run's own
+  account of itself; this is the only claim in it anybody else can check;
+- **a child's `prompt` that briefs instead of invoking** — one that does not begin with a command,
+  one past four hundred characters, one naming a path inside an installed plugin with a version in
+  it. Judged while that child is still `queued`, which is the only moment it can be fixed;
+- **a pull request body that puts more in front of the reader than the budget allows**, counted
+  before it is opened and counting only what `<details>` does not fold away;
 - **a batch that closed without `docs/runs/<slug>.json`**, and **a run that owed a pull request and
   closed with no number**;
 - **a batch record whose shape nothing can read** — `spent` written as prose instead of hours,

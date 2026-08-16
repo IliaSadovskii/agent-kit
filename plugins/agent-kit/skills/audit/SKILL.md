@@ -1,7 +1,7 @@
 ---
 name: audit
 description: Compare existing code to what the project's description says should be true, and write a work list — missing tests, stale or vulnerable dependencies, and surfaces that exist in one place and not the other. Reads and reports; never changes code.
-argument-hint: "[tests|deps|scenarios|security|performance|conventions] [area] — or what worries you"
+argument-hint: "[tests|deps|scenarios|security|performance|conventions] [area] — or what worries you, or --run <dir>"
 disable-model-invocation: true
 ---
 
@@ -26,6 +26,7 @@ landed overnight. After `ship` it is redundant — that diff was already reviewe
 | `audit tests` | one lens. Names are recognised in either language — `тесты` and `tests` are the same lens |
 | `audit tests moderation` | one lens, narrowed to an area |
 | `audit "why is moderation so slow"` | free text: map it to a lens, **say in one line what you understood**, then start |
+| `audit tests --run <dir>` | one lens as a child of a batch, started by a driver — see below |
 
 If the first word is neither a lens nor clearly about one, **stop before doing anything**: print the
 lenses and the one clarification worth making — whether they meant an area, which goes second.
@@ -33,6 +34,30 @@ Guessing costs a full run; asking costs nothing.
 
 Lens files are named in English whatever language the lens was typed in, so a project that changes
 its language does not end up with two sets.
+
+### As a child of a batch
+
+`--run <dir>` is how an `epic`'s audit phase runs a lens: one lens, one child, started by the driver
+like any other. Nobody is present, so nothing is asked and anything doubtful is written down as it
+is. Four things differ from a lens somebody typed, and all four are in that run file rather than in
+the prompt that started you — read it first:
+
+- **`entries` is your area.** Walk those and nothing else; empty means the whole project. A wave
+  that re-walks entries no batch has touched since the last one pays for the same reading twice, and
+  on a measured run the lenses cost as much as building the product did.
+- **`task` is what this wave knows and the lens itself cannot** — which wave this is and whether it
+  is the last, what moved since the previous one, what is already settled and not a finding again.
+- **You leave a commit.** The branch your run file already names in `branch`, off the current head,
+  `docs(audits): …`, pushed: a batch is a chain, the child after you takes your branch as its base,
+  and the batch's durable record copies that field. A branch you named yourself is one nobody can
+  account for later — measured on one project, 51 of 99 branches were unanswerable by any question.
+- **You close your own run file** — `step: "done"`, and one line in `notes` saying what you found and
+  how many units of work came out of it. The driver watches that field and nothing else; without it
+  it waits until the time limit.
+
+Everything else on this page holds unchanged, and *Read the previous file before writing the new
+one* holds hardest here: narrowed to an area and rewritten whole, a lens file would otherwise drop
+what the last walk found outside that area, and the `walked=` counter would be the only trace.
 
 ## The lenses that exist
 

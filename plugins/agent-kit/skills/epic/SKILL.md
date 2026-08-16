@@ -47,14 +47,17 @@ the usual preflight, per `${CLAUDE_PLUGIN_ROOT}/rules/preflight.md`. It gives yo
 names; the blocks themselves are read once the in-list exists, below, because until then you do not
 know which entries this run is about.
 
-**`--state` is here for one line of its output**, and it is the most consequential fact the gate can
-learn: *scenarios: N described, M with an end-to-end test*. That number decides how this run ends,
+**`--state` is here for two lines of its output.** The first is the most consequential fact the gate
+can learn: *scenarios: N described, M with an end-to-end test*. That number decides how this run ends,
 and until now nothing read it before the finish phase — which is the worst possible moment, because
 a harness is infrastructure that shapes how features get built and by then they are built. On a
 project where **M is zero**, no harness exists yet, and the run is heading for a finish it cannot
 reach mechanically. Say so at the gate, in the finish line below.
 
-Then the work only this gate can do.
+The second is the `tests:` line. When it says nothing measures whether this project's tests can fail,
+that goes on the screen beside the price as a fact about what the run can promise — every feature
+will report the mutant step as not run, so *green* will mean the word of whoever wrote the tests, all
+night. Only `blueprint` can answer it, and the offer is one line: before this run, or not at all.
 
 **Derive the in-list, from the scope this run is for.** Typed with nothing, the scope is the MVP
 bounds — which is what this command is named after and what it is for the first time. **Once nothing
@@ -298,7 +301,7 @@ left alone.
 | reorder what is left | move the slugs in this run's `children` |
 | drop a batch | take its slug out and set its own `step: "skipped"`; its entries stay `planned` and the pull request names them |
 | add a batch — a round of fixes, a review | write its run file, with children of its own, and put its slug here |
-| add work that is not a `ship` — an audit between two waves | it is **a child of a batch**, never a batch: write its run file with `prompt` in it and put its slug in that batch's `children`. This is why the driver reads that field, and `${CLAUDE_PLUGIN_ROOT}/skills/epic/references/finish.md` says the same |
+| add work that is not a `ship` — an audit between two waves | it is **a child of a batch**, never a batch: write its run file with `prompt` in it and put its slug in that batch's `children`. This is why the driver reads that field, and `${CLAUDE_PLUGIN_ROOT}/skills/epic/references/finish.md` says the same. **The prompt is a command and that directory, and the child's context goes in `entries` and `task`** — the form and the night it cost are under `_prompt` in `${CLAUDE_PLUGIN_ROOT}/templates/run.json` |
 | stop the run | write `stop` into the current batch's `control` file |
 
 Two ceilings, and they are what keeps a run that can extend itself finite. Neither is a judgement

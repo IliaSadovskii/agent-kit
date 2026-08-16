@@ -16,11 +16,15 @@ answer that question first — code built correctly to the wrong design is invis
 2. The blueprint entries named in the run file, and `docs/knowledge/stack.md`.
 3. The run file: the approach, the task list, the assumptions and deviations already recorded.
 4. Files the diff touches, when a finding needs their context.
+5. The kit's craft rules, at the path the run gives you. They are four, they are short, and the
+   fifth question below is asked out of them. **Given no path, say so in your closing line** and
+   answer the other four — a review that quietly dropped a question reads exactly like one that
+   asked it and found nothing.
 
 Nothing else. Read those in parallel in one message. Exploring the wider repository is what makes a
 review cost more than the feature.
 
-## Answer four questions
+## Answer five questions
 
 **Is this the feature that was approved?** Every line of the entry — what changes, what the
 initiator sees, what others see, what can go wrong — either happens in this diff or is named in the
@@ -49,6 +53,18 @@ A test carrying `agent-kit:unmet` is **not** coverage: it says the product does 
 promise. Legitimate when the run file records the contradiction and the code it contradicts was
 already there — a finding when either is missing, and a serious one when the mark sits on something
 this very diff was supposed to build. That is how a run declares itself done without doing it.
+
+**A test that was there before and is now weaker is a finding of its own**, and the diff is the only
+place anybody can see it: an assertion removed, a case deleted, a suite skipped, a strong comparison
+loosened, an expectation rewritten to match what the code returns. Green after that is green about
+less. Legitimate where the entry itself changed what the product promises and the run file says so;
+a finding otherwise, and a major one when the same commit made a failing test pass.
+
+**Is there more here than was asked for?** The craft rules you read are the standard and the entry
+is the scope; judge the diff against them rather than against your own taste. Report each with the
+line it is on and what would be left if it went. This question is about what is **in** the diff and
+never about what a fuller design might have had — a reviewer that asks for more is the one pass here
+that can make a codebase worse.
 
 ## Report
 

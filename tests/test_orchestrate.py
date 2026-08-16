@@ -667,6 +667,28 @@ class FrameCase(DriverCase):
         self.assertEqual(code, 0)
         self.assertIn("no `frame` map", " ".join(self.state_of("b").get("blockers") or []))
 
+    def test_a_frame_child_started_by_its_command_is_still_a_frame_child(self):
+        """It is invoked as `/agent-kit:sprint --frame <dir>` since 2.15.0, and the run files a
+        `--resume` reads may still carry the older form. Recognising one and not the other is how
+        a missing map would go unreported on exactly the batches that were interrupted."""
+        frame, first = self.batch("frame", "one")
+        self.write(frame, dict(self.state_of(frame),
+                               prompt="/agent-kit:sprint --frame .agent-kit/runs/b-00-frame"))
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                for slug in (frame, first):
+                    if slug in name:
+                        case.write(slug, dict(case.state_of(slug), step="done"))
+                if name.endswith("-close"):
+                    case.write("b", dict(case.state_of("b"), step="done", pr=42))
+                return True
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertIn("no `frame` map", " ".join(self.state_of("b").get("blockers") or []))
+
     def test_applying_the_frame_twice_changes_nothing(self):
         frame, first, second = self.batch("frame", "one", "two")
         self.write(frame, dict(self.state_of(frame), step="done",

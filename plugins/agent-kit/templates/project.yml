@@ -4,6 +4,19 @@
 
 language: en                      # the language the kit talks to the owner in, and writes prose in
 
+stage: development                # development | released — where this product actually runs.
+                                  # `development` means it runs on the owner's machine and nowhere
+                                  # else: there is no production environment, no store listing, no
+                                  # users. Then anything a run finds that only matters at release —
+                                  # a push credential, a key in a live environment, a store's
+                                  # requirement — is NOT a manual action for the owner. It is a line
+                                  # in docs/deployment.md, and the pull request does not carry it.
+                                  # Measured on one run: a third of a nineteen-item list of things
+                                  # for the owner to do was about a release that did not exist, and
+                                  # it was what made the six that mattered unfindable.
+                                  # Empty is not an answer — a project with nothing here is asked
+                                  # once, at the next gate, and never guessed at.
+
 commands:                         # the project's real commands; the only place they are recorded
   test:
   lint:

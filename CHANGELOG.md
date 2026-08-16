@@ -3,6 +3,99 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.15.0
+
+- **A pull request was the one thing the owner had to read, and nothing held it to a size.** One
+  measured run answered with 45 000 characters, 38 000 of them uncollapsed, including a twenty-five
+  row table the reader could not fold. The rule it broke was a sentence asking for restraint, and a
+  sentence cannot count.
+
+  - **Every body now opens with four questions and nothing else**: what works now that did not, what
+    is needed from the owner to run it, what went wrong — composed from fields, never from
+    judgement — and at most five decisions only they can take, each with the default this run used.
+  - **`check.py --pr-body <file>`** counts what a reader cannot collapse and the longest uncollapsed
+    table, before the body is opened. The two numbers are budgets somebody chose, and the program
+    says so; what is folded into `<details>` is not counted at all, because a rule that punished
+    folding would be a rule to delete the evidence instead.
+  - **`stage` in `project.yml`** — `development` or `released`. On a project that runs on one
+    machine there is no release, so what only matters at one stops being a task for the owner and
+    becomes a line in `docs/deployment.md`. On the measured run a third of a nineteen-item list was
+    about a release that did not exist, and it was what hid the six items that needed a person.
+
+- **The kit told `ship` how to write code and told the pass that judges it nothing.** Test-first,
+  never weaken an assertion, run the mutant step — all of it lived in one command's prose, so the
+  reviewer held a diff to its own taste, and `fix` wrote product code under no standard at all. The
+  four rules that no program can settle now live in **`rules/craft.md`**, read by `ship` and `fix`
+  in the same call they read the entry, and by the reviewer, which is handed the path by whichever
+  started it.
+
+  Four, and the number is a decision: instruction-following degrades with the *count* of
+  instructions held at once, and models are biased toward the ones they read first, so a fifth rule
+  there is paid for by the other four. Each carries the measurement that put it there.
+
+  - **Make the product true, never the check quiet** — with the five roads named one by one, because
+    each looks like work while it is being taken. On a benchmark of tasks whose tests could only be
+    passed dishonestly, frontier models took one of them on 46–93% of tasks.
+  - **A stand-in proves the stand-in** — a mock only where the real thing cannot be reached from a
+    test, with the reason beside it in the test. Coding agents add mocks in 36% of their commits
+    against 26% for people.
+  - **Nothing the entry did not ask for.** Across 623 million changes as agent authorship grew:
+    duplicated blocks up 81%, refactoring moves down 70%, cross-file calls down 35%.
+  - **The door out is marked** — `unmet`, a blocker, a line of debt, a parked feature.
+
+- **A green suite was the only claim in a run file bound to nothing.** Every other field is the
+  run's own account of itself, which is what it is for; `suite` is the one a later reader acts on,
+  and a suite that passed three commits ago read exactly like one that passed on what is being
+  delivered. **`proved_at`** is the tree it last ran on, and `check.py --run` names a finished run
+  that recorded a result and no tree, one whose tree is not in this repository, and one whose tree
+  the branch being delivered does not contain — a suite run on a branch that was then abandoned
+  exists and proves nothing. Asked of the runs that ran a suite and of no others — never of an
+  errand, never of a batch reporting what its children measured. It reaches the owner through
+  **Proven**, beside what the suite returned. Measured on a harness built around this one idea, binding claims to the tree
+  they were measured on cut *looked green, was broken* from 31 cases in 1800 to 2.
+
+- **The one thing that says whether a suite can fail was discovered at the end, per feature.**
+  `check.py --state` now says at the gate when a project declares no `commands.mutate` — the moment
+  a scope is priced and somebody is present, rather than in a line of a report nobody reads twice,
+  and it names `blueprint` as the only command allowed to answer it. Three states, three sentences:
+  a project that declared nothing, a `project.yml` that is not there, and a `commands` key this
+  program cannot read must not sound alike — the last of those is what a project writing
+  `commands: make all` produces.
+
+- **The reviewer gained a fifth question and one more way a test goes quiet.** *Is there more here
+  than was asked for* — a stand-in that hides what a test claims to prove, an abstraction or
+  defensive branch no line of the entry needs, a second implementation of what the library map
+  already names; and, under the tests question, an assertion removed, a case deleted or an
+  expectation rewritten to match what the code returns. Both are about what is **in** the diff:
+  a reviewer that asks for more is the one pass here that can make a codebase worse.
+
+- **A child that is not a `ship` was started by whatever prose the composing session felt like
+  writing.** The field said what it was for and never what belonged in it, so on one real `epic`
+  thirteen of sixteen children — eight audit lenses, two rounds of composing fixes, the phase that
+  proves a fresh checkout, a knowledge transfer — were launched by two to five kilobytes each,
+  re-derived every time. Worse than the cost: three of them named an absolute path into the plugin
+  cache **with a version in it**, so children of one night read rules from 2.9.0, 2.10.4 and 2.12.0.
+
+  A `prompt` is now **a command and that directory**, and everything the child must know lives in
+  fields that outlive it — its area in `entries`, what only this wave knows in `task`.
+
+  - **`/agent-kit:audit <lens> --run <dir>`** is a lens as a child of a batch: it reads its area and
+    its wave out of the run file, leaves a commit on the chain, and closes its own file. What a lens
+    always does — carry the previous file's open items forward above all — is in `audit`, where a
+    lens reads it, instead of being retyped into every prompt.
+  - **`/agent-kit:sprint --frame <dir>`** replaces the path the frame child used to be handed. The
+    driver still recognises the old form, because a `--resume` reads run files written before this.
+  - `check.py --run` names a `prompt` that does not begin with a command, one over 400 characters,
+    and any that pins a plugin version. Judged **while the child is still `queued`**, which is the
+    only moment anybody can act on it — and which is what keeps a batch written before this rule,
+    resumed after it, from closing every errand it holds with a defect nobody can now fix. The
+    composing session reads its own children back before starting the driver.
+
+- **The tests lens now says when a citation runs through a double.** `(stand-in: the payment
+  gateway)` beside the line it proves. It is the only pass that opens these files one line at a
+  time, so it is the only place that list can come from — until now the question was asked once, at
+  the end of a whole run, by a session reading nothing but run files.
+
 ## 2.14.0
 
 - **The one record that outlives the machine had no shape.** `docs/runs/<slug>.json` is all of a

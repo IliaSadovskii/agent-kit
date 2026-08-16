@@ -42,6 +42,15 @@ SCENARIO_MARK = "agent-kit:scenario"
 DIGEST_LEN = 8
 UNMET_SHOWN = 10
 HANDOFF_MAX = 2000
+# A child's prompt is a command and a run directory. The longest legitimate one this kit writes is
+# about a hundred characters; the ceiling is generous on purpose, because what it exists to catch
+# came in at two to five thousand.
+PROMPT_MAX = 400
+# What a pull request may put in front of a reader who has not decided to read it yet. Budgets, not
+# measurements — see `pr_body_defects`. Chosen against one run's 45 000-character body, whose
+# seventy-row table of assumptions was the part that made the rest unusable.
+PR_OPEN_MAX = 12000
+PR_TABLE_MAX = 15
 
 KEY_RE = re.compile(r"^`key:\s*([^`·]+?)\s*`(?:\s*·\s*`state:\s*([^`]+?)\s*`)?", re.M)
 HEADING_RE = re.compile(r"^###\s+(.+)$", re.M)
@@ -49,6 +58,9 @@ FIELDS_RE = re.compile(r"^fields:\s*(.+)$", re.M)
 SOURCE_RE = re.compile(r"`source:\s*([^#`]+)#([^@`]+?)\s*@([0-9a-f]+)`")
 NOTE_RE = re.compile(r"^>\s*\*\*\[(assumed|found|stale|accepted|frame)\b([^\]]*)\]\*\*\s*(.*)$", re.M)
 REF_RE = re.compile(r"`([a-z][a-z0-9_]*\.[a-z0-9_]+)`")
+# A path into an installed plugin, with the version in it. What a session expanded for itself is
+# what the child then reads, three weeks out of date and silently.
+PINNED_PLUGIN = re.compile(r"[^\s\"']*plugins/[^\s\"']*?/\d+\.\d+\.\d+/[^\s\"',)]*")
 # entities and actors are keys without a dot, so the entry part is one or more segments
 MARK_RE = re.compile(re.escape(MARK) + r"[:\s]*([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)*)?")
 # A screen the product opens on is reached from nowhere by design; the entry says so in its own
@@ -1301,21 +1313,51 @@ def run_defects(state: dict, root: Path | None = None) -> list:
     itself, and by the driver before it calls a feature built — and nowhere else: a finished run's
     file is history, and telling the next command about it reaches nobody who can act.
 
-    Only `done` is judged — and the one other moment a run file has to stand on its own, which is
-    the handoff to the session that continues this run. A run that stopped at `blocked` is already
-    saying so.
+    Mostly `done` is judged — and three other moments a run file has to stand on its own: the
+    handoff to the session that continues this run, the shape of its record fields, and a child
+    still `queued`, whose `prompt` is the one thing here that can be fixed before it costs anything.
+    A run that stopped at `blocked` is already saying so.
 
     `root` is the project, and only the rules that have to look at the repository need it: without
     one they are skipped rather than guessed at.
 
-    Two of them are asked of features and not of errands. A child carrying its own `prompt` is not
-    a `ship` — the frame child of a batch, an audit between two waves — and it has no suite to run
-    and no code to mutate. Asked anyway, every batch of three or more would close with two defects
-    that are not defects, in the pull request, every night: exactly the noise that makes a real one
-    unfindable.
+    Three of them are asked of features and not of errands — `suite`, `proved_at` and `mutation`. A
+    child carrying its own `prompt` is not a `ship` — the frame child of a batch, an audit between
+    two waves — and it has no suite to run and no code to mutate. Asked anyway, every batch of three
+    or more would close with defects that are not defects, in the pull request, every night: exactly
+    the noise that makes a real one unfindable.
     """
     out = []
-    errand = bool(str(state.get("prompt") or "").strip())
+    prompt = str(state.get("prompt") or "").strip()
+    errand = bool(prompt)
+
+    # A child that is not a `ship` is started by whatever this field says, and the field is a
+    # command. Both rules below were paid for on one live run: thirteen of sixteen children were
+    # started by two to five kilobytes of prose composed on the spot, and three of those pinned a
+    # different version of this kit, so its children read rules three weeks apart. Judged whenever
+    # this file is judged and not only as it closes — the session that can still fix it is the one
+    # that wrote it.
+    #
+    # Judged while the child is still queued, and not afterwards. The session that can act on this
+    # is the one that wrote the file; a child that has already run is history, and a batch written
+    # before this rule existed — which `--resume` is required to carry on with — would otherwise
+    # close every errand it holds with a defect nobody can now fix, straight into the pull request.
+    if prompt and state.get("step") == "queued":
+        if not prompt.lstrip().startswith("/"):
+            out.append("`prompt` does not start with a command — a child is started by naming one, "
+                       "and a slash command resolves whatever kit is installed. Prose here reaches "
+                       "one session once; what the child must know goes in `entries` and `task`")
+        if len(prompt) > PROMPT_MAX:
+            out.append(f"`prompt` is {len(prompt)} characters against a ceiling of {PROMPT_MAX} — "
+                       f"it is a command and this directory, not a briefing. What the child must "
+                       f"know goes in `entries` and `task`, which are read by whoever resumes it; "
+                       f"prose here is read once and is gone")
+        pinned = PINNED_PLUGIN.search(prompt)
+        if pinned:
+            out.append(f"`prompt` points into a plugin cache pinned to a version — {pinned.group(0)}"
+                       f" — so this child reads whatever kit the session that wrote it happened to "
+                       f"be running. Name the command instead; a slash command resolves the kit "
+                       f"that is installed")
 
     note = state.get("handoff")
     if isinstance(note, str) and note.strip():
@@ -1368,10 +1410,44 @@ def run_defects(state: dict, root: Path | None = None) -> list:
             out.append(f"a {severity} review finding is open — {what[:70]}")
 
     suite = state.get("suite")
-    if not errand and (
-            suite is None or (isinstance(suite, str) and not suite.strip()) or suite in ([], {})):
+    recorded = not (suite is None or (isinstance(suite, str) and not suite.strip())
+                    or suite in ([], {}))
+    if not errand and not recorded:
         out.append("`suite` is empty — nothing says what was run or what it returned, and the pull "
                    "request is written from that field rather than from memory")
+
+    # What a suite result is worth is what it is bound to. Every other field here is the run's own
+    # account of itself, and a green suite measured three commits ago reads exactly like one
+    # measured on what is being delivered — which is the difference between evidence and narration.
+    # Presence is asked always; whether the tree exists is asked only where there is a repository to
+    # ask it of, because a check that cannot reach its input must say nothing rather than guess.
+    #
+    # Asked of the runs that ran a suite, and of no others. A batch's own file carries what its
+    # children reported, measured on trees it never stood on; asked for one tree of its own it would
+    # have to invent one, which is the opposite of what this field is for.
+    if not errand and recorded and state.get("command") in ("ship", "fix"):
+        at = str(state.get("proved_at") or "").strip()
+        if not at:
+            out.append("`suite` says what the tests returned and `proved_at` says nothing about "
+                       "which tree they ran on — `git rev-parse HEAD` at the moment the suite ran. "
+                       "Unbound, a result that predates the last fix and one that does not read the "
+                       "same")
+        elif root is not None and git(root, "rev-parse", "--git-dir"):
+            branch = str(state.get("branch") or "").strip()
+            if git(root, "cat-file", "-t", at) != "commit":
+                out.append(f"`proved_at` names {at[:12]}, which is not a commit in this repository "
+                           f"— the suite's result is bound to a tree nobody can reach, which is the "
+                           f"one thing the field exists to prevent")
+            # And on the branch being delivered. A commit that exists somewhere is not evidence
+            # about what is being handed over: a suite run on a branch that was then abandoned, or
+            # before a rebase, passes the test above and says nothing. Asked only where the branch
+            # itself can be resolved, because a run whose branch is gone is a different report.
+            elif branch and git(root, "rev-parse", "--verify", "--quiet", branch) and \
+                    subprocess.run(["git", "merge-base", "--is-ancestor", at, branch],
+                                   cwd=root, capture_output=True, timeout=5).returncode != 0:
+                out.append(f"`proved_at` names {at[:12]}, which is not in {branch} — the suite ran "
+                           f"on a tree this branch does not contain, so nothing it returned is "
+                           f"about what is being delivered")
 
     # The one piece of evidence in the kit that a test can fail, asked for only where the project
     # has declared a way to produce it. Judged on the field being answered, never on the numbers:
@@ -1569,6 +1645,29 @@ def print_state(root: Path, offline: bool) -> None:
     for name in orphaned:
         print(f"  a test claims scenario \"{name}\" — no scenario by that heading exists")
 
+    # Silence here means the project can measure whether its tests are able to fail. Said at the
+    # gate because that is where a scope is priced and somebody is present: without it the fact
+    # surfaces per feature, at the end, as one line of a report nobody reads twice — and a suite
+    # nothing has ever tried to break is the word of whoever wrote it.
+    #
+    # Three states and three sentences, because two of them are *this program* failing to read and
+    # must never be said as a fact about the project. `commands` arrives as a string when somebody
+    # wrote `commands: make all`, which is the shape that took `--state` down entirely — and
+    # `--state` is what an epic's gate, `next` and `accept` all run.
+    manifest_path = root / MANIFEST
+    commands = read_manifest(manifest_path).get("commands")
+    if not manifest_path.is_file():
+        print(f"  tests: no {MANIFEST} here, so nothing says whether this project can prove its "
+              f"tests able to fail — /agent-kit:blueprint writes that file")
+    elif commands is not None and not isinstance(commands, dict):
+        print(f"  tests: `commands` in {MANIFEST} is not a map this program can read, so whether "
+              f"the tests can be proved able to fail is unknown — /agent-kit:blueprint owns that "
+              f"file")
+    elif not str((commands or {}).get("mutate") or "").strip():
+        print("  tests: nothing measures whether they can fail — project.yml declares no "
+              "`commands.mutate`, so every run reports the step as not run. Adding one is "
+              "/agent-kit:blueprint's; until then no run may claim its tests would notice a defect")
+
     lenses = audit_lenses(root)
     if lenses:
         print("  audits: " + ", ".join(
@@ -1672,6 +1771,57 @@ def print_entry_blocks(report: Report, docs: list, keys: list) -> None:
               f"wrong and not that they are clear.")
 
 
+def pr_body_defects(path: Path) -> int:
+    """What a reader has to walk through before they can decide, measured before it is published.
+
+    Two numbers, and both are **budgets somebody chose**, not measurements — which is the honest
+    thing to say about them, because this kit has twice carried a number nobody could account for.
+    What they were chosen against is real: one run's pull request came to 45 000 characters with a
+    seventy-row table uncollapsed, and nothing in the kit noticed, because the rule it broke was a
+    sentence asking for restraint. A sentence cannot count. Raise or lower these the day a real body
+    says they are wrong, and say so in the changelog when you do.
+
+    Collapsed content is not counted at all: `<details>` is the whole mechanism by which a body can
+    be complete and short at once, and a rule that punished it would push writers to delete evidence
+    instead of folding it. What is counted is what the reader cannot avoid.
+    """
+    if not path.is_file():
+        print(f"no such file: {path}", file=sys.stderr)
+        return 2
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        print(f"{path} cannot be read: {exc}", file=sys.stderr)
+        return 2
+
+    open_text = re.sub(r"<details\b.*?</details>", "", text, flags=re.S | re.I)
+    rows, worst, current = 0, 0, 0
+    for line in open_text.splitlines():
+        if line.lstrip().startswith("|"):
+            current += 1
+            worst = max(worst, current)
+        else:
+            current = 0
+    rows = worst
+
+    print(f"  {len(text)} characters, {len(open_text)} of them the reader cannot collapse; "
+          f"biggest uncollapsed table: {max(0, rows - 2)} rows")
+
+    defects = []
+    if len(open_text) > PR_OPEN_MAX:
+        defects.append(f"{len(open_text)} characters stand uncollapsed against a budget of "
+                       f"{PR_OPEN_MAX} — the owner decides in the first lines whether this merges, "
+                       f"and everything past that either serves the decision or folds into "
+                       f"`<details>`")
+    if rows - 2 > PR_TABLE_MAX:
+        defects.append(f"an uncollapsed table runs to {rows - 2} rows against a budget of "
+                       f"{PR_TABLE_MAX} — a table nobody can finish reading is one nobody reads, "
+                       f"so keep the expensive rows open by name and fold the rest with their count")
+    for line in defects:
+        print(f"  {line}")
+    return 1 if defects else 0
+
+
 def main(argv: list | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("root", nargs="?", default=".", type=Path)
@@ -1702,9 +1852,15 @@ def main(argv: list | None = None) -> int:
     parser.add_argument("--run", metavar="DIR",
                         help="judge one run file as it closes: what a run at step done may not "
                              "leave behind. Silent when there is nothing")
+    parser.add_argument("--pr-body", metavar="FILE",
+                        help="measure a pull request's body before it is opened: how much of it a "
+                             "reader must walk past, and the biggest table they cannot collapse")
     options = parser.parse_args(argv)
 
     root = options.root.resolve()
+
+    if options.pr_body:
+        return pr_body_defects(Path(options.pr_body))
 
     if options.run:
         target = Path(options.run)

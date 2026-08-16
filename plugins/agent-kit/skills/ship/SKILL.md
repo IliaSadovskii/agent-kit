@@ -15,7 +15,7 @@ step, a dependency bump. Then `entries` is empty, `task` in the run file describ
 built, and everything below reads "the entry's lines" as "what that task says done means". Nothing
 else changes.
 
-**Before anything else, say one line about yourself**, per `${CLAUDE_PLUGIN_ROOT}/rules/closing.md` — which run this is, what it builds in the owner's words, where it lands. The owner meets an unattended session by opening it mid-flight, and what greets them is whatever it said first.
+**Before anything else, say who you are in one line** — `${CLAUDE_PLUGIN_ROOT}/rules/closing.md`, its first section, which carries the shape and the example.
 
 Blueprint already says **what** this feature does and **why**. Your job is **how, in this codebase,
 now** — which files, which layer, which existing helper, which seam the tests sit at. Do not
@@ -79,7 +79,9 @@ plus the two findings that mean something particular here:
 | the entry is already `built` | say so and ask whether this is a change to it |
 
 Then read what this feature is, in **one** call — the project's corner, the entry, every entry it
-names, and the library map:
+names, and the library map — together with `${CLAUDE_PLUGIN_ROOT}/rules/craft.md`, the four rules
+about how code is written here that no program can check and that the reviewer will hold this diff
+to:
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --brief developer.create_offer
@@ -272,7 +274,14 @@ language.
    and what each is waiting for; that list is the most useful thing in the pull request.
 2. **Run the project's declared suite once**, from `project.yml` → `commands` — whatever it
    declares there: `test`, `lint`, and `types` where the project has one. A type error is a failing
-   test. Fix the product; never weaken an assertion for green output.
+   test.
+
+   **And record which tree it ran on** — `git rev-parse HEAD` into `proved_at`, rewritten every time
+   you run the suite again, so the field always names the last one. *Green* with nothing bound to it
+   is the run's own word: a suite that passed three commits ago and a suite that passed on what is
+   being delivered read exactly alike, and only one of them is evidence. Measured on a harness built
+   around this one idea, binding each claim to the tree it was measured on cut *looked green, was
+   broken* from 31 cases in 1800 to 2.
 3. **Prove the tests can fail** — `project.yml` → `commands.mutate`. It changes the product's own
    logic in small valid ways and reports how many of those the suite noticed, which is the one
    thing here that is not your own word for it. Substitute `{files}` in that command with what
@@ -352,7 +361,9 @@ naming what to run next.
 ## Review
 
 **The `agent-kit:reviewer` agent, whenever the diff touched the product.** Give it the base branch
-to diff against, the run file's path, and the entries. It answers what nothing else can — whether
+to diff against, the run file's path, the entries, and the path of
+`${CLAUDE_PLUGIN_ROOT}/rules/craft.md` — expanded, because that variable is yours and not its. It is
+the one file it cannot resolve on its own, and one of its five questions is asked out of it. It answers what nothing else can — whether
 this is the feature that was approved — because it is the only pass that reads the entry.
 
 Look at what you changed before you start it:

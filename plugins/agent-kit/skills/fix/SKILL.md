@@ -43,7 +43,9 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" .
 
 React to what it found per `${CLAUDE_PLUGIN_ROOT}/rules/preflight.md`, the same as every build
 command. You need less of the rest than `ship` does. Read the entry that covers the broken behaviour, if there is
-one, as its own section rather than by opening the file; read nothing else until the cause is found.
+one, as its own section rather than by opening the file, together with
+`${CLAUDE_PLUGIN_ROOT}/rules/craft.md` — the four rules about how code is written here that no
+program can check; read nothing else until the cause is found.
 Without knowledge at all, carry on: the symptom is the specification.
 
 The tree must be clean. `--pr <n>` starts by checking out that pull request's branch; otherwise
@@ -51,8 +53,9 @@ branch `claude/fix-<slug>` off a freshly pulled default branch.
 
 Keep a run file — `.agent-kit/runs/<slug>/run.json`, the shape in
 `${CLAUDE_PLUGIN_ROOT}/templates/run.json` — but keep it short: `task` in the owner's words, the
-cause once you have it, `suite`, `review`, `manual` if the fix needs the owner's hands anywhere, and
-whatever else the fix left behind. Its fields are a closed
+cause once you have it, `suite` with `proved_at` beside it — `git rev-parse HEAD` at the moment the
+suite last ran, because *green* bound to no tree is the run's own word — `review`, `manual` if the
+fix needs the owner's hands anywhere, and whatever else the fix left behind. Its fields are a closed
 list; prose that fits none of them goes in `notes`. A fix that dies mid-session and left no file
 starts again from nothing.
 
@@ -106,7 +109,9 @@ reverted without taking the refactor with it.
 ## Deliver
 
 Review with `agent-kit:reviewer` when the change touched the product; a fix inside the tests does
-not need a reviewer to tell it what it did. The verdict and the findings go into `review` as they
+not need a reviewer to tell it what it did. Hand it the path of
+`${CLAUDE_PLUGIN_ROOT}/rules/craft.md`, expanded — one of its five questions is asked out of that
+file, and without the path it has to report the question as unasked. The verdict and the findings go into `review` as they
 come back, one record each rather than a sentence each — a critical or major one left open is not
 `step: done`, and `severity` and `closed` are what says so.
 

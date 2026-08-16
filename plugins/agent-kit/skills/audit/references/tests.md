@@ -52,6 +52,13 @@ Leaving it out instead is the cheap way to satisfy a citation rule: what remains
 proves nothing about what is absent. Each distinct claim inside a line gets its own row — "can go
 wrong" listing three ways is three rows, not one.
 
+**A citation whose proof runs through a double says so, in the same line:** `(stand-in: the payment
+gateway)`. Not a marker and not a gap — the test is coverage, and what it covers is the fake. The
+lens is the only pass that opens these files one line at a time, so it is the only place the list
+can come from; without it the question is asked once, at the end of a whole run, by a session
+reading nothing but run files. Measured on one such run, every proof it had went through a fake
+gateway, a fake sign-in and a fake clock, and the real model was never called once in thirty hours.
+
 **An entry with a single `none` is not covered.** It belongs among the gaps, however much of it is
 cited. Covered means covered whole; anything else is a partial dressed as a verdict. An entry whose
 only shortfall is `unmet` is not covered either, but its work list is a separate one — those lines

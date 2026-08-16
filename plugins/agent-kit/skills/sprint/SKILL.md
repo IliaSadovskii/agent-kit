@@ -18,6 +18,7 @@ will have read more of the code than you have.
 | `/agent-kit:sprint <theme>` | the brief — this file, and afterwards the window |
 | `/agent-kit:sprint` | the same, over work the project already has written down — see *With no theme* |
 | `/agent-kit:sprint --resume <run dir>` | the brief, restarting a driver over children already written |
+| `/agent-kit:sprint --frame <run dir>` | the frame child, started by the driver — `${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/frame.md` |
 | `/agent-kit:sprint --close <run dir>` | the closing session, started by the driver — `${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/close.md` |
 | `/agent-kit:sprint --window <run dir>` | stand beside a run somebody else started — `${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/window.md` |
 
@@ -159,7 +160,18 @@ if that fails, because a run with no narrator is fine and a wrong address is not
 ```json
 { "slug": "2026-08-05-offers-00-frame", "command": "ship", "step": "queued", "gate": "none",
   "branch": "claude/2026-08-05-offers-frame", "deliver": "branch", "needs": [],
-  "prompt": "Read ${CLAUDE_PLUGIN_ROOT}/skills/sprint/references/frame.md and follow it. Your run: .agent-kit/runs/2026-08-05-offers-00-frame. The batch: .agent-kit/runs/2026-08-05-offers" }
+  "prompt": "/agent-kit:sprint --frame .agent-kit/runs/2026-08-05-offers-00-frame" }
+```
+
+**A command, never a path**, and that holds for every `prompt` this kit writes — the rule and the
+night it cost are in `${CLAUDE_PLUGIN_ROOT}/templates/run.json`, under `_prompt`. Once the files are
+written and before the driver starts, read them back; a child is judged on this while it is still
+`queued`, and you are the only session that can act on what it says:
+
+```bash
+for run in .agent-kit/runs/<batch slug>-*/; do
+  python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --run "$run"
+done
 ```
 
 It reads the batch's entries and the code where two of them meet, and leaves two things: what these
