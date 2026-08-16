@@ -12,8 +12,10 @@ answering the reason is the same proposal.
 
 1. **The three gaps in coverage** — item 6, second bullet. Small, independent, one commit each.
 2. **The journal of questions** — item 3.
-3. **Codes and levels on findings** — item 6, third bullet. A day, and it rewrites the check's
-   output; the merge policy needs it, and needs it first, because a policy reads an exit code.
+3. **Codes and levels on findings, and judging a run before it closes** — item 6, third bullet and
+   fourth, together. A day, and it rewrites the check's output; the merge policy needs it, and needs
+   it first, because a policy reads an exit code. The fourth rides with the third because both move
+   the same code — what a finding is and when it is asked — and apart they rewrite one file twice.
 
 Done since this page was written: one `gh` call instead of N, in 2.19.2.
 
@@ -48,6 +50,13 @@ would otherwise need:
 - `--json` and `--report` give a machine result and a self-contained HTML report with per-grader
   verdicts;
 - `claude plugin eval init` authors a suite through an interview.
+
+Three things the list above does not say, and each costs a run to find out. `with-without` is the
+default **only when the target is a plugin by name** — installed or in a skills directory; a path
+gets `none`, which is the shape a repository checkout is most likely to be run as. A sample
+repository is built by a case's `scaffold_script`, which does not run without `--scaffold`, off by
+default because it executes the author's bash as the user. And a case whose agent has to touch the
+tree needs `--allow-tools`, since Bash, Write, Edit and WebFetch are gated behind that grant.
 
 **What to write, then, is only the cases.** A sample repository with a blueprint and traps planted
 in it. The bench does not judge whether the code the kit wrote is good — that is not measurable. It
@@ -206,7 +215,7 @@ bottleneck rather than production speed.
   payload on 16 August 2026: there is no field anywhere saying which paths a project allows —
   `templates/project.yml` has no such thing — and `accept` leaves no verdict a program could read,
   by its own boundary (*"`accept` changes nothing"*). So either they are dropped from the package or
-  they are built, and building the second one costs `accept` the boundary that keeps it cheap. The
+  they are built, and building the second one costs `accept` the boundary that keeps it cheap. **Left open on purpose** — the owner takes that decision when this item comes off the shelf, not now. The
   rest — CI, review findings, `unmet`, the proofs — is there and only needs collecting.
 - **At least one item of the package must not come from the kit.** Everything the package holds
   today is the kit's own word about itself — its tests, its reviewer, its suite. A static analyser
@@ -279,7 +288,9 @@ Four findings, cheapest first.
   fixed — the session is closing and the finding becomes a line in a report nobody can act on at 3am.
   The shape rules, `prompt`, `handoff` and now `tasks[].commit` were moved early, and that is the
   direction to keep going: `proved_at` and `mutation` can be asked on entering Deliver rather than
-  at the end of it.
+  at the end of it — the steps run `verify → deliver → done`, and both fields are written in
+  `verify`. **Done together with the bullet above**: what a finding is and when it is asked move the
+  same code, and taken apart they rewrite `run_defects` twice.
 
 One thing deliberately not changed: the check recomputes everything on every run and remembers
 nothing, so the same finding prints thirty times a night. That is the price of silence meaning *all
@@ -287,6 +298,8 @@ clear*, and it is the right trade. With codes it becomes cheap to print what is 
 was already standing in one line.
 
 ## 7. Later, and deliberately not now
+
+**Not checked against the payload**, unlike everything above it: these four were read as the owner's preferences and left as written, on their instruction. Check them the day one of them is taken up — the reasons below are two months old and the kit has moved under them twice.
 
 - **A backlog command** — `next` widened from one recommendation to a ranked list, so the owner can
   see the whole queue without reading files. All the data is already read by `check.py`.
