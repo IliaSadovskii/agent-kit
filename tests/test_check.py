@@ -1437,6 +1437,22 @@ class CheckCase(unittest.TestCase):
         self.batch_record("2026-08-05-offers", branches=[])
         self.assertEqual(check.run_defects(self.closing(), self.root), [])
 
+    def test_a_parked_branch_the_record_does_not_otherwise_name(self):
+        """`delivered_branches` walks `branches`, so a name only in `parked` protects nothing. The
+        way it happens is a slug written where a branch name belongs — and those differ, which is
+        the whole reason this field exists instead of `blocked` answering the question."""
+        self.batch_record("2026-08-05-offers", branches=["claude/b-01"], parked=["b-02"])
+        defects = check.batch_defects(json.loads(
+            (self.root / "docs" / "runs" / "2026-08-05-offers.json").read_text(encoding="utf-8")))
+        self.assertTrue(any("`branches` does not name" in line for line in defects), defects)
+
+    def test_a_parked_branch_that_is_also_in_branches_is_the_shape_asked_for(self):
+        self.batch_record("2026-08-05-offers", branches=["claude/b-01", "claude/b-02"],
+                          parked=["claude/b-02"])
+        defects = check.batch_defects(json.loads(
+            (self.root / "docs" / "runs" / "2026-08-05-offers.json").read_text(encoding="utf-8")))
+        self.assertEqual(defects, [])
+
     def test_branches_written_as_a_sentence_is_named(self):
         self.batch_record("2026-08-05-offers", branches="all four, merged")
         defects = check.run_defects(self.closing(), self.root)
@@ -1548,9 +1564,10 @@ class BranchesCase(unittest.TestCase):
         self.git("commit", "-qam", f"work on {name}")
         self.git("checkout", "-q", "main")
 
-    def record(self, name, number, branches):
+    def record(self, name, number, branches, parked=()):
         (self.root / "docs" / "runs" / f"{name}.json").write_text(
-            json.dumps({"slug": name, "pr": number, "branches": branches}), encoding="utf-8")
+            json.dumps({"slug": name, "pr": number, "branches": branches,
+                        "parked": list(parked)}), encoding="utf-8")
 
     def judge(self, merged=()):
         check.merged_prs = lambda root, numbers, offline: set(merged)
@@ -1576,6 +1593,28 @@ class BranchesCase(unittest.TestCase):
         delivered, unknown = self.judge(merged={7})
         self.assertEqual([name for name, _ in delivered], ["claude/one"])
         self.assertEqual(unknown, [])
+
+    def test_a_parked_branch_survives_the_merge_that_did_not_carry_it(self):
+        """A child that stopped mid-feature keeps its branch pushed and out of the chain, so the
+        batch's pull request merges without it. Both lists were one field until 2.17.0, and a merged
+        number therefore retired work that was never delivered — on the remote too, where a branch
+        nobody ever had a local copy of has no second one."""
+        self.branch("claude/one", "two\n")
+        self.branch("claude/parked", "three\n")
+        self.record("batch", 7, ["claude/one", "claude/parked"], parked=["claude/parked"])
+        delivered, unknown = self.judge(merged={7})
+        self.assertEqual([name for name, _ in delivered], ["claude/one"])
+        self.assertEqual([name for name, _ in unknown], ["claude/parked"])
+        self.assertIn("parked", unknown[0][1])
+
+    def test_a_parked_branch_whose_work_did_reach_the_base_is_still_retired(self):
+        """Held out of the record's answer, not out of the reading: ancestry still speaks for it,
+        and a branch whose commits are in the base is delivered whatever a record says."""
+        self.branch("claude/parked", "three\n")
+        self.git("merge", "-q", "--no-ff", "-m", "merged by hand", "claude/parked")
+        self.record("batch", 7, ["claude/parked"], parked=["claude/parked"])
+        delivered, _unknown = self.judge(merged={7})
+        self.assertEqual([name for name, _ in delivered], ["claude/parked"])
 
     def test_an_unmerged_pull_request_retires_nothing(self):
         self.branch("claude/one", "two\n")

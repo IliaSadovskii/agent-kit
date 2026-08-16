@@ -797,6 +797,7 @@ def delivered_branches(root: Path, base: str, offline: bool) -> tuple:
         return [], []
 
     owned = {}                                    # branch -> the pull request that carried it
+    left: set = set()                             # branches a batch parked: made, never delivered
     for path in sorted((root / "docs" / "runs").glob("*.json")):
         try:
             written = json.loads(path.read_text(encoding="utf-8"))
@@ -810,8 +811,17 @@ def delivered_branches(root: Path, base: str, offline: bool) -> tuple:
         number = written.get("pr")
         if not isinstance(number, int):
             continue
+        # A parked child keeps its branch pushed and out of the chain, so the batch's pull request
+        # merges without it. Both lists were one until 2.17.0, and a merged number therefore retired
+        # work that was never delivered — locally with `git branch -D` and on the remote, where a
+        # branch nobody ever had a local copy of has no second one. Held out of `owned` rather than
+        # dropped: it falls through to ancestry below, and is reported as unjudged when that cannot
+        # answer either, which is the honest end for a branch whose work is unfinished.
+        parked = {b for b in (written.get("parked") or []) if isinstance(b, str)}
+        left.update(parked)
         for branch in written.get("branches") or []:
-            owned[branch] = number
+            if branch not in parked:
+                owned[branch] = number
     merged = merged_prs(root, set(owned.values()), offline)
 
     def inside(name: str) -> bool:
@@ -825,6 +835,8 @@ def delivered_branches(root: Path, base: str, offline: bool) -> tuple:
             delivered.append((name, f"pull request {owned[name]} merged"))
         elif inside(name):
             delivered.append((name, f"in {base}"))
+        elif name in left:
+            unknown.append((name, "a batch parked this child — the work on it was never delivered"))
         elif name in owned:
             unknown.append((name, f"pull request {owned[name]} is not merged"))
         else:
@@ -1072,7 +1084,7 @@ def batch_defects(state: dict) -> list:
     # blocked child may say so by writing `[]` or by saying nothing — but a field that is there is
     # held to its shape, all of them and not the two with a program behind them: a field that may
     # be prose is a field that will be, and the next reader of this file is a year away.
-    for field in ("branches", "entries", "blocked"):
+    for field in ("branches", "entries", "blocked", "parked"):
         value = state.get(field)
         if value is not None and (not isinstance(value, list)
                                   or any(not isinstance(item, str) for item in value)):
@@ -1081,8 +1093,21 @@ def batch_defects(state: dict) -> list:
                                  "one nobody ever removes",
                      "entries": "these are entry keys, and a key is what every other reader of the "
                                 "knowledge matches on",
-                     "blocked": "these are the slugs of the children that did not finish"}[field]
+                     "blocked": "these are the slugs of the children that did not finish",
+                     "parked": "these are branch names, held out of retirement because the merge "
+                               "did not carry them"}[field]
             out.append(f"`{field}` in the batch record is not a list of names — {named}")
+
+    # A parked branch is retired by nobody, so a name here that is not in `branches` protects
+    # nothing: `delivered_branches` walks `branches`, and a name outside it was never a candidate.
+    # Almost always a slug written where a branch name belongs — the two differ, which is why
+    # `blocked` cannot answer this question and this field exists.
+    if isinstance(state.get("parked"), list) and isinstance(state.get("branches"), list):
+        stray = [b for b in state["parked"] if isinstance(b, str) and b not in state["branches"]]
+        if stray:
+            out.append(f"the batch record parks {', '.join(stray)}, which `branches` does not name — "
+                       f"every parked branch is one this batch made, so it belongs in both. A slug "
+                       f"is not a branch name, and only the branch name is held back from retirement")
 
     for field in ("children", "assumptions", "unmet"):
         if state.get(field) is not None and not number(state.get(field)):

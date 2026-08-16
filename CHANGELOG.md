@@ -3,6 +3,23 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.17.0
+
+- **A branch nobody delivered was retired as delivered.** A parked child keeps its branch pushed and
+  out of the chain, so the batch's pull request merges without it — but the batch record listed
+  every child's branch in one field, and `/agent-kit:next` retires every branch of a record whose
+  pull request merged. The unfinished work went with `git branch -D` and with
+  `git push origin --delete`, and a branch that was only ever on the remote has no second copy.
+
+  `parked` names those branches beside `branches`, which keeps its meaning — everything this batch
+  made. A parked branch is held out of the record's answer and falls through to ancestry, so work
+  that did reach the default branch some other way is still retired; a branch neither test can
+  answer for is reported as unjudged with the reason, which is the honest end for unfinished work.
+  The check names a parked branch `branches` does not carry, because that is a slug written where a
+  branch name belongs — and the two differ, which is why `blocked` could not answer this.
+
+  This is what stood between the kit and retiring branches by program rather than by hand.
+
 ## 2.16.0
 
 Six proposals came out of a review of the kit's own architecture; six independent passes over the

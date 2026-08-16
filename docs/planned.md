@@ -140,10 +140,9 @@ bottleneck rather than production speed.
   it, stop*; measured, five of seven ran the suite, two wrote the batch record, one rewrote the pull
   request body — all of it the closing session's work, done twice. The check is mechanical: a batch
   whose `docs/runs` record, `spent` and `pr` are all present is closed.
-- **Parked children's branches, recorded apart from delivered ones.** `close.md` has the batch record
-  list every child's branch, parked included — so when the batch's pull request merges, an unfinished
-  branch reads as delivered. Nothing can safely retire a branch until these two lists are separable,
-  and `next` deletes branches on that list today.
+- ~~**Parked children's branches, recorded apart from delivered ones.**~~ Done in 2.17.0: `parked`
+  beside `branches` in the batch record, held out of retirement, with the mismatch between the two
+  named by the check. This was what blocked retiring branches by program rather than by hand.
 
 ## 6. Later, and deliberately not now
 

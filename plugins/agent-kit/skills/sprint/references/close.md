@@ -206,6 +206,12 @@ kilobytes, counts rather than sentences.
 Two of its fields are the reason it is judged at all, and both are below. **`branches` is every
 child's branch, copied from its run file** — including the frame child's and
 any child that was parked, because a branch nobody can account for is one nobody will ever remove.
+**And a parked child's branch is named a second time, in `parked`.** Both lists, not one: the first
+is everything this batch made, the second is which of it the merge did not carry. `next` retires
+every branch of a record whose pull request merged, so a parked branch left out of `parked` is
+deleted as delivered — locally and on the remote, where a branch nobody ever had a local copy of has
+no second one. Write the branch name and not the slug; they differ, which is why `blocked` cannot
+stand in for this.
 It is the only field here that is not a count, and it is not derivable from the others: a slug does
 not give a branch name (the frame child's branch and its slug differ), and `.agent-kit/runs/` dies
 with the machine. Without it, the day this pull request is **squash**-merged, git can no longer tell
