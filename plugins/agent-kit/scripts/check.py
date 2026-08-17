@@ -63,9 +63,17 @@ HANDOFF_MAX = 2000
 # came in at two to five thousand.
 PROMPT_MAX = 400
 # What a pull request may put in front of a reader who has not decided to read it yet. Budgets, not
-# measurements — see `pr_body_defects`. Chosen against one run's 45 000-character body, whose
-# seventy-row table of assumptions was the part that made the rest unusable.
-PR_OPEN_MAX = 12000
+# measurements — see `pr_body_defects`. The brief is everything above the first `##` heading: three
+# answers and nothing else, which is what the owner reads. The second number covers the brief and
+# whatever stays uncollapsed under it.
+#
+# **Both were lowered in 2.22.0, and 12 000 is what they replaced.** That number was chosen against
+# one run's 45 000-character body, so it measured *not a disaster* rather than *short* — and the
+# first batch body written to it filled 99.8% of it, which is the signature of a target being met
+# instead of a length being needed. These two are derived from that same body: what it would have
+# been with the evidence folded and the three open answers kept.
+PR_BRIEF_MAX = 2500
+PR_OPEN_MAX = 4000
 PR_TABLE_MAX = 15
 # How many pull requests one listing carries — one page, because `gh` fetches a hundred rows per
 # request and a larger cap spends a round trip per extra page on a repository that has them. The
@@ -539,15 +547,12 @@ def check_epic(root: Path, manifest: dict, docs: list, report: Report) -> list:
     text = product.text if product else ""
     # The marker first, because this section is the owner's prose under a heading in their own
     # language. A Russian heading used to be hard-coded here — the one place a project's language
-    # reached the payload — and it bought nothing, since the fallback below already matched it: the
+    # reached the payload — and it bought nothing, since the fallback already matched it: the
     # letters MVP are in it. What it hid is the real gap. A project whose heading has no Latin
     # "MVP" in it at all — *Что входит в первую версию* — was told it has no bounds section, which
-    # is this program reporting a defect where it can only report that it cannot read.
-    section = section_after(text, MVP_MARK)
-    if section is None:
-        found = re.search(r"^#{1,6}\s+.*\bMVP\b.*$", text, re.M | re.I)
-        section = (section_of(text, "MVP bounds")
-                   or (section_of(text, found.group(0).lstrip("# ").strip()) if found else None))
+    # is this program reporting a defect where it can only report that it cannot read. Both steps
+    # live in `bounds_section`, which the planned-entry count asks as well.
+    section = bounds_section(text)
     if not section:
         fatal.append(f"product.md has no MVP bounds section, and no `{MVP_MARK}` marker above one — "
                      f"an epic with no bounds cannot know when it is finished. Where the section is "
@@ -1166,6 +1171,59 @@ def planned(docs: list) -> list:
             if not doc.commented(entry) and (entry.state or "").split(" (")[0] == "planned"]
 
 
+def bounds_section(text: str) -> str | None:
+    """The MVP bounds, found by the marker and then by the words that used to be hard-coded.
+
+    Extracted so that the gate and the count below cannot answer differently about where the bounds
+    are — they did not, and one fact read in two places is the shape of every defect this kit has
+    spent a release on.
+    """
+    section = section_after(text, MVP_MARK)
+    if section is not None:
+        return section
+    found = re.search(r"^#{1,6}\s+.*\bMVP\b.*$", text, re.M | re.I)
+    return (section_of(text, "MVP bounds")
+            or (section_of(text, found.group(0).lstrip("# ").strip()) if found else None))
+
+
+def planned_by_list(docs: list) -> tuple:
+    """How the planned entries split across the lists the owner keeps in the bounds — and the rest.
+
+    `planned: 7` is three different questions wearing one number, and on a live project it produced
+    the wrong recommendation: one entry inside the bounds, three the owner had deliberately deferred
+    to a next version, three he had put outside altogether. The session had to sort them by reading
+    the prose, and only did so when the owner pushed back.
+
+    **The lists are the owner's and so are their names.** They are `**Bold:**` lines inside the
+    bounds section, in the project's language, and nothing here matches a word of them: the program
+    prints the label it found with its count, and the reader decides what a label means. The order in
+    the file is what settles a key named twice — the earlier list wins, because that is how the
+    section reads, and an entry the owner listed as *inside* and mentioned again while describing a
+    later version is inside.
+
+    Returns `(rows, unplaced)`: `rows` is `(label, keys)` per list, `unplaced` the planned entries no
+    list names. Both empty when there is no bounds section — nothing to place them against, which is
+    the gate's finding and not this one's.
+    """
+    product = next((d for d in docs if d.slot == "product"), None)
+    section = bounds_section(product.text) if product else None
+    waiting = planned(docs)
+    if not section or not waiting:
+        return [], waiting if section else []
+
+    marks = [(m.start(), m.group(1).strip().rstrip(":：").strip())
+             for m in re.finditer(r"^\*\*([^*\n]+)\*\*", section, re.M)]
+    rows, seen = [], set()
+    for i, (start, label) in enumerate(marks):
+        end = marks[i + 1][0] if i + 1 < len(marks) else len(section)
+        block = section[start:end]
+        keys = [k for k in waiting if f"`{k}`" in block and k not in seen]
+        seen.update(keys)
+        if keys:
+            rows.append((label, keys))
+    return rows, [k for k in waiting if k not in seen]
+
+
 def record(root: Path, docs: list, manifest_path: Path) -> list:
     """Write every hash this program is able to compute, in place.
 
@@ -1307,6 +1365,16 @@ def delivered_branches(root: Path, base: str, gh: Github) -> tuple:
         for branch in written.get("branches") or []:
             if branch not in parked:
                 owned[branch] = number
+        # **And the batch's own delivery branch**, which the record has carried all along in
+        # `branch` and this loop read past. It is the one branch that cannot be answered any other
+        # way: the children are in `branches`, a feature's branch can be caught by ancestry, and
+        # `sprint/<slug>` is what the squashed pull request was opened *from*, so its commits are
+        # nowhere in the base and never will be. Measured on a live project on 17 August 2026 —
+        # `next` retired the six children by name and reported the seventh as unjudgeable, which is
+        # how the mechanism built against 99 unremovable branches went on making one per batch.
+        own = written.get("branch")
+        if isinstance(own, str) and own and own not in parked:
+            owned[own] = number
     merged = gh.merged(set(owned.values()))
     # Whether anything could be asked at all. Without this the two answers print as one: an empty
     # result means both "none of them merged" and "nobody here can ask", and the branch was then
@@ -2273,7 +2341,10 @@ def open_runs(root: Path) -> list:
         out.append({"slug": run.get("slug") or path.parent.name,
                     "command": run.get("command", "?"), "step": run.get("step", "?"),
                     "branch": run.get("branch"), "waiting_on": run.get("waiting_on"),
-                    "blockers": run.get("blockers") or []})
+                    "blockers": run.get("blockers") or [],
+                    # Which command picks it up. Named by the program because the one place that
+                    # named it in prose named two kinds of three and left the epic out.
+                    "resume": runfile.resume_command(run, path.parent)})
     return out
 
 
@@ -2331,8 +2402,10 @@ def print_state(root: Path, gh: Github) -> None:
     for run in open_runs(root):
         waiting = f", waiting on {run['waiting_on']}" if run.get("waiting_on") else ""
         blocked = f", blockers: {len(run['blockers'])}" if run["blockers"] else ""
+        picks_up = f" — {run['resume']}" if run.get("resume") else \
+                   " — nothing here can say which command resumes it"
         print(f"  run {run['slug']} left at step={run['step']} "
-              f"({run['command']}, {run['branch'] or 'no branch'}{waiting}{blocked})")
+              f"({run['command']}, {run['branch'] or 'no branch'}{waiting}{blocked}){picks_up}")
 
     # A branch a merged pull request already delivered is not work in flight, and printing it as
     # though it were is how one project reached 99 of them: every listing said "unmerged", nobody
@@ -2476,6 +2549,18 @@ def print_planned(docs: list) -> None:
     rest = f", … and {len(waiting) - UNMET_SHOWN} more" if len(waiting) > UNMET_SHOWN else ""
     print(f"Planned: {shown}{rest}")
 
+    # Which of the owner's own lists each one is on. Never one number: what is waiting inside the
+    # bounds, what was deliberately deferred to a later version and what was put outside are three
+    # answers, and a command that offers the third is offering to build what the owner ruled out.
+    rows, unplaced = planned_by_list(docs)
+    if not rows and not unplaced:
+        return
+    said = " · ".join(f"{label[:44]}: {len(keys)} ({', '.join(keys)})" for label, keys in rows)
+    if unplaced:
+        said += (" · " if said else "") + \
+                f"on no list: {len(unplaced)} ({', '.join(unplaced[:UNMET_SHOWN])})"
+    print(f"  by the lists in product.md — {said}")
+
 
 def print_audits(report: Report) -> None:
     """How much of its own scope each lens says it walked. A statement: what the right number is
@@ -2562,12 +2647,18 @@ def print_entry_blocks(report: Report, docs: list, keys: list) -> None:
 def pr_body_defects(path: Path) -> int:
     """What a reader has to walk through before they can decide, measured before it is published.
 
-    Two numbers, and both are **budgets somebody chose**, not measurements — which is the honest
+    Three numbers, and each is **a budget somebody chose**, not a measurement — which is the honest
     thing to say about them, because this kit has twice carried a number nobody could account for.
     What they were chosen against is real: one run's pull request came to 45 000 characters with a
     seventy-row table uncollapsed, and nothing in the kit noticed, because the rule it broke was a
     sentence asking for restraint. A sentence cannot count. Raise or lower these the day a real body
-    says they are wrong, and say so in the changelog when you do.
+    says they are wrong, and say so in the changelog when you do — which has happened once, in
+    2.22.0, when the first body written to the old ceiling filled 99.8% of it.
+
+    **The brief is counted separately, and that is the point of it.** The rule has asked for 2 500
+    characters at the top since 2.15.0 and this program never measured them: it counted the whole
+    uncollapsed body against one generous number, so a body could hold a perfectly short brief under
+    ten thousand characters of open evidence and pass.
 
     Collapsed content is not counted at all: `<details>` is the whole mechanism by which a body can
     be complete and short at once, and a rule that punished it would push writers to delete evidence
@@ -2592,15 +2683,26 @@ def pr_body_defects(path: Path) -> int:
             current = 0
     rows = worst
 
-    print(f"  {len(text)} characters, {len(open_text)} of them the reader cannot collapse; "
+    # The brief is what stands above the first `##` heading, and the writer decides where that is —
+    # the alternative was matching the section names, which are translated into the project's
+    # language and would make this program answer differently per project.
+    found = re.search(r"^##\s+", open_text, re.M)
+    lead = open_text[:found.start()] if found else open_text
+
+    print(f"  {len(text)} characters, {len(open_text)} of them the reader cannot collapse, "
+          f"{len(lead)} of those in the brief; "
           f"biggest uncollapsed table: {max(0, rows - 2)} rows")
 
     defects = []
+    if len(lead) > PR_BRIEF_MAX:
+        defects.append(f"the brief runs to {len(lead)} characters against a budget of "
+                       f"{PR_BRIEF_MAX} — three answers and nothing else: what works now that did "
+                       f"not, what is needed from the owner, and what went wrong")
     if len(open_text) > PR_OPEN_MAX:
         defects.append(f"{len(open_text)} characters stand uncollapsed against a budget of "
-                       f"{PR_OPEN_MAX} — the owner decides in the first lines whether this merges, "
-                       f"and everything past that either serves the decision or folds into "
-                       f"`<details>`")
+                       f"{PR_OPEN_MAX} — a pull request is a report to somebody who has other work: "
+                       f"the three answers stay open and every proof, decision and difficulty folds "
+                       f"into `<details>` with its count in the summary")
     if rows - 2 > PR_TABLE_MAX:
         defects.append(f"an uncollapsed table runs to {rows - 2} rows against a budget of "
                        f"{PR_TABLE_MAX} — a table nobody can finish reading is one nobody reads, "

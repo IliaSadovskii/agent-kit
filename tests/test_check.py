@@ -1425,6 +1425,31 @@ class CheckCase(unittest.TestCase):
                             + table + "\n</details>\n")
         self.assertEqual(code, 0)
 
+    def test_a_brief_longer_than_the_owner_reads(self):
+        """The rule has asked for 2 500 characters at the top since 2.15.0 and nothing counted them:
+        the program measured the whole uncollapsed body against one generous number, so a body could
+        pass with a wall of prose above its first heading."""
+        code, output = self.body(("A paragraph about the work. " * 120) + "\n\n## Proven\n\nGreen.\n")
+        self.assertEqual(code, 1)
+        self.assertIn("the brief runs to", output)
+
+    def test_the_brief_ends_at_the_first_section(self):
+        """Everything above the first `##`, and the writer decides where that is — matching the
+        section names would make this program answer differently per project, because they are
+        written in the project's own language."""
+        _code, output = self.body("Three answers.\n\n## Proven\n\n" + ("Evidence. " * 100))
+        self.assertIn("16 of those in the brief", output)      # "Three answers.\n\n"
+
+    def test_a_report_shaped_body_passes(self):
+        """The shape the owner asked for: three answers, and the proof folded behind its count."""
+        code, _ = self.body(
+            "Two features: the letter goes out, and the profile drops the timezone.\n\n"
+            "**What is needed from you.** Nothing.\n\n"
+            "**What went wrong.** Nothing parked. One promise unkept: `user.set_window`.\n\n"
+            "<details><summary>Proven — 1320 tests green on `4c5828d`, 13 mutants killed</summary>\n"
+            + ("Evidence nobody has to read. " * 400) + "\n</details>\n")
+        self.assertEqual(code, 0)
+
     def test_a_body_that_is_not_there(self):
         code = check.pr_body_defects(self.root / "nothing.md")
         self.assertEqual(code, 2)
@@ -1858,6 +1883,112 @@ class RunBranchCase(unittest.TestCase):
             shutil.rmtree(outside, ignore_errors=True)
 
 
+class PlannedListsCase(unittest.TestCase):
+    """Which of the owner's lists each planned entry is on.
+
+    `planned: 7` was three questions wearing one number, and on a live project it produced the wrong
+    recommendation: one entry inside the bounds, three deferred to a next version, three ruled out
+    altogether. The labels are the owner's own prose in their own language, so the program counts and
+    never matches a word of them.
+    """
+
+    PRODUCT = """# Продукт
+
+## Границы MVP
+
+**Внутри:**
+
+- Вход и профиль: `screen.session` — правка шапки.
+
+**Следующая версия — то, что владелец надиктовал.**
+
+- Материал вместо выдумки: `scheduler.pick_material`, `user.set_model_key`.
+
+**Снаружи:**
+
+- Пересчёт уровня: `scheduler.recalculate_level`.
+"""
+
+    ACTIONS = """# Действия
+
+fields: Кто
+
+### Экран задания
+`key: screen.session` · `state: planned`
+
+**Кто:** `user`
+
+### Подбор материала
+`key: scheduler.pick_material` · `state: planned`
+
+**Кто:** `user`
+
+### Свой ключ
+`key: user.set_model_key` · `state: planned`
+
+**Кто:** `user`
+
+### Пересчёт уровня
+`key: scheduler.recalculate_level` · `state: planned`
+
+**Кто:** `user`
+
+### Нигде не названа
+`key: user.orphan_plan` · `state: planned`
+
+**Кто:** `user`
+"""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.knowledge = self.tmp / "docs" / "knowledge"
+        self.knowledge.mkdir(parents=True)
+        (self.knowledge / "product.md").write_text(self.PRODUCT, encoding="utf-8")
+        (self.knowledge / "actions.md").write_text(self.ACTIONS, encoding="utf-8")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def split(self):
+        docs = [check.Doc(p) for p in sorted(self.knowledge.glob("*.md"))]
+        return check.planned_by_list(docs)
+
+    def test_each_list_keeps_its_own_name_and_its_keys(self):
+        rows, _unplaced = self.split()
+        self.assertEqual([label for label, _keys in rows],
+                         ["Внутри", "Следующая версия — то, что владелец надиктовал.", "Снаружи"])
+        self.assertEqual([keys for _label, keys in rows],
+                         [["screen.session"],
+                          # the order is the knowledge's, not the list's — a run reads them from
+                          # `actions.md` and the labels are only where each one belongs
+                          ["scheduler.pick_material", "user.set_model_key"],
+                          ["scheduler.recalculate_level"]])
+
+    def test_an_entry_on_no_list_is_named_rather_than_placed(self):
+        _rows, unplaced = self.split()
+        self.assertEqual(unplaced, ["user.orphan_plan"])
+
+    def test_the_earlier_list_wins_a_key_named_twice(self):
+        """An entry listed as inside and mentioned again while describing a later version is
+        inside — the section reads top down and so does this."""
+        text = (self.knowledge / "product.md").read_text(encoding="utf-8")
+        (self.knowledge / "product.md").write_text(
+            text.replace("`scheduler.pick_material`, ", "`scheduler.pick_material`, "
+                         "`screen.session`, "), encoding="utf-8")
+        rows, _unplaced = self.split()
+        self.assertEqual(rows[0], ("Внутри", ["screen.session"]))
+        self.assertNotIn("screen.session", rows[1][1])
+
+    def test_no_bounds_section_places_nothing_and_says_so(self):
+        """The gate is what reports a missing bounds section; this one may not pretend to place
+        entries against a section that is not there."""
+        (self.knowledge / "product.md").write_text("# Продукт\n\n## Для чего он\n\nУчить.\n",
+                                                   encoding="utf-8")
+        rows, unplaced = self.split()
+        self.assertEqual(rows, [])
+        self.assertEqual(unplaced, [])
+
+
 class DriftCase(unittest.TestCase):
     """Records that moved on the default branch while a run was building against them.
 
@@ -2060,6 +2191,31 @@ class FlightCase(unittest.TestCase):
 
     def test_the_main_checkout_is_its_own_main_checkout(self):
         self.assertEqual(self.runfile.main_worktree(self.main).resolve(), self.main.resolve())
+
+    def test_which_command_picks_a_run_up(self):
+        """Named by the program because the one place that named it in prose — rung 2 of `next` —
+        named a batch and a feature and left the epic out, so a run at `auditing` was offered the
+        command that drives a batch."""
+        resume = self.runfile.resume_command
+        directory = self.main / ".agent-kit" / "runs" / "x"
+        self.assertIn("epic --resume", resume({"command": "epic", "step": "auditing"}, directory))
+        self.assertIn("epic --resume", resume({"command": "mvp", "step": "proving"}, directory))
+        self.assertIn("sprint --resume", resume({"command": "sprint", "step": "building"}, directory))
+        self.assertIn("ship --run", resume({"command": "ship", "step": "build"}, directory))
+
+    def test_a_runs_own_prompt_is_what_picks_it_up(self):
+        """It is literally what the driver types, and an audit's lens is in it and nowhere else."""
+        self.assertEqual(
+            self.runfile.resume_command(
+                {"command": "audit", "prompt": "/agent-kit:audit tests --run .agent-kit/runs/x"},
+                self.main),
+            "/agent-kit:audit tests --run .agent-kit/runs/x")
+
+    def test_a_run_nothing_can_place_is_not_handed_to_a_command(self):
+        self.assertEqual(self.runfile.resume_command({"step": "build"}, self.main), "")
+        self.assertEqual(
+            self.runfile.resume_command({"command": "ship", "prompt": "build the feed screen"},
+                                        self.main), "")
 
     def test_a_directory_that_is_no_worktree_at_all(self):
         plain = self.tmp / "plain"
@@ -2526,6 +2682,31 @@ class BranchesCase(unittest.TestCase):
         delivered, unknown = self.judge(merged={7})
         self.assertEqual([name for name, _ in delivered], ["claude/one"])
         self.assertEqual(unknown, [])
+
+    def test_the_batchs_own_delivery_branch_is_retired_too(self):
+        """`sprint/<slug>` is what the pull request was opened *from*, so a squash leaves its commits
+        nowhere in the base and ancestry can never answer for it. The record has carried it in
+        `branch` all along and this reading used to skip that field — so the mechanism built against
+        99 unremovable branches went on making one per batch. Measured on a live project: six
+        children retired by name, the seventh reported as unjudgeable."""
+        self.branch("claude/one", "two\n")
+        self.branch("sprint/batch", "three\n")
+        (self.root / "docs" / "runs" / "batch.json").write_text(
+            json.dumps({"slug": "batch", "pr": 7, "branch": "sprint/batch",
+                        "branches": ["claude/one"], "parked": []}), encoding="utf-8")
+        delivered, unknown = self.judge(merged={7})
+        self.assertEqual(sorted(name for name, _ in delivered), ["claude/one", "sprint/batch"])
+        self.assertEqual(unknown, [])
+
+    def test_a_parked_own_branch_is_not_retired_by_its_own_record(self):
+        """The one case where `branch` must not be trusted: a batch that parked its own delivery."""
+        self.branch("sprint/batch", "three\n")
+        (self.root / "docs" / "runs" / "batch.json").write_text(
+            json.dumps({"slug": "batch", "pr": 7, "branch": "sprint/batch",
+                        "branches": [], "parked": ["sprint/batch"]}), encoding="utf-8")
+        delivered, unknown = self.judge(merged={7})
+        self.assertEqual(delivered, [])
+        self.assertEqual([name for name, _ in unknown], ["sprint/batch"])
 
     def test_a_parked_branch_survives_the_merge_that_did_not_carry_it(self):
         """A child that stopped mid-feature keeps its branch pushed and out of the chain, so the

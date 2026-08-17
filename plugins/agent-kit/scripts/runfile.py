@@ -182,6 +182,29 @@ def project_root(start: Path):
     return None
 
 
+def resume_command(state: dict, directory) -> str:
+    """The command that picks this run up where it stopped, or `""` when nothing here can say.
+
+    Asked because the one place that answered it — the ladder in `next` — named two of the three:
+    `sprint --resume` for a batch and `ship --run` for a feature, and nothing at all for an epic. A
+    run at `auditing` or `proving` is an epic mid-flight, and the recommendation it got was the
+    command for a batch. Derived rather than remembered, so the answer cannot go out of date the
+    next time a command gains a phase.
+
+    **The run's own `prompt` wins**, because it is literally what the driver types to start this
+    session — an audit lens carries its own name in it, which nothing else here knows. Otherwise the
+    kind decides. `unknown` answers `""`: a run whose kind cannot be worked out cannot be handed to a
+    command on a guess.
+    """
+    prompt = str(state.get("prompt") or "").strip()
+    if prompt.startswith(COMMAND_PREFIX) and len(prompt) <= 200:
+        return prompt
+    by_kind = {"epic": f"{COMMAND_PREFIX}epic --resume {directory}",
+               "batch": f"{COMMAND_PREFIX}sprint --resume {directory}",
+               "feature": f"{COMMAND_PREFIX}ship --run {directory}"}
+    return by_kind.get(kind(state), "")
+
+
 def branch_shape(name: str) -> bool:
     """Whether a name is one this kit makes. A slug written where a branch belongs has no `/`."""
     return bool(re.match(r"^[^/]+/.+", name or ""))

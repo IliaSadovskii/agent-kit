@@ -141,23 +141,40 @@ alone, not what is most interesting.
 | # | What you see | Why it comes first | What you name |
 |---|---|---|---|
 | 1 | uncommitted changes, or a branch never pushed | that work exists on one machine only, and everything else will bury it | commit it or throw it away, by hand |
-| 2 | a run left at a non-terminal step | its branch is alive and nobody is on it; a new batch would fork past it | `/agent-kit:sprint --resume <dir>` or `/agent-kit:ship --run <dir>` |
+| 2 | a run left at a non-terminal step | its branch is alive and nobody is on it; a new batch would fork past it | **the command the check printed beside it** — see below |
 | 3 | an open pull request, CI green, no conflicts | everything started from now on forks from a stale base | merge it |
 | 4 | CI failing — on a pull request or on the default branch | it breaks whatever starts next | `/agent-kit:fix` |
 | 5 | a pull request with conflicts, or one never reviewed | it looks finished and is not | resolve, or review it |
 | 6 | somebody is waiting: a run's `waiting_on`, open `[assumed …]` on entries about to be built | the answer is cheapest while the context is warm | answer it, or `/agent-kit:blueprint` |
 | 7 | knowledge not ready **for the work you are about to name**: a slot `open_question`, empty fields, a stale `source:`, an open block on the very entry you would recommend building | a run over that entry invents the missing half | `/agent-kit:blueprint` |
-| 8 | a blind spot: a lens that never ran, or ran long ago; scenarios with no end-to-end test | not knowing what is broken is not the same as nothing being broken | `/agent-kit:audit <lens>` |
+| 8 | a blind spot: a lens that never ran, or ran long ago; scenarios with no end-to-end test | not knowing what is broken is not the same as nothing being broken | `/agent-kit:audit <lens>` — **unless the work below runs that lens itself**, see under the table |
 | 9 | debt, unkept promises, unticked audit boxes, decisions nothing will reach | it only gets more expensive | `/agent-kit:sprint` with no theme — or `/agent-kit:epic` when there is a lot of it |
 | 10 | entries still `planned` | the product is unfinished | by how much is left: one `/agent-kit:ship <key>`, a `/agent-kit:sprint` of about five, or `/agent-kit:epic` for the rest of them |
 | 11 | none of the above | say so | nothing |
 
 **Rungs 9 and 10 are one judgement in two rows, and it is about size.** One entry is a `ship`; about
-five on one topic is a `sprint`; everything that is left — the MVP bounds on a project that has none
-of them yet, or every `planned` entry on one that does — is an `epic`, which takes that whole list,
-audits what it built and proves it, as one pull request. Say which of the three you mean and why,
-with the count: *seven entries left — `/agent-kit:epic`, it asks one question and runs the rest
-unattended*. Naming the command without the count leaves the owner to guess at a day's work.
+five on one topic is a `sprint`; a whole list is an `epic`, which takes it, audits what it built and
+proves it, as one pull request. Say which of the three you mean and why, with the count: *seven
+entries left — `/agent-kit:epic`, it asks one question and runs the rest unattended*. Naming the
+command without the count leaves the owner to guess at a day's work.
+
+**And `planned` is never one number.** The check prints the split — the owner's own lists out of
+`product.md`, with their own labels and the keys on each: what is waiting inside the MVP bounds, what
+was deliberately deferred to a later version, what was put outside. Read that line before you name
+anything, because the three are answered differently:
+
+- **inside the bounds** — offer it, whatever its size;
+- **a later version** — offer it when the bounds are closed, and say the bounds are closed, since
+  that is the owner's own condition for starting it. It is the ordinary next thing on a finished MVP
+  and not a request to jump ahead;
+- **outside** — never offer it. The owner ruled it out and a command that puts it back on the list is
+  arguing with them from a count.
+
+Two things this closes, both measured on a live project on 17 August 2026. An epic offered *every
+`planned` entry* would have taken three the owner had put outside — its gate takes a named list for
+exactly this reason, so name one rather than accepting the default. And one entry still inside the
+bounds was read as *the MVP is not finished*, which is what stopped an epic being offered at all: the
+bounds are one entry from closed, and the whole next version was described and waiting.
 
 **An open block is not by itself a reason to recommend `blueprint`.** Every batch leaves some, and a
 ladder that fires on them recommends the same command after every sprint until the owner learns to
@@ -184,6 +201,29 @@ nothing to build in and no command that arrives by accident. Left alone it stays
 work it stands for is invisible to `sprint`, to `epic` and to rung 10. Treat any open one as rung 9
 work and name `/agent-kit:blueprint`, saying how many and from which lens.
 
+**Rung 8 is about nobody looking, not about coverage being incomplete.** An `epic` runs the lenses
+itself — `deps`, `security` and `conventions` over the whole codebase, `tests` and `scenarios`
+narrowed to its own entries — so where rung 10 would name an epic, that lens is *being looked at* and
+rung 8 does not fire on it. What the epic will not reach is real and is not the recommendation: it
+goes in *What is in the way* as one line, and into the recommendation as a clause — *catch it after,
+with `/agent-kit:audit scenarios`*. Naming an audit that the next command performs anyway costs a
+night twice, and the lens then walks unchanged code, which is the thing every rule about waves
+forbids.
+
+Measured on a live project on 17 August 2026: four scenarios of thirteen had no end-to-end test, so
+this rung fired and named `/agent-kit:audit scenarios` — while seven entries the owner had dictated
+the day before sat at rung 10 and an epic was about to audit most of them on its way. The owner had
+to say so twice. Only one of those four scenarios was outside what the epic would walk.
+
+**Rung 2 is four kinds of run, and the check names which command each one takes.** `--state` prints
+it beside the run: `/agent-kit:epic --resume <dir>` for a whole scope, `/agent-kit:sprint --resume
+<dir>` for a batch, `/agent-kit:ship --run <dir>` for a feature, and for an errand the prompt it was
+started with — which carries what nothing else can know, an audit's lens being the case. Read it
+rather than deriving it: this row used to name two of the four and left the epic out entirely, so a
+run at `auditing` or `proving` — an epic mid-flight, in a phase no other command has — was offered
+the command that drives a batch. Where the check says nothing can say which, say that: a run whose
+kind is unreadable is a thing to look at by hand, not a command to run.
+
 Three overrides, because a ladder read literally lies:
 
 - **No `docs/knowledge/` at all** — the ladder collapses: the answer is `/agent-kit:blueprint`,
@@ -193,6 +233,10 @@ Three overrides, because a ladder read literally lies:
   costs the owner a conversation, not a night.
 - **MVP bounds not reached** — rungs 9 and 10 swap: unbuilt entries inside the bounds come before
   debt. Paying down debt in a product that does not exist yet is optimising a thing nobody has run.
+  **It is about a product that does not run yet, not about a count above zero.** One entry left
+  inside the bounds is a finished MVP with a correction outstanding, and this override does not fire
+  on it — a live project had exactly that, and reading it as *the MVP is unfinished* is what kept the
+  next version from being offered at all.
 
 Rungs 2, 3 and 9 all have a trap, and it is the same one: **a list can be stale.** A run left at
 `step: build` whose branch is thirty commits behind is not "carry on", it is "start again". An audit

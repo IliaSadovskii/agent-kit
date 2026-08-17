@@ -3,6 +3,79 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.22.0
+
+**A pull request is a report to somebody who has other work.** The owner read the first batch body
+written under the 2.15.0 rules — five features, `beeplish` #21 — and asked whether it counted as
+short. It did not: 21 747 characters, 11 972 of them uncollapsed against a budget of 12 000. Its
+writer had followed every rule in the kit exactly, which is the finding. Two of the three biggest
+open sections were pinned open by the rule itself.
+
+- **Three answers stay open, and the body says nothing else above the fold**: what works now that
+  did not, what is needed from the owner to run it, and what went wrong. Everything else — the
+  decisions taken without them, what was hard, what was proven and how, the review, the files, a
+  batch's frame — folds into `<details>` with its conclusion and its count in the `summary`.
+
+- **The three *never collapsed* clauses are withdrawn**, and a design note says so rather than a
+  session deciding they were stale. Each was written when a pull request was the only place its fact
+  would reach the owner; each of those facts now has a file and a program that raises it again —
+  an `[assumed …]` block the check prints before every command, a marked test `sprint` offers as a
+  batch, a line in the ledger. The test for staying open is not *is this important* but **can the
+  reader be misled by not seeing it**, and exactly one thing fails it: a suite reported green while
+  the product contradicts entries. So the unkept promises are named one line each up in *what went
+  wrong*, and their evidence stays folded.
+
+- **The brief is counted at last.** The rule has asked for 2 500 characters at the top since 2.15.0
+  and the program never measured them — it counted the whole uncollapsed body against one generous
+  number, so a short brief under ten thousand characters of open evidence passed. The brief is
+  everything above the first `##` heading.
+
+- **The uncollapsed budget drops from 12 000 to 4 000.** The old number was chosen against a 45 000
+  character disaster, so it measured *not a disaster* rather than *short*, and the first body written
+  to it landed 28 characters under — a target met rather than a length needed. The new one is derived
+  from that same body with the evidence folded, and one body is one data point: the rule says in as
+  many words that the next batch may move it, in the changelog.
+
+The reasoning: [docs/design/2026-08-17-the-pull-request-as-a-report.md](docs/design/2026-08-17-the-pull-request-as-a-report.md).
+
+**Three more, all from one live `/agent-kit:next` on 17 August 2026 — it recommended an audit, the
+owner said *why not the epic*, and was right.** The session had followed the ladder exactly, which is
+the finding: rung 8, *a blind spot*, sits above rungs 9 and 10, where the work is.
+
+- **Rung 8 is about nobody looking, not about coverage being incomplete.** An `epic` runs the lenses
+  itself — `deps`, `security` and `conventions` over the whole codebase, `tests` and `scenarios`
+  narrowed to its own entries — so a lens the recommended work performs anyway is not a blind spot,
+  and naming it costs a night twice while the lens walks unchanged code. What the epic will not reach
+  is one line in *What is in the way* and a clause in the recommendation.
+
+- **`planned` is never one number again.** Seven planned entries were one entry waiting inside the
+  MVP bounds, three the owner had deliberately deferred to a next version, and three he had put
+  outside — and the session sorted them by reading the prose, only after being pushed. `check.py`
+  now prints the split from the owner's own lists in `product.md`, **with their own labels**: it
+  counts and matches no word of them, so a project's language never reaches the program. Where a key
+  is on two lists the earlier one wins, and a planned entry no list names is said to be on none.
+  Rung 10 answers the three differently: inside is offered, a later version is offered once the
+  bounds are closed, outside is never offered. And *bounds not reached* no longer fires on a count
+  above zero — one entry left is a finished MVP with a correction outstanding, which is what stopped
+  the epic from being offered at all.
+
+- **A batch's own delivery branch could never be retired.** `docs/runs/<batch>.json` has carried it
+  in `branch` since the record existed, and `delivered_branches` read only `branches` and `parked`.
+  `sprint/<slug>` is what the pull request is opened *from*, so a squash merge leaves its commits
+  nowhere in the base and ancestry can never answer for it: the mechanism built against 99
+  unremovable branches was making one per batch. On the live project it retired six children by name
+  and reported the seventh as unjudgeable. A batch that parked its own delivery is still not retired.
+
+**And `next` did not know an epic could be mid-flight.** It has known the command as a
+recommendation since it was written — rungs 9 and 10, and the empty-repository override — but its
+rung 2, *a run left at a non-terminal step*, named `/agent-kit:sprint --resume` and
+`/agent-kit:ship --run` and nothing else. An epic's own run file sits at `gate`, `building`,
+`auditing` or `proving`, so the one command that knows those phases was never offered, and a stalled
+epic was handed the command that drives a batch. Which command picks a run up is now derived by the
+program — `runfile.resume_command`, from the run's `kind`, or from its own `prompt` where it has one,
+because an audit's lens lives there and nowhere else — and `check.py --state` prints it beside the
+run. A run whose kind cannot be read is named as such rather than handed to a command on a guess.
+
 ## 2.21.0
 
 **Two sessions in one checkout.** Measured on a live project on 17 August 2026: a batch was

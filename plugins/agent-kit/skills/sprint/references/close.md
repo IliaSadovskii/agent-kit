@@ -69,11 +69,13 @@ is how they are composed across features, which is yours alone — you are the o
 writes one of these, which is why it is here rather than in a file every feature reads.
 
 Composed across features and **organised by what could have gone wrong**, not by what was done. With
-the entries written in advance, a batch can only have gone wrong in three places, and all three stay
-uncollapsed at the top:
+the entries written in advance, a batch can only have gone wrong in two places, and those two are
+what stays open beside the line of what now works:
 
-1. **What did not happen** — every parked or skipped feature, and why. A hole in a batch is more
-   dangerous than any line of code in it, and it is the first thing a reader must not miss.
+1. **What did not happen** — every parked or skipped feature, and why; every promise a child left
+   marked `unmet`, one line each; and the batch's answer on the product's scenarios where it is *the
+   command exists and nothing ran it*. A hole in a batch is more dangerous than any line of code in
+   it, and this is the answer the reader would otherwise take for a clean bill.
 2. **Manual actions** — the children's `manual` records, merged into one ordered list by `when`.
    Three migrations are three numbered steps, not three sections the owner assembles in their head.
    **From the field, never re-derived from a child's prose**: the list is what the owner will
@@ -81,11 +83,16 @@ uncollapsed at the top:
    it worked. Measured on one run, nineteen actions were listed and six needed a person — the
    other thirteen were things a script should have done or settings that already worked, and they
    were what made the six unfindable.
-3. **Assumptions** — one table for the batch: decision, why, which feature, which entry. Expensive
-   first, and the children's `deviations` belong in it too: a deviation is an assumption the code
-   forced. This is the single place a well-specified batch diverges from what the owner wanted.
 
-Then **Proven**: a row per feature naming which of the entry's lines have a test, what the suite
+**Assumptions are one table for the batch and it is collapsed**: decision, why, which feature, which
+entry, expensive first, and the children's `deviations` belong in it too — a deviation is an
+assumption the code forced. It is the single place a well-specified batch diverges from what the
+owner wanted, which is why the `summary` line carries both numbers: how many, and how many are
+expensive to get wrong. Every one of them is also an `[assumed …]` block under its entry, printed by
+the check before every command and closed by `blueprint` — so this table is where the owner first
+sees them and never the only place they exist.
+
+Then **Proven**, collapsed: a row per feature naming which of the entry's lines have a test, what the suite
 returned, its `mutation` — how many changes to the product's logic the tests caught, how many they
 slept through, or that the step did not run — and what is *not* proven, plus the batch-level fact
 about the product's end-to-end scenarios: **which of the three it is.** They ran in CI on this
@@ -96,10 +103,11 @@ that the joins could be judged, and nothing judged them. You never run them your
 tree the children built in proves that an application already running still runs, and the artefacts
 it leaves make that tree dirty for the next batch.
 
-Inside it, uncollapsed, **the promises this batch did not keep**: every line of every child's
-`unmet`, with the entry, what the code does instead, and which feature met it. A batch that ends
-green while the product contradicts three entries is only honest if that list is in plain sight —
-and it is the list the next `sprint` composes a batch from.
+Inside it, **the promises this batch did not keep**: every line of every child's `unmet`, with the
+entry, what the code does instead, and which feature met it — the evidence, against the one-line
+naming of each that went up into *What did not happen*. A batch that ends green while the product
+contradicts three entries is only honest if the fact is above the fold; the detail is what this
+block is for, and it is the list the next `sprint` composes a batch from.
 
 **The ledger moves both ways in one commit.** Delete the lines the children finished — their
 `closed_debt` — and write in the batch's leftovers, every child's `deferred`, one line each, newest

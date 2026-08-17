@@ -2,15 +2,15 @@
 
 Every command that opens one follows this. Never merge — the owner merges.
 
-The owner decides in the first five lines whether this is mergeable without reading the diff. That
-is the whole design goal: everything below either serves that decision or collapses out of the way.
-Write it in the project's language (`.agent-kit/project.yml` → `language`); the section names below
-are canonical, so translate them with the body.
+**A pull request is a report to somebody who has other work.** They read the top of it, decide
+whether it merges, and go — and everything else in it exists for the day somebody comes looking.
+That is the owner's own framing of this kit and it is what the shape below is built to. Write it in
+the project's language (`.agent-kit/project.yml` → `language`); the section names below are
+canonical, so translate them with the body.
 
-## The brief, and its ceiling
+## Three answers stay open. Everything else folds.
 
-**Every pull request opens with four questions and answers nothing else in them.** They are the
-whole of what the owner has to read; everything after is for whoever wants it.
+**Three, and the body says nothing else above the fold:**
 
 1. **What works now that did not.** One line per feature, or per batch on a run of many. What the
    product does, in the owner's words — not what was built.
@@ -18,23 +18,31 @@ whole of what the owner has to read; everything after is for whoever wants it.
    `when` this project has reached — see the stage rule under *Manual actions*. "Nothing" when there
    is nothing, and that is the common answer.
 3. **What went wrong.** Composed from fields and never from judgement: parked or skipped features,
-   `unmet` promises, red or unrun tests, `blockers`. Empty only when those fields are empty.
-4. **What only they can decide.** At most five, each a question with the answer this run took as its
-   default. The rest are recorded and raise themselves; see the table below.
+   `blockers`, a red or unrun suite, `unmet` promises one line each, and anything that looks proven
+   and is not. Empty only when those fields are empty.
 
-**Two thousand five hundred characters, and the program counts them.** Before opening or editing a
-pull request, write the body to a file and read it back:
+**Everything else goes into `<details>`, with its conclusion and its count in the `summary` line** —
+the decisions taken without the owner, what was hard, what was proven and how, the review, the files
+touched, the frame a batch built to. Folding is not hiding: the `summary` carries the number, and
+every one of those facts has a file of its own and a program that raises it again, which is the table
+in *Nothing is left on the owner* below. A pull request is the *first* sight of them, never the only
+one — and the sections that used to be pinned open were pinned there before those files existed.
+
+**Three numbers, and the program counts all three.** Before opening or editing a pull request, write
+the body to a file and read it back:
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --pr-body <that file>
 ```
 
-The ceiling is on the brief and on the uncollapsed part below it, not on the whole body: a reader
-who wants the detail should find it, and a reader who wants the decision should not have to walk
-past it. It is a number rather than a paragraph asking for restraint because restraint was what the
-rule asked for before, and one measured run answered with 45 000 characters — of which a table of
-seventy assumptions was uncollapsed and *What was hard*, three to five lines by the rule below, was
-a hundred and eighty-seven.
+- **the brief — 2 500 characters.** Everything above the first `##` heading: the three answers.
+- **uncollapsed in the whole body — 4 000.** The brief plus whatever stays open under it.
+- **the biggest uncollapsed table — 15 rows.**
+
+They are numbers rather than a paragraph asking for restraint because restraint is what the rule
+asked for before, and one measured run answered with 45 000 characters. The two ceilings above
+replaced a single one of 12 000 in 2.22.0: the first batch body ever written to that number came to
+11 972, which is not a length anybody needed but a target somebody met.
 
 Length is also a property of the model rather than of this kit: the documents Claude writes to disk
 run long unless a length is named, so naming one here is what makes the rest of this file work.
@@ -100,16 +108,20 @@ what is thin, and that nothing they just read depends on them remembering it.
   actions held six that genuinely needed a person, five a script should have done, and four settings
   that were working fine — and the six that mattered were unfindable among them.
 - **Assumptions** — every decision taken without them, from the run file, as a table of decision and
-  why. Never collapsed: an assumption the owner does not see defeats the point of recording it.
-  Mark the ones also written into blueprint as `[assumed …]` blocks, so they know where to answer.
-- **What was hard** — three to five lines, never collapsed, and skipped honestly when the feature
+  why. **Collapsed, and the `summary` carries both counts: how many, and how many of them are
+  expensive to get wrong** — stored data, permissions, money, a contract outside this codebase. That
+  second number is the one that makes somebody open the block. Mark the ones also written into
+  blueprint as `[assumed …]` blocks, so they know where to answer: that block, not this table, is
+  what a later run follows and what the check prints before every command.
+- **What was hard** — three to five lines, collapsed, and skipped honestly when the feature
   went straight through. Where the work fought back and what you did about it: the approach that
   looked right and was not, the library that behaved differently from its documentation, the test
   that passed for the wrong reason until it was rewritten, the second attempt at a fix after the
   first proved half a fix. This is the part of a run that exists nowhere else — the code shows the
   answer and never the two answers before it — and it is what tells the owner whether the ground
   here is solid or was made to hold by one careful decision.
-- **Proven** — which of the entry's lines have a test, what the suite returned **and the commit it
+- **Proven** — **collapsed, with one exception named at the end of this bullet.** Which of the
+  entry's lines have a test, what the suite returned **and the commit it
   returned it on**, from `proved_at`, and whether the app was started and exercised. Name what is *not* proven and why — **including every seam a proof went
   through a stand-in at**, by name, from the run files' `suite`: a fake gateway, a fake sign-in, a
   fixed clock. A feature proved entirely against doubles has proved the doubles, and on one measured
@@ -119,12 +131,17 @@ what is thin, and that nothing they just read depends on them remembering it.
   itself; that pair of numbers is the only line in a pull request that says the tests would have
   noticed. A feature that says it is unproven
   in one line is fine; one that looks proven and is not is the failure this section exists against.
-  Tests left marked unmet go here in their own short list — the promise, the test that proves it
-  absent, and what would have to change in the product. Never collapsed: a green suite that carries
-  unkept promises is exactly the thing a reader will otherwise take for a clean bill.
   Work left undone is written into `docs/technical_debt.md` on this same branch and named here in
   one line, with what will raise it again — a leftover described only in a pull request is forgotten
   the day it merges.
+
+  **The exception, and it is the whole reason this section is not simply folded away: what looks
+  proven and is not goes up into answer 3, in one line.** A suite reported green while the product
+  contradicts three entries is the one thing a reader will take for a clean bill and act on — so the
+  `unmet` promises are named up there, one line each, and the scenarios that nothing ran are named
+  up there too. The evidence for all of it stays in this block. The test is not *is it important*,
+  it is **can the reader be misled by not seeing it**; everything else in a pull request fails that
+  test, which is why everything else folds.
 - **Review** — the reviewer's findings and how each was closed, and whether the security pass ran or
   was skipped and why. Collapsible, count in the summary line.
 - **Changes** — the key files and their role, as a table. Collapsible.
