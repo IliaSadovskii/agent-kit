@@ -3,6 +3,33 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.25.0
+
+**A pull request carried somebody else's epic, and only a person reading the diff noticed.** A
+`blueprint` session working beside a live run cut its knowledge branch from `epic/next-version`
+rather than from the default branch, and opened it against the default branch: 88 files, about sixty
+commits of code it had not written, its own eleven at the tail. Merged as it stood, that epic would
+have reached the default branch through the wrong pull request, past its own review — the third
+accident of this family, after two features merged into a parent branch instead of the default one.
+
+- **`check.py --pr-base <base>` says what a pull request will carry, before it is opened.** Its size
+  either way, and by name any `epic/…` or `sprint/…` the branch holds and the base does not. The test
+  is narrow on purpose: a feature's branch legitimately carries its siblings and a batch's branch
+  carries its children, but nothing legitimately drags a whole integration branch — those merge on
+  their own. `rules/pull-requests.md` asks for it in the same breath as the body's size.
+
+- **`blueprint` is told why the default branch, and what to do about the fear that argues against
+  it.** The session knew the rule and deviated for a real reason: an epic writes into knowledge for
+  days — blocks, state lines, the frame — and from the default branch none of that is visible, so
+  prose the run has already corrected can be rewritten. The answer is to **read** the run's branch
+  and not to build on it: `git diff <default>...<the run's branch> -- docs/knowledge/` costs nothing
+  and changes no delivery. A rule that forbids without answering the reason gets deviated from.
+
+- **A file left unmerged is now said as such.** `--state` reported it as *uncommitted changes*, which
+  reads as ordinary work — and on the same project three knowledge files sat in `UU` with no merge,
+  rebase or cherry-pick in progress at all: the state had been cleared and the conflict markers
+  stayed in the files. A session then edits a tree without knowing what it is in the middle of.
+
 ## 2.24.0
 
 **Nothing told a session that is not a command of this kit that the project has a description at

@@ -475,6 +475,21 @@ the first is the only one that is not obvious:
   work there. The project's own checkout belongs to the run: the driver starts every child in it, so
   moving its branch pulls the working tree out from under a live session. The guard hook refuses
   that move, so this is the way through rather than the polite option.
+- **From the default branch, and never from the run's own branch** — however tempting, and it is
+  tempting for a real reason. An `epic` runs for days and writes into knowledge as it goes: blocks,
+  state lines, the frame. Working from the default branch you cannot see any of that, and you may
+  rewrite prose the run has already corrected. **Read it instead of building on it** — reading costs
+  nothing and changes no delivery:
+
+  ```bash
+  git diff <default branch>...<the run's branch> -- docs/knowledge/
+  ```
+
+  What basing on it costs is two things, and a live session found both the hard way: a knowledge
+  branch cut from an unfinished epic **cannot merge on its own**, and its pull request into the
+  default branch **carries the whole epic** — 88 files and sixty commits of somebody else's code on
+  the run that measured it — so merging it would take that epic into the default branch past its own
+  review. `check.py --pr-base` says this before the pull request is opened.
 - **Commit on a branch and open a pull request.** The same guard refuses a push to the default
   branch while a run is in flight, and that is right: the knowledge lands when the batch does.
 - **Merge order: the batch first, this branch last.** A batch is a chain of branches and rebasing it

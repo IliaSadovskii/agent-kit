@@ -2638,6 +2638,16 @@ def print_state(root: Path, gh: Github) -> None:
         print(f"  on {git(root, 'rev-parse', '--abbrev-ref', 'HEAD')}, "
               f"{'uncommitted changes present' if dirty else 'tree clean'}; "
               f"{base} last moved {git(root, 'log', '-1', '--format=%cs', base) or '?'}")
+        # A file left unmerged is not work in progress, and reading it as *uncommitted changes* is
+        # how a session goes on editing a tree it does not know it is in the middle of. Seen on a
+        # live project: three knowledge files in `UU` with no merge, rebase or cherry-pick in
+        # progress at all — the state was cleared and the markers stayed in the files.
+        unmerged = [line[3:] for line in dirty.splitlines()
+                    if line[:2] in ("UU", "AA", "DD", "AU", "UA", "DU", "UD")]
+        if unmerged:
+            print(f"  {len(unmerged)} file(s) left unmerged, and a merge may not even be in "
+                  f"progress: {', '.join(unmerged[:3])} — conflict markers are in the files, and "
+                  f"nothing but a person can say what was being merged into what")
     elif (root / ".git").exists():
         print("  a repository with no commits yet — nothing to compare branches against")
     else:
@@ -2888,6 +2898,67 @@ def print_entry_blocks(report: Report, docs: list, keys: list) -> None:
               f"wrong and not that they are clear.")
 
 
+def pr_base_defects(root: Path, base: str) -> int:
+    """What a pull request from this branch into that base will carry — before it is opened.
+
+    A pull request shows `base...branch`, which is everything since the two diverged. So a branch cut
+    from another branch's work carries that work too, and the number is the first thing a reader
+    sees: measured on a live project, a knowledge branch cut from a running `epic` and opened against
+    the default branch showed 88 files and about sixty commits of somebody else's code, and only a
+    person reading the diff noticed. Its eleven own commits were at the tail.
+
+    **The test is narrow on purpose.** A feature's branch legitimately carries its siblings — that is
+    what a chain is — and a batch's branch legitimately carries its children. Nothing, though,
+    legitimately carries a whole `epic/…` or `sprint/…` the base does not already have: those are
+    integration branches, they merge on their own, and a pull request that drags one takes it into
+    the default branch past its own review. That is the accident this refuses, and it is the third of
+    its family — the other two were features merged into a parent branch instead of the default one.
+
+    The composition is printed either way, because a run about to open a pull request should see its
+    size before the owner does.
+    """
+    branch = git(root, "rev-parse", "--abbrev-ref", "HEAD")
+    if not branch or branch == "HEAD":
+        print("not on a branch, so there is no pull request to judge", file=sys.stderr)
+        return 2
+    for candidate in (base, f"origin/{base}"):
+        if git(root, "rev-parse", "--verify", "--quiet", candidate):
+            base = candidate
+            break
+    else:
+        print(f"no such base here: {base}", file=sys.stderr)
+        return 2
+
+    def ancestor(older: str, newer: str) -> bool:
+        done = ran(["git", "merge-base", "--is-ancestor", older, newer], root)
+        return bool(done) and done.returncode == 0
+
+    commits = git(root, "rev-list", "--count", f"{base}...{branch}") or "?"
+    files = [line for line in git(root, "diff", "--name-only", f"{base}...{branch}").splitlines()
+             if line.strip()]
+    print(f"  {branch} into {base}: {commits} commit(s), {len(files)} file(s)")
+
+    carried = []
+    listed = git(root, "for-each-ref", "--format=%(refname:short)",
+                 "refs/heads/epic", "refs/heads/sprint",
+                 "refs/remotes/origin/epic", "refs/remotes/origin/sprint")
+    for name in dict.fromkeys(row.replace("origin/", "", 1) for row in listed.splitlines() if row):
+        if name in (branch, base.replace("origin/", "", 1)):
+            continue
+        ref = name if git(root, "rev-parse", "--verify", "--quiet", name) else f"origin/{name}"
+        if not git(root, "rev-parse", "--verify", "--quiet", ref):
+            continue
+        if ancestor(ref, branch) and not ancestor(ref, base):
+            carried.append((name, git(root, "rev-list", "--count", f"{base}..{ref}") or "?"))
+
+    for name, count in carried:
+        print(f"  it also carries {name} — {count} commit(s) the base does not have. This branch was "
+              f"cut from it rather than from {base}: rebase onto {base} and open it there. Merged as "
+              f"it stands, {name} reaches the default branch through this pull request instead of "
+              f"through its own.")
+    return 1 if carried else 0
+
+
 def pr_body_defects(path: Path) -> int:
     """What a reader has to walk through before they can decide, measured before it is published.
 
@@ -2995,6 +3066,10 @@ def main(argv: list | None = None) -> int:
                         help="run the proof of every action in docs/manual.md and delete the lines "
                              "whose work has been done. The one place this program executes "
                              "anything a run wrote, and it is asked for")
+    parser.add_argument("--pr-base", metavar="BASE",
+                        help="what a pull request from this branch into that base will carry, "
+                             "before it is opened: its size, and any epic or sprint it drags along "
+                             "because the branch was cut from one")
     parser.add_argument("--pr-body", metavar="FILE",
                         help="measure a pull request's body before it is opened: how much of it a "
                              "reader must walk past, and the biggest table they cannot collapse")
@@ -3004,6 +3079,9 @@ def main(argv: list | None = None) -> int:
     # One object for everything outside this program, made here and passed down: a caller
     # that has to remember a flag is a caller that will forget it.
     gh = Offline(root) if options.offline else Github(root)
+
+    if options.pr_base:
+        return pr_base_defects(root, options.pr_base.strip())
 
     if options.pr_body:
         return pr_body_defects(Path(options.pr_body))

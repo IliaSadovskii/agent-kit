@@ -1942,6 +1942,87 @@ class OutsideASessionCase(unittest.TestCase):
                                              "    steps:\n      - run: git push\n"))
 
 
+class PullRequestBaseCase(unittest.TestCase):
+    """What a pull request will carry, judged before it is opened.
+
+    Measured on a live project: a knowledge branch cut from a running `epic` and opened against the
+    default branch showed 88 files and about sixty commits of somebody else's code, its own eleven at
+    the tail. Only a person reading the diff noticed. Merged as it stood, the epic would have reached
+    the default branch through that pull request instead of through its own review.
+    """
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.root = self.tmp / "proj"
+        self.root.mkdir()
+        self.git("init", "-q", "-b", "main")
+        self.git("config", "user.email", "t@t")
+        self.git("config", "user.name", "t")
+        self.commit("a.txt", "one\n", "root")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def git(self, *args):
+        subprocess.run(["git", *args], cwd=self.root, capture_output=True, check=False)
+
+    def commit(self, name, text, message):
+        (self.root / name).write_text(text, encoding="utf-8")
+        self.git("add", "-A")
+        self.git("commit", "-qm", message)
+
+    def judge(self, base):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = check.pr_base_defects(self.root, base)
+        return code, out.getvalue()
+
+    def test_a_branch_cut_from_a_running_epic(self):
+        self.git("checkout", "-q", "-b", "epic/next-version")
+        self.commit("feature.py", "code\n", "feat: the epic's own work")
+        self.git("checkout", "-q", "-b", "claude/knowledge")
+        self.commit("docs.md", "prose\n", "docs(knowledge): what the owner said")
+        code, said = self.judge("main")
+        self.assertEqual(code, 1)
+        self.assertIn("it also carries epic/next-version", said)
+        self.assertIn("rebase onto main", said)
+
+    def test_the_same_branch_cut_from_the_default_one(self):
+        self.git("checkout", "-q", "-b", "claude/knowledge")
+        self.commit("docs.md", "prose\n", "docs(knowledge): what the owner said")
+        code, said = self.judge("main")
+        self.assertEqual(code, 0)
+        self.assertIn("1 commit(s), 1 file(s)", said)
+
+    def test_a_batch_carrying_its_own_children_is_not_the_accident(self):
+        """A chain is what a batch is: its branch holds every child, and that is what its pull
+        request is for. Only a whole epic or sprint the base does not have is the mistake."""
+        self.git("checkout", "-q", "-b", "claude/one")
+        self.commit("one.py", "1\n", "feat: one")
+        self.git("checkout", "-q", "-b", "claude/two")
+        self.commit("two.py", "2\n", "feat: two")
+        self.git("branch", "sprint/batch", "claude/two")
+        self.git("checkout", "-q", "sprint/batch")
+        code, said = self.judge("main")
+        self.assertEqual(code, 0, said)
+
+    def test_a_child_chained_onto_a_sibling_inside_an_epic(self):
+        """Its base is the sibling, and the sibling already carries the epic — so the epic is not
+        something this pull request drags in."""
+        self.git("checkout", "-q", "-b", "epic/scope")
+        self.commit("e.py", "e\n", "feat: the epic")
+        self.git("checkout", "-q", "-b", "claude/one")
+        self.commit("one.py", "1\n", "feat: one")
+        self.git("checkout", "-q", "-b", "claude/two")
+        self.commit("two.py", "2\n", "feat: two")
+        code, said = self.judge("claude/one")
+        self.assertEqual(code, 0, said)
+
+    def test_a_base_that_is_not_here(self):
+        code, _said = self.judge("release/2.0")
+        self.assertEqual(code, 2)
+
+
 class WhereBlockCase(unittest.TestCase):
     """Whether anything tells a session that is not a command of this kit where the knowledge is.
 

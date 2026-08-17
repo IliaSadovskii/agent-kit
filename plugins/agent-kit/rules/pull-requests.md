@@ -35,6 +35,21 @@ the body to a file and read it back:
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --pr-body <that file>
 ```
 
+**And read what the pull request will carry, in the same breath** — a body is judged on its size, and
+a diff on whose work is in it:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --pr-base <the base you are about to open against>
+```
+
+A pull request shows everything since the branch and the base diverged, so a branch cut from another
+branch's work carries that work too. Measured on a live project: a knowledge branch cut from a
+running `epic` and opened against the default branch showed 88 files and about sixty commits of
+somebody else's code, its own eleven at the tail, and only a person reading the diff noticed. Merged
+as it stood, that epic would have reached the default branch through the wrong pull request, past its
+own review — which is the third accident of this family, after two features merged into a parent
+branch instead of the default one.
+
 - **the brief — 2 500 characters.** Everything above the first `##` heading: the three answers.
 - **uncollapsed in the whole body — 4 000.** The brief plus whatever stays open under it.
 - **the biggest uncollapsed table — 15 rows.**
