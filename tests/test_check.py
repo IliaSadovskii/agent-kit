@@ -1942,6 +1942,41 @@ class OutsideASessionCase(unittest.TestCase):
                                              "    steps:\n      - run: git push\n"))
 
 
+class WhereBlockCase(unittest.TestCase):
+    """Whether anything tells a session that is not a command of this kit where the knowledge is.
+
+    Measured across three live projects on this kit: one carried such a section, written by the
+    owner's own hand, and two carried nothing — one of them had no `CLAUDE.md` at all. So it was
+    never guaranteed by anything, and a project adopted before this line would have stayed that way.
+    """
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def said(self, text=None):
+        if text is not None:
+            (self.tmp / "CLAUDE.md").write_text(text, encoding="utf-8")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            check.where_line(self.tmp)
+        return out.getvalue()
+
+    def test_no_claude_md_at_all(self):
+        self.assertIn("no CLAUDE.md here", self.said())
+
+    def test_the_block_is_there(self):
+        self.assertEqual(self.said("# Проект\n\n<!-- agent-kit:where -->\n…\n"), "")
+
+    def test_a_map_written_by_hand_is_not_one_this_kit_may_rewrite(self):
+        """Said exactly: a hand-written section may be a perfectly good map, and telling that from
+        prose would mean reading it for meaning — which this program may not do."""
+        said = self.said("# Проект\n\n- `docs/knowledge/` — описание продукта\n")
+        self.assertIn("may keep current", said)
+
+
 class PlannedListsCase(unittest.TestCase):
     """Which of the owner's lists each planned entry is on.
 

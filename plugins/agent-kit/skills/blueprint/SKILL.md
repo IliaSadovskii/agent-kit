@@ -186,7 +186,17 @@ and in the code are somebody else's.
 
 `docs/knowledge/`, one file per slot, and `.agent-kit/project.yml` from
 `${CLAUDE_PLUGIN_ROOT}/templates/project.yml`: the language, the project's commands, the verdict per
-slot. The verdicts are yours alone; the rest of how a record is written —
+slot.
+
+**And one block in the project's own `CLAUDE.md`** — a map naming where the knowledge lives, from
+`${CLAUDE_PLUGIN_ROOT}/templates/where-things-are.md`, written between its markers and nowhere else
+in that file. It is the only thing this kit writes there, and the reason is narrow: every command
+here finds the knowledge by path, so none of them needs a map — what needs one is everything that is
+**not** a command, a plain conversation in that directory, an outside agent, a person handed the
+repository. Claude Code loads that file into every such session for free, which makes it the one
+place a map is read without anybody deciding to. Measured across three live projects on this kit, one
+had such a section — written by the owner's own hand — and two had nothing. Refresh it when the
+layout changes; the check says when it is missing. The verdicts are yours alone; the rest of how a record is written —
 templates, the project's language, `state: planned`, the commit per slot, hashes, the check
 afterwards — is `${CLAUDE_PLUGIN_ROOT}/rules/knowledge-writing.md`, which `advise` follows too.
 

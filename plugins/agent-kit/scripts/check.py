@@ -2534,6 +2534,40 @@ def print_tests(root: Path, manifest: dict) -> int:
     return 0
 
 
+WHERE_MARK = "<!-- agent-kit:where -->"
+
+
+def where_line(root: Path) -> None:
+    """Whether anything tells a session that is *not* a command of this kit where the knowledge is.
+
+    Every command here finds it by path, so the map is for everyone else: a plain conversation in the
+    project's directory, an outside agent, a person handed the repository. `CLAUDE.md` is where that
+    is read for free — Claude Code loads it into every session there without being asked.
+
+    Measured across three live projects on this kit: one carried such a section, written by the
+    owner's own hand, and two carried nothing. So it was never guaranteed, and a project adopted
+    before this line existed would have stayed that way for ever.
+    """
+    path = root / "CLAUDE.md"
+    if not path.is_file():
+        print("  no CLAUDE.md here, so a session that is not a command of this kit begins with no "
+              "idea this project has a description at all — it will derive the product from the "
+              "code or guess. /agent-kit:blueprint writes that file's map.")
+        return
+    try:
+        if WHERE_MARK in path.read_text(encoding="utf-8", errors="replace"):
+            return
+    except OSError:
+        return
+    # Said as *no map this kit can keep current*, not *no map*: a project may carry one written by
+    # hand, and telling those apart would mean reading prose for meaning, which this program may not
+    # do. What it can say exactly is that no block here is one it may rewrite.
+    print("  CLAUDE.md carries no map of the knowledge that this kit may keep current — so a "
+          "session that is not a command of it may begin without knowing there is a description at "
+          "all. /agent-kit:blueprint writes the block between its markers and touches nothing else "
+          "in that file.")
+
+
 def outside_line(root: Path, manifest: dict) -> None:
     """One line, where the owner is standing: nothing but this kit ever runs the suite.
 
@@ -3144,6 +3178,7 @@ def main(argv: list | None = None) -> int:
             print_audits(report)
         if options.status or options.state:
             outside_line(root, manifest)
+            where_line(root)
         # A `[stale …]` is a statement and leaves the report clean, so a run that asked about its
         # own entries is answered here too — otherwise the one call it makes goes silent on exactly
         # the entries it named.
@@ -3160,6 +3195,7 @@ def main(argv: list | None = None) -> int:
         print_audits(report)
     if options.status or options.state:
         outside_line(root, manifest)
+        where_line(root)
     for group, lines in report.groups.items():
         print(f"\n{group}:")
         for line in lines:

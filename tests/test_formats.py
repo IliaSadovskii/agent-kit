@@ -88,6 +88,12 @@ FORMATS = [
      "<!-- agent-kit:mvp-bounds -->",
      lambda text: check.section_after(f"{text}\n## Bounds\n\n**In:** one\n", check.MVP_MARK)
      is not None),
+
+    # The only thing this kit writes into a project's own CLAUDE.md, and the marker is what keeps it
+    # to that: the block between the pair is the kit's, every line outside it is the project's.
+    ("WHERE_MARK", "templates/where-things-are.md",
+     "<!-- agent-kit:where -->",
+     lambda text: check.WHERE_MARK in text),
 ]
 
 

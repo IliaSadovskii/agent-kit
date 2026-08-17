@@ -3,6 +3,27 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.24.0
+
+**Nothing told a session that is not a command of this kit that the project has a description at
+all.** Every command finds the knowledge by path, so none of them needs a map — what needs one is
+everything else: a plain conversation in the project's directory, an outside agent, a person handed
+the repository. Claude Code loads `CLAUDE.md` into every such session for free, which makes it the
+one place a map is read without anybody deciding to. Measured across the three live projects on this
+kit: one carried such a section — written by the owner's own hand — one carried none, and one had no
+`CLAUDE.md` at all. The word `CLAUDE.md` appeared nowhere in this payload.
+
+- **`blueprint` now writes one block there**, from the new `templates/where-things-are.md`, between
+  its markers and nowhere else in that file — because that file is the project's, and on some
+  servers it also carries a section the host's own contract requires. In the project's language,
+  naming only the records that exist, one line each.
+- **The check says when it is missing**, under `--status` and `--state`, where the owner is standing.
+  It says *no map this kit may keep current* rather than *no map*: a project may carry a perfectly
+  good one written by hand, and telling that from prose would mean reading prose for meaning, which
+  this program may not do.
+- **The marker joins the format registry**, so the block's shape and the program that looks for it
+  cannot drift apart. The suite refused it until it did.
+
 ## 2.23.0
 
 **Every proof a project had was made by the session that wrote the code, on the machine that wrote
