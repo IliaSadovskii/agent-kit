@@ -9,6 +9,7 @@ The command line itself stays in each command, because what they ask for differs
 
 | What it found | What you do |
 |---|---|
+| **a run of this kit is in flight here** — printed first, a line per run | **do not start** — see the section below, which is the whole of it |
 | a slot in scope unsettled, or an entry incomplete | stop, name what is missing, offer `/agent-kit:blueprint` — the owner is here and closes it in a minute |
 | no `docs/knowledge/` at all | **carry on.** Work from the task as written, and say once that without an entry the tests can only aim at what the task says done means. A project's first command should not be an hour of interview |
 | `[assumed …]` blocks on the entries in scope | with `gate: owner`, show them and offer to settle them now — this is the last moment anyone is here. **When they answer, write it into the entry and delete the block**, in its own `docs(knowledge):` commit before you start: you are transcribing their answer, not deciding, and a block left open is a question asked twice. With `gate: none`, follow them as written |
@@ -18,6 +19,38 @@ The command line itself stays in each command, because what they ask for differs
 | a run file at a step no reader knows, or fields the template does not have | history from an earlier run, and not a reason to stop. It is said so the drift is visible while it is still happening |
 | **knowledge written by an older kit** — a record declaring fewer fields than the template, a file with fewer sections | **not a reason to stop, and not yours.** Say it in one line with the count, so the owner learns it exists, and carry on: the entries you are about to build are answerable as they stand, they were written that way on purpose, and only `/agent-kit:blueprint` may change what a record requires. Never fill the missing field yourself — that is deciding what the product must describe, which is the one thing no build command may do |
 | nothing | continue without a word about it |
+
+## A run is already in flight here
+
+The check prints it before anything else: a line per run, with its slug, its command and the step it
+is on. It is a statement and never an exit code — what to do with it is here.
+
+**Ignore it entirely if you are that run.** A session the driver started was given a run directory —
+`--run`, `--frame`, `--close`, `--advance`, `--resume` — and is inside the thing the line describes.
+The check marks the line `this session` where it can tell, and where it cannot, the flag you were
+invoked with is the answer. A child that refused to build because its own batch was in flight would
+be the funniest way yet to lose a night.
+
+**Otherwise, if a person typed this command, do not start.** Say which run holds the checkout and
+what step it is on, and stop. That is `ship`, `fix`, `sprint`, `epic` and `next` — everything that
+writes code or moves a branch. `blueprint` and `advise` are not on that list and never stop: they
+write no code, and knowledge dictated at midnight is worth more than the wait.
+
+**One checkout, one writer, and that is the whole reason.** The driver starts every child in the
+project's own directory, so a second build there moves the branch under a session that is mid-task.
+Measured on 17 August 2026: a second session took the tree forty seconds after a feature's session
+had it, and that feature spent the next twelve minutes rebuilding itself in a worktree it invented
+on the spot. Nothing was lost, and nothing about that was work. `next` is on the list for a
+different reason — it deletes delivered branches, and a chain's branch counts as delivered only
+after the batch's own pull request merges.
+
+**What to offer instead**, in this order: wait for the run — the check said what step it is on;
+or, if the work touches no code, take a tree of its own, which is what `blueprint` does
+(`git worktree add ../<name> <branch>`). The guard hook refuses to move this checkout's branch from
+a session the driver did not register, so the offer is also the only way through.
+
+**The owner overrules this in one sentence.** If they say build anyway, say what it costs and then
+work in a worktree rather than in the run's tree.
 
 ## Before you start, say what has piled up
 

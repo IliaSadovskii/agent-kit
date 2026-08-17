@@ -195,6 +195,21 @@ Two limits, and outside them the block stays and travels to `blueprint`:
 `[assumed …]` blocks are not touched. They are questions nobody has answered, they are already in
 the Assumptions section of this pull request, and answering them is the owner's.
 
+**And ask which records moved while the batch ran**, over the batch's own directory — it reads the
+children's entries and compares each against the default branch as it stands now:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --run .agent-kit/runs/<batch slug>
+```
+
+Silence means nothing moved. What it names is an entry whose text changed after this batch branched
+— the owner dictating into `blueprint` from a tree of their own is the ordinary way that happens,
+and it is meant to be allowed. **Put every line it prints in the pull request, under the knowledge
+you changed**, because it is the one thing no diff shows: the two sides usually edit different lines
+of the same file, so the feature can land against a sentence that no longer exists and nothing looks
+wrong. Do not chase it further — whether the feature still matches is a reading, and rewriting
+either side is `blueprint`'s.
+
 ## The one thing this batch leaves in the repository
 
 `.agent-kit/runs/` is working state and is in the project's `.gitignore`, so every run file, every

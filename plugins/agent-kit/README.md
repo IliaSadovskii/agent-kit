@@ -50,6 +50,13 @@ One door, and two flags:
   of the pull requests behind entries being built, and the promises the product does not keep.
   Seconds, asks nothing, quiet when there is nothing open.
 
+**It is also the one command you can run while a batch is building.** Everything that writes code
+refuses to start beside a live run — one checkout, one writer — but dictating a description does not
+touch the code, and an idea at midnight is worth more than a night of waiting. Blueprint takes a
+`git worktree` of its own, commits there, and opens a pull request you merge after the batch's.
+Where the two of you wrote about the same record, the closing session says so in the batch's pull
+request, because a feature built against a sentence that has since changed shows up in no diff.
+
 **One decider, one trigger.** Only blueprint decides what an entry requires, and only you start
 blueprint. A build command leaves a marked block where it had to assume something, or where its own
 feature outdated a sentence — and when you are sitting there, the next command settles the block with

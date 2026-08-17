@@ -28,6 +28,14 @@ It binds only inside a session the driver registered as a `ship`, so every place
 the product — the scenarios lens, the closing session, an `epic`'s proving phase, the owner's own
 terminal — never meets it.
 
+The fifth guards the tree rather than the history: **a session that is not part of the run may not
+move the branch of the checkout the run is building in.** The driver starts every child in the
+project's own directory, so that one tree is shared with whoever else opens a session there — and
+on a measured night a second session took it forty seconds after a feature's session had. Nothing
+was lost, and the feature spent twelve minutes rebuilding itself in a worktree it had to invent.
+The refusal names the cheap way out, `git worktree add`, which is what makes it a redirection
+rather than a wall.
+
 It fails open. A guard that breaks must not stop the work — but it says so rather than going quiet,
 because silence would be indistinguishable from consent.
 """
@@ -39,7 +47,6 @@ import os
 import re
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 # What a run is comes from one place, for every program that opens a run file — the copies never
@@ -62,41 +69,24 @@ except ImportError as exc:                          # a half-installed plugin, a
 
 TERMINAL = set(runfile.TERMINAL)
 
-# How long a run file may sit untouched and still be read as a run in flight. A run that was
-# abandoned — the server restarted, the driver was killed, nobody ran `--resume` — never reaches a
-# terminal step, and without a limit it arms this hook for ever: every session in the project,
-# the owner's own included, then loses the right to merge until somebody edits JSON by hand. A day
-# is far longer than any gap inside a live run, where the driver writes on every event.
-STALE_AFTER = 24 * 3600
-
 MERGE = re.compile(r"\bgh\s+pr\s+merge\b")
 FORCE = re.compile(r"\bgit\s+push\b[^&|;]*?(?:--force\b|--force-with-lease\b|\s-f\b|\s\+\w)")
 PUSH = re.compile(r"\bgit\s+push\b")
+# Switching the tree, and only that. `git checkout -- <path>` and `git checkout <ref> -- <path>`
+# restore files and move no branch, so the `--` form is let past; `git worktree add`, which is what
+# this refusal offers instead, matches neither pattern.
+SWITCH = re.compile(r"\bgit\s+(?:checkout|switch)\b(?![^&|;]*?\s--\s)")
 
 
 def runs_in_flight(root: Path) -> bool:
     """A run of the kit is happening here — the one condition under which this hook has an opinion.
 
-    Two things make a run count: it never reached a terminal step, and something wrote to its file
-    recently. The second is what gives the signal an end. Without it one abandoned run disables
-    merging in this project for good, and the fix is a hand editing a file — which is exactly the
-    kind of thing this hook exists to make unnecessary.
+    What counts as in flight is `runfile.in_flight`, which every reader of a run file now asks:
+    never terminal, and written to inside a day. The staleness half is what gives the signal an
+    end — without it one abandoned run disables merging in this project for good, and the fix is a
+    hand editing a file, which is exactly the kind of thing this hook exists to make unnecessary.
     """
-    for directory, state in runfile.runs(root):
-        try:
-            age = time.time() - (directory / "run.json").stat().st_mtime
-        except OSError:
-            continue
-        if age >= STALE_AFTER:
-            continue
-        # A run file nothing can parse is **not** "no run here". It used to be read as exactly that
-        # — the loop skipped it — so a project whose run files were all broken disarmed the one
-        # hook that forbids an agent from merging its own work, and said nothing. Unreadable and
-        # fresh is treated as a run in flight: the cost of being wrong is a refused merge the owner
-        # can do themselves, against a merge nobody reviewed.
-        if state is None or state.get("step") not in TERMINAL:
-            return True
-    return False
+    return bool(runfile.in_flight(root))
 
 
 project_root = runfile.project_root
@@ -166,9 +156,44 @@ def declared_e2e(root: Path) -> str:
     return ""
 
 
+def holds_tree(root: Path) -> bool:
+    """This session is standing in the tree a run of somebody else's is building in.
+
+    The driver starts every child in the project's own directory, so one checkout is shared by the
+    run and by whoever else opens a session there. Measured on a live night: a `blueprint` session
+    switched that tree to another branch forty seconds after a feature's session had switched it to
+    its own, and the child spent the next twelve minutes rebuilding itself in a worktree it invented
+    on the spot — a rebase, an amend, a reset and a commit removing a symlink that only appeared
+    because the tree had moved under it.
+
+    Three conditions, and all three are facts rather than judgements: a run is in flight, this
+    session is not one of the sessions the driver registered, and this checkout is the one the runs
+    live in. A session already in a worktree of its own answers False and is never refused.
+
+    **A session with no tmux name is not judged.** The registration this matches on is a tmux
+    session name, so without one there is nothing to compare and refusing would be a guess. That
+    leaves a session started outside tmux unguarded here; what covers it is the line `check.py`
+    prints before every command, which is prose and can be argued with, which is the trade.
+    """
+    session = my_session()
+    if not session:
+        return False
+    flight = runfile.in_flight(root)
+    if not flight:
+        return False
+    if any(state and state.get("session") == session for _directory, state in flight):
+        return False
+    return Path(root).resolve() == runfile.main_worktree(Path(root)).resolve()
+
+
 def verdict(command: str, branch: str, default: str,
-            e2e: str = "", building: bool = False) -> str | None:
+            e2e: str = "", building: bool = False, held: bool = False) -> str | None:
     """Why this command may not run, or None. Pure, so the tests can reach it."""
+    if held and SWITCH.search(command):
+        return ("A run of this kit is building in this checkout, and moving its branch pulls the "
+                "working tree out from under it. Take a tree of your own instead — "
+                "`git worktree add ../<name> <branch>` — and work there. Restoring a file is "
+                "untouched: `git checkout -- <path>` moves no branch.")
     # A feature proves itself; the product is proved by whatever integrates a batch. That has been
     # written in `ship`'s Verify step since it existed, and measured over two live runs it lost:
     # `ship` started the end-to-end command 144 times across 80 feature sessions. Cheap in tokens
@@ -219,7 +244,7 @@ def main() -> int:
 
         building = building_a_feature(root)
         why = verdict(command, git(root, "rev-parse", "--abbrev-ref", "HEAD"), default_branch(root),
-                      declared_e2e(root) if building else "", building)
+                      declared_e2e(root) if building else "", building, holds_tree(root))
         if not why:
             return 0
 

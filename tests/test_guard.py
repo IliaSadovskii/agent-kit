@@ -83,6 +83,40 @@ class VerdictCase(unittest.TestCase):
         self.assertIsNone(guard.verdict("make test", "claude/x", "main",
                                         e2e="make e2e", building=True))
 
+    # ---- moving the branch of a checkout somebody else is building in --------------------------
+    #
+    # The driver starts every child in the project's own directory, so that one tree is shared with
+    # whoever else opens a session there. Measured on 17 August 2026: a second session took it forty
+    # seconds after a feature's session had, and the feature spent twelve minutes rebuilding itself
+    # in a worktree it invented on the spot.
+
+    def held(self, command):
+        return guard.verdict(command, "claude/x", "main", held=True)
+
+    def test_switching_the_branch_of_a_held_checkout(self):
+        self.assertIn("worktree add", self.held("git checkout main"))
+        self.assertIsNotNone(self.held("git checkout -b claude/knowledge"))
+        self.assertIsNotNone(self.held("git switch main"))
+        self.assertIsNotNone(self.held("cd /projects/app && git checkout main"))
+
+    def test_restoring_a_file_moves_no_branch(self):
+        self.assertIsNone(self.held("git checkout -- apps/api/routes.php"))
+        self.assertIsNone(self.held("git checkout HEAD -- apps/api/routes.php"))
+        self.assertIsNone(self.held("git restore apps/api/routes.php"))
+
+    def test_the_way_out_the_refusal_offers_is_not_itself_refused(self):
+        self.assertIsNone(self.held("git worktree add ../app-knowledge main"))
+
+    def test_a_checkout_no_run_holds(self):
+        """The default: nothing in flight, or this session is the run, or it is in a tree of its
+        own. Then the guard has no opinion about branches at all."""
+        for command in ("git checkout main", "git switch -c claude/x", "git checkout -b y"):
+            self.assertIsNone(guard.verdict(command, "claude/x", "main"), command)
+
+    def test_a_held_checkout_does_not_refuse_the_work_itself(self):
+        for command in ("git commit -m 'feat: x'", "make test", "git push -u origin claude/x"):
+            self.assertIsNone(self.held(command), command)
+
 
 class ManifestCase(unittest.TestCase):
     """`commands.e2e`, read without importing the check — the hook has to stay cheap and alone."""

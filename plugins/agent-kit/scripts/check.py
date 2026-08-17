@@ -36,6 +36,7 @@ import datetime as dt
 import difflib
 import hashlib
 import json
+import os
 import re
 import shlex
 import shutil
@@ -453,6 +454,37 @@ def section_of(text: str, heading: str) -> str | None:
             end = marks[i + 1][0] if i + 1 < len(marks) else len(text)
             return text[start:end]
     return None
+
+
+def section_for_key(text: str, key: str) -> str | None:
+    """The record a key names, cut out of **any** version of a knowledge file.
+
+    By the key and not by the heading, which is the whole point: a heading is prose in the project's
+    language and `blueprint` rewrites one whenever the owner renames a thing. Cutting by a name that
+    moves would report every rename as a change and every change under a rename as nothing.
+    """
+    marks = [m.start() for m in HEADING_RE.finditer(text)]
+    for i, start in enumerate(marks):
+        end = marks[i + 1] if i + 1 < len(marks) else len(text)
+        body = text[start:end]
+        found = KEY_RE.search(body)
+        if found and found.group(1).strip() == key:
+            return body
+    return None
+
+
+def substance(section: str) -> str:
+    """What a record says the product must do — its two name lines taken out, whitespace flattened.
+
+    `state:` steps from `planned` to `building (pr: n)` to `built` on every feature that touches the
+    entry, and it is written by the programs of this kit rather than by anybody deciding anything: a
+    comparison that counted it would report a change on every entry a batch itself delivered. The
+    heading goes for the other reason — it is the record's name in the owner's language, the `key:`
+    below it is the name everything else references, and a record renamed and not otherwise touched
+    asks nobody to build anything differently.
+    """
+    body = HEADING_RE.sub("", section or "", count=1)
+    return re.sub(r"\s+", " ", KEY_RE.sub("", body)).strip()
 
 
 def check_stack(root: Path, manifest: dict, report: Report) -> None:
@@ -2156,6 +2188,75 @@ def run_defects(state: dict, root: Path | None = None) -> list:
     return out
 
 
+def entry_drift(root: Path, docs: list, state: dict, run_dir: Path) -> list:
+    """Entries this run was built against whose text has moved on the default branch since.
+
+    A run reads the knowledge once, off the branch it forked from, and builds against what it read.
+    Everything else in the project can carry on writing while it does — the owner dictating into
+    `blueprint` from a tree of their own is the case this was written for, and it is the case that
+    is *meant* to work. What must not happen is that the two meet silently: the feature lands
+    against a sentence that no longer exists, and no diff shows it, because the two sides usually
+    touch different lines of the same file.
+
+    So this compares one thing and reports rather than refuses: the record as it stood where this
+    run branched, against the record as it stands on the default branch now. A batch asks on behalf
+    of its children, because the children are what carry entries.
+
+    Silence means the entries did not move. **Everything that stops the comparison happening says
+    so** — no default branch, no common commit, a knowledge file the default branch does not have —
+    because a comparison that cannot run and one that found nothing must never read alike. A key
+    that matches no entry is not reported here: `check_runs` already names it, against the whole
+    knowledge rather than against one commit.
+    """
+    keys = list(state.get("entries") or [])
+    # A batch's own file names no branch: what carries it is the last child that finished, which is
+    # also the tip its pull request is opened from.
+    own, built = state.get("branch") or "", ""
+    for slug in state.get("children") or []:
+        child = runfile.read(run_dir.parent / str(slug) / "run.json") or {}
+        keys += list(child.get("entries") or [])
+        if child.get("branch") and child.get("step") == "done":
+            built = child["branch"]
+    branch = own or built
+    keys = [k for k in dict.fromkeys(str(k).strip() for k in keys) if k]
+    if not keys:
+        return []
+
+    base = default_branch(root)
+    if not base:
+        return ["could not compare the entries against anything: this repository has no default "
+                "branch"]
+    branch = branch or "HEAD"
+    start = git(root, "merge-base", base, branch)
+    if not start:
+        return [f"could not compare the entries: nothing common between {branch} and {base}"]
+
+    where = {entry.key: doc.path for doc in docs for entry in doc.entries if not doc.commented(entry)}
+    out, unreadable = [], set()
+    for key in keys:
+        path = where.get(key)
+        if path is None:
+            continue
+        rel = path.relative_to(root).as_posix()
+        now = git(root, "show", f"{base}:{rel}")
+        if not now:
+            if rel not in unreadable:
+                unreadable.add(rel)
+                out.append(f"{rel} is not on {base} — the entries in it cannot be compared")
+            continue
+        was = git(root, "show", f"{start}:{rel}")
+        before, after = section_for_key(was, key), section_for_key(now, key)
+        if after is None and before is None:
+            continue
+        if before is None:
+            out.append(f"{key} — recorded on {base} after this run branched ({rel})")
+        elif after is None:
+            out.append(f"{key} — removed from {base} since this run branched ({rel})")
+        elif substance(before) != substance(after):
+            out.append(f"{key} — changed on {base} since this run branched ({rel})")
+    return out
+
+
 def open_runs(root: Path) -> list:
     """Runs that never reached a terminal step — a feature somebody started and left."""
     out = []
@@ -2313,6 +2414,58 @@ def print_state(root: Path, gh: Github) -> None:
 
 
 # --------------------------------------------------------------------------------------------
+
+
+def this_session() -> str:
+    """The tmux session this program is running inside, or `""` when there is none.
+
+    The same signal both hooks match on, and asked the same way: without `$TMUX` there is nothing to
+    ask, and asking anyway would answer with whatever session happens to be attached to the server —
+    a session claiming a run that is not its own.
+    """
+    if not os.environ.get("TMUX"):
+        return ""
+    done = ran(["tmux", "display-message", "-p", "#S"], Path.cwd())
+    return done.stdout.strip() if done and done.returncode == 0 else ""
+
+
+def print_flight(root: Path) -> None:
+    """Who else is working in this project right now — printed before anything else, always.
+
+    The kit has had this fact since run files existed, and only the guard hook ever read it. So a
+    second session opened beside a live run learned about it the way one did on 17 August 2026: by
+    taking the working tree from a feature that was mid-build and finding out afterwards.
+
+    It is a statement and never an exit code. What each command does with it is
+    `rules/preflight.md` — the build commands do not start, `blueprint` takes a tree of its own —
+    and the run's own sessions are told which line is theirs, so that a child does not read its own
+    run as somebody else's and refuse to build.
+    """
+    flight = runfile.in_flight(root)
+    if not flight:
+        return
+    mine = this_session()
+    rows, others = [], 0
+    for directory, state in flight:
+        if state is None:
+            rows.append(f"{directory.name} · unreadable, and counted as in flight")
+            others += 1
+            continue
+        cells = [str(state.get("slug") or directory.name), str(state.get("command") or "?"),
+                 str(state.get("step") or "?")]
+        if state.get("branch"):
+            cells.append(str(state["branch"]))
+        if mine and state.get("session") == mine:
+            cells.append("this session")
+        else:
+            others += 1
+        rows.append(" · ".join(cells))
+    print(f"A run is in flight here ({len(rows)}) — this checkout belongs to it:")
+    for row in rows:
+        print(f"  {row}")
+    if others:
+        print("  Nothing else builds here while it runs. Anything needing a tree of its own takes "
+              "one: `git worktree add ../<name> <branch>`.")
 
 
 def print_planned(docs: list) -> None:
@@ -2519,12 +2672,32 @@ def main(argv: list | None = None) -> int:
         except (OSError, ValueError) as exc:
             print(f"{path} cannot be read: {exc}", file=sys.stderr)
             return 2
-        defects = run_defects(state if isinstance(state, dict) else {}, root)
+        state = state if isinstance(state, dict) else {}
+        defects = run_defects(state, root)
         if defects:
             print(f"This run cannot close as it stands ({len(defects)}):")
             for line in defects:
                 print(f"  {line}")
+        # A statement, and it leaves the exit code alone: nothing here is the run's fault or the
+        # run's to fix. It is written where the pull request is composed from, which is the one
+        # place a reader can still act on it.
+        knowledge = root / KNOWLEDGE
+        moved = (entry_drift(root, [Doc(p) for p in sorted(knowledge.glob("*.md"))], state,
+                             path.parent) if knowledge.is_dir() else [])
+        if moved:
+            print(f"\nRecords that moved under this run ({len(moved)}) — it was built against what "
+                  f"they said when it branched:")
+            for line in moved:
+                print(f"  {line}")
+            print("  Say it in the pull request. Whether the feature still matches is a reading "
+                  "only a person can do, and only /agent-kit:blueprint rewrites either side.")
         return 1 if defects else 0
+
+    # First, and whatever else is on the screen: who else is working here. `--brief` and `--record`
+    # are the two calls made from inside a run that already read this line at its start, and a
+    # second copy of it there is noise in the one call written to be tight.
+    if not (options.brief or options.record):
+        print_flight(root)
 
     knowledge = root / KNOWLEDGE
     if not knowledge.is_dir():

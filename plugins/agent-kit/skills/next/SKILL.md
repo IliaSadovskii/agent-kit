@@ -16,6 +16,13 @@ open. This one exists for the cold start — a week later, in a new session, wit
 **You change nothing and start nothing.** Not a branch, not a file, not another command. You read,
 you rank, you say one line. The owner runs it.
 
+**With a run of this kit in flight here, you do not run either.** The check prints it first; say
+which run holds the checkout and what step it is on, and stop. The four bookkeeping writes below
+are exactly the ones a live run cannot survive — `--sync` writes into knowledge and leaves the tree
+dirty under a session mid-build, and a branch this command deletes as delivered may be the base the
+next feature in the chain is about to fork from. The rule and what to offer instead are in
+`${CLAUDE_PLUGIN_ROOT}/rules/preflight.md`, under *A run is already in flight here*.
+
 The single exception is bookkeeping that has already happened somewhere else. **Four facts, and only
 these four, you may write down where they belong:**
 

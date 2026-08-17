@@ -3,6 +3,52 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.21.0
+
+**Two sessions in one checkout.** Measured on a live project on 17 August 2026: a batch was
+building, the owner opened a second session and dictated into `blueprint`, and forty seconds after
+a feature's session had switched the shared tree to its own branch, the second one switched it to
+another. Nothing was lost. The feature spent the next twelve minutes rebuilding itself in a
+worktree it invented on the spot — a rebase, an amend, a reset, and a commit removing a symlink that
+only existed because the tree had moved under it. The kit had the fact that a run was in flight
+since run files existed, and exactly one reader for it.
+
+- **The check says who else is working here, before anything else.** A line per run in flight —
+  slug, command, step, branch — and the run's own sessions are told which line is theirs, so a child
+  does not read its own batch as somebody else's. A statement: it never touches the exit code.
+
+- **The build commands do not start beside a run somebody else started.** `ship`, `fix`, `sprint`,
+  `epic` and `next` say which run holds the checkout and stop; `next` is on that list because it
+  deletes delivered branches, and a chain's branch is delivered only after the batch merges. The
+  rule is one section of `rules/preflight.md`, and a session the driver started is exempt by
+  construction — it was given a run directory. The owner overrules it in one sentence.
+
+- **`blueprint` is the command that carries on**, and it is the case the rest was written for: it
+  writes no code, and a description dictated at midnight is worth more than a night of waiting. It
+  takes a `git worktree` of its own, commits on a branch, and its pull request is merged after the
+  batch's — one branch rebases in a minute where a chain does not.
+
+- **The guard refuses to move the branch of a checkout a run is building in**, from any session the
+  driver did not register, and names `git worktree add` in the refusal. Restoring a file is
+  untouched: `git checkout -- <path>` moves no branch.
+
+- **A run in a linked worktree was running with both hooks disarmed.** `.agent-kit/` is tracked and
+  `.agent-kit/runs/` is not, so a session in a worktree saw the directory, no runs, and concluded
+  nothing was in flight — leaving merging, force-pushing and pushing the default branch unguarded
+  for the rest of that night, and leaving the stop hook unable to find the run it was holding open.
+  Run files are now read from the checkout they live in, by reading git's own files rather than by
+  asking `git`, because this is on the path of a hook that runs on every Bash call.
+
+- **`check.py --run` names the records that moved under a run.** The entry as it stood where the run
+  branched, against the entry on the default branch now — by key rather than by heading, ignoring
+  the `state:` line the kit's own programs move. It goes in the pull request, and it is the one
+  thing no diff shows: the two sides usually edit different lines of the same file, so a feature can
+  land against a sentence that no longer exists and nothing looks wrong. Verified against the run it
+  was written for — of six entries a live batch had built, it named the one the owner had rewritten
+  that night.
+
+The reasoning, and the two proposals it replaced: [docs/design/2026-08-17-two-sessions.md](docs/design/2026-08-17-two-sessions.md).
+
 ## 2.20.4
 
 Everything here came out of a review of the day's own work, which found seven defects in it. The

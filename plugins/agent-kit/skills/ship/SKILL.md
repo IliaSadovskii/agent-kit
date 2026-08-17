@@ -352,6 +352,12 @@ In this order, because it puts reviewed code in the pull request from its first 
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --run .agent-kit/runs/<slug>
    ```
 
+   It also names any entry of this run whose text moved on the default branch while you were
+   building — somebody dictating into `blueprint` beside you is the ordinary way that happens.
+   **Those lines go in the pull request** and nowhere else: the two sides usually edit different
+   lines of the same file, so the feature lands against a sentence that no longer exists and no
+   diff shows it. Not yours to chase further — rewriting either side is `blueprint`'s.
+
 **`deliver: "branch"` stops you after step 3.** A feature inside a batch pushes reviewed code and
 nothing else: the batch opens one pull request over the whole chain, runs CI there, and sets the
 entries' machine lines from it. Push, close the run file with `step: "done"` and the branch name,

@@ -15,6 +15,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -1744,6 +1745,21 @@ class CheckCase(unittest.TestCase):
                                             encoding="utf-8")
         code, output = self.run_check()
         self.assertEqual(code, 0)
+        # The one thing a live run does print, and it is a statement about who is working here
+        # rather than a finding about the knowledge: the exit code is untouched and nothing else
+        # is said.
+        self.assertIn("A run is in flight here (1)", output)
+        self.assertNotIn("batch · ? · building\n\n", output)
+
+    def test_a_run_nothing_is_building_says_nothing(self):
+        """The statement has an end: a run that reached a terminal step is not somebody working
+        here, and printing it would make the line noise every command learns to scroll past."""
+        directory = self.root / ".agent-kit" / "runs" / "batch"
+        directory.mkdir(parents=True)
+        (directory / "run.json").write_text(json.dumps({"slug": "batch", "step": "done"}),
+                                            encoding="utf-8")
+        code, output = self.run_check()
+        self.assertEqual(code, 0)
         self.assertEqual(output, "")
 
     def test_a_run_directory_with_no_file(self):
@@ -1842,6 +1858,108 @@ class RunBranchCase(unittest.TestCase):
             shutil.rmtree(outside, ignore_errors=True)
 
 
+class DriftCase(unittest.TestCase):
+    """Records that moved on the default branch while a run was building against them.
+
+    The case it was written for: the owner dictates into `blueprint` from a tree of their own while
+    a batch runs, which is meant to be allowed. What must not happen is the two meeting silently —
+    they usually edit different lines of the same file, so the feature lands against a sentence that
+    no longer exists and no diff shows it.
+    """
+
+    ENTRY = ("# Actions\n\nfields: Who, What changes\n\n"
+             "### The learner updates push settings\n"
+             "`key: user.update_push_settings` · `state: {state}`\n\n"
+             "**Who:** `user`\n**What changes:** {what}\n\n"
+             "### The learner signs out\n`key: user.sign_out` · `state: built`\n\n"
+             "**Who:** `user`\n**What changes:** the session ends\n")
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.root = self.tmp / "proj"
+        (self.root / "docs" / "knowledge").mkdir(parents=True)
+        (self.root / ".agent-kit" / "runs" / "x").mkdir(parents=True)
+        self.git("init", "-q", "-b", "main")
+        self.git("config", "user.email", "t@t")
+        self.git("config", "user.name", "t")
+        self.knowledge(what="the schedule moves")
+        self.commit("first")
+        self.git("branch", "claude/x")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def git(self, *args):
+        subprocess.run(["git", *args], cwd=self.root, capture_output=True, check=False)
+
+    def commit(self, message):
+        self.git("add", "-A")
+        self.git("commit", "-qm", message)
+
+    def knowledge(self, what, state="built"):
+        (self.root / "docs" / "knowledge" / "actions.md").write_text(
+            self.ENTRY.format(what=what, state=state), encoding="utf-8")
+
+    def moved(self, **fields):
+        docs = [check.Doc(p) for p in sorted((self.root / "docs" / "knowledge").glob("*.md"))]
+        state = {"command": "ship", "slug": "x", "branch": "claude/x",
+                 "entries": ["user.update_push_settings"], **fields}
+        return check.entry_drift(self.root, docs, state, self.root / ".agent-kit" / "runs" / "x")
+
+    def test_an_entry_nobody_touched(self):
+        self.assertEqual(self.moved(), [])
+
+    def test_an_entry_rewritten_on_the_default_branch(self):
+        self.knowledge(what="the schedule moves, and the timezone is refused")
+        self.commit("blueprint")
+        found = self.moved()
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("user.update_push_settings — changed on", found[0])
+
+    def test_the_state_line_the_programs_move_is_not_a_change(self):
+        """It steps to `building (pr: n)` and to `built` on every feature that touches the entry,
+        written by this kit's own programs. Counting it would report drift on every entry a batch
+        delivered."""
+        self.knowledge(what="the schedule moves", state="building (pr: 41)")
+        self.commit("state line")
+        self.assertEqual(self.moved(), [])
+
+    def test_a_record_renamed_is_followed_by_its_key(self):
+        """A heading is prose in the project's language and `blueprint` rewrites one whenever the
+        owner renames a thing. Cutting by the heading would call every rename a change."""
+        text = (self.root / "docs" / "knowledge" / "actions.md").read_text(encoding="utf-8")
+        (self.root / "docs" / "knowledge" / "actions.md").write_text(
+            text.replace("The learner updates push settings", "Push settings"), encoding="utf-8")
+        self.commit("renamed")
+        self.assertEqual(self.moved(), [])
+
+    def test_an_entry_recorded_after_the_run_branched(self):
+        self.moved()
+        self.git("checkout", "-q", "claude/x")
+        self.git("checkout", "-q", "main")
+        found = self.moved(entries=["user.sign_out"])
+        self.assertEqual(found, [])                # it was there before the branch too
+
+    def test_a_run_that_names_no_entries(self):
+        self.assertEqual(self.moved(entries=[]), [])
+
+    def test_a_batch_asks_on_behalf_of_its_children(self):
+        child = self.root / ".agent-kit" / "runs" / "x-01"
+        child.mkdir(parents=True)
+        (child / "run.json").write_text(json.dumps(
+            {"slug": "x-01", "step": "done", "branch": "claude/x",
+             "entries": ["user.update_push_settings"]}), encoding="utf-8")
+        self.knowledge(what="the schedule moves, and the timezone is refused")
+        self.commit("blueprint")
+        found = self.moved(entries=[], branch=None, children=["x-01"])
+        self.assertEqual(len(found), 1, found)
+
+    def test_a_comparison_that_cannot_run_says_so(self):
+        """Silence has to mean the entries did not move, and nothing else."""
+        found = self.moved(branch="claude/never-made")
+        self.assertTrue(any("could not compare" in line for line in found), found)
+
+
 class StepsCase(unittest.TestCase):
     """The step vocabulary, and its description in the template.
 
@@ -1877,6 +1995,76 @@ class StepsCase(unittest.TestCase):
     def test_the_template_says_which_ones_end_a_run(self):
         """A driver stops watching a run that reaches one, so the writer has to know which."""
         self.assertIn("terminal", self.described)
+
+
+class FlightCase(unittest.TestCase):
+    """Where the runs are, and which of them are happening now.
+
+    Both hooks are armed from this, and until 2.21.0 a session standing in a linked worktree read
+    *no runs here* — `.agent-kit/` is tracked and `.agent-kit/runs/` is not, so the directory was
+    there and empty. A feature that fled to a worktree because its tree was taken therefore ran with
+    the merge guard disarmed for the rest of the night.
+    """
+
+    def setUp(self):
+        spec = importlib.util.spec_from_file_location(
+            "runfile", ROOT / "plugins" / "agent-kit" / "scripts" / "runfile.py")
+        self.runfile = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.runfile)
+        self.tmp = Path(tempfile.mkdtemp())
+        self.main = self.tmp / "project"
+        (self.main / ".agent-kit" / "runs" / "x").mkdir(parents=True)
+        for args in (["init", "-q"], ["config", "user.email", "t@example.com"],
+                     ["config", "user.name", "t"], ["commit", "-q", "--allow-empty", "-m", "root"]):
+            subprocess.run(["git", *args], cwd=self.main, check=False, capture_output=True)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def write(self, step="build", **fields):
+        (self.main / ".agent-kit" / "runs" / "x" / "run.json").write_text(
+            json.dumps({"slug": "x", "step": step, **fields}), encoding="utf-8")
+
+    def worktree(self):
+        linked = self.tmp / "linked"
+        subprocess.run(["git", "worktree", "add", "-q", "-b", "side", str(linked)],
+                       cwd=self.main, check=False, capture_output=True)
+        # The tracked half travels with the checkout; the runs are gitignored and do not.
+        (linked / ".agent-kit").mkdir(parents=True, exist_ok=True)
+        return linked
+
+    def test_a_run_in_flight_here(self):
+        self.write()
+        self.assertEqual(len(self.runfile.in_flight(self.main)), 1)
+
+    def test_a_finished_run_is_not_in_flight(self):
+        self.write(step="done")
+        self.assertEqual(self.runfile.in_flight(self.main), [])
+
+    def test_a_run_nobody_has_touched_for_a_day(self):
+        self.write()
+        path = self.main / ".agent-kit" / "runs" / "x" / "run.json"
+        old = time.time() - 30 * 3600
+        os.utime(path, (old, old))
+        self.assertEqual(self.runfile.in_flight(self.main), [])
+
+    def test_a_run_file_nothing_can_parse_counts(self):
+        (self.main / ".agent-kit" / "runs" / "x" / "run.json").write_text("{ no", encoding="utf-8")
+        self.assertEqual([state for _d, state in self.runfile.in_flight(self.main)], [None])
+
+    def test_a_linked_worktree_finds_the_runs_of_its_project(self):
+        self.write()
+        linked = self.worktree()
+        self.assertEqual(self.runfile.main_worktree(linked).resolve(), self.main.resolve())
+        self.assertEqual(len(self.runfile.in_flight(linked)), 1)
+
+    def test_the_main_checkout_is_its_own_main_checkout(self):
+        self.assertEqual(self.runfile.main_worktree(self.main).resolve(), self.main.resolve())
+
+    def test_a_directory_that_is_no_worktree_at_all(self):
+        plain = self.tmp / "plain"
+        plain.mkdir()
+        self.assertEqual(self.runfile.main_worktree(plain), plain)
 
 
 class KindCase(unittest.TestCase):

@@ -455,6 +455,31 @@ fall back to a branch and a pull request, and it says so.
 **Look at the branch before the first commit rather than assuming.** On a spent feature branch —
 one whose pull request has already merged — say so and branch from the default instead.
 
+### While a run of this kit is in flight
+
+The check prints that first, before anything else. **It does not stop you** — you write no code, and
+a description dictated at midnight is worth more than a night of waiting. Three things change, and
+the first is the only one that is not obvious:
+
+- **Take a tree of your own** — `git worktree add ../<project>-knowledge <default branch>` — and
+  work there. The project's own checkout belongs to the run: the driver starts every child in it, so
+  moving its branch pulls the working tree out from under a live session. The guard hook refuses
+  that move, so this is the way through rather than the polite option.
+- **Commit on a branch and open a pull request.** The same guard refuses a push to the default
+  branch while a run is in flight, and that is right: the knowledge lands when the batch does.
+- **Merge order: the batch first, this branch last.** A batch is a chain of branches and rebasing it
+  is expensive; this is one branch and rebases in a minute. Say it in the pull request.
+
+The run is not affected by any of it — it reads the knowledge off the branch it forked from, so
+nothing you write moves under it. What the two of you share is one meeting point, the merge, and
+`check.py --run` names there which records moved while the batch ran.
+
+**Conflicts in `docs/knowledge/` are the expected cost, and most of them are not disagreements.** A
+run appends its blocks at the end of a record and you rewrite the fields inside it, so the usual
+conflict is two additions at the same seam and the resolution is *keep both*. The one that matters
+is where both rewrote the same sentence: that is the description and the build saying different
+things, and settling it is yours, with the owner — nothing else in the kit may.
+
 ## Notes left by runs
 
 A run never stops over the knowledge and never asks it to be rewritten. It leaves a block and

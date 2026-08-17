@@ -21,10 +21,18 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from pathlib import Path
 
 RUNS = ".agent-kit/runs"
 MANIFEST = ".agent-kit/project.yml"
+
+# How long a run file may sit untouched and still count as a run in flight. A run that was
+# abandoned — the server restarted, the driver was killed, nobody ran `--resume` — never reaches a
+# terminal step, and without a limit it speaks for the project for ever: every session would go on
+# being told to keep out of a tree nothing is building in. A day is far longer than any gap inside a
+# live run, where the driver writes on every event.
+STALE_AFTER = 24 * 3600
 
 # The steps after which nothing about a run can be fixed. A driver watches for one of these to know
 # a child is finished; a hook reads them to know a run is no longer in flight.
@@ -56,14 +64,80 @@ def read(path: Path):
     return state if isinstance(state, dict) else None
 
 
+def main_worktree(root: Path) -> Path:
+    """The checkout a linked `git worktree` was cut from — or `root`, when it is not one.
+
+    Run files are working state and live in `.agent-kit/runs/`, which every project of this kit
+    gitignores. So a session standing in a linked worktree sees the tracked `.agent-kit/` — and no
+    runs at all: the guard read that as *nothing is in flight here* and let a night's run merge,
+    force-push and push the default branch unguarded, and the stop hook could not find the run it
+    was supposed to hold open. Both hooks are armed from the tree the runs are actually in.
+
+    Read from files rather than asked of `git`: this is on the path of a hook that runs on every
+    Bash call in every session, and a subprocess there is a cost paid thousands of times a night.
+    A linked worktree's `.git` is a *file* naming its administrative directory, and `commondir`
+    beside it points back at the main repository.
+    """
+    root = Path(root)
+    marker = root / ".git"
+    if not marker.is_file():
+        return root
+    try:
+        text = marker.read_text(encoding="utf-8").strip()
+    except OSError:
+        return root
+    if not text.startswith("gitdir:"):
+        return root
+    admin = Path(text.split(":", 1)[1].strip())
+    if not admin.is_absolute():
+        admin = (root / admin).resolve()
+    try:
+        common = (admin / "commondir").read_text(encoding="utf-8").strip()
+    except OSError:
+        return root
+    git_dir = Path(common) if Path(common).is_absolute() else (admin / common)
+    try:
+        main = git_dir.resolve().parent
+    except OSError:
+        return root
+    return main if (main / RUNS).is_dir() or (main / ".agent-kit").is_dir() else root
+
+
 def runs(root: Path):
     """Every run directory in this project, with its state — `(directory, state | None)`.
 
     The unreadable ones come back too, with `None`, because every caller has something to say about
     them and none of them could say it while the loop dropped them on the floor.
     """
-    for path in sorted((Path(root) / RUNS).glob("*/run.json")):
+    for path in sorted((main_worktree(Path(root)) / RUNS).glob("*/run.json")):
         yield path.parent, read(path)
+
+
+def in_flight(root: Path) -> list:
+    """The runs happening here now — `(directory, state | None)`, newest write last.
+
+    Two things make a run count, and the second is what gives the signal an end: it never reached a
+    terminal step, and something wrote to its file inside `STALE_AFTER`. This is the one fact the
+    kit has about *another session is working in this tree*, and four readers ask for it — the two
+    hooks, the check that prints it before every command, and the commands that refuse to start
+    beside it. It was written out twice before, in the guard and in nothing else.
+
+    **A run file nothing can parse counts as a run in flight.** Unreadable and fresh is not "no run
+    here": that reading is what once disarmed the merge guard in silence, and the cost of being
+    wrong the other way is a refused command the owner can override by saying so.
+    """
+    now = time.time()
+    out = []
+    for directory, state in runs(root):
+        try:
+            age = now - (directory / "run.json").stat().st_mtime
+        except OSError:
+            continue
+        if age >= STALE_AFTER:
+            continue
+        if state is None or state.get("step") not in TERMINAL:
+            out.append((directory, state))
+    return out
 
 
 def kind(state: dict) -> str:
