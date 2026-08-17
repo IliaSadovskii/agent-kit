@@ -201,6 +201,21 @@ nothing to build in and no command that arrives by accident. Left alone it stays
 work it stands for is invisible to `sprint`, to `epic` and to rung 10. Treat any open one as rung 9
 work and name `/agent-kit:blueprint`, saying how many and from which lens.
 
+**Rung 8's other half: nothing outside a session runs the suite at all.** The check says it in one
+line under `--status`, and `check.py --tests` says which command is in which state. That is the
+purest blind spot there is — every proof the project has was made by the session that wrote the code,
+on the machine that wrote it, and nothing re-checks it after the session is gone or when the owner
+pushes by hand. What you name is **an ordinary `ship` with a task**: *build the CI that runs this
+project's declared commands*, from `${CLAUDE_PLUGIN_ROOT}/templates/workflow.yml`. Not a command of
+its own — the kit builds a project's infrastructure the same way it builds its skeleton, a build step
+or a dependency bump: one `ship`, no entry, the task says what done means. It proves itself on the
+spot: the run pushes its branch, the pipeline fires on that very branch, and step 6 of `ship`
+already reads `gh pr checks`.
+
+**Say it once and then let it go.** Like every rung, it fires until it is answered — so name it, and
+if the owner passes over it, do not raise it again ahead of the work on the next run. A rung that
+repeats itself nightly is the alarm nobody hears by the third batch.
+
 **Rung 8 is about nobody looking, not about coverage being incomplete.** An `epic` runs the lenses
 itself — `deps`, `security` and `conventions` over the whole codebase, `tests` and `scenarios`
 narrowed to its own entries — so where rung 10 would name an epic, that lens is *being looked at* and

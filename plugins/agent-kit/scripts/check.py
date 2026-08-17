@@ -2397,6 +2397,167 @@ def open_runs(root: Path) -> list:
     return out
 
 
+# Who runs each declared command, and when. **This is the kit's own schedule, not the project's
+# data** — which is why it lives here and not in `project.yml`: a project cannot answer it, and a
+# copy of it in every project's config would be one fact in four files. Until this table existed the
+# answer was prose in `ship`, `close.md`, `epic/references/finish.md` and `rules/preflight.md`, and
+# nobody could read it in one place.
+WHO_RUNS = {
+    "test": "every feature, in its own session, and again after the fixes its review asked for",
+    "lint": "every feature, in its own session",
+    "types": "every feature, in its own session",
+    "mutate": "every feature, over the files that feature changed",
+    "e2e": "an epic's proving phase, and the audit's scenarios lens — never a feature (the guard "
+           "hook refuses it) and never a batch's closing session",
+    "run": "every feature with a surface a person can reach, and an epic's fresh checkout",
+}
+
+
+def fires_on_push(text: str) -> bool:
+    """Whether a workflow runs when somebody pushes.
+
+    Read as text: this program carries no YAML library, and the question is narrow enough to answer
+    without one. Being wrong is possible, which is why every caller keeps a *cannot say* answer and
+    reaches for it the moment a pipeline exists at all.
+    """
+    found = re.search(r"^on:(.*)$", text, re.M)
+    if not found:
+        return False
+    if re.search(r"\b(push|pull_request)\b", found.group(1)):
+        return True
+    block = []
+    for line in text[found.end():].splitlines():
+        if line.strip() and not line.startswith((" ", "\t", "-")):
+            break
+        block.append(line)
+    return bool(re.search(r"^\s*(push|pull_request)\s*:", "\n".join(block), re.M))
+
+
+def workflows(root: Path) -> tuple:
+    """This repository's own pipelines — `(names, their text, does any fire on a push)`."""
+    directory = root / ".github" / "workflows"
+    if not directory.is_dir():
+        return [], "", False
+    names, blob, fires = [], [], False
+    for path in sorted([*directory.glob("*.yml"), *directory.glob("*.yaml")]):
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        names.append(path.name)
+        blob.append(text)
+        fires = fires or fires_on_push(text)
+    return names, "\n".join(blob), fires
+
+
+def outside_a_session(command: str, names: list, blob: str, fires: bool) -> str:
+    """Whether anything but a run of this kit ever runs this command — in four answers.
+
+    **The fourth is the reason this can exist at all.** A declared command is the line a session
+    types, and a pipeline reasonably runs the same work another way: `lint` declared as
+    `docker compose exec api ./vendor/bin/pint --test` is `pint --test` in CI. Three answers would
+    make this print *nobody runs it* against a healthy pipeline for ever, and then silence here
+    would stop meaning *nothing is wrong* — which is the one thing this program may not break.
+    """
+    if not names:
+        return "nothing outside a session: this repository has no workflows"
+    if not fires:
+        return (f"nothing runs it on a push — {len(names)} workflow(s) here and none is triggered "
+                f"by one")
+    if command and command in blob:
+        return "a workflow runs it"
+    return "cannot say — a workflow fires on a push, and none of them names this line"
+
+
+def last_ran(root: Path, key: str):
+    """When this command last actually ran, out of the kit's own records — or `None`.
+
+    Read from run files, newest write first, because that is where the evidence is: `proved_at` is
+    the tree the declared suite was run on and `mutation` carries its own counts. **`e2e` has no
+    such field anywhere in this kit** — no run file, no batch record, nothing says a scenario walk
+    happened — so it answers `None`, and the caller says so rather than implying it never ran.
+    """
+    directories = []
+    for directory, state in runfile.runs(root):
+        if not state:
+            continue
+        try:
+            directories.append(((directory / "run.json").stat().st_mtime, directory, state))
+        except OSError:
+            continue
+    for _when, directory, state in sorted(directories, reverse=True):
+        if key in ("test", "lint", "types"):
+            proved = str(state.get("proved_at") or "").strip()
+            if proved:
+                return f"last on {proved[:7]} ({state.get('slug') or directory.name})"
+        if key == "mutate":
+            killed = (state.get("mutation") or {}).get("killed")
+            if isinstance(killed, int):
+                survived = (state.get("mutation") or {}).get("survived")
+                return (f"last {killed} killed / {survived} survived "
+                        f"({state.get('slug') or directory.name})")
+    return None
+
+
+def print_tests(root: Path, manifest: dict) -> int:
+    """Everything about this project's testing on one screen — derived, never declared.
+
+    The owner asked for the thing a person should see on being handed a project: which tests it has,
+    who runs them and when, and whether they are actually run. Every column here comes from
+    somewhere that already exists — the declared commands, this kit's own fixed schedule, the run
+    files, the repository's workflows — so there is no new record to write, to read, or to remove
+    when a suite goes away. A declared table would have been four fields of prose in a config file
+    with no reader, which is what the first draft of this was.
+    """
+    commands = manifest.get("commands")
+    if not isinstance(commands, dict):
+        print(f"no readable `commands` in {MANIFEST} — /agent-kit:blueprint owns that file")
+        return 0
+    names, blob, fires = workflows(root)
+    print("Testing, as this project declares it and this kit runs it:")
+    for key, who in WHO_RUNS.items():
+        declared = str(commands.get(key) or "").strip()
+        if not declared:
+            print(f"  {key}: not declared — {who}, so every run reports the step as not run")
+            continue
+        print(f"  {key}: `{declared}`")
+        print(f"      who and when: {who}")
+        when = last_ran(root, key)
+        print(f"      last run of record: {when or 'nothing in this kit records one'}")
+        print(f"      outside a session: {outside_a_session(declared, names, blob, fires)}")
+    described, uncovered, _orphaned = scenarios(root)
+    if described:
+        print(f"  scenarios: {described} described, {described - len(uncovered)} carry a marked "
+              f"end-to-end test. The marker says a test exists and never that it ran.")
+    print("  Not here: what each of these costs. Nothing measures that yet, and an unmeasured "
+          "number is worse than none.")
+    return 0
+
+
+def outside_line(root: Path, manifest: dict) -> None:
+    """One line, where the owner is standing: nothing but this kit ever runs the suite.
+
+    Printed under `--status` and `--state`, which is the seam that already tells the two audiences
+    apart — `next`, `blueprint`, a `sprint`'s brief and an epic's gate pass one of them, and a
+    feature's session runs the check bare. Said six times a night in run reports nobody can act on,
+    this would be noise; said once where somebody can type a command, it is the finding.
+    """
+    commands = manifest.get("commands")
+    if not isinstance(commands, dict):
+        return
+    declared = [k for k in WHO_RUNS if str(commands.get(k) or "").strip()]
+    if not declared:
+        return
+    names, _blob, fires = workflows(root)
+    if fires:
+        return
+    where = f"{len(names)} workflow(s) here, none triggered by a push" if names \
+        else "this repository has no workflows"
+    print(f"  outside a session: nothing runs {', '.join(declared)} but a run of this kit — "
+          f"{where}. So every proof this project has was made by the session that wrote the code, "
+          f"on the machine that wrote it. `check.py --tests` says what runs when.")
+
+
 def scenarios(root: Path) -> tuple:
     """How many scenarios the knowledge describes, and how many a test says it walks.
 
@@ -2786,6 +2947,10 @@ def main(argv: list | None = None) -> int:
                         help="every open block under these entries, in full, instead of their "
                              "names: the entries a run is about to build or to change. Names any "
                              "key that matches no entry")
+    parser.add_argument("--tests", action="store_true",
+                        help="this project's testing on one screen: what is declared, who runs each "
+                             "one and when, when it last ran of record, and whether anything but a "
+                             "run of this kit ever runs it")
     parser.add_argument("--brief", metavar="KEY",
                         help="everything a run reads before it designs, in one call: the project's "
                              "corner, the entry, the entries it names, the library map")
@@ -2811,6 +2976,9 @@ def main(argv: list | None = None) -> int:
 
     if options.manual:
         return prove_manual(root)
+
+    if options.tests:
+        return print_tests(root, read_manifest(root / MANIFEST))
 
     if options.run:
         target = Path(options.run)
@@ -2974,6 +3142,8 @@ def main(argv: list | None = None) -> int:
             print_planned(docs)
             print_parts(docs)
             print_audits(report)
+        if options.status or options.state:
+            outside_line(root, manifest)
         # A `[stale …]` is a statement and leaves the report clean, so a run that asked about its
         # own entries is answered here too — otherwise the one call it makes goes silent on exactly
         # the entries it named.
@@ -2988,6 +3158,8 @@ def main(argv: list | None = None) -> int:
         print_planned(docs)
         print_parts(docs)
         print_audits(report)
+    if options.status or options.state:
+        outside_line(root, manifest)
     for group, lines in report.groups.items():
         print(f"\n{group}:")
         for line in lines:

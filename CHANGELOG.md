@@ -3,6 +3,49 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.23.0
+
+**Every proof a project had was made by the session that wrote the code, on the machine that wrote
+it — and nothing said so.** The kit reads CI in four places (`ship` step 6, `next` rungs 3–5,
+`accept`, an epic's finish) and never once asked whether any exists. On a live project the answer was
+one workflow, triggered by a person clicking a button, and it had been that way for three weeks of
+nightly runs.
+
+- **`check.py --tests` — this project's testing on one screen**, and every column is derived rather
+  than declared: the commands from `project.yml`, who runs each one and when from **this kit's own
+  fixed schedule**, when it last ran from the run files' `proved_at` and `mutation`, and whether
+  anything outside a session runs it. Nothing new is written anywhere, so there is nothing to keep
+  current and nothing to remove when a suite goes away. The first draft of this was a declared table
+  of six fields in `project.yml`; four of them were prose with no reader, and a file only `blueprint`
+  may write.
+
+- **Four answers to *does anything outside a session run this*, and the fourth is what makes the
+  check possible at all**: a workflow runs it · nothing here does · nothing runs it on a push ·
+  **cannot say**. A pipeline reasonably runs the same work another way than the line a session
+  types — `docker compose exec api ./vendor/bin/pint --test` is `pint --test` in CI — so three
+  answers would have printed *nobody runs it* against a healthy pipeline for ever, and silence here
+  would have stopped meaning *nothing is wrong*.
+
+- **One line where the owner is standing.** Printed under `--status` and `--state`, which is the seam
+  that already tells the audiences apart: `next`, `blueprint`, a `sprint`'s brief and an epic's gate
+  pass one of them; a feature's session runs the check bare and never sees it. Said six times a night
+  in reports nobody can act on, this would be noise.
+
+- **`next` names what to do about it**, inside rung 8 rather than as a rung of its own above the
+  work: an ordinary `ship` with a task, from the new **`templates/workflow.yml`**. The kit does not
+  generate a pipeline — it builds a project's infrastructure the same way it builds its skeleton or a
+  build step, and that run proves itself on the spot, because it pushes a branch the pipeline then
+  fires on.
+
+- **`.github/workflows/<name>.yml` has a row in `rules/channels.md`** — writer, readers, and who may
+  remove it. The validator refused the template until it did, which is the check working.
+
+**And two refusals recorded**, both argued in `docs/planned.md`: a `/agent-kit:deploy` command (three
+of its five premises were false against the files — the cold boot already runs in every epic, the
+project had run its browser suite 42 times in that phase, and `commands.health` already existed
+there), and the kit deploying to production, for one sufficient reason: **nothing here can promise a
+rollback**, and a delivery mechanism without one makes the irreversible cheap.
+
 ## 2.22.1
 
 **The last branch in this kit with no fourth answer.** 2.22.0 closed a batch's own delivery branch;

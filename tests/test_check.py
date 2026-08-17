@@ -1883,6 +1883,65 @@ class RunBranchCase(unittest.TestCase):
             shutil.rmtree(outside, ignore_errors=True)
 
 
+class OutsideASessionCase(unittest.TestCase):
+    """Whether anything but a run of this kit ever runs a declared command.
+
+    Four answers, and the fourth is what makes the check possible: a pipeline reasonably runs the
+    same work another way than the line a session types, so three answers would print *nobody runs
+    it* against a healthy pipeline for ever — and then silence here would stop meaning *nothing is
+    wrong*.
+    """
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.flows = self.tmp / ".github" / "workflows"
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def workflow(self, name, text):
+        self.flows.mkdir(parents=True, exist_ok=True)
+        (self.flows / name).write_text(text, encoding="utf-8")
+
+    def answer(self, command):
+        names, blob, fires = check.workflows(self.tmp)
+        return check.outside_a_session(command, names, blob, fires)
+
+    def test_no_workflows_at_all(self):
+        self.assertIn("no workflows", self.answer("make test"))
+
+    def test_a_workflow_nothing_triggers(self):
+        """The live case: one workflow, `workflow_dispatch` only, so it fires when a person clicks."""
+        self.workflow("apk.yml", "name: APK\non:\n  workflow_dispatch:\njobs:\n  b:\n    steps: []\n")
+        self.assertIn("none is triggered by one", self.answer("make test"))
+
+    def test_a_workflow_that_names_the_command(self):
+        self.workflow("checks.yml", "on:\n  push:\n    branches: [main]\njobs:\n  a:\n"
+                                    "    steps:\n      - run: make test\n")
+        self.assertEqual(self.answer("make test"), "a workflow runs it")
+
+    def test_the_same_work_run_another_way(self):
+        """`lint` declared as `docker compose exec api ./vendor/bin/pint --test` is `pint --test` in
+        CI. This is the answer that keeps the check honest instead of noisy."""
+        self.workflow("checks.yml", "on: [push]\njobs:\n  a:\n    steps:\n"
+                                    "      - run: ./vendor/bin/pint --test\n")
+        self.assertIn("cannot say",
+                      self.answer("docker compose exec api ./vendor/bin/pint --test"))
+
+    def test_the_inline_trigger_forms(self):
+        for header in ("on: push\n", "on: [push]\n", "on: [push, pull_request]\n",
+                       "on:\n  pull_request:\n"):
+            self.assertTrue(check.fires_on_push(header + "jobs: {}\n"), header)
+
+    def test_the_triggers_that_are_not_a_push(self):
+        for header in ("on:\n  workflow_dispatch:\n", "on:\n  schedule:\n    - cron: '0 3 * * *'\n"):
+            self.assertFalse(check.fires_on_push(header + "jobs: {}\n"), header)
+
+    def test_the_word_push_somewhere_else_is_not_a_trigger(self):
+        self.assertFalse(check.fires_on_push("name: push the app\njobs:\n  a:\n"
+                                             "    steps:\n      - run: git push\n"))
+
+
 class PlannedListsCase(unittest.TestCase):
     """Which of the owner's lists each planned entry is on.
 
