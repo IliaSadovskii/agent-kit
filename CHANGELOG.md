@@ -3,6 +3,26 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.22.1
+
+**The last branch in this kit with no fourth answer.** 2.22.0 closed a batch's own delivery branch;
+what was still open is every branch no batch record names — a `fix`, a standalone `ship`, and
+`blueprint`'s own knowledge branch. Their pull request is squash-merged, so their commits are nowhere
+in the base and ancestry can never speak for them, and nothing else knew they existed. On a live
+project the first `next` after 2.22.0 retired the branch the previous release had freed and then asked
+the owner about exactly those two — and would have asked again on every run, for ever.
+
+- **A merged pull request names the branch it was opened from.** `headRefName` and `headRefOid` are
+  now on the listing this program already fetches once per run, so the cost is nothing, and the
+  second field is what makes the answer a fact: a branch whose local tip **is** the commit that
+  merged is the branch that merged. Verified on the two live branches before the change was written.
+- **A branch that has moved since its merge is not retired, and says why** — it carries work the pull
+  request did not, and that work is on one machine. That case reads differently from *nobody knows
+  about it*, and both now print their own sentence.
+- **And *nobody knows* now says both halves**: no run record names it, *and* no merged pull request
+  was opened from it — or that nothing here could ask GitHub at all, which is not an answer and never
+  reads as one.
+
 ## 2.22.0
 
 **A pull request is a report to somebody who has other work.** The owner read the first batch body

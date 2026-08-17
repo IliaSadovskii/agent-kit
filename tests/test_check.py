@@ -2645,9 +2645,10 @@ class BranchesCase(unittest.TestCase):
     class Answers(check.Github):
         """A GitHub that says exactly what the test says, and is asked the same way the real one is."""
 
-        def __init__(self, root, merged):
+        def __init__(self, root, merged, heads=None):
             super().__init__(root)
             self._merged = {int(n) for n in merged}
+            self._answer_heads = dict(heads or {})
 
         @property
         def available(self):
@@ -2659,8 +2660,15 @@ class BranchesCase(unittest.TestCase):
         def merged(self, numbers):
             return {int(n) for n in numbers if int(n) in self._merged}
 
-    def judge(self, merged=()):
-        return check.delivered_branches(self.root, "main", self.Answers(self.root, merged))
+        def merged_heads(self):
+            return self._answer_heads
+
+    def judge(self, merged=(), heads=None):
+        return check.delivered_branches(self.root, "main",
+                                        self.Answers(self.root, merged, heads))
+
+    def tip(self, name):
+        return check.git(self.root, "rev-parse", name)
 
     def test_a_record_that_is_json_but_not_a_record_does_not_take_the_reading_down(self):
         """It parses, so the guard against unreadable files does not catch it, and every command
@@ -2697,6 +2705,40 @@ class BranchesCase(unittest.TestCase):
         delivered, unknown = self.judge(merged={7})
         self.assertEqual(sorted(name for name, _ in delivered), ["claude/one", "sprint/batch"])
         self.assertEqual(unknown, [])
+
+    def test_a_branch_no_record_names_is_answered_by_the_merged_pull_request(self):
+        """The last branch in this kit with no fourth answer: a `fix`, a standalone `ship` and
+        `blueprint`'s knowledge branch write no record, so once their pull request is squashed
+        nothing could ever say they were delivered. Measured on a live project — every `next` asked
+        the owner about the same two branches and would have gone on asking."""
+        self.branch("claude/fix-the-cache", "two\n")
+        delivered, unknown = self.judge(heads={"claude/fix-the-cache":
+                                              (19, self.tip("claude/fix-the-cache"))})
+        self.assertEqual([name for name, _ in delivered], ["claude/fix-the-cache"])
+        self.assertIn("19 merged this branch", delivered[0][1])
+        self.assertEqual(unknown, [])
+
+    def test_a_branch_that_moved_after_its_merge_is_not_retired(self):
+        """`headRefOid` is what makes the answer a fact. A branch that has moved since carries work
+        the pull request did not, and that work is on one machine."""
+        self.branch("claude/fix-the-cache", "two\n")
+        merged_at = self.tip("claude/fix-the-cache")
+        self.git("checkout", "-q", "claude/fix-the-cache")
+        (self.root / "a.txt").write_text("three\n", encoding="utf-8")
+        self.git("commit", "-qam", "one more, after the merge")
+        self.git("checkout", "-q", "main")
+        delivered, unknown = self.judge(heads={"claude/fix-the-cache": (19, merged_at)})
+        self.assertEqual(delivered, [])
+        self.assertIn("commits since", unknown[0][1])
+        self.assertIn("this machine only", unknown[0][1])
+
+    def test_nothing_that_could_be_asked_is_never_read_as_an_answer(self):
+        """`Offline` says *could not ask* to everything, and a branch is then unjudged with that as
+        its reason — never retired, and never reported as unmerged either."""
+        self.branch("claude/fix-the-cache", "two\n")
+        delivered, unknown = check.delivered_branches(self.root, "main", check.Offline(self.root))
+        self.assertEqual(delivered, [])
+        self.assertIn("could ask GitHub", unknown[0][1])
 
     def test_a_parked_own_branch_is_not_retired_by_its_own_record(self):
         """The one case where `branch` must not be trusted: a batch that parked its own delivery."""
@@ -2742,7 +2784,10 @@ class BranchesCase(unittest.TestCase):
         self.branch("claude/orphan", "two\n")
         delivered, unknown = self.judge()
         self.assertEqual(delivered, [])
-        self.assertEqual(unknown, [("claude/orphan", "no run record names it")])
+        # Both halves of *nothing knows about it*: no record, and no merged pull request was ever
+        # opened from it. The second half is what stopped this being said about a `fix` branch.
+        self.assertEqual(unknown, [("claude/orphan", "no run record names it, and no merged pull "
+                                                    "request was opened from it")])
 
     def test_ancestry_still_answers_where_it_can(self):
         self.branch("claude/one", "two\n")

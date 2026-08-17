@@ -983,6 +983,7 @@ class Github:
     def __init__(self, root: Path):
         self.root = root
         self._listed = None                       # the listing, asked at most once per run
+        self._heads: dict = {}                    # branch -> (pull request, its head when it merged)
         self._asked = False
 
     @property
@@ -1000,7 +1001,7 @@ class Github:
         self._asked = True
         if self.available:
             done = ran(["gh", "pr", "list", "--state", "all", "--limit", str(PR_LIST_MAX),
-                        "--json", "number,state"], self.root)
+                        "--json", "number,state,headRefName,headRefOid"], self.root)
             if done and done.returncode == 0:
                 try:
                     rows = json.loads(done.stdout or "[]")
@@ -1009,7 +1010,33 @@ class Github:
                 if isinstance(rows, list):
                     self._listed = {row["number"]: row.get("state") or "" for row in rows
                                     if isinstance(row, dict) and isinstance(row.get("number"), int)}
+                    # The branch each merged one was opened *from*, and the commit that branch stood
+                    # at when it merged. Two fields on a listing this object already fetches, and
+                    # they are what answers for a branch no record names — see `merged_heads`.
+                    self._heads = {row["headRefName"]: (row["number"], row.get("headRefOid") or "")
+                                   for row in rows
+                                   if isinstance(row, dict) and row.get("state") == "MERGED"
+                                   and isinstance(row.get("number"), int)
+                                   and isinstance(row.get("headRefName"), str)}
         return self._listed
+
+    def merged_heads(self):
+        """Branch → `(pull request, the commit it stood at when it merged)`, or `None` when nothing
+        could be asked.
+
+        The last branch in this kit with no fourth answer. A batch's children and its own delivery
+        branch are in `docs/runs/<batch>.json`; a feature's branch is usually caught by ancestry. But
+        a `fix`, a standalone `ship` and `blueprint`'s own knowledge branch write no record at all —
+        so once their pull request is squash-merged, their commits are nowhere in the base and nothing
+        in this kit can ever say they were delivered. Measured: on a live project every `next` asked
+        the owner about the same two branches, and would have gone on asking.
+
+        `headRefOid` is what makes this a fact rather than a guess. A branch whose local tip is that
+        commit is the branch that merged, exactly; one that has moved since has work the pull request
+        did not carry, and it falls through to being reported as unjudged, which is correct.
+        """
+        self.states()
+        return None if self._listed is None else self._heads
 
     def state(self, number: int):
         """One pull request's state, or `None` when nothing here can say.
@@ -1390,19 +1417,41 @@ def delivered_branches(root: Path, base: str, gh: Github) -> tuple:
         done = ran(["git", "merge-base", "--is-ancestor", name, base], root) if base else None
         return bool(done) and done.returncode == 0
 
+    # The third test, and the only one that needs no record: this branch is what a merged pull
+    # request was opened from, and it still stands at the commit that merged.
+    heads = gh.merged_heads() or {}
+
+    def merged_as(name: str):
+        number, oid = heads.get(name, (None, ""))
+        if number is None or not oid:
+            return None
+        return number if git(root, "rev-parse", "--verify", "--quiet", name) == oid else None
+
     delivered, unknown = [], []
     for name in sorted(names):
+        by_head = merged_as(name)
         if owned.get(name) in merged:
             delivered.append((name, f"pull request {owned[name]} merged"))
         elif inside(name):
             delivered.append((name, f"in {base}"))
+        elif by_head is not None:
+            delivered.append((name, f"pull request {by_head} merged this branch, and it has not "
+                                    f"moved since"))
         elif name in left:
             unknown.append((name, "a batch parked this child — the work on it was never delivered"))
+        elif name in heads:
+            # Known to have merged, and the local branch is not what merged: somebody landed a
+            # commit on it afterwards. That work is nowhere else, so this is the one case where
+            # naming it matters more than retiring it.
+            unknown.append((name, f"pull request {heads[name][0]} merged this branch, but it has "
+                                  f"commits since — that work is on this machine only"))
         elif name in owned:
             unknown.append((name, f"nothing here could ask about pull request {owned[name]}"
                                   if unasked else f"pull request {owned[name]} is not merged"))
         else:
-            unknown.append((name, "no run record names it"))
+            unknown.append((name, "no run record names it, and no merged pull request was opened "
+                                  "from it" if not unasked else
+                                  "no run record names it, and nothing here could ask GitHub"))
     return delivered, unknown
 
 
