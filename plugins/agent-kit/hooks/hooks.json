@@ -1,5 +1,5 @@
 {
-  "description": "Two hooks, each a no-op unless a run of this kit is actually in flight. On Bash: refuse to merge a pull request, to force-push, and to push to the default branch. On Stop: refuse to end a turn while this session's own run file is still mid-step. Outside a run neither has an opinion, and neither ever fires in the owner's own sessions.",
+  "description": "Two hooks, each a no-op unless a run of this kit is actually in flight. On Bash: refuse to merge a pull request, to force-push, and to push to the default branch. On Stop: refuse to end a turn while this session's own run file is still mid-step, and close the session of an `epic` that has finished, which nothing else closes. Outside a run neither has an opinion, and neither ever fires in the owner's own sessions.",
   "hooks": {
     "PreToolUse": [
       {
@@ -19,7 +19,7 @@
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/stop.py\"",
-            "timeout": 10
+            "timeout": 30
           }
         ]
       }

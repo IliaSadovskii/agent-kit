@@ -88,7 +88,7 @@ what stays open beside the line of what now works:
 entry, expensive first, and the children's `deviations` belong in it too — a deviation is an
 assumption the code forced. It is the single place a well-specified batch diverges from what the
 owner wanted, which is why the `summary` line carries both numbers: how many, and how many are
-expensive to get wrong. Every one of them is also an `[assumed …]` block under its entry, printed by
+expensive to get wrong. The expensive ones are also `[assumed …]` blocks under their entries, printed by
 the check before every command and closed by `blueprint` — so this table is where the owner first
 sees them and never the only place they exist.
 

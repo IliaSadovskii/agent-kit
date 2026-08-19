@@ -19,7 +19,7 @@
   "base": "main",
   "parent": null,
   "needs": null,
-  "_session": "The session this run is being built in, written by the driver when it starts one. The stop hook matches on it and on nothing else — a run with no session is a run no hook has an opinion about.",
+  "_session": "The session this run is being held by, written by the driver when it starts one — the session building a feature, and on an `epic` the session deciding what follows, which builds nothing. The stop hook matches on it and on nothing else: mid-step it refuses to let that session end its turn, and on a finished `epic` it closes the session, because nothing else will. A run with no session is a run no hook has an opinion about. Nothing clears the field; the driver overwrites it on every session it starts, and once the run is terminal and stale it speaks for nobody.",
   "session": null,
   "deliver": "pr",
 
@@ -32,6 +32,7 @@
 
   "step": "design",
 
+  "_assumptions": "A decision the entry did not settle, taken because asking was not possible or not worth it. `expensive` is answered on every one and `false` is an answer: when this run closes, the driver reads that field and tells the owner's window which decisions were expensive to reverse — while the batch is still running, which is the only stretch in which they can act on it. It tests the field for truth, so an unanswered one is silently a cheap one and never reaches them. `entry` is the key it was taken against, where there is one. Expensive also means an `[assumed …]` block under that entry, which is the only copy that outlives this directory.",
   "assumptions": [
     { "what": "", "why": "", "entry": "developer.create_offer", "expensive": false }
   ],

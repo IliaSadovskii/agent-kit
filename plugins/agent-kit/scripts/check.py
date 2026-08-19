@@ -2167,6 +2167,45 @@ def run_defects(state: dict, root: Path | None = None) -> list:
                        f"says so at its head, and the pull request is composed from it by a "
                        f"session that reads run files and never the code")
 
+    # `expensive` has a reader that acts on it, and nothing ever checked that it was answered. When
+    # a feature closes, the driver reads the field off its run file and tells the owner's window
+    # which decisions it took with nobody to ask — while the batch is still running, which is the
+    # only window in which they can stop it, skip what follows or type into the session themselves
+    # (`orchestrate.py`, `Driver.costly`). **That reader tests the field for truth**, so a record
+    # with no field is indistinguishable there from one marked cheap: it is silently declared cheap
+    # and the owner never hears of it. Measured on one run of 31 children, 28 of 73 assumptions
+    # carried no field at all — including every one of a batch whose own prose says "дорого
+    # ошибиться" four times, none of which reached that window.
+    #
+    # Asked whenever this file is judged, like the shapes above and for the same reason: at `done`
+    # it can only be reported, and a session that hears it at its first handoff answers it in a
+    # minute. Named one by one, because a count is something a session then has to go and find.
+    assumptions = state.get("assumptions")
+    if assumptions is not None and not isinstance(assumptions, list):
+        out.append(f"`assumptions` is a {type(assumptions).__name__} and this program reads it as a "
+                   f"list of records — nothing here can tell whether it holds decisions or is "
+                   f"empty, so nothing said about it below is worth anything. The template has the "
+                   f"shape")
+    # Only records: an assumption written as a sentence is a different finding, made above, and
+    # asking this one of it would report the same file twice for one mistake.
+    blind, malformed = [], []
+    for item in (assumptions if isinstance(assumptions, list) else []):
+        if not isinstance(item, dict) or isinstance(item.get("expensive"), bool):
+            continue
+        said = " ".join(str(item.get("what") or "?").split())[:60]
+        (malformed if "expensive" in item else blind).append(said)
+    if blind:
+        out.append(f"assumption(s) with `expensive` unanswered — {'; '.join(blind)}. When this "
+                   f"feature closes, the driver tells the owner's window which of its decisions "
+                   f"were expensive, and it tests that field for truth: left out, each of these is "
+                   f"silently a cheap one and the owner never hears it. Write `true` or `false` on "
+                   f"each")
+    if malformed:
+        out.append(f"assumption(s) whose `expensive` is neither true nor false — "
+                   f"{'; '.join(malformed)}. The driver takes any truthy value, so this has "
+                   f"already been reported to the owner as expensive or silently dropped, "
+                   f"depending on what it is. Write the boolean the template asks for")
+
     # A task says it is done and nothing says where. The commit is the boundary a session is cut at
     # — the driver's handoff line is *finish the task you are on* — so a closed task with no SHA
     # leaves both the session that resumes this run and the reviewer to find that work by reading

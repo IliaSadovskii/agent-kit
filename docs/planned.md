@@ -398,6 +398,33 @@ would run to the wall.
 That is about fifteen lines and needs no move at all. The move is tidiness and can follow it, or
 not. Deferred by the owner, 17 August 2026.
 
+## 11. What the entries do not say — opened 19 August 2026
+
+From [docs/design/2026-08-19-the-gaps-in-what-is-known.md](design/2026-08-19-the-gaps-in-what-is-known.md),
+which measured one run: 73 assumptions recorded, 14 of them reaching the knowledge as blocks, and
+the field the rule runs on — `expensive` — unanswered on 28. The check, the reviewer's finding and
+the frame block's `Costs:` slot shipped with that note. Three things did not.
+
+- **The axis, and it is the owner's call because it has a price.** Today a block is written where
+  being wrong is expensive. The alternative is to write one for anything that changes what a person
+  sees or what is stored, whatever it cost — which would have carried perhaps twice as many of that
+  run's decisions into the knowledge. Against it: `blueprint/references/blocks.md` says the filter
+  is what keeps the documents from silting up after one sprint, and `--brief` prints every open
+  block under an entry **before every `ship`**, so the cost lands on the hottest path there is. The
+  block's own shape would need a fifth category too — it ends «Expensive to get wrong — data model |
+  permissions | money | public contract», which a cheap decision cannot fill honestly. Needs a
+  measurement first: what `--brief` costs per entry now, and at double.
+- **`--advance` reads no blocks.** It composes the next batch from run files alone — `check.py
+  --run` and nothing else — so a decision taken in the batch that just closed reaches the next batch
+  only through entries it never opens. Whether that costs anything is not measured.
+- **Whether `[frame …]` and `[assumed …]` should ever be one writing.** They have different closers
+  today, and merging them was not attempted.
+
+Refused there, with the reasons: a completeness pass before every build (eight frame children on one
+project recorded zero assumptions between them, and the sharpest finding of the measured batch came
+from calling a live gateway by hand), and judging completeness at `epic`'s gate (it already prints
+every open block across the scope; what it cannot do is invent gaps nobody has hit).
+
 # Refused, with the reason
 
 Nothing here is an open question. Each was proposed, checked against the payload, and refused.

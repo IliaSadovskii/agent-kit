@@ -142,6 +142,7 @@ class Launcher:
         self.helper = shutil.which("claude-new")
         self.closer = shutil.which("claude-close")
         self.reclaimed: str | None = None         # set by start() when it took a name back
+        self.warned_closer = False                # the helper-without-a-closer line, said once
 
     def _tmux(self, *args: str) -> subprocess.CompletedProcess:
         try:
@@ -203,8 +204,29 @@ class Launcher:
         return self._tmux("has-session", "-t", target).returncode == 0
 
     def stop(self, name: str) -> None:
-        if self.helper and self.closer:
-            subprocess.run([self.closer, name], capture_output=True, text=True)
+        """Close a session this driver started. The helper's word is final where there is one.
+
+        A session made by `claude-new` is *registered*, and killing its terminal without
+        unregistering it is not closing it: on the machine this was measured on, a watchdog put the
+        session back a minute later. So the helper decides — a refusal means either that it guards
+        that session or that it stopped part way, and killing over the top of either is how the
+        defect comes back. Where the helper made the session and cannot close it, say so once: a
+        kill that leaves a registration behind is not a thing to do quietly.
+        """
+        if self.helper and not self.closer:
+            if not self.warned_closer:
+                self.warned_closer = True
+                print(f"claude-new made these sessions and claude-close is not on the path — "
+                      f"closing {self.tmux_name(name)} with tmux alone may leave it registered, "
+                      f"and whatever restores registered sessions will bring it back",
+                      file=sys.stderr)
+        elif self.closer:
+            done = subprocess.run([self.closer, name], capture_output=True, text=True)
+            if done.returncode != 0:
+                print(f"{self.closer} refused {name}: "
+                      f"{done.stderr.strip() or done.stdout.strip() or done.returncode}",
+                      file=sys.stderr)
+            return                                # it unregisters, then kills, on its own clock
         self._tmux("kill-session", "-t", self.tmux_name(name))
 
 
@@ -1163,6 +1185,14 @@ class Driver:
         self.run.event("hand-back", f"{parent} decides what follows")
         started = self.launcher.start(name, f"/agent-kit:epic --advance {above.dir}",
                                       self.model_for(above.state()))
+        # The session that decides what follows is the one session here nothing else can close.
+        # The driver it may start closes it (`go`, above); the driver that started it — this one —
+        # exits at the hand-back. So when the run it is deciding about turns out to be finished,
+        # there is no next driver and the session stands until somebody notices it, which on a
+        # measured run took eight hours. Writing its name here is what lets the stop hook close it:
+        # the hook matches a session to its run on this field and on nothing else.
+        if started:
+            above.set(session=self.launcher.tmux_name(name))
         if self.launcher.reclaimed:
             above.event("reclaimed", f"{name} was still up from an earlier batch — closed it first")
         if not started:

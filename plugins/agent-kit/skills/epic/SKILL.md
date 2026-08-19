@@ -220,10 +220,13 @@ reaches it writes them, having seen the product built. Empty there means not yet
 
 **`step` on this file is your own phase, and you move it**: `gate` while this screen is up,
 `building` once the first batch is under way, `auditing` when the audit begins, `proving` at the
-scenarios, `done` at the end. No driver watches this file, so nothing depends on it — but a run left
-at a step nobody set is a run whose state has to be reconstructed from its children, and `--resume`
-is not the only reader: the check lists a run that never reached a terminal step, and a person
-looking at that list should see where this one stands.
+scenarios, `done` at the end. No driver watches this file — **the stop hook does**, and only for the
+last of those: a terminal step here is what closes your session, since when nothing follows there is
+no driver left to close it. Everything before it is a phase of a run that outlives any one session,
+and the hook stands aside for all of them. A run left at a step nobody set is a run whose state has
+to be reconstructed from its children, and `--resume` is not the only reader: the check lists a run
+that never reached a terminal step, and a person looking at that list should see where this one
+stands.
 
 `model` is the one setting that moves the price of a run rather than trimming its edges, so say
 which you took in the screen, beside the price. Default it to **the model you are running on**; a
@@ -305,9 +308,14 @@ Then read this run's file and the batch's, and do one thing:
 | batches left in `children` | write the next one and start the driver on it |
 | the in-list is built | set `step: "auditing"` and move to the audit, per `${CLAUDE_PLUGIN_ROOT}/skills/epic/references/finish.md` |
 | the audit is done | set `step: "proving"` and move to the scenarios, same file |
-| the scenarios pass | set `step: "done"` and say so in the pull request |
+| the scenarios pass | write the finish into the pull request, and **then** set `step: "done"` |
 
 Then end. You are one decision and its consequence, not a supervisor.
+
+`done` is last on that row for a mechanical reason: the stop hook closes this session at the end of
+the first turn that finds this run terminal, because when nothing follows, nothing else ever will.
+Write the file first and the field after it, and the same holds for `blocked` — a run that stops for
+hands says why, in the pull request, before it says that it stopped.
 
 ### What you may change about the run that is left
 
@@ -339,18 +347,12 @@ and the pull request carries it. A run that stood still for an answer had no way
 window may not write into a run file, no child's session is alive between batches, and the deadline
 always ran out — hours spent to reach the same place.
 
-**And ending your turn does not end your session** — that is the part which reads as obvious and is
-not. Nothing else closes you: the driver that started you exits at the hand-back, and the driver you
-just started is watching its own children. So close yourself as the last thing you do, once the
-batch is under way:
-
-```bash
-tmux kill-session -t "$(tmux display-message -p '#S')" 2>/dev/null || true
-```
-
-Left standing, you idle until the next batch reclaims the name — the driver takes it back rather
-than typing into you, so nothing breaks, but a session per batch sits on a machine that is usually
-shared. Do it last: your session dies with the command, so anything after it never happens.
+**Closing your own session is not yours and never was.** Ending a turn does not end a session, and
+this file used to ask you to end it yourself with one shell line — placed, like every instruction of
+its kind, after the work was finished, which is where instructions go to be forgotten. It was
+forgotten on a measured run, and when it was finally obeyed the line was wrong anyway. Two programs
+hold it now: the driver of the batch you start closes you before it builds anything, and the stop
+hook closes you when this run has finished and no batch follows. Say your last line and stop.
 
 **A batch that ended blocked does not stop the run.** Its features' entries stay `planned`, they are
 named in the pull request as what did not happen, and the next batch starts. A run that stopped on

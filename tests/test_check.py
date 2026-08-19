@@ -588,6 +588,72 @@ class CheckCase(unittest.TestCase):
             code = check.main([str(self.root), "--offline", "--run", str(run)])
         self.assertEqual(code, 0, out.getvalue())
 
+    def run_with(self, **state):
+        run = self.root / ".agent-kit" / "runs" / "r"
+        run.mkdir(parents=True, exist_ok=True)
+        (run / "run.json").write_text(json.dumps(
+            {"slug": "r", "command": "ship", "step": "build", **state}), encoding="utf-8")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = check.main([str(self.root), "--offline", "--run", str(run)])
+        return code, out.getvalue()
+
+    def test_an_assumption_with_no_expensive_answered_is_named_by_what_it_says(self):
+        """When a feature closes, the driver tells the owner's window which of its decisions were
+        expensive — and tests the field for truth, so an unanswered one is silently a cheap one and
+        never reaches them. It was absent from 28 of one run's 73, including a whole batch whose own
+        prose says «дорого ошибиться» four times."""
+        code, said = self.run_with(assumptions=[
+            {"what": "три результата поиска", "why": "запись числа не называет", "entry": "a.b"},
+            {"what": "ключ шифруется", "why": "хранимые данные", "entry": "a.b",
+             "expensive": True}])
+        self.assertEqual(code, 1)
+        self.assertIn("три результата поиска", said)
+        self.assertNotIn("ключ шифруется", said, "the one that answered is not named")
+
+    def test_a_field_by_another_name_is_not_an_answer(self):
+        """Live run files carry `cheap_to_reverse`, which nothing reads. A field the readers do not
+        know is the same silence as no field, and costs the same decision."""
+        code, said = self.run_with(assumptions=[{"what": "порядок карточек",
+                                                 "cheap_to_reverse": True}])
+        self.assertEqual(code, 1)
+        self.assertIn("порядок карточек", said)
+
+    def test_a_value_that_is_neither_true_nor_false_is_said_apart(self):
+        """`null`, `1` and `"true"` are a different mistake from an empty field: the driver has
+        already acted on them, taking any truthy value, so what the owner heard depends on which
+        one it was. The two findings say different things to do."""
+        for value in (None, 1, "true"):
+            code, said = self.run_with(assumptions=[{"what": "порог показа", "expensive": value}])
+            self.assertEqual(code, 1, value)
+            self.assertIn("neither true nor false", said, value)
+            self.assertIn("порог показа", said, value)
+            self.assertNotIn("unanswered", said, value)
+
+    def test_assumptions_that_are_not_a_list_are_said_to_be_unreadable(self):
+        """Silence has to mean nothing is wrong. A dict iterates over its keys and a string over
+        its characters, so both used to pass this check without a word — the exact shape the kit
+        has paid for three times."""
+        for value in ({"a": {"what": "x"}}, "три вещи"):
+            code, said = self.run_with(assumptions=value)
+            self.assertEqual(code, 1, value)
+            self.assertIn("reads it as a list of records", said)
+
+    def test_a_sentence_among_the_records_is_reported_once_for_its_shape(self):
+        """The shape check owns prose; this one owns records. Two findings about one mistake would
+        teach a session that the two are the same thing."""
+        _code, said = self.run_with(assumptions=["взято: рядом с постом"])
+        self.assertIn("written as sentences", said)
+        self.assertNotIn("no `expensive` answered", said)
+
+    def test_an_expensive_field_that_is_false_is_an_answer(self):
+        """`false` is a decision — cheap to reverse, and recorded as such. Only absence is the
+        finding, or the check would push every run to call everything expensive."""
+        code, said = self.run_with(assumptions=[
+            {"what": "порядок карточек", "why": "запись не называет", "entry": "a.b",
+             "expensive": False}])
+        self.assertEqual(code, 0, said)
+
     # ---- the blocks under the entries a command names --------------------------------------------
 
     def test_entries_prints_the_blocks_under_the_entry_it_names(self):

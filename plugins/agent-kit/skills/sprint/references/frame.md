@@ -47,7 +47,27 @@ Under `stack.md`, at the end, one line per agreement:
 > **[frame 2026-08-12 · <batch slug> · pr: ?]** <what every feature here does the same way>, beside
 > `<path/to/the/file.ext>` or `<the symbol it follows>`. Why: <the reason, in this codebase>.
 > Without it: <what these features would each do instead>.
+> Costs: <a state or a distinction the entries ask for that this rules out — or nothing>.
 ```
+
+**`Costs:` is the line about a budget, and it is why it is in the shape rather than in a rule.** One
+migration, one call, one field is a budget, and the first feature spends it. Measured on a live
+batch: a frame gave it one migration, the third feature then recorded that two states could no
+longer be told apart — «не выбирал» and «выбор исчез у шлюза», both of which its entry asks the
+product to show — and the fourth drew one screen for both and wrote the difference off as debt.
+Neither could reopen it, because by then the budget was spent.
+
+`epic`'s gate holds every entry too, and earlier — but it settles prose, not budgets: nobody there
+is deciding that this batch gets one migration. You are, and you are the only session holding the
+entries beside the code they meet in, so this is yours. Read the entries for the states they ask the
+product to distinguish, and where your own line rules one out, say so — **and then decide whether
+the line is worth it**, because you are also the only one who can still widen it. A `Costs:` that
+names something the entries ask for and is not widened is a decision, and the features are entitled
+to see it before they build against it.
+
+`nothing` is the ordinary answer and a real one — under the same rule as an empty block, three
+paragraphs down: it counts where you say which entries you read for it, and without that, *costs
+nothing* and *nobody looked* are the same word.
 
 Four rules, and each of them is the difference between a rule that is followed and one that is read
 past:

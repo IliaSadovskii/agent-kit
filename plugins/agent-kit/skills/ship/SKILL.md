@@ -236,8 +236,8 @@ reader that acts on it — a finding written anywhere else reaches nobody:
 
 | What you found | Where it goes | Who reads it |
 |---|---|---|
-| a decision the entry did not settle, cheap to reverse | `assumptions` | the pull request |
-| one expensive to reverse — stored data, permissions, money, a public contract | `assumptions` **and** an `[assumed …]` block under the entry | every later run follows it; the check prints it; `blueprint` closes it |
+| a decision the entry did not settle, cheap to reverse | `assumptions`, with `expensive: false` | the pull request |
+| one expensive to reverse — stored data, permissions, money, a public contract | `assumptions` with `expensive: true`, **and** an `[assumed …]` block under the entry | the driver says it to the owner's window as it happens; every later run follows it; the check prints it; `blueprint` closes it |
 | the entry promises what the code does not | a test marked `agent-kit:unmet`, and a line in `unmet` | the check lists it; the pull request; `sprint` with no theme offers it as a batch |
 | a promise **this** feature was sent to keep, and now does | delete the mark from that test in the commit that makes it pass, and say so in `notes` | nothing else ever removes one: the check would go on listing a promise the product now keeps, and the next `sprint` would offer the same work again |
 | something only the owner can do — a secret, an account, a production environment | a record in `manual`, whose `proof` is **a command that exits 0 once it has been done** — and a line in `docs/manual.md` when this run opens its own pull request, copying `${CLAUDE_PLUGIN_ROOT}/templates/manual.md` if the file is not there | the pull request's **Manual actions**, composed from the field; `accept`; and `check.py --manual`, which runs that command later and deletes the line itself. Anything a script could do goes into `commands.run` instead, and a setting that already works is an assumption |
@@ -247,6 +247,14 @@ reader that acts on it — a finding written anywhere else reaches nobody:
 | work you understood and decided not to do | a line in `docs/technical_debt.md` — and in `deferred` when a batch delivers this | the check counts it; `sprint` with no theme offers it |
 | an item of that ledger you finished | delete its line in the commit that does the work; name it in `closed_debt` | the batch's report, for the count |
 | anything with no field of its own | `notes`, in prose | whoever resumes this run, and the closing session |
+
+**`expensive` is answered on every one of them, and `false` is an answer.** It is not bookkeeping:
+when this feature closes, the driver reads that field and tells the owner's window which decisions
+you took with nobody to ask — while the batch is still running, which is the only stretch in which
+they can stop it, skip what comes after, or type into a session themselves. **It tests the field for
+truth**, so leaving it out is not neutral: the decision is silently a cheap one and never reaches
+them. The check names the records that leave it unanswered. Measured on one run of 31 children: 28
+of 73 had none, including every one of a batch whose own prose says «дорого ошибиться» four times.
 
 Two of those have a shape. The assumption block goes under the entry it stood in for, and is the
 decision of record for every later run — which is what keeps features consistent with each other:

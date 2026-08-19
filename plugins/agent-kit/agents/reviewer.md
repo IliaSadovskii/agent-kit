@@ -50,6 +50,20 @@ task's work here* in one call, where the alternative is walking the whole diff l
 task closed with no commit named, or with one this repository does not have, is a finding of its
 own: the run's own account of what it did is then unbound to anything.
 
+**An assumption the run itself called expensive, with no block under its entry, is a finding.** You
+are holding both halves — `assumptions` in the run file, and the entries you have already read —
+and nothing else in the kit ever holds them together. `expensive: true` is the run's own word for
+*this one outlives me*, and the block is the only way it reaches the next run: the run directory is
+not in the repository, so a decision left there is visible to nobody but whoever reads the code
+afterwards and wonders. Where the assumption names no entry, say that instead — you were given the
+entries the run file names, and going looking for others is not yours.
+
+The block belongs under the entry the decision stood in for, so the finding points at that entry —
+`docs/knowledge/<file>.md:<the entry's line>`, which is the one case where what you point at is not
+in the diff — and quotes the assumption. It is `major`: what the run called expensive is, by this
+kit's own definition of the word, stored data, permissions, money or a contract outside this
+codebase, and the next feature builds on it whether or not anyone else ever sees it.
+
 **Do the tests cover the entry?** Take the entry's lines one at a time and find the test for each.
 A line with no test is a finding, and it is usually the most valuable one you will produce: tests
 that exist but avoid the risky path are the standard way a feature looks proven and is not.

@@ -14,6 +14,7 @@ import io
 import json
 import os
 import shutil
+import subprocess
 import tempfile
 import time
 import types
@@ -1235,6 +1236,50 @@ class ModelCase(unittest.TestCase):
             self.assertIsNone(orch.Driver.model_for(state), state)
 
 
+class HandBackCase(DriverCase):
+    """The session an `epic` hands back to, and the one thing nothing else knows about it.
+
+    It is the only session here with no closer of its own: the driver it may start closes it, and
+    the driver that started it exits at the hand-back. When the run turns out to be finished no next
+    driver ever comes, and on a live run it stood for eight hours. The stop hook closes it — and
+    can only find it if its name is in the run file it is deciding about.
+    """
+
+    def epic_with_batch(self):
+        (self.runs / "e").mkdir()
+        self.write("e", {"slug": "e", "command": "epic", "kind": "epic", "step": "building",
+                         "children": ["b"]})
+        (self.runs / "b").mkdir(exist_ok=True)
+        self.write("b", {"slug": "b", "command": "sprint", "parent": "e", "children": []})
+        options = types.SimpleNamespace(poll=60, hang=30, max_wait=6, model=None, ceiling=120,
+                                        room=60)
+        orch.Launcher = FakeLauncher
+        return orch.Driver(orch.Run(self.runs / "b"), self.cwd, options)
+
+    def state(self, slug):
+        return json.loads((self.runs / slug / "run.json").read_text(encoding="utf-8"))
+
+    def test_the_session_that_decides_what_follows_is_named_in_the_epic(self):
+        driver = self.epic_with_batch()
+        with contextlib.redirect_stdout(io.StringIO()):
+            driver.hand_back(self.state("b"))
+        self.assertEqual(self.state("e").get("session"), "cc-e-advance")
+
+    def test_a_session_that_did_not_start_is_not_named(self):
+        """A name written for a session nobody started points the hook at a session that is not
+        there — and the epic's own `--resume` is what answers for this case."""
+        driver = self.epic_with_batch()
+
+        class Dead(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                return False
+
+        driver.launcher = Dead()
+        with contextlib.redirect_stdout(io.StringIO()):
+            driver.hand_back(self.state("b"))
+        self.assertIsNone(self.state("e").get("session"))
+
+
 class LauncherCase(unittest.TestCase):
     """A session name that is already taken.
 
@@ -1258,6 +1303,7 @@ class LauncherCase(unittest.TestCase):
         made.helper = None
         made.closer = None
         made.reclaimed = None
+        made.warned_closer = False
         made.calls = []
         made.alive = lambda _name: alive
         made.stop = lambda name: made.calls.append(("stop", name))
@@ -1272,6 +1318,55 @@ class LauncherCase(unittest.TestCase):
         self.assertEqual(made.reclaimed, "batch-advance")
         self.assertEqual(made.calls[0], ("stop", "batch-advance"))
         self.assertIn(("send", "/agent-kit:epic --advance x"), made.calls)
+
+    # ---- closing one ---------------------------------------------------------------------------
+
+    def closing(self, helper, closer, code=0, stderr=""):
+        made = orch.Launcher.__new__(orch.Launcher)
+        made.cwd, made.model, made.reclaimed = Path("."), None, None
+        made.helper, made.closer, made.warned_closer = helper, closer, False
+        made.killed = []
+        made.ran = []
+        made._tmux = lambda *args: made.killed.append(args) or types.SimpleNamespace(
+            returncode=0, stdout="", stderr="")
+        self._run = orch.subprocess.run
+        orch.subprocess.run = lambda args, **_kw: (
+            made.ran.append(tuple(args))
+            or subprocess.CompletedProcess(args, code, "", stderr))
+        self.addCleanup(lambda: setattr(orch.subprocess, "run", self._run))
+        return made
+
+    def test_the_helper_closes_it_and_tmux_is_not_asked(self):
+        """A registered session killed without being unregistered comes back: a watchdog put one
+        back a minute later, with `Continue from where you left off` typed into it."""
+        made = self.closing("/bin/claude-new", "/bin/claude-close")
+        made.stop("b-01")
+        self.assertEqual(made.ran, [("/bin/claude-close", "b-01")])
+        self.assertEqual(made.killed, [])
+
+    def test_a_helper_that_refused_is_not_overridden_with_a_kill(self):
+        made = self.closing("/bin/claude-new", "/bin/claude-close", code=1, stderr="not allowed")
+        with contextlib.redirect_stderr(io.StringIO()) as said:
+            made.stop("b-01")
+        self.assertEqual(made.killed, [])
+        self.assertIn("not allowed", said.getvalue())
+
+    def test_a_helper_with_no_closer_says_so_once(self):
+        """The kill still happens — there is nothing better — but a kill that may leave the session
+        registered is not a thing to do quietly."""
+        made = self.closing("/bin/claude-new", None)
+        with contextlib.redirect_stderr(io.StringIO()) as said:
+            made.stop("b-01")
+            made.stop("b-02")
+        self.assertEqual(len(made.killed), 2)
+        self.assertEqual(said.getvalue().count("may leave it registered"), 1)
+
+    def test_plain_tmux_says_nothing(self):
+        made = self.closing(None, None)
+        with contextlib.redirect_stderr(io.StringIO()) as said:
+            made.stop("b-01")
+        self.assertEqual(made.killed, [("kill-session", "-t", "agent-kit-b-01")])
+        self.assertEqual(said.getvalue(), "")
 
     def test_a_free_name_is_left_alone(self):
         made = self.launcher(alive=False)

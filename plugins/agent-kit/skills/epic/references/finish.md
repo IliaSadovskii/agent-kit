@@ -128,9 +128,12 @@ run may, because the merge has not happened. A live run read `--status` saying *
 work its finish still owed, carried that through four sessions of `--advance`, and there was never
 anything to do.
 
-Set `step: "done"` on the run file, and write the pull request's closing summary: what the product
-now does, which scenarios are proved and by which tests, what the audit left, every assumption taken
-without the owner, and what did not happen.
+Write the pull request's closing summary: what the product now does, which scenarios are proved and
+by which tests, what the audit left, every assumption taken without the owner, and what did not
+happen. **`step: "done"` goes last, after everything below is written**, and the same holds for
+`blocked`: the stop hook closes this session at the end of the first turn that finds the run
+terminal, because nothing else ever will. A step set first is a session closed with the summary
+still unwritten.
 
 **Do not offer a fresh review of the whole diff** — `${CLAUDE_PLUGIN_ROOT}/rules/pull-requests.md`
 settles that, and for a run the answer is no: this diff has been read twice with context nothing

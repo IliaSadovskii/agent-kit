@@ -3,6 +3,74 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.26.0
+
+**A finished `epic` left its last session standing for eight hours.** The session that decides what
+follows wrote `step: "done"`, reported to the window and said its closing line — and stayed up,
+because the one thing that closes it is a driver that never comes when nothing follows.
+
+- **The stop hook closes a session whose `epic` has finished.** It already resolves this session's
+  own run and matches it on `session`; a terminal `epic` on that field is a session with nothing
+  left to do. Only an `epic` — every other session the kit starts already has a closer that works.
+  A batch's driver now writes the hand-back session's name into the epic's run file, which is what
+  lets the hook find it, and the field stops speaking once that run is terminal and stale.
+
+- **The same hook now stands aside for an `epic` in flight.** Naming the session arms both halves of
+  the hook at once, and an epic's steps — `gate`, `building`, `auditing`, `proving` — are all
+  non-terminal by design: that session decides one batch, hands the building to a driver that
+  outlives it, and ends its turn on purpose. Refusing that stop would have left it two exits, both
+  wrong. Every other run of the same session is judged exactly as before.
+
+- **Closing a session means unregistering it, not killing its terminal.** `epic/SKILL.md` asked the
+  session to close itself with a bare `tmux kill-session`; on the machine this was measured on, a
+  watchdog restored the session a minute later and typed *Continue from where you left off* into it.
+  The helper is asked and **its answer is final** — a non-zero exit means either that it guards that
+  session or that it stopped part way, and killing over the top of either is how the defect returns.
+  Without a helper, tmux is the whole answer. The driver's own `Launcher.stop` had the same defect
+  and was changed with it: it called the helper, ignored the exit code and killed anyway, and where
+  it has `claude-new` without `claude-close` it now says once that the kill may leave the session
+  registered. The hook's timeout went to 30 seconds, because closing can stop a project's containers
+  on the way out.
+
+- **`epic` writes the finish into the pull request before it sets the step.** The order is now
+  load-bearing, and both files that carry the finish say so — the table in `SKILL.md` and
+  `references/finish.md`, which is the one being read at that moment. The description of the field
+  said *nothing depends on it*; that had been true since the field existed, and is not now.
+
+**A third of one run's assumptions never answered the field the kit acts on.** When a feature
+closes, the driver reads `expensive` and tells the owner's window which decisions it took with
+nobody to ask — while the batch is still running and can still be stopped. It tests that field for
+truth, so an unanswered one is indistinguishable from a cheap one: absent from 28 of the 73
+assumptions one run of 31 children recorded, including every one of a batch whose own prose says
+«дорого ошибиться» four times, none of which reached that window. Two of the 28 answered it under a
+name nothing reads. The template asked for the field by example; no program ever did. Argued, with
+what was measured and what was refused, in
+[docs/design/2026-08-19-the-gaps-in-what-is-known.md](docs/design/2026-08-19-the-gaps-in-what-is-known.md).
+
+- **`check.py` names each assumption that leaves `expensive` unanswered**, by what the record says
+  rather than by counting them, whenever a run file is judged — and **says so when `assumptions`
+  cannot be read as a list at all**, which it used to pass over in silence. `false` is an answer; a
+  value that is neither true nor false is a second finding with its own sentence, because the driver
+  has already acted on it. `templates/run.json` now documents the field rather than only showing it.
+
+- **The reviewer holds an expensive decision to the knowledge.** It already reads the run file's
+  assumptions and the entries it was given, and it is the only pass that holds both: `expensive:
+  true` with no `[assumed …]` block under its entry is a finding, pointed at the entry. Where the
+  assumption names no entry, that is what it says instead — the reviewer does not go reading entries
+  it was not given.
+
+- **A frame child's block gains a `Costs:` line** — a state or a distinction the entries ask for
+  that its own ruling makes impossible, or `nothing`. Measured on the same run: a frame gave the
+  batch one migration, the third feature recorded that two states its entry asks the product to show
+  could no longer be told apart, and the fourth drew one screen for both and wrote the difference
+  into the debt ledger, where it still is. `epic`'s gate holds every entry earlier, but it settles
+  prose rather than budgets; the frame child is the one that rules on how many migrations a batch
+  gets, and the only session that can still widen its own ruling. In the shape rather than in a
+  rule, because the shape is what gets copied.
+
+- **`sprint`'s closing reference no longer claims every assumption is also a block.** It never was —
+  the rule has always been the expensive ones.
+
 ## 2.25.0
 
 **A pull request carried somebody else's epic, and only a person reading the diff noticed.** A
