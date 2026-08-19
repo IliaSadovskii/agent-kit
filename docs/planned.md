@@ -425,6 +425,27 @@ project recorded zero assumptions between them, and the sharpest finding of the 
 from calling a live gateway by hand), and judging completeness at `epic`'s gate (it already prints
 every open block across the scope; what it cannot do is invent gaps nobody has hit).
 
+## 12. What a project can see about its own work — **shipped, and cut down twice**
+
+From [docs/design/2026-08-19-the-kinds-of-test-nobody-declares.md](design/2026-08-19-the-kinds-of-test-nobody-declares.md).
+`tests.visual`, `tests.contract` and `checks.sight_reviewed` are in the manifest; `blueprint` settles
+them in step 3, judging from the repository and not from `stack.md`; `check_sight` holds each to a
+verdict and a `no` to a date and a reason, printed under `--status` and `--state` and never as an
+exit code. The proposal that opened this item — a subagent at every build command's gate, seven kinds
+in a table, a four-way rule for where the work goes — was refused by two reviews and is written up in
+the note with the reasons.
+
+**The one that matters for anything proposed later**: the verdict of 17 August named three reasons
+for cutting a `tests:` table, and the draft answered two and dropped the third — *into a file only
+`blueprint` may write*. Every mechanism that asks a question has to name the writer of the answer
+before anything else, and a gate that cannot write is a gate that asks for ever.
+
+Left open, in the note: `no` is reopened by its date and by nothing else, so a project that grows a
+front end waits up to six months to be asked again; `contract` is one word for consuming an outside
+API and for publishing one; and nothing measures what any of this is worth — the claim that a run
+which cannot see a screen ships worse work is a belief, and what could be measured is how many
+defects reaching `accept` are visual, on projects with a `no` against projects with a `yes`.
+
 # Refused, with the reason
 
 Nothing here is an open question. Each was proposed, checked against the payload, and refused.

@@ -291,6 +291,7 @@ class Report:
         self.frame: list = []
         self.states: list = []
         self.unmet: list = []
+        self.sight: list = []
         self.debt: list = []
         self.manual: list = []
         self.drift: list = []
@@ -493,6 +494,119 @@ def substance(section: str) -> str:
     """
     body = HEADING_RE.sub("", section or "", count=1)
     return re.sub(r"\s+", " ", KEY_RE.sub("", body)).strip()
+
+
+# The two instruments nothing else in this kit can derive. Every other kind of verification is
+# already answered by `commands` and printed by `--tests`: `e2e`, `mutate`, `types` and `lint` are
+# either declared and running or declared and absent, and `print_tests` says which on one screen.
+# These two are not: a project can hold a full suite, a green pipeline and no way whatever to see
+# what a screen looks like or whether an outside API still answers the shape it answered last month.
+# Measured on three live projects on this kit — every one of them had both gaps, and on two of them
+# the tooling for the first was already installed and doing something else.
+SIGHT_KEYS = ("visual", "contract", "sight_reviewed")
+
+SIGHT = {
+    "visual": "whether anything compares what a screen looks like against what it looked like "
+              "before — the one class of defect a suite cannot reach, and the one an autonomous "
+              "run cannot see at all",
+    "contract": "whether anything checks that the outside services this product talks to — or the "
+                "API it publishes — still answer the shape the code expects. Stand-ins keep every "
+                "test green through a change nobody made",
+}
+
+
+def check_sight(root: Path, manifest: dict, report: Report) -> None:
+    """Whether the owner has ever decided what this project is able to see about its own work.
+
+    **This is a decision and not an inventory**, which is the whole reason it is declared rather than
+    derived. A `tests:` table of what a project has was proposed on 17 August 2026 and cut the same
+    day: what exists can be read off `commands` and is, by `print_tests`. What cannot be read off
+    anything is whether anybody ever looked at the gap and said yes or no to it.
+
+    So `no` is a real answer and is meant to be a common one — an API with no interface has nothing
+    to look at, and a product that calls nothing outside itself has no contract to hold. It carries
+    a date and a reason, and the date is the point: a `no` written when the product had no front end
+    is not a decision about the product that grew one, and without a date nothing can tell those two
+    apart. That is the failure mode of the audit's own `declined`, which stays declined for ever and
+    is right to, because a lens judges coverage of a description and not the passage of time.
+
+    **Only `blueprint` may write any of this** — `rules/channels.md`, and it is why no build command
+    asks the question: a gate that asked would have nowhere to put the answer, and would ask again
+    on the next run for ever. What a build command does with a stale date is one row of
+    `rules/preflight.md`: name it and offer the command that can close it.
+    """
+    tests = manifest.get("tests")
+    tests = tests if isinstance(tests, dict) else {}
+    commands = manifest.get("commands")
+    commands = commands if isinstance(commands, dict) else {}
+    checks = manifest.get("checks") or {}
+
+    for name, what in SIGHT.items():
+        declared = str(commands.get(name) or "").strip()
+        verdict = str(tests.get(name) or "").strip()
+        if declared:
+            # A command is the answer, and it answers by being runnable: `yes` was a word, and a
+            # word proved nothing — a project could carry `visual: yes` with no visual test in it
+            # and every check in this kit would agree. The same rule the other commands live under.
+            defect = command_defect(root, declared)
+            if defect:
+                report.sight.append(f"`commands.{name}: {declared}` says this project can see "
+                                    f"this, and {defect}")
+            if verdict:
+                report.sight.append(f"tests.{name} is a refusal and `commands.{name}` is a "
+                                    f"command — a project cannot both refuse this and run it, and "
+                                    f"nothing here can say which one is true today")
+            continue
+        if not verdict:
+            report.sight.append(f"neither `commands.{name}` nor `tests.{name}` — {what}. A command "
+                                f"that proves it, or `no` with a date and a reason; silence is not "
+                                f"an answer, because nothing can tell it from nobody having looked")
+            continue
+        if not verdict.lower().startswith("no"):
+            report.sight.append(f"tests.{name}: `{verdict}` — the only thing this field takes is a "
+                                f"refusal, written `no <date> <reason>`. Anything else is a claim "
+                                f"that this project can see something, and a claim belongs in "
+                                f"`commands.{name}`, where the check can start it")
+            continue
+        rest = verdict[2:].strip(" :—-")
+        if not sight_date(rest):
+            report.sight.append(f"tests.{name}: `{verdict}` — a `no` carries the date it was "
+                                f"decided, so a later run can tell a decision about this "
+                                f"product from one about the product it used to be")
+        elif len(re.sub(r"\d{4}-\d{2}-\d{2}", "", rest).strip(" :—-")) < 4:
+            report.sight.append(f"tests.{name}: `{verdict}` — a `no` with no reason holds "
+                                f"nobody to anything, and is the one thing a later reader "
+                                f"cannot argue with")
+
+    reviewed = checks.get("sight_reviewed")
+    if not reviewed:
+        if any(str(tests.get(n) or "").strip() or str(commands.get(n) or "").strip() for n in SIGHT):
+            report.sight.append("checks.sight_reviewed is empty and the verdicts are not — nothing "
+                                "says when they were taken, so nothing can say when they are old")
+        return
+    try:
+        when = dt.date.fromisoformat(str(reviewed))
+    except ValueError:
+        report.sight.append(f"sight_reviewed is not a date: {reviewed}")
+        return
+    if (dt.date.today() - when).days > 182:
+        report.sight.append(f"reviewed {reviewed} — over six months ago, and a project grows "
+                            f"surfaces. /agent-kit:blueprint settles it with the owner")
+
+
+def sight_date(text: str):
+    """The date inside a verdict, or `None`. Written for `no 2026-08-19 the API has no interface`.
+
+    A whole line of prose is not searched for meaning — only for a date, which is the one thing here
+    a program may judge. Everything else in the verdict is for the owner and for the pull request.
+    """
+    found = re.search(r"\d{4}-\d{2}-\d{2}", text or "")
+    if not found:
+        return None
+    try:
+        return dt.date.fromisoformat(found.group(0))
+    except ValueError:
+        return None
 
 
 def check_stack(root: Path, manifest: dict, report: Report) -> None:
@@ -1849,7 +1963,12 @@ def check_shape(root: Path, docs: list, manifest: dict, report: Report) -> None:
             report.shape.append(f"{MANIFEST} has no `{key}` — the template does, so nothing here "
                                 f"answers what it records")
         elif isinstance(value, dict) and isinstance(manifest.get(key), dict):
-            gone = [k for k in value if k not in manifest[key]]
+            # `check_sight` owns its own three keys, and says something different about them: this
+            # section means *behind, and not yours to move*, while an unanswered verdict is a
+            # question for the owner that `blueprint` can close today. Reported by both, the same
+            # fact arrived twice in two voices, one of them telling the run to carry on and the
+            # other asking it to stop and offer a command.
+            gone = [k for k in value if k not in manifest[key] and k not in SIGHT_KEYS]
             if gone:
                 report.shape.append(f"{MANIFEST} → `{key}` is missing {', '.join(gone)}")
 
@@ -2448,6 +2567,10 @@ WHO_RUNS = {
     "mutate": "every feature, over the files that feature changed",
     "e2e": "an epic's proving phase, and the audit's scenarios lens — never a feature (the guard "
            "hook refuses it) and never a batch's closing session",
+    "visual": "every feature that changes a screen, in its own session",
+    "contract": "an epic's proving phase, and whatever pipeline this project runs on a push — "
+                "never a feature, because it calls the real service and costs a key and money per "
+                "child",
     "run": "every feature with a surface a person can reach, and an epic's fresh checkout",
 }
 
@@ -2568,9 +2691,34 @@ def print_tests(root: Path, manifest: dict) -> int:
     if described:
         print(f"  scenarios: {described} described, {described - len(uncovered)} carry a marked "
               f"end-to-end test. The marker says a test exists and never that it ran.")
+    print_sight(manifest)
     print("  Not here: what each of these costs. Nothing measures that yet, and an unmeasured "
           "number is worse than none.")
     return 0
+
+
+def print_sight(manifest: dict) -> None:
+    """The two verdicts on this screen, because this is the screen somebody reads about testing.
+
+    Printed as the verdict and nothing else — a `no` is not a finding here and is not dressed as
+    one. Whether a verdict is missing or stale is `check_sight`'s business, and it is said where
+    findings are said rather than twice in two voices.
+    """
+    tests = manifest.get("tests")
+    tests = tests if isinstance(tests, dict) else {}
+    commands = manifest.get("commands")
+    commands = commands if isinstance(commands, dict) else {}
+    # Only the refusals. The loop above already printed every command and said `not declared` where
+    # there is none, and a second line saying the same thing in other words is how a screen teaches
+    # its reader to skim. What it cannot know is that an absence here was *decided*.
+    refused = [(name, str(tests.get(name) or "").strip()) for name in SIGHT
+               if not str(commands.get(name) or "").strip() and str(tests.get(name) or "").strip()]
+    for name, verdict in refused:
+        print(f"      {name}: {verdict}")
+    if refused:
+        reviewed = (manifest.get("checks") or {}).get("sight_reviewed")
+        print(f"      a refusal is asked again after six months — last taken "
+              f"{reviewed or 'on a date nothing records'}.")
 
 
 WHERE_MARK = "<!-- agent-kit:where -->"
@@ -2605,6 +2753,22 @@ def where_line(root: Path) -> None:
           "session that is not a command of it may begin without knowing there is a description at "
           "all. /agent-kit:blueprint writes the block between its markers and touches nothing else "
           "in that file.")
+
+
+def sight_lines(report: Report) -> None:
+    """The unanswered verdicts, and only where somebody can act on them.
+
+    **Printed under `--status` and `--state` and nowhere else**, which is the same seam
+    `outside_line` uses and for the same reason: `ship` runs the check bare, six times a night, in
+    sessions with nobody watching and no right to write `project.yml` anyway. Said there it is noise
+    that trains a run to scroll past its own preflight; said at the gate of an `epic` or a `sprint`,
+    where a person just typed the command, it is a question they can close in a minute.
+
+    Never an exit code. An unanswered verdict is not a defect in the project — it is a decision its
+    owner has not been asked for yet, and every project adopted before this field existed has two.
+    """
+    for line in report.sight:
+        print(f"  {line}")
 
 
 def outside_line(root: Path, manifest: dict) -> None:
@@ -3204,6 +3368,7 @@ def main(argv: list | None = None) -> int:
     check_orphans(docs, report)
     check_sources(root, docs, report)
     check_stack(root, manifest, report)
+    check_sight(root, manifest, report)
     check_commands(root, manifest, report)
     check_verdicts(manifest, report)
     check_runs(root, report)
@@ -3295,6 +3460,7 @@ def main(argv: list | None = None) -> int:
             print_audits(report)
         if options.status or options.state:
             outside_line(root, manifest)
+            sight_lines(report)
             where_line(root)
         # A `[stale …]` is a statement and leaves the report clean, so a run that asked about its
         # own entries is answered here too — otherwise the one call it makes goes silent on exactly
@@ -3312,6 +3478,7 @@ def main(argv: list | None = None) -> int:
         print_audits(report)
     if options.status or options.state:
         outside_line(root, manifest)
+        sight_lines(report)
         where_line(root)
     for group, lines in report.groups.items():
         print(f"\n{group}:")

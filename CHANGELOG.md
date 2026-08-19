@@ -3,6 +3,70 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.27.0
+
+**A project could own no way at all to see a whole class of its own work, and nothing anywhere
+recorded that anybody had decided that.** Every other question about testing this kit asks is
+derived — `commands` says what runs, `--tests` prints who runs it and when, `mutate` says whether a
+test can fail. Two are not derivable from anything: whether a screen is ever compared against what
+it looked like before, and whether the services this product calls — or the API it publishes — are
+ever checked against the shape the code expects. A suite stays green through both. An autonomous run
+cannot see either, and the first eyes on what it built are the owner's, batches later.
+
+- **`project.yml` → `commands.visual` and `commands.contract`, or a dated refusal in `tests`.** A
+  claim that this project can see something is **a command, never a word**: `visual: yes` would have
+  been a string no program could check, and a project could carry it with no visual test in it while
+  every check in this kit agreed. So the claim goes where the other commands live and is held to the
+  same rule — it has to start. Where there is none, `tests.visual` / `tests.contract` take
+  `no <date> <reason>` and nothing else, and `checks.sight_reviewed` dates the pair. The date is the
+  difference between this and the audit's `declined`, which is right to stay declined for ever and
+  is why a whole class of surface can go unproven with nothing recording it.
+
+- **And the commands are run, which is the point of them being commands.** `ship` runs `visual` on
+  a feature that changed a screen — a new step, and the only one that judges what was built rather
+  than what it returns: every assertion in a suite is about a value, and a collapsed layout returns
+  the same values it did yesterday. Where there is no such command and a screen did change, the run
+  says so — the one place a night can report that what it built went unseen. `contract` belongs to an epic's
+  proving phase, never to a feature: it calls the real service, so it costs a key and money per
+  child, and forty children would spend both for one answer. That phase is now the single moment in
+  a whole epic when anything talks to the real thing — everything else it proved went through
+  stand-ins, and a service that changed its answer mid-run is invisible until then.
+
+- **`blueprint` walks the whole question in step 3**, in the same research pass that already settles
+  `tests.unmet`, `commands.mutate` and `commands.e2e`: not *does this project have tests* but **what
+  classes of defect could reach the owner with nothing here noticing** — the suite, the end-to-end
+  proof, whether a test can fail at all, static analysis, the project's own architecture rules, the
+  screen, the outside contract. No fixed list, because the list is a fact about a stack and not
+  about this kit. What comes out goes three ways: **a line in `project.yml`** for an instrument
+  already installed and undeclared, **the two verdicts** for what nothing can derive, and
+  **everything else as priced work** — debt or a named task, at most one at a time, cheapest first,
+  and the owner chooses. Storing more than the two would be a second source of truth against
+  `commands`, with nobody to arbitrate. It **judges from the repository, never from `stack.md`**. Measured on three live projects: one slot said mutation testing was not
+  installed while the plugin was a hard dependency of the test runner and the config had already
+  been tuned for it; another carried two hundred lines of Playwright walking every screen in two
+  viewports and asserting nothing, mentioned in no document. On both, the cheapest finding was an
+  instrument installed, configured and never declared — one line in the manifest and no work at all.
+
+- **`check.py` holds each to a verdict, and a `no` to a date and a reason** — and judges nothing
+  else, because the reason is prose and the reason is the owner's. Printed under `--status` and
+  `--state` only, the same seam `outside_line` uses and for the same reason: said in a feature's
+  bare check six times a night it is noise in sessions that may not write `project.yml` anyway; said
+  once at a gate a person typed, it is a question they close in a minute. Never an exit code — every
+  project adopted before this field existed has two unanswered verdicts, and none of them is broken.
+
+- **One row in `rules/preflight.md`, and it forbids asking.** The build commands name the gap and
+  offer `/agent-kit:blueprint`, which is the same shape the table already uses for a declared command
+  that starts nothing. A question asked where the answer cannot be written would be asked again on
+  every run for ever — which is what the earlier version of this proposal did, and why it was cut.
+
+- **The shape check stands aside on these three keys.** It reports a manifest written by an older
+  kit, and `preflight.md` reads that as *behind, and not yours to move*. An unanswered verdict is
+  the opposite: a question for the owner that one command can close today. Reported by both, the
+  same fact arrived twice in two voices, one telling the run to carry on and the other to stop.
+
+The argument, the two reviews that cut it down to this, and what was refused along the way are in
+[docs/design/2026-08-19-the-kinds-of-test-nobody-declares.md](docs/design/2026-08-19-the-kinds-of-test-nobody-declares.md).
+
 ## 2.26.0
 
 **A finished `epic` left its last session standing for eight hours.** The session that decides what

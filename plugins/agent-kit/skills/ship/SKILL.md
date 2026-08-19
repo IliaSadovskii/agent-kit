@@ -308,7 +308,15 @@ language.
    of them is on a line of the entry, that line is not covered whatever the coverage says, and it
    is worth the test before you go on.
 
-4. **Start the app** with `project.yml` → `commands.run` **and exercise what changed**, when the
+4. **Look at the screen, if this feature changed one** — `project.yml` → `commands.visual`. It is
+   the only step that judges what was built rather than what it returns, and it is the one class of
+   defect the suite above cannot reach: every assertion in it is about a value, and a layout that
+   collapsed returns exactly the same values it did yesterday. Into `suite`, beside the rest. No
+   such command and no screen changed: say so in one line and move on. **No such command and a
+   screen did change: say that too** — it is the only place a run can report that what it built
+   went unseen, and a night of those is what `blueprint` is for.
+
+5. **Start the app** with `project.yml` → `commands.run` **and exercise what changed**, when the
    feature has a surface a person can reach. A
    green suite on an app that does not start is exactly what this catches. Say so when there is no
    such surface. Either way it goes into `suite` beside the test and lint results — what you opened

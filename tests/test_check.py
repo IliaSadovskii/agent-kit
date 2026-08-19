@@ -7,6 +7,7 @@ here is shown failing on a document that breaks it and silent on one that does n
 """
 
 import contextlib
+import datetime as dt
 import importlib.util
 import json
 import io
@@ -2658,6 +2659,103 @@ class CommandsCase(unittest.TestCase):
 
     def test_a_subshell_is_punctuation_and_not_a_tool(self):
         self.assertEqual(self.defect("(cd app && python3 -m pytest)"), "")
+
+
+class SightCase(unittest.TestCase):
+    """The two verdicts nothing in this kit can derive, and the date that says when they were taken.
+
+    A `tests:` table of what a project *has* was cut on 17 August 2026 — what exists is read off
+    `commands` and printed by `--tests`. These two are the other thing: whether anybody looked at
+    the gap and decided. So the program holds each to a verdict, holds a `no` to a date and a
+    reason, and judges nothing else — the reason itself is prose and is for the owner.
+    """
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.root = self.tmp / "proj"
+        self.root.mkdir(parents=True)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def findings(self, tests=None, checks=None, commands=None):
+        report = check.Report()
+        manifest = {}
+        if tests is not None:
+            manifest["tests"] = tests
+        if checks is not None:
+            manifest["checks"] = checks
+        if commands is not None:
+            manifest["commands"] = commands
+        check.check_sight(self.root, manifest, report)
+        return report.sight
+
+    def test_silence_is_a_finding_on_both(self):
+        found = self.findings()
+        self.assertEqual(len(found), 2)
+        self.assertTrue(any("tests.visual" in line for line in found))
+        self.assertTrue(any("tests.contract" in line for line in found))
+
+    def test_a_command_that_runs_is_the_whole_answer(self):
+        """`yes` was a word: a project could carry `visual: yes` with no visual test in it and every
+        check in this kit agreed. A command is held to the same rule as every other command here —
+        it has to start."""
+        self.assertEqual(self.findings(commands={"visual": "echo looked", "contract": "echo held"},
+                                       checks={"sight_reviewed": str(dt.date.today())}), [])
+
+    def test_a_command_that_starts_nothing(self):
+        found = self.findings(commands={"visual": "make visual", "contract": "echo held"},
+                              checks={"sight_reviewed": str(dt.date.today())})
+        self.assertTrue(any("no makefile" in line for line in found))
+
+    def test_a_word_where_a_command_belongs(self):
+        found = self.findings({"visual": "yes", "contract": "no 2026-08-19 — no API here at all"},
+                              {"sight_reviewed": str(dt.date.today())})
+        self.assertTrue(any("belongs in `commands.visual`" in line for line in found))
+
+    def test_refusing_and_running_it_at_once(self):
+        found = self.findings({"visual": "no 2026-08-19 — no screens in this repository"},
+                              {"sight_reviewed": str(dt.date.today())},
+                              {"visual": "echo looked", "contract": "echo held"})
+        self.assertTrue(any("cannot both refuse this and run it" in line for line in found))
+
+    def test_a_no_carries_a_date_and_a_reason(self):
+        """Without the date, a `no` taken when the product had no front end reads for ever as a
+        decision about the product that grew one — which is the audit's `declined` all over again."""
+        found = self.findings({"visual": "no — nothing to look at"}, commands={"contract": "echo held"})
+        self.assertTrue(any("carries the date" in line for line in found))
+
+    def test_a_dated_no_with_no_reason_is_a_finding(self):
+        found = self.findings({"visual": "no 2026-08-19"}, commands={"contract": "echo held"})
+        self.assertTrue(any("no reason" in line for line in found))
+
+    def test_a_dated_no_with_a_reason_passes(self):
+        self.assertEqual(
+            self.findings({"visual": "no 2026-08-19 — API only, no interface in this repository"},
+                          {"sight_reviewed": str(dt.date.today())},
+                          {"contract": "echo held"}), [])
+
+    def test_verdicts_without_a_date_of_their_own(self):
+        found = self.findings(commands={"visual": "echo looked", "contract": "echo held"})
+        self.assertTrue(any("sight_reviewed is empty" in line for line in found))
+
+    def test_a_date_over_six_months_old(self):
+        old = dt.date.today() - dt.timedelta(days=200)
+        found = self.findings(commands={"visual": "echo looked"}, checks={"sight_reviewed": str(old)},
+                              tests={"contract": "no 2026-08-19 — nothing outside this app"})
+        self.assertTrue(any("over six months ago" in line for line in found))
+
+    def test_a_date_that_is_not_one(self):
+        found = self.findings(commands={"visual": "echo looked", "contract": "echo held"},
+                              checks={"sight_reviewed": "soon"})
+        self.assertTrue(any("not a date" in line for line in found))
+
+    def test_a_tests_key_that_is_not_a_map(self):
+        """`tests: ` left as a bare key parses to None, and a program that crashed here would take
+        every command of the kit down on that project."""
+        report = check.Report()
+        check.check_sight(self.root, {"tests": None, "checks": None}, report)
+        self.assertEqual(len(report.sight), 2)
 
 
 class ManualCase(unittest.TestCase):
