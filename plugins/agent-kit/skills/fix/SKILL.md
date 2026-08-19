@@ -103,7 +103,14 @@ reverted without taking the refactor with it.
    run never leaves it empty. Where the project names none, undo the fix by hand and watch the test
    fail again. Both answer the same question; the difference is that one of them is a program's
    answer and the other is yours, which is why the program wins wherever it exists.
-3. Start the app and exercise the path, when the defect has a surface a person can reach. What you
+3. **Whatever else this project checks itself for** — `check.py . --owed` prints the list, with the
+   command for each. A defect on a screen owes
+   that screen's comparison exactly as a feature would; nothing about a fix makes it cheaper to ship
+   unseen. One record per kind into `verified`: `kind`, the `command` as you ran it, and `result` —
+   or `why` it cannot apply to this change. The check refuses a finished run that is silent about
+   one, and it holds a `fix` to this for the same reason it holds a `ship`.
+
+4. Start the app and exercise the path, when the defect has a surface a person can reach. What you
    opened and what you saw goes in `suite` — "not exercised" is an answer, silence is not.
 
 ## Deliver

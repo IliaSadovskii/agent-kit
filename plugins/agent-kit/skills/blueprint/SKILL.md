@@ -264,58 +264,43 @@ usually fills a screen, several actions and an entity at once.
    empty where nothing fits: a run then says the step did not happen, which is honest, where a
    whole-project command that takes an hour is a step every night quietly skips.
 
-   **Then walk what this project can prove about itself, end to end**, because the research that
-   answers it is the research you are already doing. The question is not *does it have tests* — the
-   suite is already declared above. It is **what classes of defect could reach the owner without
-   anything here noticing**, which is the ceiling on every autonomous run this project will ever
-   have: a run that cannot see a thing cannot be asked to get it right.
+   **Then walk `${CLAUDE_PLUGIN_ROOT}/verification.yml` with the owner, top to bottom.** It lists
+   every kind of verification this kit knows about — what each one catches, which session runs it,
+   and the shape of project it does not apply to. The list is the kit's; the answers are this
+   project's, and they go into `project.yml` → `verification`, one line per kind:
 
-   Walk all of them, whatever this project's stack calls them — the suite itself, whatever proves
-   the product end to end, whether a test is able to fail at all, static analysis and type checking,
-   the rules the project wrote down about its own architecture, what compares a screen against how
-   it looked before, what holds an outside service or a published API to the shape the code expects.
-   The list is not fixed anywhere and is not meant to be: judge what this product could break in and
-   what would catch it.
+   ```yaml
+   verification:
+     visual: npx playwright test --grep @visual
+     contract: no 2026-08-19 — calls nothing outside itself and publishes no API
+   ```
 
-   **Judge them from the repository, never from `stack.md`.** Measured on three live projects: one
-   slot said mutation testing was not installed while the plugin was a hard dependency of the test
-   runner and the config had already been tuned for it; another project carried two hundred lines of
-   Playwright walking every screen in two viewports and asserting nothing, and no document mentioned
-   the file. So read the dependency manifests, the test directories, the CI workflows and the
-   scripts — the cheapest finding on both projects was an instrument installed, configured, and
-   never declared, which is one line in this file and no work at all.
+   **An answer is a command or a dated refusal, and never a word.** `yes` is a claim no program can
+   test, and this kit has already paid for one of those — a child met a declared suite that would
+   not start, at three in the morning. A command is checked for starting, like every other command
+   in that file. A refusal carries the date because *there is no front end* stops being true the
+   week there is one, and the check asks again after six months or as soon as a dependency manifest
+   moves.
 
-   **What comes out of the walk goes to three different places, and telling them apart is the whole
-   job:**
+   **Judge from the repository, never from `stack.md`.** Measured on three live projects: one slot
+   said mutation testing was not installed while the plugin was a hard dependency of the test runner
+   and the config had already been tuned for it; another carried two hundred lines of Playwright
+   walking every screen in two viewports and asserting nothing, named in no document. Read the
+   dependency manifests, the test directories, the CI workflows, the scripts. **The cheapest finding
+   on two live projects was an instrument installed, configured and never declared** — one line
+   here, and every run afterwards starts using it.
 
-   - **A line in `project.yml`, and nothing else.** An instrument already installed and working that
-     this file does not declare — so no run of this kit has ever started it. Measured on two live
-     projects, this was the cheapest finding both times: a mutation runner shipped as a hard
-     dependency of the test framework with the config already tuned for it, and a browser suite of
-     fifteen specs with no `commands.e2e` naming it. Write the line. It costs nothing and it changes
-     what every run after this can do.
-   - **`commands.visual` and `commands.contract`, or a dated refusal.** These two are the only
-     places this kit asks for an answer rather than deriving one, because they are the only two it
-     cannot see for itself — everything else is read off `commands` on every check. **A claim is a
-     command, never a word**: write what actually compares a screen against its baseline, or what
-     actually calls the real service, and the check holds it to starting like every other command
-     here. Where there is none, `tests.visual` / `tests.contract` take `no <date> <reason>` and
-     nothing else. `no` is often the right answer — an API with no interface has nothing to look at
-     — and the date is what brings the question back in six months, because a refusal taken when
-     the product had no front end is not a decision about the product that grows one. Then
-     `checks.sight_reviewed`, today.
-   - **Everything else, as work — and priced.** An instrument this project lacks is a task, not a
-     line: `docs/technical_debt.md` when the owner defers it, a named task when they want it now.
-     Say what each would cost here and what it would catch, and say plainly where it is expensive or
-     risky — static analysis dropped onto a mature codebase reports hundreds of findings on
-     untouched code; visual baselines over a page that waits on a live model flake from the first
-     day; holding a paid API to its contract needs a key in CI and costs money per run. **At most
-     one at a time, the cheapest first, and the owner chooses.** An interview that turned into an
-     installation is an interview nobody finishes.
+   Per kind, propose rather than ask: what is already here, what it would take, and your
+   recommendation. Where the kind is missing, say what it would cost and what it would catch, and
+   say plainly where it is expensive — static analysis dropped on a mature codebase reports hundreds
+   of findings on untouched code, visual baselines over a page that waits on a live model flake from
+   the first day, holding a paid API to its contract needs a key in CI and money per run. **What is
+   offered is the decision, never the work**: standing an instrument up is a task of its own —
+   `docs/technical_debt.md` when the owner defers it, a named task when they want it now — at most
+   one at a time, cheapest first. An interview that turned into an installation is an interview
+   nobody finishes.
 
-   Propose, never ask: bring what you found, what it would take *here*, and your recommendation —
-   *Playwright is already installed and this script already walks every screen, so visual regression
-   is baselines and a comparison, not a new tool*.
+   Then write `checks.verification_reviewed` with today's date.
 
    **And ask what runs the scenarios end to end** — the one testing question a draft cannot answer.
    Everything else in the testing section is derived: the layers, the seams, the bar all come from

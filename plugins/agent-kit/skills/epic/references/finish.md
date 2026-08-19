@@ -92,12 +92,15 @@ code it is about to judge. A scenario whose test
 fails is a `fix`, and its cause is the most valuable thing this run will produce — it is a break at
 a join, which no test written at the level of one feature can see.
 
-**And run `commands.contract` here, once, if the project declares one.** It is the only step in the
-kit that calls the real outside services rather than a stand-in — which is why no feature runs it: a
-key and money per child, spent forty times for one answer. Everything this product proved all epic
-long went through fakes, so this is the single moment anybody finds out that a service changed its
-answer while the run was building against the old one. No such command: say so in one line, because
-*nothing here ever called the real thing* is a fact about the finish and not a defect of it.
+**And run the kinds this project answered for whose `runs` is `epic`** — `project.yml` →
+`verification`, against `${CLAUDE_PLUGIN_ROOT}/verification.yml`. They are gathered here rather than
+run per feature because each of them costs something a feature may not spend forty times: a key and
+money for the real outside services, an hour for a performance walk, a scan that only means anything
+against the finished product. This is the single moment in a whole epic when anything talks to the
+real world — everything it proved until now went through stand-ins, so a service that changed its
+answer mid-run is invisible until this step. Report each by name with what it returned, and where
+the project refused a kind, say that in one line: *nothing here ever called the real thing* is a
+fact about the finish rather than a defect of it.
 
 **Start the application once, with `commands.run`, and walk what the scenarios walk.** A green suite
 over an application that does not boot is exactly what this step exists to catch, and it is the last

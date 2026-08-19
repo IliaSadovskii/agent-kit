@@ -1,0 +1,91 @@
+# Every way a project can find out it is wrong before its owner does.
+#
+# Read by `scripts/check.py`, which holds a project's answers against this list, and by
+# `/agent-kit:blueprint`, which walks it with the owner. One file, two readers: a kind added here
+# starts being asked of every project on its next check, where a list copied into each manifest
+# would have to be remembered into all of them by hand.
+#
+# **This is the set of questions, never the answer for any project.** Most projects decline several,
+# and a decline with a date and a reason is a complete answer.
+#
+# Per kind, one line per value — the manifest reader here takes no wrapped strings:
+#   command — OPTIONAL, and only where this kind already has a home in `project.yml` → `commands`:
+#             the key it lives under. Those five are answered there and nowhere else, because one
+#             fact with two homes is a fact that will disagree with itself — a project with a
+#             working suite wired into CI must never be told nobody has been asked about it. The
+#             refusal for such a kind still lives in `verification`, since `commands` has nowhere
+#             to put a reason.
+#   catches — what reaches the owner if nothing covers it. The defect, never a tool: tools differ
+#             per ecosystem and this file may not.
+#   runs    — `feature` (every `ship` whose change touches it) or `epic` (the proving phase, once,
+#             where the real world may be called and paid for).
+#   skip_when — the shape of project this does not apply to. Guidance for the interview; the program
+#             never applies this line itself, because only the owner may decline.
+#
+# Adding a kind: append it with all three keys, and every project starts being asked on its next
+# check. Removing one: delete the entry and the test that names it, in one commit.
+
+suite:
+  command: test
+  catches: logic that returns the wrong answer — the ordinary defect, and the only one most projects test for
+  runs: feature
+  skip_when: never — a project with no suite has no floor at all, and an epic will not start without one
+
+end_to_end:
+  command: e2e
+  catches: a product whose parts each work and which does not work — the joins between them
+  runs: epic
+  skip_when: the product is one piece with no joins, or its scenarios are walked by hand
+
+mutation:
+  command: mutate
+  catches: a test that asserts nothing — written after the code, never seen red, passing whatever the code already did
+  runs: feature
+  skip_when: this ecosystem has no off-the-shelf mutation runner
+
+types:
+  command: types
+  catches: a value that is not the shape the code assumed, caught before anything runs
+  runs: feature
+  skip_when: the language has no type checker worth running
+
+lint:
+  command: lint
+  catches: code that works and that the next session will read wrongly
+  runs: feature
+  skip_when: never in practice — every ecosystem has one
+
+static_analysis:
+  catches: what types cannot see — a null arriving three calls away, an unreachable branch, a query built from user input
+  runs: feature
+  skip_when: the tool would report hundreds of findings on untouched code and the owner has not chosen to pay that down
+
+architecture:
+  catches: work that is correct and in the wrong place — a boundary crossed, a layer skipped, a rule the project wrote about itself and broke
+  runs: feature
+  skip_when: the project has written down no rules about its own structure
+
+visual:
+  catches: a screen that renders wrongly while returning exactly the values it returned yesterday
+  runs: feature
+  skip_when: the product has no interface, or its interface is not in this repository
+
+contract:
+  catches: an outside service that changed its answer, or a published API that drifted from the document describing it
+  runs: epic
+  skip_when: the product calls nothing outside itself and publishes no API
+
+performance:
+  catches: work that is correct and too slow to use — a query per row, a page that grows with the data behind it
+  runs: epic
+  skip_when: no path here has a speed anybody would call a defect
+
+accessibility:
+  catches: an interface unusable by keyboard, by a screen reader, or at a contrast a person can see — it fails silently for the people it fails
+  runs: feature
+  skip_when: the product has no interface
+
+security:
+  catches: a dependency with a known hole, a secret committed, a permission claimed and not enforced
+  runs: epic
+  skip_when: nothing here is reachable by anybody but the owner and nothing of value is stored

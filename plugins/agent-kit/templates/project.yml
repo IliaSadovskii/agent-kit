@@ -34,22 +34,6 @@ commands:                         # the project's real commands; the only place 
                                   # is standing and the price of a run is being named: without it
                                   # the finish line is somebody's hands on a phone rather than a
                                   # green suite, and that is a fact about the run, not a defect.
-  visual:                         # what compares a screen against how it looked before. The one
-                                  # class of defect a suite cannot reach: a run with no such command
-                                  # ships a screen nobody has looked at, and the first eyes on it
-                                  # are the owner's, batches later. Often not a new tool — a browser
-                                  # runner already here usually does it with a flag and a folder of
-                                  # baselines. Every feature that changes a screen runs it.
-                                  #   visual: npx playwright test --grep @visual
-  contract:                       # what holds the outside services this product calls — or the API
-                                  # it publishes — to the shape the code expects. Every other test
-                                  # goes through a stand-in and stays green through a change nobody
-                                  # made. It calls the real thing, so it costs a key and money per
-                                  # run: a batch's closing session and an epic's proving phase run
-                                  # it, never a feature.
-                                  #
-                                  # Empty is NOT a silent answer for these two, the way it is for
-                                  # `e2e`: write the refusal in `tests` below, with a date.
   mutate:                         # what proves the tests can fail: it changes the product's own
                                   # logic in small valid ways and reports how many of those changes
                                   # the suite noticed. A test written after the code and never seen
@@ -82,20 +66,6 @@ tests:
                                   #     php: "->todo()"
                                   #     js: test.failing
 
-  visual:                         # ONLY a refusal: `no <date> <reason>`, and only where
-  contract:                       # `commands.visual` / `commands.contract` above is empty. A claim
-                                  # that this project can see something goes in the command, where
-                                  # the check starts it and every run can use it — `yes` was a word,
-                                  # and a word proved nothing.
-                                  #
-                                  # `no` is a real answer and often the right one: an API with no
-                                  # interface has nothing to look at. The date is the point — a
-                                  # refusal written when the product had no front end is not a
-                                  # decision about the product that grew one, and after six months
-                                  # the check asks again.
-                                  #   visual: no 2026-08-19 — API only, no interface in this repo
-                                  # Only /agent-kit:blueprint writes these, with the owner there.
-
 knowledge:                        # one verdict per slot: filled | not_applicable | open_question
   product: open_question          # not_applicable and open_question carry a reason after the value
   actors: open_question
@@ -106,9 +76,31 @@ knowledge:                        # one verdict per slot: filled | not_applicabl
   scenarios: open_question
   stack: open_question
 
+verification:                     # one line per kind of verification the kit knows about — the
+                                  # list is `verification.yml` inside the plugin, NOT here, so a
+                                  # kind added to the kit starts being asked of this project by
+                                  # itself. /agent-kit:blueprint walks that list with the owner and
+                                  # writes the answers.
+                                  #
+                                  # Each answer is one of two things and never a word:
+                                  #   <kind>: <the command that runs it here>
+                                  #   <kind>: no <date> <why this project does not need it>
+                                  # A command is checked for starting, exactly like the ones above
+                                  # — `yes` would be a claim nothing can test. A refusal carries a
+                                  # date because *there is no front end* stops being true the week
+                                  # there is one, and after six months the check asks again.
+                                  #
+                                  #   visual: npx playwright test --grep @visual
+                                  #   contract: no 2026-08-19 — calls nothing outside itself
+                                  #
+                                  # A kind whose `runs` is `feature` is run by every ship whose
+                                  # change touches it, and the run records what it returned; a kind
+                                  # whose `runs` is `epic` is run once, in the proving phase.
+
 checks:
+  verification_reviewed:          # date the answers above were last taken with the owner. --check
+                                  # names it past six months, and names it sooner when a dependency
+                                  # manifest has moved: a stack that changed may need a kind nobody
+                                  # has been asked about
   stack_researched:               # date the stack slot was last derived; --check names it past six months
-  sight_reviewed:                 # date the two verdicts above were last taken with the owner;
-                                  # --check names it past six months, because a project grows
-                                  # surfaces and a verdict does not notice
   deps:                           # direct dependency manifests, and their hash at that moment

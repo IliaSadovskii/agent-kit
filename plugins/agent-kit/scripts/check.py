@@ -496,117 +496,320 @@ def substance(section: str) -> str:
     return re.sub(r"\s+", " ", KEY_RE.sub("", body)).strip()
 
 
-# The two instruments nothing else in this kit can derive. Every other kind of verification is
-# already answered by `commands` and printed by `--tests`: `e2e`, `mutate`, `types` and `lint` are
-# either declared and running or declared and absent, and `print_tests` says which on one screen.
-# These two are not: a project can hold a full suite, a green pipeline and no way whatever to see
-# what a screen looks like or whether an outside API still answers the shape it answered last month.
-# Measured on three live projects on this kit — every one of them had both gaps, and on two of them
-# the tooling for the first was already installed and doing something else.
-SIGHT_KEYS = ("visual", "contract", "sight_reviewed")
-
-SIGHT = {
-    "visual": "whether anything compares what a screen looks like against what it looked like "
-              "before — the one class of defect a suite cannot reach, and the one an autonomous "
-              "run cannot see at all",
-    "contract": "whether anything checks that the outside services this product talks to — or the "
-                "API it publishes — still answer the shape the code expects. Stand-ins keep every "
-                "test green through a change nobody made",
-}
+CATALOGUE = Path(__file__).resolve().parent.parent / "verification.yml"
+VERIFICATION = "verification"
+VERIFICATION_KEYS = (VERIFICATION, "verification_reviewed")
 
 
-def check_sight(root: Path, manifest: dict, report: Report) -> None:
-    """Whether the owner has ever decided what this project is able to see about its own work.
+def catalogue() -> dict:
+    """Every kind of verification this kit knows about, out of the one file that lists them.
 
-    **This is a decision and not an inventory**, which is the whole reason it is declared rather than
-    derived. A `tests:` table of what a project has was proposed on 17 August 2026 and cut the same
-    day: what exists can be read off `commands` and is, by `print_tests`. What cannot be read off
-    anything is whether anybody ever looked at the gap and said yes or no to it.
+    **The list lives in the kit and the answers live in the project.** A kind added to that file
+    starts being asked of every project on its next check; a list copied into each manifest would
+    have to be remembered into all of them by hand. The first version of this hard-wired two kinds
+    into the template, and the owner's objection is the reason the file exists — naming the kinds in
+    the code is a decision about every project, taken by whoever happened to write the check.
 
-    So `no` is a real answer and is meant to be a common one — an API with no interface has nothing
-    to look at, and a product that calls nothing outside itself has no contract to hold. It carries
-    a date and a reason, and the date is the point: a `no` written when the product had no front end
-    is not a decision about the product that grew one, and without a date nothing can tell those two
-    apart. That is the failure mode of the audit's own `declined`, which stays declined for ever and
-    is right to, because a lens judges coverage of a description and not the passage of time.
-
-    **Only `blueprint` may write any of this** — `rules/channels.md`, and it is why no build command
-    asks the question: a gate that asked would have nowhere to put the answer, and would ask again
-    on the next run for ever. What a build command does with a stale date is one row of
-    `rules/preflight.md`: name it and offer the command that can close it.
+    Malformed entries are dropped rather than trusted: a kind with no `runs` cannot be asked of
+    anybody, because nothing would know which session is meant to start it.
     """
-    tests = manifest.get("tests")
-    tests = tests if isinstance(tests, dict) else {}
+    return {name: body for name, body in read_manifest(CATALOGUE).items()
+            if isinstance(body, dict) and body.get("runs") in ("feature", "epic")}
+
+
+def catalogue_defects() -> list:
+    """Entries this kit ships and cannot use — because dropping one silently is how a kind stops
+    being asked of every project at once, with nothing anywhere saying so.
+
+    Measured on the first version of this file: `runs: featrue`, one transposition, and `suite`
+    left the catalogue for ever without a word. An editor wrapping a long `catches:` line does the
+    same to the sentence the owner reads. This kit's own law is that a check which cannot read its
+    input says so; a catalogue is input like any other.
+    """
+    out = []
+    # The reader is last-wins and skips any line without a colon, so three of the four ways this
+    # file breaks are invisible to it: a wrapped `catches:` line loses its tail, a `#` inside a
+    # value truncates it, and a kind written twice silently becomes the second one — which would
+    # move `suite` from `feature` to `epic` and unmap it from `commands.test`, refusing every
+    # project at the gate for a reason nothing would print. So the text is read here as text.
+    try:
+        lines = CATALOGUE.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        lines = []
+    if not [line for line in lines if line.strip() and not line.lstrip().startswith("#")]:
+        out.append("the file is empty or unreadable — every project would be asked about nothing "
+                   "and pass, which is the one thing a check may not look like")
+    seen, current = {}, None
+    for number, raw in enumerate(lines, 1):
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        if not raw[0].isspace():
+            current = raw.split(":", 1)[0].strip()
+            if current in seen:
+                out.append(f"{current} is defined twice, at lines {seen[current]} and {number} — "
+                           f"the reader keeps the second, so the first is a kind nobody will ever "
+                           f"see enforced")
+            seen[current] = number
+            continue
+        if ":" not in raw:
+            out.append(f"{current or '?'} has a wrapped or unreadable line at {number} — this "
+                       f"reader takes one line per value, so what is above it was truncated where "
+                       f"the wrap began")
+        elif "#" in raw.split(":", 1)[1]:
+            out.append(f"{current or '?'} has a `#` inside a value at line {number} — everything "
+                       f"after it is dropped, and the sentence an owner reads ends there")
+
+    for name, body in read_manifest(CATALOGUE).items():
+        if not isinstance(body, dict):
+            out.append(f"{name} is not a record — a kind with no fields is asked of nobody")
+            continue
+        if body.get("runs") not in ("feature", "epic"):
+            out.append(f"{name} has `runs: {body.get('runs')}` — it must be `feature` or `epic`, "
+                       f"and until it is, no project is ever asked about this kind")
+        for field in ("catches", "skip_when"):
+            if not str(body.get(field) or "").strip():
+                out.append(f"{name} has no `{field}` — the interview reads it, and a kind that "
+                           f"cannot say what it catches cannot be judged by anybody")
+    return out
+
+
+def answers(manifest: dict) -> dict:
+    """What this project answered, per kind: a command that runs it, or a dated refusal with a why.
+
+    **Five kinds are answered in `commands` and not here**, because they had a home in that file
+    before this mechanism existed and one fact with two homes is a fact that will disagree with
+    itself. Measured before this was fixed: a project with a working suite, linter, type checker and
+    browser runner — all four wired into its pipeline — was told on one screen that nobody had been
+    asked about any of them, and refused an epic on that basis.
+
+    A refusal still comes from `verification` even for those five, because `commands` has nowhere to
+    put a reason and an empty command has never meant anything but *not declared*.
+    """
+    given = manifest.get(VERIFICATION)
+    given = dict(given) if isinstance(given, dict) else {}
     commands = manifest.get("commands")
     commands = commands if isinstance(commands, dict) else {}
-    checks = manifest.get("checks") or {}
-
-    for name, what in SIGHT.items():
-        declared = str(commands.get(name) or "").strip()
-        verdict = str(tests.get(name) or "").strip()
+    for name, body in catalogue().items():
+        key = body.get("command")
+        declared = str(commands.get(key) or "").strip() if key else ""
         if declared:
-            # A command is the answer, and it answers by being runnable: `yes` was a word, and a
-            # word proved nothing — a project could carry `visual: yes` with no visual test in it
-            # and every check in this kit would agree. The same rule the other commands live under.
-            defect = command_defect(root, declared)
-            if defect:
-                report.sight.append(f"`commands.{name}: {declared}` says this project can see "
-                                    f"this, and {defect}")
-            if verdict:
-                report.sight.append(f"tests.{name} is a refusal and `commands.{name}` is a "
-                                    f"command — a project cannot both refuse this and run it, and "
-                                    f"nothing here can say which one is true today")
-            continue
-        if not verdict:
-            report.sight.append(f"neither `commands.{name}` nor `tests.{name}` — {what}. A command "
-                                f"that proves it, or `no` with a date and a reason; silence is not "
-                                f"an answer, because nothing can tell it from nobody having looked")
-            continue
-        if not verdict.lower().startswith("no"):
-            report.sight.append(f"tests.{name}: `{verdict}` — the only thing this field takes is a "
-                                f"refusal, written `no <date> <reason>`. Anything else is a claim "
-                                f"that this project can see something, and a claim belongs in "
-                                f"`commands.{name}`, where the check can start it")
-            continue
-        rest = verdict[2:].strip(" :—-")
-        if not sight_date(rest):
-            report.sight.append(f"tests.{name}: `{verdict}` — a `no` carries the date it was "
-                                f"decided, so a later run can tell a decision about this "
-                                f"product from one about the product it used to be")
-        elif len(re.sub(r"\d{4}-\d{2}-\d{2}", "", rest).strip(" :—-")) < 4:
-            report.sight.append(f"tests.{name}: `{verdict}` — a `no` with no reason holds "
-                                f"nobody to anything, and is the one thing a later reader "
-                                f"cannot argue with")
+            given[name] = declared
+    return given
 
-    reviewed = checks.get("sight_reviewed")
+
+def refusal(value):
+    """`None` if this answer is a command, a `date` if it is a dated refusal, `"undated"` otherwise.
+
+    A refusal carries a date because a decision taken about one product is not a decision about the
+    product it becomes: *no, there is no front end* stops being true the week there is one. That
+    date is the difference between this and the audit's `declined`, which stays declined for ever
+    and is right to — a lens judges coverage of a description, not the passage of time.
+    """
+    text = str(value or "").strip()
+    if not re.match(r"^no\b", text, re.I):
+        return None
+    found = re.search(r"\d{4}-\d{2}-\d{2}", text)
+    if not found:
+        return "undated"
+    # **And a reason, or this whole mechanism is twelve lines of `no <today>` away from satisfied.**
+    # That is not a hypothetical: the rule was written in 2.27.0, lost when this moved to a
+    # catalogue, and the gate it guards became clearable in thirty seconds by a session with nothing
+    # to say. The claim of the mechanism is that *we decided against this* and *nobody looked* stop
+    # reading alike, and the reason is the only part of a refusal that carries the first one.
+    rest = re.sub(r"\d{4}-\d{2}-\d{2}", "", text[2:]).strip(" :—-")
+    if len(rest) < 4:
+        return "unreasoned"
+    try:
+        return dt.date.fromisoformat(found.group(0))
+    except ValueError:
+        return "undated"
+
+
+# Words a project writes when it means *we have this* and has not said with what. `yes` is the one
+# that matters: it is a real binary on every Unix, so *does the command start* was satisfied by it,
+# and a feature handed `yes` as its visual command would have run it until morning. The list is
+# short and closed on purpose — this is not reading prose for meaning, it is refusing five tokens
+# that are answers to a different question.
+NOT_A_COMMAND = {"yes", "y", "true", "ok", "done", "none", "n/a", "na", "-"}
+
+
+def a_word_not_a_command(answer: str) -> bool:
+    stripped = str(answer or "").strip().strip("`\"'").lower()
+    return stripped in NOT_A_COMMAND
+
+
+def unanswered(root: Path, manifest: dict) -> list:
+    """The kinds with no usable answer here. Used by the gate, which stops on them.
+
+    **Everything the gate lets through, it lets through for an epic** — dozens of features run
+    against these answers with nobody watching — so every way of writing an answer that is not one
+    is counted here rather than named on a screen the gate never prints:
+
+    - a refusal missing its date or its reason. The cheap way past a gate is never a wrong answer,
+      it is a shaped one, and a gate that took `no` on its own would teach every project the shape;
+    - a claim that does not start. `yes` is a word, and the first version of this let it through
+      because the runnability judgement lived in a report printed under `--status` — which the gate
+      does not call. `yes` is also a real binary on every Unix, so a feature handed it as its visual
+      command would have hung until morning;
+    - a refusal of a kind the catalogue says applies to every project there is (`skip_when: never`).
+      That line was a word no program read.
+    """
+    given = answers(manifest)
+    known = catalogue()
+    out = []
+    for name, body in known.items():
+        answer = str(given.get(name) or "").strip()
+        if not answer:
+            out.append(name)
+            continue
+        when = refusal(answer)
+        if when in ("undated", "unreasoned"):
+            out.append(name)
+        elif when is not None:
+            if str(body.get("skip_when") or "").strip().lower().startswith("never"):
+                out.append(name)
+        elif a_word_not_a_command(answer) or command_defect(root, answer):
+            out.append(name)
+    return out
+
+
+def check_verification(root: Path, manifest: dict, report: Report) -> None:
+    """Whether every kind of verification this kit knows about has an answer here, and whether the
+    answers are true.
+
+    Three findings and no more; everything else about a kind belongs to the interview.
+
+    - **A kind with no answer.** Not a defect of the project — nobody has been asked yet, and only
+      `blueprint` may ask. Named so that *we decided against this* and *nobody ever considered it*
+      stop reading alike, which is the whole mechanism.
+    - **A command that starts nothing**, held to the rule every other command here is held to. A
+      claim that cannot be started is a word, and this kit has already paid for one of those: a
+      child met `make test` on a project with no makefile at three in the morning.
+    - **A refusal with no date**, because a refusal that cannot age is a permanent one.
+
+    Never an exit code. Every project adopted before the catalogue existed has twelve unanswered
+    kinds, and none of them is broken.
+    """
+    known = catalogue()
+    for line in catalogue_defects():
+        # About the kit and not about this project, which is why it is said wherever the kit is
+        # used: a project cannot fix it and would never otherwise learn that a question stopped
+        # being asked of it.
+        report.sight.append(f"{CATALOGUE.name}: {line}")
+    if not known:
+        # A check that cannot read its input says so. Silence here would be indistinguishable from
+        # a project that has answered everything, which is the one thing this may not look like.
+        report.sight.append(f"{CATALOGUE.name} could not be read, so nothing here knows which kinds "
+                            f"of verification to ask about — and this check going quiet would read "
+                            f"exactly like a project that has answered them all")
+        return
+    given = answers(manifest)
+    # Named one at a time while that is a list somebody can act on, and as one line once it is the
+    # whole catalogue: a project that has never been asked would otherwise open every check with
+    # twelve paragraphs, which is how a screen teaches its reader to skip it. The names are always
+    # there either way — a count alone is something a session then has to go and find.
+    never = [name for name in known if not str(given.get(name) or "").strip()]
+    if len(never) > 3:
+        report.sight.append(f"nobody has been asked what this project checks itself for: "
+                            f"{', '.join(never)}. Each takes the command that runs it or `no "
+                            f"<date> <reason>`, and {CATALOGUE.name} says what each one catches")
+    for name, body in known.items():
+        answer = str(given.get(name) or "").strip()
+        if not answer:
+            if len(never) <= 3:
+                report.sight.append(f"{name}: no answer — {body.get('catches')}. A command that "
+                                    f"runs it, or `no <date> <reason>`")
+            continue
+        when = refusal(answer)
+        if when == "undated":
+            report.sight.append(f"{name}: `{answer}` — a refusal carries the date it was taken, so "
+                                f"a later run can tell a decision about this product from one "
+                                f"about the product it used to be")
+        elif when == "unreasoned":
+            report.sight.append(f"{name}: `{answer}` — a refusal carries why, and this one is a "
+                                f"date. Twelve of these satisfy every check here while recording "
+                                f"that nobody thought about anything, which is the one thing this "
+                                f"was built to make impossible")
+        elif when is None:
+            if a_word_not_a_command(answer):
+                report.sight.append(f"{name}: `{answer}` — that is a word, and this field takes the "
+                                    f"command that runs the thing. `yes` is even a real program on "
+                                    f"every Unix, so a feature handed it here would run it until "
+                                    f"morning; nothing else in this kit could tell you why")
+            else:
+                defect = command_defect(root, answer)
+                if defect:
+                    report.sight.append(f"{name}: `{answer}` — {defect}")
+
+    # **A project cannot both refuse a kind and run it**, and nothing here can say which is true
+    # today. The rule existed in 2.27.0, was lost when this moved to a catalogue — along with the
+    # test that guarded it, deleted in the same movement — and it matters more now than it did
+    # then: five kinds are answered in `commands`, so writing a refusal for one of them in
+    # `verification` is the shape the interview will reach for unless something says otherwise.
+    written = manifest.get(VERIFICATION)
+    written = written if isinstance(written, dict) else {}
+    commands = manifest.get("commands")
+    commands = commands if isinstance(commands, dict) else {}
+    for name, body in known.items():
+        key = body.get("command")
+        if not key:
+            continue
+        declared = str(commands.get(key) or "").strip()
+        theirs = str(written.get(name) or "").strip()
+        if declared and theirs:
+            report.sight.append(f"{name}: `commands.{key}` runs it and `verification.{name}` says "
+                                f"`{theirs}` — a project cannot both refuse a kind and run it, and "
+                                f"nothing here can say which of the two is true today")
+        elif theirs and refusal(theirs) is None:
+            report.sight.append(f"{name}: `verification.{name}` names a command, and this kind is "
+                                f"declared under `commands.{key}` — written here it is read by "
+                                f"nothing that runs it. Move it there, and keep this line for a "
+                                f"refusal, which is the one thing `commands` has nowhere to put")
+
+    invented = [name for name in given if name not in known]
+    if invented:
+        report.sight.append(f"answered here and unknown to this kit: {', '.join(sorted(invented))} "
+                            f"— nothing runs them and nothing asks after them, so the answer holds "
+                            f"nobody to anything. {CATALOGUE.name} is where a kind is added")
+
+    check_reviewed(root, manifest, report)
+
+
+def check_reviewed(root: Path, manifest: dict, report: Report) -> None:
+    """When these answers were last taken, and whether the project has changed underneath them.
+
+    Two triggers, and the second matters more. Six months is a guess. A dependency manifest whose
+    hash has moved since the library map was written is **evidence**: a project that grew a front
+    end, swapped a framework or added a runner is a project whose answers were taken about something
+    else. Those hashes are already recorded and already compared for the stack, so this costs
+    nothing new — it only says what the movement means for this question.
+    """
+    checks = manifest.get("checks") or {}
+    if not answers(manifest):
+        return                                      # nothing taken yet; the loop above said so
+    reviewed = checks.get("verification_reviewed")
     if not reviewed:
-        if any(str(tests.get(n) or "").strip() or str(commands.get(n) or "").strip() for n in SIGHT):
-            report.sight.append("checks.sight_reviewed is empty and the verdicts are not — nothing "
-                                "says when they were taken, so nothing can say when they are old")
+        report.sight.append("checks.verification_reviewed is empty — nothing says when these "
+                            "answers were taken, so nothing can say when they have gone stale")
         return
     try:
         when = dt.date.fromisoformat(str(reviewed))
     except ValueError:
-        report.sight.append(f"sight_reviewed is not a date: {reviewed}")
+        report.sight.append(f"verification_reviewed is not a date: {reviewed}")
         return
     if (dt.date.today() - when).days > 182:
-        report.sight.append(f"reviewed {reviewed} — over six months ago, and a project grows "
-                            f"surfaces. /agent-kit:blueprint settles it with the owner")
-
-
-def sight_date(text: str):
-    """The date inside a verdict, or `None`. Written for `no 2026-08-19 the API has no interface`.
-
-    A whole line of prose is not searched for meaning — only for a date, which is the one thing here
-    a program may judge. Everything else in the verdict is for the owner and for the pull request.
-    """
-    found = re.search(r"\d{4}-\d{2}-\d{2}", text or "")
-    if not found:
-        return None
-    try:
-        return dt.date.fromisoformat(found.group(0))
-    except ValueError:
-        return None
+        report.sight.append(f"these answers were taken {reviewed}, over six months ago — a project "
+                            f"grows surfaces, and /agent-kit:blueprint retakes them with the owner")
+        return
+    # `check_stack` already names each moved manifest, in its own words and in its own group. What
+    # is added here is what the movement means for *this* question, said once and without repeating
+    # the list — two voices about one fact is how a screen loses a reader.
+    if any((root / name).is_file()
+           and digest((root / name).read_text(encoding="utf-8", errors="replace")) != recorded
+           for name, recorded in (checks.get("deps") or {}).items()):
+        report.sight.append(f"a dependency manifest has moved since the library map was written, "
+                            f"and these answers were taken {reviewed} — a stack that changed may "
+                            f"need a kind nobody here has been asked about")
 
 
 def check_stack(root: Path, manifest: dict, report: Report) -> None:
@@ -697,6 +900,25 @@ def check_epic(root: Path, manifest: dict, docs: list, report: Report) -> list:
         defect = command_defect(root, declared)
         if defect:
             fatal.append(f"`commands.{name}: {declared}` says how to {what}, and {defect}")
+
+    # The one place this stops anything. An epic is dozens of features run with nobody watching, and
+    # a kind nobody has answered is a class of defect that will not be caught in any of them — asked
+    # here it costs the owner a minute, asked at three in the morning it costs the night. Every
+    # other command names it and carries on.
+    # An unreadable catalogue is not an answered project. The gate is the one place in this
+    # mechanism with teeth, and it read `catalogue()` through `unanswered` — which yields nothing
+    # from a file it cannot parse, so a damaged install opened every gate in silence. The kit's own
+    # rule is that a check which cannot read its input says so, and this is where saying it counts.
+    if not catalogue():
+        fatal.append(f"{CATALOGUE.name} could not be read, so nothing here knows what this project "
+                     f"should be checking itself for — and an epic that started on that would be "
+                     f"building dozens of features against a question nobody asked")
+    missing = unanswered(root, manifest)
+    if missing:
+        fatal.append(f"nobody has answered what this project checks itself for: "
+                     f"{', '.join(missing)} — each needs the command that runs it or `no <date> "
+                     f"<reason>`, and /agent-kit:blueprint takes them with you in a few minutes. "
+                     f"An epic builds dozens of features against these answers")
 
     for line in fatal:
         report.add("MVP", line)
@@ -1959,16 +2181,17 @@ def check_shape(root: Path, docs: list, manifest: dict, report: Report) -> None:
 
     model = read_manifest(templates / "project.yml")
     for key, value in model.items():
+        if key in VERIFICATION_KEYS:
+            continue
         if key not in manifest:
             report.shape.append(f"{MANIFEST} has no `{key}` — the template does, so nothing here "
                                 f"answers what it records")
         elif isinstance(value, dict) and isinstance(manifest.get(key), dict):
-            # `check_sight` owns its own three keys, and says something different about them: this
-            # section means *behind, and not yours to move*, while an unanswered verdict is a
-            # question for the owner that `blueprint` can close today. Reported by both, the same
-            # fact arrived twice in two voices, one of them telling the run to carry on and the
-            # other asking it to stop and offer a command.
-            gone = [k for k in value if k not in manifest[key] and k not in SIGHT_KEYS]
+            # `check_verification` owns its own keys and says something different about them: this
+            # section means *behind, and not yours to move*, while an unanswered kind is a question
+            # for the owner that one command can close today. Reported by both, the same fact
+            # arrived twice in two voices — one telling the run to carry on, the other to stop.
+            gone = [k for k in value if k not in manifest[key] and k not in VERIFICATION_KEYS]
             if gone:
                 report.shape.append(f"{MANIFEST} → `{key}` is missing {', '.join(gone)}")
 
@@ -2430,6 +2653,71 @@ def run_defects(state: dict, root: Path | None = None) -> list:
                        "skipped the step must not read like one that passed it. Not run? "
                        "`why` **and** the `command` you ran")
 
+    # Every kind this project answered for and this kit runs on a feature. The manifest says what
+    # the project checks itself for; this says what actually happened on this one. A kind left out
+    # reads exactly like a kind that passed, which is the whole failure the answers were taken to
+    # prevent — so the field is asked for by name, and `why` is a complete answer.
+    if root is not None and state.get("command") in ("ship", "fix") and not errand:
+        for line in catalogue_defects():
+            # A dropped kind makes this check go quiet about a feature's whole obligation, and
+            # quiet is what it exists to prevent.
+            out.append(f"{CATALOGUE.name}: {line}")
+        given = answers(read_manifest(root / MANIFEST))
+        # Only the kinds that have no field of their own. `suite` is already bound to a tree by
+        # `proved_at` and `mutation` carries its own counts, and asking for them again here would be
+        # the same evidence in two places — which is how two records start disagreeing about one
+        # fact. What this field is for is the kinds that had nowhere to be recorded at all.
+        expected = [name for name, body in catalogue().items()
+                    if body.get("runs") == "feature" and not body.get("command")
+                    and refusal(given.get(name)) is None and str(given.get(name) or "").strip()]
+        verified = state.get("verified")
+        if not isinstance(verified, list):
+            if expected:
+                out.append(f"`verified` is not a list of records, and this project runs "
+                           f"{len(expected)} kinds of verification on a feature — nothing here can "
+                           f"say which of them this one ran")
+        else:
+            said = {str(item.get("kind") or "") for item in verified if isinstance(item, dict)}
+            silent = [name for name in expected if name not in said]
+            if silent:
+                out.append(f"`verified` says nothing about {', '.join(silent)} — this project "
+                           f"answered for {'them' if len(silent) > 1 else 'it'} in `verification`, "
+                           f"and a kind left out of this field reads exactly like a kind that "
+                           f"passed. The result, or `why` it could not apply here")
+            empty = [str(item.get("kind")) for item in verified if isinstance(item, dict)
+                     and not str(item.get("result") or "").strip()
+                     and not str(item.get("why") or "").strip()]
+            if empty:
+                out.append(f"`verified` names {', '.join(empty)} with neither a result nor a "
+                           f"`why` — a record that says a kind was considered and not what came "
+                           f"back is the cheap path out of this whole mechanism. This is also what "
+                           f"a kind whose tests were written and never started looks like")
+            # `skip_when: never` is the catalogue saying this kind applies to every project there
+            # is, and a `why` against it is a feature excusing itself from something nobody may be
+            # excused from. The word was in the file and no program read it, which made it a
+            # comment; read here, it costs nothing and closes the cheapest evasion this field has.
+            always = {name for name, body in catalogue().items()
+                      if str(body.get("skip_when") or "").strip().lower().startswith("never")}
+            excused = [str(item.get("kind")) for item in verified if isinstance(item, dict)
+                       and str(item.get("kind") or "") in always
+                       and str(item.get("why") or "").strip()
+                       and not str(item.get("result") or "").strip()]
+            if excused:
+                out.append(f"`verified` excuses {', '.join(excused)} with a `why` — "
+                           f"{CATALOGUE.name} says this kind applies to every project there is, so "
+                           f"there is no change it cannot touch and no `why` that is true")
+
+            # The same rule `mutation` lives under: writing `green` costs nothing and reads like
+            # evidence, and the command actually run is the smallest artefact that path does not
+            # produce for free. A record claiming a result without one is claiming it from memory.
+            unnamed = [str(item.get("kind")) for item in verified if isinstance(item, dict)
+                       and str(item.get("result") or "").strip()
+                       and not str(item.get("command") or "").strip()]
+            if unnamed:
+                out.append(f"`verified` claims a result for {', '.join(unnamed)} and does not say "
+                           f"what was run — a result with no command behind it is the word of "
+                           f"whoever wrote the record, and this field exists so that it is not")
+
     # A run whose own job was to open a pull request, closing without its number. `deliver` is what
     # decides that and not `command`: a feature inside a batch pushes a branch and stops, and a
     # batch's own file has no `deliver` at all, so both fall outside this by construction. A run
@@ -2567,10 +2855,6 @@ WHO_RUNS = {
     "mutate": "every feature, over the files that feature changed",
     "e2e": "an epic's proving phase, and the audit's scenarios lens — never a feature (the guard "
            "hook refuses it) and never a batch's closing session",
-    "visual": "every feature that changes a screen, in its own session",
-    "contract": "an epic's proving phase, and whatever pipeline this project runs on a push — "
-                "never a feature, because it calls the real service and costs a key and money per "
-                "child",
     "run": "every feature with a surface a person can reach, and an epic's fresh checkout",
 }
 
@@ -2691,34 +2975,132 @@ def print_tests(root: Path, manifest: dict) -> int:
     if described:
         print(f"  scenarios: {described} described, {described - len(uncovered)} carry a marked "
               f"end-to-end test. The marker says a test exists and never that it ran.")
-    print_sight(manifest)
+    print_answers(manifest)
+    print_outside(root, manifest)
     print("  Not here: what each of these costs. Nothing measures that yet, and an unmeasured "
           "number is worse than none.")
     return 0
 
 
-def print_sight(manifest: dict) -> None:
-    """The two verdicts on this screen, because this is the screen somebody reads about testing.
+def print_owed(root: Path, manifest: dict) -> int:
+    """The kinds a feature of this project owes, and the command for each.
 
-    Printed as the verdict and nothing else — a `no` is not a finding here and is not dressed as
-    one. Whether a verdict is missing or stale is `check_sight`'s business, and it is said where
-    findings are said rather than twice in two voices.
+    A join between two files this program already reads, printed instead of described. `ship` was
+    told to open the catalogue, filter it on `runs: feature` and cross it with the manifest, per
+    feature, six times a night — a 4KB read and a derivation done by a model where the identical
+    filter was already written twenty lines from here, in `run_defects`. What the run has to decide
+    is which of these its change can touch; deriving the list is not a decision at all.
     """
-    tests = manifest.get("tests")
-    tests = tests if isinstance(tests, dict) else {}
-    commands = manifest.get("commands")
-    commands = commands if isinstance(commands, dict) else {}
-    # Only the refusals. The loop above already printed every command and said `not declared` where
-    # there is none, and a second line saying the same thing in other words is how a screen teaches
-    # its reader to skim. What it cannot know is that an absence here was *decided*.
-    refused = [(name, str(tests.get(name) or "").strip()) for name in SIGHT
-               if not str(commands.get(name) or "").strip() and str(tests.get(name) or "").strip()]
-    for name, verdict in refused:
-        print(f"      {name}: {verdict}")
+    known = catalogue()
+    if not known:
+        print("no kind of verification could be read out of this kit — /agent-kit:blueprint")
+        return 0
+    given = answers(manifest)
+    owed, refused = [], []
+    for name, body in known.items():
+        if body.get("runs") != "feature":
+            continue
+        answer = str(given.get(name) or "").strip()
+        if not answer:
+            continue
+        if refusal(answer) is None:
+            # A kind with a home in `commands` is recorded in its own field, not in `verified` —
+            # and the closing check knows that, so saying it here is what keeps the two from
+            # disagreeing about what a run owes.
+            owed.append((name, answer, bool(body.get("command"))))
+        else:
+            refused.append((name, answer))
+    if owed:
+        print("This feature owes a record in `verified` for each of these — the result, or why this "
+              "change cannot touch it:")
+        for name, answer, elsewhere in owed:
+            where = " (recorded in its own field, not in `verified`)" if elsewhere else ""
+            print(f"  {name}: {answer}{where}")
     if refused:
-        reviewed = (manifest.get("checks") or {}).get("sight_reviewed")
-        print(f"      a refusal is asked again after six months — last taken "
-              f"{reviewed or 'on a date nothing records'}.")
+        print("Refused by this project, so nothing here runs them — say so if one would have caught "
+              "your change:")
+        for name, answer in refused:
+            print(f"  {name}: {answer}")
+    return 0
+
+
+def print_outside(root: Path, manifest: dict) -> None:
+    """Which of this project's own answers nothing but a session of this kit ever runs.
+
+    The fourth thing the owner asked of this mechanism: *when the project is built, everything runs*.
+    A kind answered with a command and reached by no pipeline was proved only where it was written —
+    on the machine of the session that wrote the code, against the tree that session had.
+
+    **The judgement is `outside_a_session`'s and is not repeated here.** The first version of this
+    asked its own three-answer version of the same question and got it wrong in both directions: it
+    printed *no workflow is triggered by a push* about a repository whose pipeline fires on every
+    push, contradicting the line four rows above it on the same screen, and it counted
+    `docker compose exec api ./vendor/bin/pint --test` as unreached because that string is not what a
+    workflow says — which is the exact defect the fourth answer over there exists to prevent.
+    """
+    known = catalogue()
+    if not known:
+        return
+    given = answers(manifest)
+    names, blob, fires = workflows(root)
+    outside = []
+    for name, body in known.items():
+        answer = str(given.get(name) or "").strip()
+        if not answer or refusal(answer) is not None or body.get("command"):
+            continue                      # a refusal runs nowhere by definition; the five with a
+        said = outside_a_session(answer, names, blob, fires)   # home in `commands` printed already
+        if said.startswith("nothing"):
+            outside.append(f"{name} ({said})")
+    if outside:
+        print(f"      run by a session of this kit and by nothing else: {'; '.join(outside)}. "
+              f"Whatever they returned was returned on the machine that wrote the code.")
+
+
+def print_answers(manifest: dict) -> None:
+    """What this project answered about each kind of verification, on the screen about testing.
+
+    The answer as given and nothing more — a refusal is not a finding here and is not dressed as
+    one. Whether an answer is missing, unrunnable or stale is `check_verification`'s business, said
+    where findings are said rather than twice in two voices.
+    """
+    known = catalogue()
+    if not known:
+        return
+    given = answers(manifest)
+    print("  What this project checks itself for, and how — the kit's list, this project's answers:")
+    for name, body in known.items():
+        answer = str(given.get(name) or "").strip()
+        # The five with a home in `commands` were printed by the loop above, under that name. Said
+        # twice, in two vocabularies, one screen teaches its reader that the two halves are
+        # different things.
+        if body.get("command"):
+            # Printed once, under the name the loop above used. Said twice in two vocabularies,
+            # eight lines apart, one screen teaches its reader that they are different things —
+            # and a project that left `commands.mutate` blank was told both that it had not
+            # declared it and that nobody had been asked about it.
+            where = f"as `commands.{body['command']}` above"
+            print(f"      {name}: {answer and where or f'{where}, and empty there'}")
+            continue
+        print(f"      {name}: {answer or 'nobody has been asked'}")
+    reviewed = (manifest.get("checks") or {}).get("verification_reviewed")
+    print(f"      answered on: {reviewed or 'a date nothing records'}. "
+          f"/agent-kit:blueprint takes these with the owner.")
+
+
+def sight_lines(report: Report) -> None:
+    """The unanswered verdicts, and only where somebody can act on them.
+
+    **Printed under `--status` and `--state` and nowhere else**, which is the same seam
+    `outside_line` uses and for the same reason: `ship` runs the check bare, six times a night, in
+    sessions with nobody watching and no right to write `project.yml` anyway. Said there it is noise
+    that trains a run to scroll past its own preflight; said at the gate of an `epic` or a `sprint`,
+    where a person just typed the command, it is a question they can close in a minute.
+
+    Never an exit code. An unanswered verdict is not a defect in the project — it is a decision its
+    owner has not been asked for yet, and every project adopted before this field existed has two.
+    """
+    for line in report.sight:
+        print(f"  {line}")
 
 
 WHERE_MARK = "<!-- agent-kit:where -->"
@@ -2753,22 +3135,6 @@ def where_line(root: Path) -> None:
           "session that is not a command of it may begin without knowing there is a description at "
           "all. /agent-kit:blueprint writes the block between its markers and touches nothing else "
           "in that file.")
-
-
-def sight_lines(report: Report) -> None:
-    """The unanswered verdicts, and only where somebody can act on them.
-
-    **Printed under `--status` and `--state` and nowhere else**, which is the same seam
-    `outside_line` uses and for the same reason: `ship` runs the check bare, six times a night, in
-    sessions with nobody watching and no right to write `project.yml` anyway. Said there it is noise
-    that trains a run to scroll past its own preflight; said at the gate of an `epic` or a `sprint`,
-    where a person just typed the command, it is a question they can close in a minute.
-
-    Never an exit code. An unanswered verdict is not a defect in the project — it is a decision its
-    owner has not been asked for yet, and every project adopted before this field existed has two.
-    """
-    for line in report.sight:
-        print(f"  {line}")
 
 
 def outside_line(root: Path, manifest: dict) -> None:
@@ -3255,6 +3621,9 @@ def main(argv: list | None = None) -> int:
                         help="every open block under these entries, in full, instead of their "
                              "names: the entries a run is about to build or to change. Names any "
                              "key that matches no entry")
+    parser.add_argument("--owed", action="store_true",
+                        help="the kinds of verification a feature of this project owes, and the "
+                             "command for each — the list `ship` opens its design step with")
     parser.add_argument("--tests", action="store_true",
                         help="this project's testing on one screen: what is declared, who runs each "
                              "one and when, when it last ran of record, and whether anything but a "
@@ -3291,6 +3660,9 @@ def main(argv: list | None = None) -> int:
 
     if options.manual:
         return prove_manual(root)
+
+    if options.owed:
+        return print_owed(root, read_manifest(root / MANIFEST))
 
     if options.tests:
         return print_tests(root, read_manifest(root / MANIFEST))
@@ -3368,7 +3740,7 @@ def main(argv: list | None = None) -> int:
     check_orphans(docs, report)
     check_sources(root, docs, report)
     check_stack(root, manifest, report)
-    check_sight(root, manifest, report)
+    check_verification(root, manifest, report)
     check_commands(root, manifest, report)
     check_verdicts(manifest, report)
     check_runs(root, report)

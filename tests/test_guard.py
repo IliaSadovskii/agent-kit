@@ -118,6 +118,36 @@ class VerdictCase(unittest.TestCase):
             self.assertIsNone(self.held(command), command)
 
 
+    # ---- a feature's own checks, and the three rules they may never stand aside for --------------
+
+    def test_a_declared_check_that_contains_the_e2e_string_is_allowed(self):
+        """The usual shape: a flag on the browser runner the project already has. Without this the
+        guard fires on every ship that touches a screen."""
+        self.assertIsNone(guard.verdict("npx playwright test --grep @visual", "claude/x", "main",
+                                        e2e="npx playwright test", building=True,
+                                        own_checks=("npx playwright test --grep @visual",)))
+
+    def test_the_walk_itself_is_still_refused(self):
+        why = guard.verdict("npx playwright test", "claude/x", "main", e2e="npx playwright test",
+                            building=True, own_checks=("npx playwright test --grep @visual",))
+        self.assertIn("walks the whole product", why or "")
+
+    def test_a_declared_check_does_not_excuse_the_irreversible_three(self):
+        """Written as an early return above them, this exemption stood the whole hook aside: a
+        session had only to name a declared command anywhere in the line."""
+        own = ("npm run visual",)
+        for command in ("npm run visual && git push --force origin HEAD",
+                        "gh pr merge 12 --squash && npm run visual",
+                        "git push origin main # npm run visual"):
+            self.assertIsNotNone(
+                guard.verdict(command, "claude/x", "main", e2e="npx playwright test",
+                              building=True, own_checks=own), command)
+
+    def test_a_declared_check_does_not_excuse_taking_a_held_tree(self):
+        self.assertIsNotNone(guard.verdict("npm run visual && git checkout other", "claude/x",
+                                           "main", e2e="", building=True, held=True,
+                                           own_checks=("npm run visual",)))
+
 class ManifestCase(unittest.TestCase):
     """`commands.e2e`, read without importing the check — the hook has to stay cheap and alone."""
 

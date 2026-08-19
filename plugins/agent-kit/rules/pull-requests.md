@@ -140,7 +140,9 @@ what is thin, and that nothing they just read depends on them remembering it.
   returned it on**, from `proved_at`, and whether the app was started and exercised. Name what is *not* proven and why — **including every seam a proof went
   through a stand-in at**, by name, from the run files' `suite`: a fake gateway, a fake sign-in, a
   fixed clock. A feature proved entirely against doubles has proved the doubles, and on one measured
-  run the real model was never called once in thirty hours. **And what `mutation` says**: how
+  run the real model was never called once in thirty hours. **And what `verified` says**: which of the kinds this project checks itself for this work actually
+  ran, and what came back — a kind excused with a `why` is worth a line too, because *nothing here
+  compared the screen* is the fact the owner is reading for. **And what `mutation` says**: how
   many changes to the product's own logic the suite caught and how many it slept through, or that
   the step did not run and why. Everything else in this section is a green tick reporting on
   itself; that pair of numbers is the only line in a pull request that says the tests would have

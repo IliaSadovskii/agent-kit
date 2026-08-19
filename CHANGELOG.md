@@ -3,6 +3,105 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.28.0
+
+**The kit now holds a project to the whole question of what it checks itself for, and the list of
+kinds lives in the kit rather than in the code.** 2.27.0 hard-wired two of them — `visual` and
+`contract` — into the manifest template, which made a decision about every project on this kit by
+whoever happened to be writing the check that day. The owner refused that, and correctly: the kinds
+a project needs follow from its stack, and what belongs in the kit is the **list of questions**.
+
+- **`verification.yml`, in the plugin.** Twelve kinds today — suite, end-to-end, mutation, types,
+  lint, static analysis, architecture, visual, contract, performance, accessibility, security — each
+  with what it catches, which session runs it (`feature` or `epic`), and the shape of project it
+  does not apply to. Read by `check.py` and by `blueprint`. **A kind added here starts being asked
+  of every project on its next check**, where a list copied into manifests would have to be
+  remembered into all of them by hand.
+
+- **`project.yml` → `verification`, one line per kind: a command, or `no <date> <reason>`.** Never a
+  word. A command is held to starting like every other command in that file, because `yes` is a
+  claim nothing can test, and this kit has already paid for one of those — a child met a declared
+  suite that would not start, at three in the morning. **A refusal carries both a date and a
+  reason**, and both are enforced: the date because *there is no front end* stops being true the
+  week there is one, and the reason because twelve lines of `no <today>` would otherwise clear every
+  check here while recording that nobody thought about anything.
+
+- **Five kinds are answered in `commands` and nowhere else** — `suite`, `lint`, `types`,
+  `end_to_end`, `mutation` carry a `command:` in the catalogue naming where they already live. One
+  fact with two homes disagrees with itself: before this, a project with a working suite, linter,
+  type checker and browser runner, all four wired into its pipeline, was told on one screen that
+  nobody had been asked about any of them. Their refusal still lives in `verification`, because
+  `commands` has nowhere to put a reason.
+
+- **`blueprint` walks that list with the owner, judging from the repository and never from
+  `stack.md`.** Measured on three live projects: one slot said mutation testing was not installed
+  while the plugin was a hard dependency of the test runner and the config was already tuned for it;
+  another carried two hundred lines of Playwright walking every screen and asserting nothing, named
+  in no document. On two of them the cheapest finding was an instrument installed, configured and
+  never declared — one line in the manifest, and every run afterwards starts using it.
+
+- **A feature decides what will prove it before it writes any code.** `ship`'s design step opens
+  `verified` with one record per kind whose `runs` is `feature` — the tests this change owes, or the
+  `why` it cannot apply here. Chosen after the code, that list is written by somebody who already
+  knows what they built and is looking for a reason to be finished. It also makes *write the test
+  before the code* mean more than the suite: a screen this feature changes owes its comparison in
+  the same commit as the screen.
+
+- **And Verify works through that list rather than deciding again.** Each record is completed with
+  the `command` as it was run and the `result`. `check.py --run` refuses a finished feature that is
+  silent about a kind — silence reads exactly like a pass — that leaves a record with neither a
+  result nor a `why`, which is what a test written in the build and never started looks like, and
+  that claims a result with no command behind it, which is the rule `mutation` already lives under.
+
+- **The reviewer checks the claims against the diff**, which is the one thing no record can do for
+  itself: a `why` saying *no screen here* on a diff that edits a template is the cheapest way to
+  skip a kind of test, and every other pass reads the record rather than the change. **And a kind
+  the catalogue marks `skip_when: never` cannot be excused at all** — that line was a word no
+  program read until now.
+
+- **`check.py --owed` prints the kinds a feature of this project owes**, with the command for each.
+  The join was being done by a model on every ship, out of two files, six times a night, while the
+  identical filter already existed in the program.
+
+- **The guard hook stops confusing a feature's own checks with the end-to-end walk.** The usual
+  shape of a visual answer is a flag on the browser runner a project already has, so
+  `playwright test --grep @visual` contains `commands.e2e` as a substring and was refused on every
+  feature that touches a screen. It now recognises the commands the manifest declares under
+  `verification`.
+
+- **`validate.sh` keeps the catalogue usable.** One transposition — `runs: featrue` — took a kind
+  out of the list for every project at once, silently; a wrapped `catches:` line truncates the
+  sentence an owner reads. Both fail here now, and `check.py` names a dropped entry wherever it is
+  run rather than going quiet about it.
+
+- **An epic's proving phase runs the `epic` kinds**, gathered there because each costs something a
+  feature may not spend forty times: a key and money for the real outside services, an hour for a
+  performance walk, a scan that only means anything against the finished product.
+
+- **The gate of an `epic` refuses to start on an unanswered kind**, and it is the only place that
+  stops anything. Dozens of features run there with nobody watching, so a class of defect nothing
+  catches is asked about while the owner is still standing. Every other command names it and builds.
+
+- **`--tests` prints the answers and which of them nothing but this kit ever runs**, so *the project
+  is built and everything runs* is a question with an answer on the screen. **And the answers go
+  stale on evidence, not only on a date**: a dependency manifest whose hash has moved is a stack
+  that changed under decisions taken about a different project.
+
+**Two reviews ran over this before it shipped, and what they caught is the more useful record.**
+Four rules had been enforced somewhere and were lost when a block of code was replaced wholesale —
+including the test that guarded each, deleted in the same movement, so the suite stayed green over
+the hole. A refusal stopped needing a reason; a project could both refuse a kind and declare a
+command for it; `print_outside` re-asked a question answered forty lines above it; and a
+`skip_when: never` was a word no program read. The gate could also be opened by the word `yes` —
+which is a real binary on every Unix, so *does the command start* was satisfied by it, and a feature
+handed `yes` as a command would have run it until morning. Worst of the batch: an exemption written
+as an early return in the guard hook, meant for one rule, stood the whole hook aside — a session had
+only to name a declared verification command anywhere in the line to merge its own pull request or
+force-push. All of it is fixed and each fix carries a test.
+
+Migration: [migrations/2.28.0.md](migrations/2.28.0.md). Removed with this: `commands.visual`,
+`commands.contract`, the `tests.visual` / `tests.contract` verdicts and `checks.sight_reviewed`.
+
 ## 2.27.0
 
 **A project could own no way at all to see a whole class of its own work, and nothing anywhere

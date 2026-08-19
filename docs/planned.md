@@ -425,26 +425,30 @@ project recorded zero assumptions between them, and the sharpest finding of the 
 from calling a live gateway by hand), and judging completeness at `epic`'s gate (it already prints
 every open block across the scope; what it cannot do is invent gaps nobody has hit).
 
-## 12. What a project can see about its own work — **shipped, and cut down twice**
+## 12. What a project checks itself for — **shipped in 2.28.0**
 
 From [docs/design/2026-08-19-the-kinds-of-test-nobody-declares.md](design/2026-08-19-the-kinds-of-test-nobody-declares.md).
-`tests.visual`, `tests.contract` and `checks.sight_reviewed` are in the manifest; `blueprint` settles
-them in step 3, judging from the repository and not from `stack.md`; `check_sight` holds each to a
-verdict and a `no` to a date and a reason, printed under `--status` and `--state` and never as an
-exit code. The proposal that opened this item — a subagent at every build command's gate, seven kinds
-in a table, a four-way rule for where the work goes — was refused by two reviews and is written up in
-the note with the reasons.
+`verification.yml` in the plugin lists every kind of verification the kit knows about; a project
+answers each in `project.yml` → `verification` with a command or `no <date> <reason>`; `blueprint`
+takes the answers, `ship` and `fix` record what they ran in `verified`, an epic's proving phase runs
+the `epic` kinds, and the gate of an `epic` is the one place any of it stops work.
 
-**The one that matters for anything proposed later**: the verdict of 17 August named three reasons
-for cutting a `tests:` table, and the draft answered two and dropped the third — *into a file only
-`blueprint` may write*. Every mechanism that asks a question has to name the writer of the answer
-before anything else, and a gate that cannot write is a gate that asks for ever.
+**Two shapes were refused on the way**, and both for reasons worth keeping: hard-wiring particular
+kinds into the kit's code (2.27.0 did, for a day — it makes a decision about every project on this
+kit by whoever wrote the check), and asking the question at a gate that may not write `project.yml`,
+which would have asked it again for ever.
 
-Left open, in the note: `no` is reopened by its date and by nothing else, so a project that grows a
-front end waits up to six months to be asked again; `contract` is one word for consuming an outside
-API and for publishing one; and nothing measures what any of this is worth — the claim that a run
-which cannot see a screen ships worse work is a belief, and what could be measured is how many
-defects reaching `accept` are visual, on projects with a `no` against projects with a `yes`.
+Open, and none of it is blocking:
+
+- **`why` is checkable by nothing but the reviewer.** `verified` catches a kind left out
+  mechanically and a kind excused untruthfully not at all — except where `skip_when: never` lets the
+  program refuse the excuse outright. A feature whose diff never reaches the reviewer has its claims
+  read by nobody.
+- **`sprint` is not gated and `epic` is.** Five features overnight is the same argument at 40% of
+  the scale; the owner chose to stop only where they are standing, and nothing has measured whether
+  that is the right line.
+- **Nothing measures what any of this is worth.** What could be measured: how many defects reaching
+  `accept` are of a kind the project had refused.
 
 # Refused, with the reason
 

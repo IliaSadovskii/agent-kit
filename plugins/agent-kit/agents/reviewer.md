@@ -73,6 +73,14 @@ promise. Legitimate when the run file records the contradiction and the code it 
 already there — a finding when either is missing, and a serious one when the mark sits on something
 this very diff was supposed to build. That is how a run declares itself done without doing it.
 
+**And the run file names the kinds this feature owed** — `verified`, decided at design out of what
+the project answered in `project.yml` → `verification`. A record marked with a `why` is a claim that
+this change could not touch that kind, and it is checkable against the diff in front of you: a `why`
+saying *no screen here* on a diff that edits a template is the cheapest way there is to skip a kind
+of test, and nothing else in the kit can catch it, because everything else reads the record and not
+the change. A record whose `result` is red, or whose command is not the one the manifest declares
+for that kind, is a finding for the same reason.
+
 **A test that was there before and is now weaker is a finding of its own**, and the diff is the only
 place anybody can see it: an assertion removed, a case deleted, a suite skipped, a strong comparison
 loosened, an expectation rewritten to match what the code returns. Green after that is green about

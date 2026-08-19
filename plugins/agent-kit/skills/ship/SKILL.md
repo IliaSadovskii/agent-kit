@@ -210,8 +210,27 @@ answer into `answers`, in the owner's own words. A run that
 resumes reads that instead of asking a second time, and the pull request quotes it instead of
 recalling it.
 
-Design ends when the run file holds the approach, the seams, and a task list in which each task is
-the smallest unit that carries its own verification.
+**Then decide what will prove this feature, before any of it is written.** Ask for the list:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check.py" . --owed
+```
+
+It prints the kinds this project checks itself for, the command for each, and what it refused — the
+join between the manifest and the kit's own catalogue, done by the program that already reads both.
+What you decide is which of them **this change can touch**; deriving the list is not a decision, and
+a session that derives it by hand reads two files per feature to arrive where this line already is.
+
+A record each, into `verified`, **now** — `kind`, and either the tests you will write for it or the
+`why` it cannot apply here.
+
+Chosen after the code, this decision is taken by somebody who already knows what they built and is
+looking for a reason to be finished. Chosen here, it is a list the build has to satisfy — and it is
+what makes *write the test before the code* mean more than the suite: a screen this feature changes
+owes a comparison, a service it calls under a contract owes that contract a case.
+
+Design ends when the run file holds the approach, the seams, the kinds this feature owes, and a task
+list in which each task is the smallest unit that carries its own verification.
 
 That is checkable and is checked: **a task closed writes the SHA that closed it** into its own
 `commit`, in the same movement as `done: true`. It is the boundary a session is cut at, so without
@@ -225,6 +244,11 @@ Task by task, one commit each.
 **Write the test before the code.** That is the default for every line of the entry, and it is what
 makes the proof free: a test written first fails on its own, so nothing has to be run again to
 establish that it can.
+
+**And that covers every kind you listed in `verified` at design, not the suite alone.** A screen
+this feature changes owes its comparison in the same commit as the screen; a call the project holds
+to a contract owes that case with the call. Written afterwards they become a chore somebody does
+under a green pipeline, and the ones that are awkward do not get written at all.
 
 The one exception is a line whose shape is not decided until the code exists — presentation, mostly.
 Asserting on markup you have not chosen yet is not test-first, it is writing the test twice. Write
@@ -308,13 +332,21 @@ language.
    of them is on a line of the entry, that line is not covered whatever the coverage says, and it
    is worth the test before you go on.
 
-4. **Look at the screen, if this feature changed one** — `project.yml` → `commands.visual`. It is
-   the only step that judges what was built rather than what it returns, and it is the one class of
-   defect the suite above cannot reach: every assertion in it is about a value, and a layout that
-   collapsed returns exactly the same values it did yesterday. Into `suite`, beside the rest. No
-   such command and no screen changed: say so in one line and move on. **No such command and a
-   screen did change: say that too** — it is the only place a run can report that what it built
-   went unseen, and a night of those is what `blueprint` is for.
+4. **Run every kind you listed at design** — `verified` in the run file already names them, which
+   is the whole reason it was written before the code: at this point the list is a thing to work
+   through rather than a decision to take, and a decision taken here is taken by somebody who knows
+   what they built and wants to be done. Run each one, and complete its record with the `command` as
+   you ran it and the `result`.
+
+   **A record that named a `why` at design stays as it is** — this change could not touch that kind
+   — and everything else needs a result. **A kind left out of the field entirely is what this
+   mechanism exists to prevent**: it reads exactly like a kind that passed. The check refuses a
+   finished feature that is silent about one, so a test written in the build and never started is
+   caught here rather than believed.
+
+   **And where a kind would have caught this change and the project refused it, say so in one
+   line.** That is the only place a night can report that what it built went unseen, and a run of
+   those is what sends `blueprint` back to the list.
 
 5. **Start the app** with `project.yml` → `commands.run` **and exercise what changed**, when the
    feature has a surface a person can reach. A

@@ -156,6 +156,30 @@ def declared_e2e(root: Path) -> str:
     return ""
 
 
+def declared_verification(root: Path) -> tuple:
+    """Every command this project answered a kind of verification with, as written.
+
+    One question is asked of them and no more: is the command this session is about to run one the
+    project itself declared. A hook that started interpreting a manifest would be a second opinion
+    about a file that has an owner.
+    """
+    try:
+        text = (root / ".agent-kit" / "project.yml").read_text(encoding="utf-8")
+    except OSError:
+        return ()
+    inside, found = False, []
+    for raw in text.splitlines():
+        line = raw.split("#", 1)[0].rstrip()
+        if not line.strip():
+            continue
+        if not line.startswith((" ", "\t")):
+            inside = line.strip().rstrip(":") == "verification"
+            continue
+        if inside and ":" in line:
+            found.append(line.split(":", 1)[1].strip().strip("'\""))
+    return tuple(answer for answer in found if answer)
+
+
 def holds_tree(root: Path) -> bool:
     """This session is standing in the tree a run of somebody else's is building in.
 
@@ -187,7 +211,8 @@ def holds_tree(root: Path) -> bool:
 
 
 def verdict(command: str, branch: str, default: str,
-            e2e: str = "", building: bool = False, held: bool = False) -> str | None:
+            e2e: str = "", building: bool = False, held: bool = False,
+            own_checks: tuple = ()) -> str | None:
     """Why this command may not run, or None. Pure, so the tests can reach it."""
     if held and SWITCH.search(command):
         return ("A run of this kit is building in this checkout, and moving its branch pulls the "
@@ -203,7 +228,20 @@ def verdict(command: str, branch: str, default: str,
     # Narrow on purpose. It binds only inside a registered `ship`, so the audit's scenarios lens,
     # the closing session, an `epic`'s proving phase and the owner's own terminal are untouched —
     # each of those is where walking the product is the work.
-    if e2e and building and e2e.strip() and e2e.strip() in command:
+    # **And a feature's own verification is not that walk, however much of it the string shares.**
+    # The usual shape of a visual answer is a flag on the browser runner a project already has —
+    # `commands.e2e: npx playwright test` beside `verification.visual: npx playwright test --grep
+    # @visual` — and a substring test refuses the second because it contains the first. That kind is
+    # `runs: feature` in the catalogue, so without this the guard would fire on every ship that
+    # touches a screen, telling it to run the suite instead of the check it was told to run.
+    #
+    # **The exemption belongs to this rule and to no other.** Written as an early `return None`
+    # above them, it exempted the three irreversible ones as well: a session had only to name a
+    # declared command anywhere in the line — `npm run visual && git push --force` — and the whole
+    # hook stood aside. That is the opposite of what this file is for, and it is why the test below
+    # it exists.
+    if (e2e and building and e2e.strip() and e2e.strip() in command
+            and not any(answer and answer in command for answer in own_checks)):
         return (f"`{e2e.strip()}` walks the whole product, and a feature proves only itself — the "
                 f"scenarios belong to whatever integrates the batch, which runs them once over the "
                 f"chain. Run the project's `commands.test` instead, and say in `suite` what you "
@@ -244,7 +282,8 @@ def main() -> int:
 
         building = building_a_feature(root)
         why = verdict(command, git(root, "rev-parse", "--abbrev-ref", "HEAD"), default_branch(root),
-                      declared_e2e(root) if building else "", building, holds_tree(root))
+                      declared_e2e(root) if building else "", building, holds_tree(root),
+                      declared_verification(root) if building else ())
         if not why:
             return 0
 

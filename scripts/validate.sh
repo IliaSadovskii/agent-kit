@@ -510,6 +510,29 @@ if [ -n "$leaks" ]; then
 fi
 
 # --------------------------------------------------------------------------------------------
+step "every kind of verification this kit ships is usable"
+
+# The catalogue is read by a program, and a kind it cannot use is a question that silently stops
+# being asked of every project at once. One transposition — `runs: featrue` — took `suite` out of
+# the list with nothing anywhere saying so, and an editor wrapping a long `catches:` line truncates
+# the sentence an owner reads. The kit's own reader is what judges it, so a value it cannot parse
+# fails here rather than in somebody's project.
+defects="$(python3 -c '
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(sys.argv[1]) / "scripts"))
+import check
+for line in check.catalogue_defects():
+    print(line)
+if len(check.catalogue()) < 5:
+    print("only %d kinds parse out of this file" % len(check.catalogue()))
+' "$PLUGIN" 2>&1 || true)"
+if [ -n "$defects" ]; then
+  printf '%s\n' "$defects" >&2
+  fail "verification.yml carries a kind this kit cannot use"
+fi
+
+# --------------------------------------------------------------------------------------------
 step "the driver's own tests"
 
 # orchestrate.py runs unattended overnight; the cheap place to find out it is wrong is here.

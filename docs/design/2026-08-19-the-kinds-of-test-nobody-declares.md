@@ -171,14 +171,14 @@ began from: an instrument installed, configured and never declared.
 - **The shape check stands aside on these three keys**, or the same fact arrives twice in two
   voices — *behind, and not yours to move* from one, *close this today* from the other.
 
-## The four answers
+## The four answers, for the shape that shipped
 
 | | |
 |---|---|
-| **Who writes it** | `blueprint`, with the owner, in step 3 |
-| **Who reads it** | `check.py` — `check_sight` for the verdicts, `--tests` printing them beside what it derives; every build command through `preflight.md` |
-| **Who may close it, and where** | the owner, through `blueprint`: `yes`, or `no` with a date and a reason. The date reopens the whole question at six months, which is the part the audit's `declined` does not have. Closing the mechanism means deleting `SIGHT`, `check_sight`, `print_sight`, `SightCase` and the two template keys, in one commit |
-| **What becomes impossible** | a project quietly owning no way to see a class of its own surface, with nothing recording that anybody decided it |
+| **Who writes it** | `verification.yml` is the kit's, changed by a commit to the kit; a project's answers are `blueprint`'s, with the owner, in step 3 |
+| **Who reads it** | `check.py` — `check_verification` for the answers, `check_epic` at the gate, `run_defects` for what a feature ran, `--tests` and `--owed` for the screens; `blueprint`, walking the list; `ship` and `fix`, choosing what this change owes; an epic's proving phase; `agents/reviewer.md`, holding a `why` against the diff |
+| **Who may close it, and where** | **a kind**: the owner, through `blueprint`, with `no <date> <reason>` — and the date reopens it at six months or when a dependency manifest moves. **A kind of the kit's**: a commit deleting its entry in `verification.yml` and the test naming it. **The mechanism itself**: a commit deleting `verification.yml`, `catalogue`/`answers`/`refusal`/`unanswered`/`check_verification`/`check_reviewed`/`print_answers`/`print_owed`/`print_outside`, the `verified` block in `run_defects`, the gate clause in `check_epic`, `VerificationCase` and `VerifiedFieldCase`, the `verification` and `checks.verification_reviewed` keys in the template, the `verified` field in `templates/run.json`, and the steps in `blueprint`, `ship`, `fix` and `epic/references/finish.md` — in one commit |
+| **What becomes impossible** | a project quietly owning no way to see a class of its own surface, and a feature quietly not running what its project does own |
 
 ## What was rejected, and by whom
 
@@ -230,3 +230,83 @@ began from: an instrument installed, configured and never declared.
 
 One field read per check. `blueprint` pays for the judging once per project per six months, inside a
 research pass it was already running.
+
+## What 2.28.0 changed, the day after
+
+The two kinds above shipped hard-wired into the manifest — `commands.visual`, `commands.contract` —
+and the owner refused that shape on sight: **naming the kinds in the code is a decision about every
+project, taken by whoever wrote the check.** The kinds a project needs follow from its stack. What
+belongs in the kit is the list of questions.
+
+So the list moved into `verification.yml` inside the plugin — twelve kinds, each with what it
+catches and which session runs it — and the manifest holds only this project's answers, one line per
+kind. A kind added to that file starts being asked of every project on its next check.
+
+Four things came with it, and they are the owner's four requirements rather than anything this note
+worked out:
+
+1. **the answers are taken once, with the owner, against the whole list** — `blueprint`, step 3;
+2. **a feature runs what its project answered for and records what came back** — `run.json` →
+   `verified`, and a kind left silent is a finding, because silence reads exactly like a pass;
+3. **an epic will not start on a kind nobody answered** — the one place in the kit this stops
+   anything, and it is where the owner is standing;
+4. **the answers go stale on evidence** — six months, or a dependency manifest whose hash has moved,
+   because a stack that changed is a stack whose answers were taken about a different project.
+
+What survives from this note unchanged: the diagnosis, the refusal-with-a-date, the rule that a
+claim is a command and never a word, and every entry under *What was rejected*.
+
+## What the review of 2.28.0 caught, and it is worth writing down
+
+Thirteen findings, and three of them were the same mistake in different clothes — **a rule that was
+enforced somewhere and then moved**:
+
+- **A refusal needed a reason in 2.27.0 and did not after the move.** `refusal()` returned the
+  moment it found a date. Every document still said `no <date> <reason>`; the program had stopped
+  asking. Twelve lines of `no 2026-08-20` cleared a gate that blocks every project on this kit, and
+  recorded nobody having thought about anything — the exact confusion the mechanism exists to make
+  impossible. It is restored, and it is now what `unanswered` tests too, so the gate cannot be
+  cleared by a shaped answer.
+- **`print_outside` re-asked a question `outside_a_session` already answers in four ways**, forty
+  lines below it, and got it wrong in both directions — including the fourth answer's own case, a
+  command declared as `docker compose exec …` and run in CI under another name.
+- **`check_reviewed` re-walked `checks.deps` that `check_stack` walks**, so a moved manifest was
+  reported twice in one run.
+
+The largest single fix was **two homes for one fact**: `commands.test`/`lint`/`types`/`e2e`/`mutate`
+already existed, and the catalogue asked for the same five again under its own names. A project with
+a working suite, linter, type checker and browser runner — all four in CI — was told on one screen
+that nobody had been asked about any of them, and refused an epic on that basis. Five kinds now
+carry `command:` in the catalogue and are answered in `commands` and nowhere else; the refusal for
+them still lives in `verification`, because `commands` has nowhere to put a reason.
+
+And two the mechanism could not have caught about itself: the guard hook would have refused
+`playwright test --grep @visual` on a project whose `commands.e2e` is `playwright test`, because the
+one string contains the other — on every feature that touches a screen; and `skip_when: never` was a
+word in a file no program read, so a feature could excuse itself from a kind that applies to every
+project there is.
+
+What the review confirmed as sound: the shape, `run_defects`' scoping, the exit-code seam, and that
+this version clears all three reasons the `tests:` table was refused on 17 August.
+
+## The second review, and the pattern in what both of them found
+
+Nine more findings, and the pattern is now unmistakable: **a rule enforced in one place, then moved,
+loses its enforcement and its test in the same movement.** Four rules died that way in one day —
+the reason on a refusal, the contradiction between a command and a refusal for one kind, the
+four-answer form of *does anything outside this kit run it*, and `skip_when: never`. Each was
+replaced by a docstring saying it still held. The suite was green over all four, because the tests
+went out with the code they guarded.
+
+The most dangerous finding was not in the mechanism at all. The guard hook's exemption for a
+feature's own visual command was written as an early `return None` **above** the rules that refuse
+merging, force-pushing and pushing to the default branch — so naming a declared command anywhere in
+a line stood the whole hook aside. It shipped with no test. That file's own docstring calls it *the
+one mechanism an agent cannot talk itself out of*.
+
+Two lessons worth keeping, and they are about method rather than about tests:
+
+1. **When replacing a mechanism, list what the old one enforced before deleting it**, and move the
+   tests first. A test deleted with the code it guards leaves a green suite over a hole.
+2. **An exemption belongs inside the rule it exempts**, never above a run of them. The shape of the
+   defect — one condition placed one line too early — is invisible in a diff and total in effect.

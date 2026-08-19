@@ -18,6 +18,7 @@ import subprocess
 import tempfile
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1090,8 +1091,20 @@ class CheckCase(unittest.TestCase):
         self.write("scenarios.md", scenarios if scenarios is not None else
                    "# Scenarios\n\n### Anna publishes a story\n\n**Who:** Anna\n")
         if commands:
+            # Answered, because an epic will not start on kinds nobody has been asked about — the
+            # gate is where the owner is standing, and a class of defect nothing catches is one
+            # dozens of features will be built past.
+            # A kind the catalogue marks `skip_when: never` may not be refused — a project with no
+            # suite has no floor at all — so this fixture answers those with the command it owns
+            # and refuses the rest with a date and a reason.
+            answered = "verification:\n" + "".join(
+                f"  {kind}: " + ("make test\n"
+                                 if str(body.get("skip_when") or "").lower().startswith("never")
+                                 else "no 2026-08-19 — this fixture is not that kind of project\n")
+                for kind, body in check.catalogue().items())
             (self.root / ".agent-kit" / "project.yml").write_text(
-                MANIFEST + "commands:\n  test: make test\n  run: make up\n", encoding="utf-8")
+                MANIFEST + "commands:\n  test: make test\n  run: make up\n" + answered
+                + "checks:\n  verification_reviewed: 2026-08-19\n", encoding="utf-8")
             # A declared command is now judged on whether it starts anything, and this fixture is a
             # project that may start an MVP — so it owns the makefile it says it runs.
             (self.root / "Makefile").write_text("test:\n\techo hi\nup:\n\techo up\n",
@@ -2661,13 +2674,14 @@ class CommandsCase(unittest.TestCase):
         self.assertEqual(self.defect("(cd app && python3 -m pytest)"), "")
 
 
-class SightCase(unittest.TestCase):
-    """The two verdicts nothing in this kit can derive, and the date that says when they were taken.
+class VerificationCase(unittest.TestCase):
+    """Every kind of verification the kit knows about, held against this project's answers.
 
-    A `tests:` table of what a project *has* was cut on 17 August 2026 — what exists is read off
-    `commands` and printed by `--tests`. These two are the other thing: whether anybody looked at
-    the gap and decided. So the program holds each to a verdict, holds a `no` to a date and a
-    reason, and judges nothing else — the reason itself is prose and is for the owner.
+    The list lives in `verification.yml` inside the plugin and never in a project's manifest, so a
+    kind added to the kit starts being asked of every project on its next check. The answer is a
+    command or a dated refusal, and never a word: `visual: yes` would be a claim nothing can test,
+    on the one subject where this kit already learned that lesson from a child meeting an unrunnable
+    suite at three in the morning.
     """
 
     def setUp(self):
@@ -2678,84 +2692,280 @@ class SightCase(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
-    def findings(self, tests=None, checks=None, commands=None):
+    def findings(self, answers=None, checks=None, commands=None):
         report = check.Report()
         manifest = {}
-        if tests is not None:
-            manifest["tests"] = tests
+        if answers is not None:
+            manifest["verification"] = answers
         if checks is not None:
             manifest["checks"] = checks
         if commands is not None:
             manifest["commands"] = commands
-        check.check_sight(self.root, manifest, report)
+        check.check_verification(self.root, manifest, report)
         return report.sight
 
-    def test_silence_is_a_finding_on_both(self):
+    def homed(self):
+        """The five kinds whose home is `commands`, answered where they belong."""
+        return {body["command"]: "echo ran" for body in check.catalogue().values()
+                if body.get("command")}
+
+    def everything(self, **overrides):
+        """A project that has answered every kind: a runnable command where the catalogue says the
+        kind applies to every project there is, a dated and reasoned refusal everywhere else. The
+        first version of this refused `suite` too, and asserted the gate opened — on a project the
+        catalogue says has no floor at all."""
+        answered = {}
+        for kind, body in check.catalogue().items():
+            if body.get("command"):
+                continue                      # answered in `commands`; a line here is a refusal
+            answered[kind] = "no 2026-08-19 — not this kind of project"
+        answered.update(overrides)
+        return answered
+
+    def test_the_catalogue_is_the_kit_own_and_every_entry_is_usable(self):
+        known = check.catalogue()
+        self.assertGreater(len(known), 5)
+        for name, body in known.items():
+            self.assertIn(body["runs"], ("feature", "epic"), name)
+            self.assertTrue(body["catches"].strip(), name)
+            self.assertTrue(body["skip_when"].strip(), name)
+
+    def test_a_project_that_was_never_asked(self):
+        """One line, naming every kind. Twelve paragraphs at the head of every check is how a
+        screen teaches its reader to skip it — but the names stay, because a count is something a
+        session then has to go and find."""
         found = self.findings()
-        self.assertEqual(len(found), 2)
-        self.assertTrue(any("tests.visual" in line for line in found))
-        self.assertTrue(any("tests.contract" in line for line in found))
+        self.assertEqual(len(found), 1, found)
+        for name in check.catalogue():
+            self.assertIn(name, found[0])
 
-    def test_a_command_that_runs_is_the_whole_answer(self):
-        """`yes` was a word: a project could carry `visual: yes` with no visual test in it and every
-        check in this kit agreed. A command is held to the same rule as every other command here —
-        it has to start."""
-        self.assertEqual(self.findings(commands={"visual": "echo looked", "contract": "echo held"},
-                                       checks={"sight_reviewed": str(dt.date.today())}), [])
+    def test_a_project_asked_about_all_but_a_few(self):
+        """Down to a short list, each is named with what it catches — that is a list to act on."""
+        answered = self.everything()
+        for name in list(answered)[:2]:
+            answered.pop(name)
+        found = self.findings(answered, {"verification_reviewed": str(dt.date.today())},
+                              self.homed())
+        self.assertEqual(len(found), 2, found)
+        self.assertTrue(all("no answer" in line for line in found))
 
-    def test_a_command_that_starts_nothing(self):
-        found = self.findings(commands={"visual": "make visual", "contract": "echo held"},
-                              checks={"sight_reviewed": str(dt.date.today())})
-        self.assertTrue(any("no makefile" in line for line in found))
+    def test_every_kind_answered_is_silence(self):
+        self.assertEqual(self.findings(self.everything(),
+                                       {"verification_reviewed": str(dt.date.today())},
+                                       self.homed()), [])
 
-    def test_a_word_where_a_command_belongs(self):
-        found = self.findings({"visual": "yes", "contract": "no 2026-08-19 — no API here at all"},
-                              {"sight_reviewed": str(dt.date.today())})
-        self.assertTrue(any("belongs in `commands.visual`" in line for line in found))
+    def test_a_command_is_held_to_starting(self):
+        """The whole reason an answer is a command and not `yes`."""
+        found = self.findings(self.everything(visual="make screenshots"),
+                              {"verification_reviewed": str(dt.date.today())}, self.homed())
+        self.assertTrue(any("no makefile" in line for line in found), found)
 
-    def test_refusing_and_running_it_at_once(self):
-        found = self.findings({"visual": "no 2026-08-19 — no screens in this repository"},
-                              {"sight_reviewed": str(dt.date.today())},
-                              {"visual": "echo looked", "contract": "echo held"})
-        self.assertTrue(any("cannot both refuse this and run it" in line for line in found))
+    def test_a_command_that_starts_is_the_answer(self):
+        self.assertEqual(self.findings(self.everything(visual="echo compared"),
+                                       {"verification_reviewed": str(dt.date.today())},
+                                       self.homed()), [])
 
-    def test_a_no_carries_a_date_and_a_reason(self):
-        """Without the date, a `no` taken when the product had no front end reads for ever as a
-        decision about the product that grew one — which is the audit's `declined` all over again."""
-        found = self.findings({"visual": "no — nothing to look at"}, commands={"contract": "echo held"})
-        self.assertTrue(any("carries the date" in line for line in found))
+    def test_a_refusal_without_a_date(self):
+        found = self.findings(self.everything(visual="no — there is no interface"),
+                              {"verification_reviewed": str(dt.date.today())}, self.homed())
+        self.assertTrue(any("carries the date" in line for line in found), found)
 
-    def test_a_dated_no_with_no_reason_is_a_finding(self):
-        found = self.findings({"visual": "no 2026-08-19"}, commands={"contract": "echo held"})
-        self.assertTrue(any("no reason" in line for line in found))
+    def test_a_kind_this_kit_never_heard_of(self):
+        found = self.findings(self.everything(smoke_signals="echo hi"),
+                              {"verification_reviewed": str(dt.date.today())}, self.homed())
+        self.assertTrue(any("unknown to this kit" in line for line in found), found)
 
-    def test_a_dated_no_with_a_reason_passes(self):
-        self.assertEqual(
-            self.findings({"visual": "no 2026-08-19 — API only, no interface in this repository"},
-                          {"sight_reviewed": str(dt.date.today())},
-                          {"contract": "echo held"}), [])
+    def test_answers_with_no_date_of_their_own(self):
+        found = self.findings(self.everything(), commands=self.homed())
+        self.assertTrue(any("verification_reviewed is empty" in line for line in found), found)
 
-    def test_verdicts_without_a_date_of_their_own(self):
-        found = self.findings(commands={"visual": "echo looked", "contract": "echo held"})
-        self.assertTrue(any("sight_reviewed is empty" in line for line in found))
-
-    def test_a_date_over_six_months_old(self):
+    def test_answers_over_six_months_old(self):
         old = dt.date.today() - dt.timedelta(days=200)
-        found = self.findings(commands={"visual": "echo looked"}, checks={"sight_reviewed": str(old)},
-                              tests={"contract": "no 2026-08-19 — nothing outside this app"})
-        self.assertTrue(any("over six months ago" in line for line in found))
+        found = self.findings(self.everything(), {"verification_reviewed": str(old)}, self.homed())
+        self.assertTrue(any("over six months ago" in line for line in found), found)
 
     def test_a_date_that_is_not_one(self):
-        found = self.findings(commands={"visual": "echo looked", "contract": "echo held"},
-                              checks={"sight_reviewed": "soon"})
-        self.assertTrue(any("not a date" in line for line in found))
+        found = self.findings(self.everything(), {"verification_reviewed": "soon"}, self.homed())
+        self.assertTrue(any("not a date" in line for line in found), found)
 
-    def test_a_tests_key_that_is_not_a_map(self):
-        """`tests: ` left as a bare key parses to None, and a program that crashed here would take
-        every command of the kit down on that project."""
+    def test_a_stack_that_moved_under_the_answers(self):
+        """Six months is a guess; a dependency manifest that changed is evidence. A project that
+        grew a front end is a project whose answers were taken about something else."""
+        (self.root / "package.json").write_text('{"name": "grown"}\n', encoding="utf-8")
+        found = self.findings(self.everything(),
+                              {"verification_reviewed": str(dt.date.today()),
+                               "deps": {"package.json": "a hash from before it changed"}},
+                              self.homed())
+        self.assertTrue(any("a dependency manifest has moved" in line for line in found), found)
+
+    def test_an_unreadable_catalogue_is_not_a_clean_project(self):
+        """A check that cannot read its input says so: silence here would read exactly like a
+        project that has answered everything."""
         report = check.Report()
-        check.check_sight(self.root, {"tests": None, "checks": None}, report)
-        self.assertEqual(len(report.sight), 2)
+        with mock.patch.object(check, "CATALOGUE", self.root / "gone.yml"):
+            check.check_verification(self.root, {"verification": {}}, report)
+        self.assertTrue(any("could not be read" in line for line in report.sight), report.sight)
+
+    def test_a_refusal_needs_a_reason_and_not_only_a_date(self):
+        """The load-bearing rule, and it was lost once already: twelve lines of `no <today>` would
+        satisfy every check here while recording that nobody thought about anything."""
+        found = self.findings({name: "no 2026-08-20" for name in check.catalogue()},
+                              {"verification_reviewed": str(dt.date.today())})
+        self.assertTrue(any("a refusal carries why" in line for line in found), found)
+
+    def test_a_bare_date_does_not_open_the_gate(self):
+        self.assertEqual(
+            sorted(check.unanswered(self.root,
+                                    {"verification": {n: "no 2026-08-20" for n in check.catalogue()}})),
+            sorted(check.catalogue()))
+
+    def test_a_word_does_not_open_the_gate_either(self):
+        """`yes` is a real binary on every Unix, so even the does-it-start rule was satisfied — and
+        a feature handed it as a command would have hung until morning."""
+        self.assertEqual(
+            sorted(check.unanswered(self.root, {"verification": {n: "yes" for n in check.catalogue()},
+                                                "commands": {k: "yes" for k in self.homed()}})),
+            sorted(check.catalogue()))
+
+    def test_a_project_cannot_both_refuse_a_kind_and_run_it(self):
+        """A rule that existed in 2.27.0 and died with the block it lived in, test and all."""
+        found = self.findings({"suite": "no 2026-08-20 — there is no suite at all"},
+                              {"verification_reviewed": str(dt.date.today())}, self.homed())
+        self.assertTrue(any("cannot both refuse a kind and run it" in line for line in found), found)
+
+    def test_a_command_written_where_only_a_refusal_belongs(self):
+        found = self.findings({"suite": "echo ran somewhere else"},
+                              {"verification_reviewed": str(dt.date.today())}, {})
+        self.assertTrue(any("read by nothing that runs it" in line for line in found), found)
+
+    def test_the_gate_says_so_when_the_catalogue_cannot_be_read(self):
+        """The one place with teeth read the catalogue through `unanswered`, which yields nothing
+        from a file it cannot parse — so a damaged install opened every gate in silence."""
+        report = check.Report()
+        with mock.patch.object(check, "CATALOGUE", self.root / "gone.yml"):
+            fatal = check.check_epic(self.root, {}, [], report)
+        self.assertTrue(any("could not be read" in line for line in fatal), fatal)
+
+    def test_a_kind_with_a_home_in_commands_is_answered_there(self):
+        """One fact, one home. A project with a working suite wired into CI must never be told on
+        one screen that nobody has been asked about it."""
+        keyed = {name: body["command"] for name, body in check.catalogue().items()
+                 if body.get("command")}
+        self.assertTrue(keyed)
+        manifest = {"commands": {key: "echo ran" for key in keyed.values()}}
+        given = check.answers(manifest)
+        for name in keyed:
+            self.assertEqual(given[name], "echo ran", name)
+        self.assertEqual([n for n in check.unanswered(self.root, manifest) if n in keyed], [])
+
+    def test_a_catalogue_entry_this_kit_cannot_use_is_named(self):
+        """A transposed `runs:` took a kind out of the list for every project at once, silently."""
+        broken = self.root / "broken.yml"
+        broken.write_text("suite:\n  runs: featrue\n  catches: x\n  skip_when: y\n",
+                          encoding="utf-8")
+        with mock.patch.object(check, "CATALOGUE", broken):
+            self.assertTrue(any("runs: featrue" in line for line in check.catalogue_defects()))
+            report = check.Report()
+            check.check_verification(self.root, {}, report)
+            self.assertTrue(any("featrue" in line for line in report.sight), report.sight)
+
+    def test_each_way_the_catalogue_breaks_is_named(self):
+        """Three of the four are invisible to the reader itself: it is last-wins and skips any line
+        with no colon, so a wrap, a `#` and a duplicate all pass through as healthy."""
+        cases = {
+            "wrapped": "suite:\n  runs: feature\n  catches: logic that\n    returns nothing\n"
+                       "  skip_when: never\n",
+            "duplicate": "suite:\n  runs: feature\n  catches: x\n  skip_when: never\n"
+                         "suite:\n  runs: epic\n  catches: y\n  skip_when: never\n",
+            "hash": "suite:\n  runs: feature\n  catches: x # and the rest\n  skip_when: never\n",
+            "empty": "",
+        }
+        for name, text in cases.items():
+            broken = self.root / f"{name}.yml"
+            broken.write_text(text, encoding="utf-8")
+            with mock.patch.object(check, "CATALOGUE", broken):
+                self.assertTrue(check.catalogue_defects(), name)
+
+    def test_a_healthy_catalogue_is_silent(self):
+        self.assertEqual(check.catalogue_defects(), [])
+
+    def test_the_gate_stops_on_a_kind_nobody_answered(self):
+        """The one place this stops anything. An epic runs dozens of features with nobody watching,
+        so a class of defect nothing catches is asked about while the owner is still standing."""
+        self.assertTrue(check.unanswered(self.root, {"verification": {"visual": "echo ok"}}))
+        self.assertEqual(check.unanswered(self.root, {"verification": self.everything(),
+                                                      "commands": self.homed()}), [])
+
+
+class VerifiedFieldCase(unittest.TestCase):
+    """What a finished feature may not leave behind about the kinds its project answered for.
+
+    The failure this closes: tests written in the build and never started. A kind absent from the
+    field reads exactly like a kind that passed, and a result with no command behind it is a claim
+    from memory — the same rule `mutation` already lives under.
+    """
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.root = self.tmp / "proj"
+        (self.root / ".agent-kit").mkdir(parents=True)
+        (self.root / ".agent-kit" / "project.yml").write_text(
+            "language: en\nverification:\n  visual: echo looked\n"
+            "  contract: no 2026-08-20 — nothing outside this application\n", encoding="utf-8")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def judge(self, verified):
+        state = {"command": "ship", "kind": "feature", "step": "done", "slug": "x",
+                 "suite": "green", "proved_at": "abc", "entries": [],
+                 "mutation": {"command": "x", "why": "no runner"}, "verified": verified}
+        return "\n".join(check.run_defects(state, self.root))
+
+    def test_a_kind_left_out_entirely(self):
+        self.assertIn("says nothing about visual", self.judge([]))
+
+    def test_a_refused_feature_kind_is_never_asked_of_a_run(self):
+        """A *feature* kind the project refused — the earlier version of this test named `contract`,
+        which is `runs: epic` and was excluded before the refusal was ever consulted, so it proved
+        nothing."""
+        (self.root / ".agent-kit" / "project.yml").write_text(
+            "language: en\nverification:\n  visual: no 2026-08-20 — no interface in this repo\n",
+            encoding="utf-8")
+        self.assertEqual(self.judge([]), "")
+
+    def test_a_feature_kind_answered_with_a_command_is_asked_for(self):
+        (self.root / ".agent-kit" / "project.yml").write_text(
+            "language: en\nverification:\n  visual: echo looked\n", encoding="utf-8")
+        self.assertIn("says nothing about visual", self.judge([]))
+
+    def test_an_errand_is_never_asked(self):
+        """An errand has no suite of its own and is asked for none of this."""
+        state = {"command": "ship", "kind": "errand", "step": "done", "slug": "x",
+                 "verified": []}
+        self.assertEqual("\n".join(check.run_defects(state, self.root)), "")
+
+    def test_a_kind_that_applies_to_every_project_cannot_be_excused(self):
+        """`skip_when: never` was a word in a file no program read. A `why` against it is a feature
+        excusing itself from something nobody may be excused from."""
+        always = [name for name, body in check.catalogue().items()
+                  if str(body.get("skip_when") or "").lower().startswith("never")
+                  and body.get("runs") == "feature" and not body.get("command")]
+        if not always:                       # every such kind lives in `commands` today
+            self.skipTest("no feature kind in the catalogue is marked `skip_when: never`")
+        (self.root / ".agent-kit" / "project.yml").write_text(
+            f"language: en\nverification:\n  {always[0]}: echo ran\n", encoding="utf-8")
+        found = self.judge([{"kind": always[0], "why": "did not feel like it"}])
+        self.assertIn("no `why` that is true", found)
+
+    def test_a_record_with_neither_a_result_nor_a_why(self):
+        """What a test written in the build and never started looks like."""
+        found = self.judge([{"kind": "visual", "command": "echo looked"}])
+        self.assertIn("neither a result nor a `why`", found)
+
+    def test_a_result_with_no_command_behind_it(self):
+        found = self.judge([{"kind": "visual", "result": "green"}])
+        self.assertIn("does not say what was run", found)
 
 
 class ManualCase(unittest.TestCase):
