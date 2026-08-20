@@ -3,6 +3,15 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.28.2
+
+**The driver that moved itself out took none of its path with it.** 2.28.1 put the driver in a
+transient systemd service, which starts from the user manager's environment rather than the shell's
+— `/usr/local/sbin:…:/snap/bin` and nothing else on the machine this was measured on. `~/.local/bin`
+went with it, `claude-new` was no longer on the path, and the first live restart put four features
+into `blocked` in twenty seconds without starting a single session. `PATH` is now carried across
+explicitly, in the same `--setenv` the detach flag rides.
+
 ## 2.28.1
 
 **The driver was a child of the session it closes, and one night it died with it.** A batch's

@@ -1514,6 +1514,20 @@ class DetachCase(unittest.TestCase):
         self.assertEqual(command[-3:], ["/p/.agent-kit/runs/b", "--ceiling", "0"])
         self.assertTrue(command[-4].endswith("orchestrate.py"))
 
+    def test_the_path_is_carried_across_because_the_manager_has_none(self):
+        # The first driver to move itself out lost ~/.local/bin with it, `claude-new` went missing,
+        # and four features were blocked in twenty seconds.
+        real = os.environ.get("PATH")
+        os.environ["PATH"] = "/home/dev/.local/bin:/usr/bin"
+        try:
+            command = orch.detach_command(Path("/p/.agent-kit/runs/b"), [], "/bin/sr")
+        finally:
+            if real is None:
+                os.environ.pop("PATH", None)
+            else:
+                os.environ["PATH"] = real
+        self.assertIn("--setenv=PATH=/home/dev/.local/bin:/usr/bin", command)
+
     def test_without_systemd_it_says_so_rather_than_pretending(self):
         real = orch.shutil.which
         orch.shutil.which = lambda name: None if name == "systemd-run" else real(name)

@@ -1262,9 +1262,18 @@ def detach_command(run_dir: Path, argv: list[str], runner: str) -> list[str]:
 
     `--collect` so a finished run does not leave a unit behind that the next one collides with, and
     the environment flag so the driver that comes up knows not to do this again.
+
+    **`PATH` is carried across, and it is not optional.** A transient unit starts from the systemd
+    user manager's environment, not from the shell's: measured here, that is
+    `/usr/local/sbin:…:/snap/bin` and nothing else. The first driver to move itself out lost
+    `~/.local/bin` with it, so `claude-new` was not on the path, no session could be started, and
+    four features went to `blocked` in twenty seconds — the same night failing in a new way. It goes
+    in `--setenv` rather than through the manager's own environment because this must hold for a
+    driver started from anywhere, including a cron job or an ssh command.
     """
     return [runner, "--user", "--collect", "--quiet", f"--unit={unit_name(run_dir.name)}",
-            f"--setenv={DETACHED}=1", f"--working-directory={Path.cwd()}",
+            f"--setenv={DETACHED}=1", f"--setenv=PATH={os.environ.get('PATH', '')}",
+            f"--working-directory={Path.cwd()}",
             sys.executable or "python3", str(Path(__file__).resolve()), *argv]
 
 
