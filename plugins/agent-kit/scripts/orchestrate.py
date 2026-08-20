@@ -1210,6 +1210,80 @@ def project_root(run_dir: Path) -> Path:
     return Path.cwd()
 
 
+# --------------------------------------------------------------------------------------------
+# outliving the session that started this driver
+#
+# A session starts the driver as a background process of its own shell, and then that session is
+# closed — by the driver itself at the top of `go`, and, before 2.26.0, by an instruction the
+# session was given in prose. `nohup` was believed to make that safe, and the comment saying so
+# stood for a week.
+#
+# It is not safe. tmux 3.4 puts every pane in a systemd scope of its own, that scope's KillMode is
+# `control-group`, and closing the pane takes down everything started from it. `nohup` only ignores
+# SIGHUP; the scope's teardown is not a SIGHUP. **`setsid` does not help either** — a new session id
+# is not a new control group, which is what the old comment offered as the portable equivalent.
+# Measured on this machine: a plain `nohup` child and a `setsid nohup` child both report the pane's
+# own `tmux-spawn-….scope`.
+#
+# What made this survivable until 19 August was that the session usually forgot to close itself: the
+# instruction sat after the closing report, and one `epic`'s session from 17 August was still
+# standing two days later. The night it did remember, the driver wrote two lines and died with it —
+# four features queued, nothing started, and no message anywhere, because the launch line sends the
+# driver's output to /dev/null.
+#
+# So the driver moves itself out of that control group before it does anything. Where systemd is not
+# there to move into, it says so and carries on: a driver that runs and can be killed by its parent
+# is better than no driver, and a silence here would be the same defect in a new place.
+
+DETACHED = "AGENT_KIT_DRIVER_DETACHED"
+
+
+def own_cgroup(path: Path = Path("/proc/self/cgroup")) -> str:
+    """This process's control group, or `""` where the kernel does not publish one (macOS)."""
+    try:
+        return path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def dies_with_its_session(cgroup: str) -> bool:
+    """Whether this process would be killed by the closing of the pane that started it."""
+    return "tmux-spawn" in cgroup and ".scope" in cgroup
+
+
+def unit_name(slug: str) -> str:
+    """A systemd unit name for this run. Slugs are dated feature names; units take a narrow set."""
+    safe = re.sub(r"[^A-Za-z0-9-]", "-", slug)[:60].strip("-") or "run"
+    return f"agent-kit-{safe}"
+
+
+def detach_command(run_dir: Path, argv: list[str], runner: str) -> list[str]:
+    """The command that starts this driver again, as a service of its own.
+
+    `--collect` so a finished run does not leave a unit behind that the next one collides with, and
+    the environment flag so the driver that comes up knows not to do this again.
+    """
+    return [runner, "--user", "--collect", "--quiet", f"--unit={unit_name(run_dir.name)}",
+            f"--setenv={DETACHED}=1", f"--working-directory={Path.cwd()}",
+            sys.executable or "python3", str(Path(__file__).resolve()), *argv]
+
+
+def detach(run_dir: Path, argv: list[str]) -> tuple[str, str]:
+    """Move this driver into a service of its own. Returns `(unit, "")` or `("", why not)`."""
+    runner = shutil.which("systemd-run")
+    if not runner:
+        return "", "systemd-run is not on the path"
+    command = detach_command(run_dir, argv, runner)
+    try:
+        done = subprocess.run(command, capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return "", f"systemd-run did not finish: {exc}"
+    if done.returncode != 0:
+        return "", (done.stderr.strip() or done.stdout.strip()
+                    or f"systemd-run exited {done.returncode} and said nothing")
+    return unit_name(run_dir.name), ""
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("run_dir", type=Path, help=".agent-kit/runs/<slug>/ of the batch")
@@ -1234,6 +1308,20 @@ def main(argv: list[str] | None = None) -> int:
     if not (run_dir / "run.json").is_file():
         print(f"no run file in {run_dir}", file=sys.stderr)
         return 1
+
+    # Before anything else, and before this run's file is touched: the process that gets to watch
+    # the night must not be the one the session can take with it. See the section above.
+    if os.environ.get(DETACHED) != "1" and dies_with_its_session(own_cgroup()):
+        unit, why = detach(run_dir, list(argv) if argv is not None else sys.argv[1:])
+        if unit:
+            print(f"driver moved out of its session's control group as {unit} — "
+                  f"`journalctl --user -u {unit}` has its output")
+            Run(run_dir).event("detached", unit)
+            return 0
+        print(f"could not move this driver out of its session's control group ({why}), so it is "
+              f"running inside it: closing the session that started it will kill this driver and "
+              f"the night stops where it stands", file=sys.stderr)
+        Run(run_dir).event("detach-failed", why)
 
     # One visible session per feature is what makes a stalled child rescuable by hand and a limit
     # recoverable by typing into it. Without a multiplexer there is no such session, and a traceback

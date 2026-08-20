@@ -1464,3 +1464,62 @@ class SilenceCase(unittest.TestCase):
         self.path.write_text('not json at all\n{"type":"assistant"}\n', encoding="utf-8")
         self.assertIsNone(orch.last_spoke(self.path))
 
+
+
+class DetachCase(unittest.TestCase):
+    """Outliving the session that started the driver.
+
+    The night of 19 August was lost here: the session that starts a driver is closed a second
+    later, and everything started from that pane goes with it. These hold the answer to the two
+    questions the old comment got wrong — whether this process can be taken down by its parent, and
+    what to do about it.
+    """
+
+    PANE = ("0::/user.slice/user-1000.slice/user@1000.service/app.slice/"
+            "tmux-spawn-79c91a45-75d9-4f3b-bd7a-30877cc1f28d.scope")
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_a_pane_scope_is_a_control_group_that_takes_this_process_with_it(self):
+        self.assertTrue(orch.dies_with_its_session(self.PANE))
+
+    def test_a_service_of_its_own_is_not(self):
+        # What the driver looks like once it has moved: running again from here would fork forever.
+        self.assertFalse(orch.dies_with_its_session(
+            "0::/user.slice/user-1000.slice/user@1000.service/app.slice/agent-kit-b.service"))
+
+    def test_a_machine_that_publishes_no_control_group_is_left_alone(self):
+        # macOS has no /proc, and there is nothing there to escape from.
+        self.assertEqual(orch.own_cgroup(self.tmp / "no-such-file"), "")
+        self.assertFalse(orch.dies_with_its_session(""))
+
+    def test_a_slug_becomes_a_unit_name_systemd_will_take(self):
+        self.assertEqual(orch.unit_name("2026-08-19-reference-meaning"),
+                         "agent-kit-2026-08-19-reference-meaning")
+        self.assertEqual(orch.unit_name("a batch/with junk"), "agent-kit-a-batch-with-junk")
+        self.assertEqual(orch.unit_name(""), "agent-kit-run")
+
+    def test_the_command_carries_this_run_and_the_flag_that_stops_it_recursing(self):
+        command = orch.detach_command(Path("/p/.agent-kit/runs/b"), ["/p/.agent-kit/runs/b",
+                                                                    "--ceiling", "0"], "/bin/sr")
+        self.assertEqual(command[0], "/bin/sr")
+        self.assertIn("--user", command)
+        self.assertIn("--collect", command)
+        self.assertIn("--unit=agent-kit-b", command)
+        self.assertIn(f"--setenv={orch.DETACHED}=1", command)
+        self.assertEqual(command[-3:], ["/p/.agent-kit/runs/b", "--ceiling", "0"])
+        self.assertTrue(command[-4].endswith("orchestrate.py"))
+
+    def test_without_systemd_it_says_so_rather_than_pretending(self):
+        real = orch.shutil.which
+        orch.shutil.which = lambda name: None if name == "systemd-run" else real(name)
+        try:
+            unit, why = orch.detach(Path("/p/.agent-kit/runs/b"), [])
+        finally:
+            orch.shutil.which = real
+        self.assertEqual(unit, "")
+        self.assertIn("systemd-run", why)

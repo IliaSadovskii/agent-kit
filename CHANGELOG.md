@@ -3,6 +3,34 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.28.1
+
+**The driver was a child of the session it closes, and one night it died with it.** A batch's
+driver is started as a background process of the session that composed the batch, and closing that
+session is among the first things it does. The comment above that line said `nohup` made it safe,
+and offered `setsid` as the portable equivalent. Both are wrong on any machine with systemd: tmux
+3.4 gives every pane a scope of its own, the scope's KillMode is `control-group`, and closing the
+pane takes down everything started from it. Measured — a plain `nohup` child and a `setsid nohup`
+child both report the pane's own `tmux-spawn-….scope`.
+
+What hid it for a week is worth saying plainly: **the sessions usually forgot to close themselves.**
+The instruction sat after the closing report, one `epic`'s session from 17 August was still standing
+two days later, and every batch that reached the end owed its life to that. 2.26.0 removed the prose
+instruction and made closing reliable — which armed this defect rather than fixing it. On 19 August
+a live run wrote two lines into its log and stopped: four features queued, nothing started, eight
+hours lost, and no message anywhere, because the launch line sent the driver's output to
+`/dev/null`.
+
+- **The driver moves itself out of that control group before it touches anything**, into a transient
+  systemd service (`agent-kit-<batch slug>`), and says which one. `journalctl --user -u <unit>` then
+  has everything it wrote.
+- **Where there is no systemd to move into, it says so and carries on.** A driver that can be killed
+  by its parent beats no driver, and a silence here would be this defect in a new place. The run log
+  gets `detached` or `detach-failed` either way.
+- **The launch line writes to `.agent-kit/runs/<slug>/driver.out`, not to `/dev/null`.** A driver
+  that died in its first second and a driver with nothing to say looked identical, which is why this
+  was reconstructed from the systemd journal instead of read off a log.
+
 ## 2.28.0
 
 **The kit now holds a project to the whole question of what it checks itself for, and the list of

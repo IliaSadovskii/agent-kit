@@ -272,8 +272,13 @@ Two consequences, and both are said on the screen rather than discovered in the 
 Then set `step: "building"` on this file, start the driver on the first batch and end:
 
 ```bash
-nohup python3 "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrate.py" .agent-kit/runs/<first batch>/ >/dev/null 2>&1 &
+nohup python3 "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrate.py" .agent-kit/runs/<first batch>/ \
+  >> .agent-kit/runs/<first batch>/driver.out 2>&1 &
 ```
+
+It moves itself into a service of its own before it does anything, so closing this session — which
+is the next thing that happens to you — cannot take it down. It says which service in its first
+line, and where a machine has no systemd it says that instead, out loud.
 
 Close per `${CLAUDE_PLUGIN_ROOT}/rules/closing.md`, then stay as the window —
 `${CLAUDE_PLUGIN_ROOT}/rules/window.md`, unchanged. The owner steers with the

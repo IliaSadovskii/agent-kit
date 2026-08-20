@@ -232,8 +232,13 @@ Add `.agent-kit/runs/` to `.gitignore` if it is not there.
 ## Start the driver
 
 ```bash
-nohup python3 "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrate.py" .agent-kit/runs/<batch>/ >/dev/null 2>&1 &
+nohup python3 "${CLAUDE_PLUGIN_ROOT}/scripts/orchestrate.py" .agent-kit/runs/<batch>/ \
+  >> .agent-kit/runs/<batch>/driver.out 2>&1 &
 ```
+
+**The output goes to a file, not to /dev/null.** A driver that died in its first second and a
+driver with nothing to say looked identical for a week, and one night was spent working out which
+had happened from the systemd journal.
 
 It builds the children in order, each as its own visible session. It survives the account limit by
 sleeping until the reset named in the record and typing one line into the session, which is still
