@@ -217,10 +217,79 @@ class DriverCase(unittest.TestCase):
             '{"isApiErrorMessage":true,"apiErrorStatus":429,"text":"resets %s"}' % resets)
 
         _driver, code = self.drive(FakeLauncher)
-        self.assertEqual(code, 0)
+        self.assertEqual(code, 1)
         self.assertEqual(self.step(first), "blocked")
         self.assertEqual(self.step(second), "skipped")
         self.assertLess(self.waited(), 6 * 3600)
+
+    def test_a_weekly_limit_parks_the_batch_rather_than_trying_to_close_it(self):
+        """Closing means starting a session, which is the one thing a weekly limit makes
+        impossible. Attempted anyway, the closing session reaches no terminal step and the batch is
+        written `blocked` with a message blaming the closing rather than the limit."""
+        first, = self.batch("one")
+        resets = time.strftime("%-I:%M%p", time.localtime(time.time() + 20 * 3600)).lower()
+        orch.read_tail = lambda path, lines=40: (
+            '{"isApiErrorMessage":true,"apiErrorStatus":429,"text":"resets %s"}' % resets)
+
+        class Launcher(FakeLauncher):
+            started: list = []
+
+            def start(self, name, prompt, model=None):
+                Launcher.started.append(name)
+                return True
+
+        Launcher.started = []
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.step("b"), "blocked")
+        self.assertFalse([name for name in Launcher.started if name.endswith("-close")])
+
+    def test_a_run_carried_on_too_many_times_stops_being_carried(self):
+        """Only restarts were bounded. A run that keeps opening over the ceiling and keeps writing
+        a new note could be handed on forever — one live run was carried eleven times in an hour."""
+        first, = self.batch("one")
+        case = self
+        notes = {"n": 0}
+
+        class Launcher(FakeLauncher):
+            def send(self, name, text):
+                self.typed.append(text)
+                notes["n"] += 1                    # every ask produces a fresh note: carry me on
+                case.write(first, {"slug": first, "step": "build", "branch": f"claude/{first}",
+                                   "handoff": f"note {notes['n']}"})
+                return True
+
+            def alive(self, _name):
+                return False                       # the session is gone, so the note has landed
+
+        real = (orch.context_size, orch.opening_size)
+        orch.context_size = lambda tail: 10 ** 9   # always over the ceiling
+        orch.opening_size = lambda transcript: 1000
+        try:
+            _driver, _code = self.drive(Launcher)
+        finally:
+            orch.context_size, orch.opening_size = real
+        self.assertEqual(self.step(first), "blocked")
+        self.assertLessEqual(notes["n"], orch.HANDOFFS + 2)
+
+    def test_an_overloaded_api_is_waited_out_and_then_given_up_on(self):
+        """`sleep(120); continue` had no counter: a permanently overloaded API kept the driver in
+        that branch for as long as the machine stayed up, and `--hang` cannot fire there."""
+        first, = self.batch("one")
+        orch.read_tail = lambda path, lines=40: (
+            '{"isApiErrorMessage":true,"apiErrorStatus":529,"text":"overloaded"}')
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if name.endswith("-close"):        # the closing session is not what is measured here
+                    case.write("b", {"slug": "b", "children": [first], "step": "done", "pr": 3})
+                return True
+
+        _driver, _code = self.drive(Launcher)
+        self.assertEqual(self.step(first), "blocked")
+        # Bounded by --max-wait (6h here), not by how long the machine stays up.
+        self.assertLess(self.waited(), 8 * 3600)
 
     def test_stop_from_the_control_file_is_taken_between_features(self):
         first, second = self.batch("one", "two")
@@ -1533,6 +1602,83 @@ class SilenceCase(unittest.TestCase):
         self.path.write_text('not json at all\n{"type":"assistant"}\n', encoding="utf-8")
         self.assertIsNone(orch.last_spoke(self.path))
 
+
+
+class SecondDriverCase(unittest.TestCase):
+    """One working tree, one driver. The probe used to look for `<slug>` and nothing else, so a
+    child already on its second session — named `-2` — was invisible to it."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.runs = self.tmp / "proj" / ".agent-kit" / "runs"
+        (self.runs / "b").mkdir(parents=True)
+        (self.runs / "b-01-one").mkdir()
+        self._real = (orch.Launcher, shutil.which)
+
+    def tearDown(self):
+        orch.Launcher, _ = self._real
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def write(self, slug, state):
+        (self.runs / slug / "run.json").write_text(json.dumps(state), encoding="utf-8")
+
+    def run_main(self, live_name):
+        class Launcher(FakeLauncher):
+            def __init__(self, *_args, **_kwargs):
+                super().__init__()
+
+            def alive_at(self, target):
+                return target == live_name
+
+            def alive(self, name):
+                return self.alive_at(f"cc-{name}")
+
+        orch.Launcher = Launcher
+        real_which = orch.shutil.which
+        orch.shutil.which = lambda name: "/usr/bin/tmux" if name == "tmux" else None
+        os.environ[orch.DETACHED] = "1"                   # already out of the pane; do not fork
+        try:
+            with contextlib.redirect_stderr(io.StringIO()) as said:
+                return orch.main([str(self.runs / "b")]), said.getvalue()
+        finally:
+            orch.shutil.which = real_which
+            os.environ.pop(orch.DETACHED, None)
+
+    def test_a_child_on_its_second_session_is_seen(self):
+        self.write("b", {"slug": "b", "command": "sprint", "children": ["b-01-one"]})
+        self.write("b-01-one", {"slug": "b-01-one", "step": "build", "session": "cc-b-01-one-2"})
+        code, said = self.run_main("cc-b-01-one-2")
+        self.assertEqual(code, 1)
+        self.assertIn("another driver is already on this run", said)
+
+    def test_a_child_with_no_session_named_falls_back_to_its_slug(self):
+        self.write("b", {"slug": "b", "command": "sprint", "children": ["b-01-one"]})
+        self.write("b-01-one", {"slug": "b-01-one", "step": "build"})
+        code, said = self.run_main("cc-b-01-one")
+        self.assertEqual(code, 1)
+        self.assertIn("another driver is already on this run", said)
+
+
+class SubprocessTimeoutCase(unittest.TestCase):
+    """Nothing the driver shells out to had a timeout. A hung tmux hung the driver with it, for as
+    long as the machine stayed up, and said nothing."""
+
+    def test_a_tmux_that_does_not_answer_becomes_an_ordinary_failure(self):
+        launcher = orch.Launcher.__new__(orch.Launcher)
+        launcher.helper = None
+        real = orch.subprocess.run
+
+        def hang(*_args, **_kwargs):
+            raise orch.subprocess.TimeoutExpired(cmd="tmux", timeout=orch.TMUX_TIMEOUT)
+
+        orch.subprocess.run = hang
+        try:
+            done = launcher._tmux("has-session", "-t", "cc-x")
+        finally:
+            orch.subprocess.run = real
+        self.assertEqual(done.returncode, 124)
+        self.assertIn("did not answer", done.stderr)
+        self.assertEqual(done.args[0], "tmux")
 
 
 class DetachCase(unittest.TestCase):

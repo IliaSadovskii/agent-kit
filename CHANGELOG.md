@@ -3,6 +3,37 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.28.4
+
+**Every unbounded wait in the driver now has a bound, and every shell call has a timeout.** Same
+read as 2.28.3 ([docs/map/](docs/map/)); this is the half that needed a number chosen rather than a
+line moved. The numbers are constants at the top of `orchestrate.py`, not flags — a flag here would
+be a lever nobody has a reason to pull.
+
+- **A run is carried on at most twelve times.** Only restarts were counted, so a session that keeps
+  opening over the ceiling and keeps writing a fresh handoff note could be replaced forever. Twelve
+  because a big feature may honestly need many sessions: the bound is against a loop with no end,
+  not against a long run. Past it the feature is `blocked` and says the work does not fit the
+  sessions it is being given.
+- **An overloaded API is waited out, then given up on.** `sleep(120); continue` had no counter and
+  `--hang` cannot fire in that branch, so a permanently overloaded API held the driver for as long
+  as the machine stayed up. The wait now doubles from two minutes to a ceiling of thirty, and the
+  run gives up against the same `--max-wait` a rate limit answers to.
+- **A weekly limit parks the batch instead of trying to close it.** Closing means starting a
+  session, which is the one thing a weekly limit makes impossible: the closing session reached no
+  terminal step and the batch was written `blocked` with a message blaming the closing. It is now
+  `blocked` with what actually happened, and `--resume` closes it once the limit is behind you.
+- **The single-driver check reads the session name the driver wrote**, rather than working one out
+  from the slug. A child on its second session is named `-2`, so the probe could not see it — and
+  two drivers over one working tree is how a night ends with commits on the wrong branch.
+- **Every `tmux`, `claude-new`, `claude-close` and `git ls-remote` call has a timeout.** There was
+  not one anywhere: a hung `tmux` hung the driver with it, silently, for as long as the machine
+  stayed up. A timeout turns that into an ordinary failure the callers already handle, and an
+  unreachable remote is now said rather than read as "the branch was never pushed".
+- **The closing session's cost is counted.** `record_spend` ran before `close()`, so the most
+  expensive session of a measured batch never appeared in the number the next gate prices a scope
+  from.
+
 ## 2.28.3
 
 **Five defects a full read of the kit found, each one small and each one proved by a test that was

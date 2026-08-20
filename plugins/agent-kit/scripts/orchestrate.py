@@ -40,6 +40,15 @@ import runfile                                    # noqa: E402 - what a run is, 
 
 # What a run is has one home now, and this is the name the driver uses for it.
 TERMINAL_STEPS = set(runfile.TERMINAL)
+# What a session may do before this program stops believing in it. Every one of these was
+# unbounded, and an unbounded retry on a night nobody watches is a night spent on one feature.
+HANDOFFS = 12         # sessions one run may be carried through: a big feature may honestly need many,
+                      # so this is set against an unbounded loop rather than against a long run
+OVERLOAD_FIRST = 120  # seconds to wait on the first 529, doubling after it
+OVERLOAD_LONGEST = 1800
+TMUX_TIMEOUT = 15     # a tmux that does not answer is not a tmux that is thinking
+HELPER_TIMEOUT = 120  # `claude-new` starts a session and registers it — slower, still bounded
+REMOTE_TIMEOUT = 30
 HANDOFF_LINE = ("[driver] your context has grown past what one session should carry — hand this run "
                 "over: finish the task you are on, close it in the run file, fill `handoff`, and "
                 "stop. The rule is the Handing over section of skills/ship/SKILL.md. Do not start "
@@ -146,9 +155,15 @@ class Launcher:
 
     def _tmux(self, *args: str) -> subprocess.CompletedProcess:
         try:
-            return subprocess.run(["tmux", *args], capture_output=True, text=True)
+            return subprocess.run(["tmux", *args], capture_output=True, text=True,
+                                  timeout=TMUX_TIMEOUT)
         except FileNotFoundError:                 # checked once in main(); this is the belt
             return subprocess.CompletedProcess(["tmux", *args], 127, "", "tmux is not installed")
+        except subprocess.TimeoutExpired:
+            # A hung tmux used to hang the driver with it, silently and for as long as the machine
+            # stayed up. A timeout turns that into an ordinary failure the callers already handle.
+            return subprocess.CompletedProcess(["tmux", *args], 124, "",
+                                               f"tmux did not answer in {TMUX_TIMEOUT}s")
 
     def tmux_name(self, name: str) -> str:
         return f"cc-{name}" if self.helper else f"agent-kit-{name}"
@@ -169,7 +184,12 @@ class Launcher:
             self.reclaimed = name
             time.sleep(1)                         # tmux frees the name a moment after the kill
         if self.helper:
-            done = subprocess.run([self.helper, name, str(self.cwd)], capture_output=True, text=True)
+            try:
+                done = subprocess.run([self.helper, name, str(self.cwd)], capture_output=True,
+                                      text=True, timeout=HELPER_TIMEOUT)
+            except subprocess.TimeoutExpired:
+                print(f"{self.helper} did not return in {HELPER_TIMEOUT}s for {name}", file=sys.stderr)
+                return False
             if done.returncode != 0:
                 return False
         else:
@@ -221,7 +241,13 @@ class Launcher:
                       f"and whatever restores registered sessions will bring it back",
                       file=sys.stderr)
         elif self.closer:
-            done = subprocess.run([self.closer, name], capture_output=True, text=True)
+            try:
+                done = subprocess.run([self.closer, name], capture_output=True, text=True,
+                                      timeout=HELPER_TIMEOUT)
+            except subprocess.TimeoutExpired:
+                print(f"{self.closer} did not return in {HELPER_TIMEOUT}s for {name} — "
+                      f"the session may still be registered", file=sys.stderr)
+                return
             if done.returncode != 0:
                 print(f"{self.closer} refused {name}: "
                       f"{done.stderr.strip() or done.stdout.strip() or done.returncode}",
@@ -565,6 +591,10 @@ class Driver:
         self.launcher = Launcher(cwd, options.model)
         self.skip: set[str] = set()
         self.stopping = False
+        # Why it stopped, because the two reasons want opposite endings: the owner's `stop` means
+        # deliver what is built, and a weekly limit means no session can do anything at all —
+        # including the one that would write the pull request.
+        self.stopped_by = ""
         self.sessions = 0
         self.began = time.time()
         self.watched: str | None = None           # the session `watch` has live, numbered
@@ -650,6 +680,9 @@ class Driver:
         launched = time.time() - 1
         transcript = None
         restarts = 0
+        handoffs = 0                              # how many times this run has been carried on
+        overloads = 0                             # 529s in a row on this run
+        overloaded_for = 0.0                      # and how long they have cost it
         segment = 1                               # which session of this run is speaking
         floor = 0                                 # what its context started at, before it did anything
         nudged = False                            # one word before a restart, once per session
@@ -711,6 +744,14 @@ class Driver:
             # stopped. Take it on to a session that starts near the floor again.
             note = (run.state().get("handoff") or "").strip()
             if asked and note and note != note_before and (gone or idle > self.opt.poll):
+                # Counted, because only restarts were. A run that keeps opening over the ceiling and
+                # keeps writing a new note can be carried forever, and one live run was carried
+                # eleven times in an hour: every session paid the reading set again and none of them
+                # finished. Past the bound the feature is a person's problem, and says so.
+                handoffs += 1
+                if handoffs > HANDOFFS:
+                    return (f"handed over {HANDOFFS} times without finishing — the work in this "
+                            f"feature does not fit the sessions it is being given")
                 if fresh(f"{run.slug} carried on in a new session", "handed-off"):
                     continue
                 return "could not start the session that takes the handoff"
@@ -750,6 +791,7 @@ class Driver:
                 wait = (when - time.time()) if when else self.opt.poll * 5
                 if wait > self.opt.max_wait * 3600:
                     self.stopping = True
+                    self.stopped_by = "limit"
                     self.tell(f"{run.slug}: a weekly limit, not a session one — stopping the run")
                     return f"limit resets in {wait / 3600:.1f}h"
                 if wait > 0:
@@ -766,8 +808,18 @@ class Driver:
                 return "did not come back after the limit"
 
             if kind == "overloaded" and not gone:
-                run.event("overloaded", "retrying shortly")
-                time.sleep(120)
+                # `sleep(120); continue` with no counter meant a permanently overloaded API kept the
+                # driver in this branch for as long as the machine stayed up — `--hang` cannot fire
+                # here, because this branch is reached before `why` is ever computed. The wait
+                # doubles, and the run gives up against the same ceiling a rate limit answers to.
+                wait = min(OVERLOAD_FIRST * 2 ** overloads, OVERLOAD_LONGEST)
+                overloads += 1
+                overloaded_for += wait
+                if overloaded_for > self.opt.max_wait * 3600:
+                    return (f"the API stayed overloaded for {overloaded_for / 3600:.1f}h — "
+                            f"past the {self.opt.max_wait}h this run waits for anything")
+                run.event("overloaded", f"retrying in {wait // 60}m (attempt {overloads})")
+                time.sleep(wait)
                 self.launcher.send(current, "continue")
                 continue
 
@@ -992,8 +1044,15 @@ class Driver:
         child.set(base=base, parent=last.slug if last else None)
 
     def branch_pushed(self, branch: str) -> bool:
-        done = subprocess.run(["git", "ls-remote", "--heads", "origin", branch],
-                              cwd=self.cwd, capture_output=True, text=True)
+        try:
+            done = subprocess.run(["git", "ls-remote", "--heads", "origin", branch],
+                                  cwd=self.cwd, capture_output=True, text=True,
+                                  timeout=REMOTE_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            # An unreachable remote is not an answer about the branch. Said, not guessed: this
+            # decides whether a feature whose run file is behind counts as built.
+            self.run.event("remote-timeout", f"git ls-remote for {branch} took over {REMOTE_TIMEOUT}s")
+            return False
         return done.returncode == 0 and bool(done.stdout.strip())
 
     # ---- the batch --------------------------------------------------------------------------
@@ -1066,6 +1125,7 @@ class Driver:
             elif instruction == "stop":
                 self.run.event("control", instruction)
                 self.stopping = True
+                self.stopped_by = "control"
             elif instruction:
                 # The file is read and deleted whatever it says. An instruction nobody recognised
                 # would then vanish exactly like one that was obeyed, and the owner — who watched
@@ -1134,10 +1194,22 @@ class Driver:
             elif not errand:
                 self.skip.add(slug)
 
+        if self.stopped_by == "limit":
+            # Closing means starting a session, and a weekly limit is exactly the state where no
+            # session can start. It used to be attempted anyway: the closing session reached no
+            # terminal step and the batch was written `blocked` with a message blaming the closing
+            # rather than the limit.
+            self.run.set(step="blocked")
+            self.run.event("parked", f"{built}/{len(seen)} built — weekly limit, not closed")
+            self.record_spend(built)
+            self.tell("a weekly limit stopped the run before the batch could be closed — the "
+                      "features that were built are pushed, and `--resume` closes the batch once "
+                      "the limit is behind you")
+            return 1
+
         self.run.set(step="closing")
         self.run.event("children-done", f"{built}/{len(seen)} built")
-        self.record_spend(built)
-        self.close()
+        self.close(built)
         return 0
 
     def record_spend(self, built: int) -> None:
@@ -1157,12 +1229,15 @@ class Driver:
                             "features": int(before.get("features") or 0) + built,
                             "sessions": int(before.get("sessions") or 0) + self.sessions})
 
-    def close(self) -> None:
+    def close(self, built: int) -> None:
         """A pull request is judgement, so a session writes it — not this program."""
         name = f"{self.run.slug}-close"[:60]
         why = self.watch(name, self.run, f"/agent-kit:sprint --close {self.run.dir}",
                          hand_over=False)
         self.launcher.stop(self.watched or name)
+        # Priced after the closing session, not before it: it is a session like any other, and on a
+        # measured batch it was the most expensive one. Counted before, it never appeared at all.
+        self.record_spend(built)
 
         # Judge the closing session by its step first. Inside an `epic` the batch's `pr` is the run's
         # one pull request, which the closing session rewrites rather than opens — so it is there
@@ -1367,7 +1442,14 @@ def main(argv: list[str] | None = None) -> int:
     driver = Driver(run, cwd, options)
     for slug in run.state().get("children") or []:
         child = Run(run_dir.parent / slug)
-        if child.file.is_file() and not child.terminal() and driver.launcher.alive(slug[:60]):
+        if not child.file.is_file() or child.terminal():
+            continue
+        # The name the driver actually wrote, not the one this line can work out. A run carried on
+        # is `-2`, `-3`, and computing `slug[:60]` finds none of them — so a child on its second
+        # session was invisible to the one check that exists to stop two drivers sharing a tree.
+        session = (child.state().get("session") or "").strip()
+        live = driver.launcher.alive_at(session) if session else driver.launcher.alive(slug[:60])
+        if live:
             print(f"{slug} still has a live session — another driver is already on this run",
                   file=sys.stderr)
             return 1
