@@ -126,7 +126,11 @@ running `orchestrate.py` looks for `claude-new` on PATH and would be orphaned mi
   experiment settles it: create a session, reboot, look. Until it is settled, `claude-restore`
   stays.
 
-## Phase 3 — Codex
+## Phase 3 — build targets, and Codex is the first
+
+There is more than one target: the kit has to build for Claude Code, Codex, Gemini CLI, Grok Build
+and OpenCode — and through them for any model on the market. Codex goes first because the machinery
+of building is what gets debugged on it.
 
 The kit's prose is portable; what is not portable is the packaging and four flags. Codex mirrors
 Claude Code almost item for item:
@@ -162,10 +166,26 @@ Work, in order:
 
 Acceptance for Phase 3 is the same checklist as Phase 1, run once with `"tool": "codex"`.
 
-## Phase 4 — the ground for whoever is next
+## Phase 4 — every provider, in three classes
 
-After Phase 3 there should be exactly one table to fill for a new provider, and it should be
-readable in a minute:
+**The kit does not need to support models. It needs to support agents**, and which model is inside
+is the agent's business. That is what turns ten providers into four build targets.
+
+| Class | Who | What the kit has to do |
+|---|---|---|
+| **1.** a model through somebody else's agent | GLM (Z.ai), DeepSeek, Kimi — all speak the Anthropic protocol | **nothing.** `ANTHROPIC_BASE_URL` and a key in `extra_env` at session creation. The client is still Claude Code, so transcripts, limits, the ceiling, the hooks and the reviewer all work unchanged |
+| **2.** its own CLI agent | Claude Code, Codex, Gemini CLI, Grok Build, OpenCode, Cline, Qwen Code, Kimi CLI | one build target each: manifest, hook format, the name of the project instruction file, the root variable |
+| **3.** any model through a multi-provider agent | OpenCode, Cline | nothing beyond class 2 — one package opens hundreds of models at once |
+
+**Class 1 is checked before anything else**, because it needs no code at all: create a session
+through AoE with the right `extra_env` and run one `ship`. For DeepSeek this is the documented path
+rather than a trick — `api.deepseek.com/anthropic` exists for Claude Code. It is the cheapest way to
+learn the only thing that matters: whether this kit is portable at all.
+
+**Grok Build looks close to free as a target** — xAI open-sourced it in July, and Grok Skills are
+stated to be compatible with Claude Code skills, plugins and `CLAUDE.md`.
+
+Inside class 2, a new agent is exactly one table, readable in a minute:
 
 | Field | Claude Code | Codex |
 |---|---|---|
@@ -179,6 +199,26 @@ readable in a minute:
 
 Gemini CLI, OpenCode and Cline all have skills, hooks, subagents and a full-access flag, so each is
 that table plus a build target. None of them needs a new mechanism.
+
+### Where the universality stops
+
+**Context is no longer the constraint.** GLM-5.2, Kimi K3 and DeepSeek V4 all carry a million-token
+window, the same as Opus. The kit's 210k ceiling was never about the window anyway — it is about
+cost: every turn re-sends the whole context, a session's price grows with the square of its turns,
+and the curve was fitted over 119 Opus sessions. **On another provider it has to be measured
+again**, because it follows the price of a token and whether the cache works, not the size of the
+window.
+
+**Two questions remain, and both are harder than context.** Prompt caching, which the whole economy
+of a run stands on — re-reading the context costs a tenth. And instruction-following: the kit holds
+~50k characters of norms and asks an agent to keep its own run file straight over dozens of turns.
+A large window and good work inside that window are different properties; in published comparisons
+Kimi K2.6 at 256k beats GLM-5.1 at 204k on long-context recall.
+
+**So the bench stops being a deferred item.** With one provider, a change to the kit was checked by
+a live overnight run. A kit for every provider, with no way to compare providers against each other,
+is a claim nothing can test — and the first bad night on somebody else's model will be
+indistinguishable from a bad night. That is item 1 of `docs/planned.md`, and its turn has come.
 
 ## What could go wrong, and what to watch
 
