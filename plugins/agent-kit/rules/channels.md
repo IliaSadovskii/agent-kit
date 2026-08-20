@@ -25,6 +25,7 @@ kinds of durability, and half the surprises come from a run assuming the wrong o
 | `run.json` → `waiting_on` | the session that stopped on a fork, with the owner present | the driver, the window, `next` | the answer landing in `answers` | as above |
 | `.agent-kit/runs/<slug>/run.log` | the driver, and nothing else | a person | never — it is history | as above |
 | `.agent-kit/runs/<slug>/control` | the owner's window, and nobody else | the driver, between children | the driver, which deletes it as it reads, recognised or not | as above |
+| `.agent-kit/runs/<slug>/driver.out` | the session that starts the driver, by redirecting its output | a person, when a driver did not come up — once it re-execs into its own unit the rest goes to the journal | never — it is history, and it dies with the run directory | as above |
 | `[driver] …` typed into the window | the driver | the window session | nothing — it is speech | nowhere |
 | `[assumed …]` under an entry | `ship` | every later run that builds in that entry | `blueprint`; **or a build command with the owner present**, writing down the answer they just gave | git |
 | `[found …]` under `stack.md` | `ship` | `blueprint` | `blueprint`, folding it into the map | git |
@@ -53,7 +54,7 @@ kinds of durability, and half the surprises come from a run assuming the wrong o
 
 `check.py` runs before every command, and these it settles rather than trusting:
 
-- **a file in a run directory that is not `run.json`, `run.log` or `control`.** A live run needed to
+- **a file in a run directory that is not `run.json`, `run.log`, `control` or `driver.out`.** A live run needed to
   start a command the driver could not, so it wrote itself a shell script there and had a session
   execute it — a mechanism with no row in this table, in the one directory nothing tracks;
 - **a ticked audit item with no pull request number.** A tick takes an item off every list there is

@@ -2215,13 +2215,13 @@ def check_channels(root: Path, report: Report) -> None:
     if runs.is_dir():
         for directory in sorted(p for p in runs.iterdir() if p.is_dir()):
             for path in sorted(directory.iterdir()):
-                if path.name not in ("run.json", "run.log", "control"):
+                if path.name not in ("run.json", "run.log", "control", "driver.out"):
                     strays.append(f"{directory.name}/{path.name}")
     if strays:
         named = ", ".join(strays[:5]) + (f" … and {len(strays) - 5} more" if len(strays) > 5 else "")
         report.drift.append(f"run directories carry files that are not a run's own ({len(strays)}): "
-                            f"{named} — a run keeps run.json, run.log and control, and anything else "
-                            f"there is a mechanism nothing declared and nothing tracks")
+                            f"{named} — a run keeps run.json, run.log, control and driver.out, and "
+                            f"anything else there is a mechanism nothing declared and nothing tracks")
 
     # A ticked item leaves every future list: `sprint` reads the unticked half and nothing else,
     # `next` never raises it again. So the number is not there to protect the next batch — it is

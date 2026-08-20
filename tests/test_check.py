@@ -195,6 +195,16 @@ class CheckCase(unittest.TestCase):
         _code, output = self.run_check()
         self.assertIn("x/advance.sh", output)
 
+    def test_the_drivers_own_output_file_is_not_a_stray(self):
+        """The kit's own launch line creates it, so reporting it as drift makes every sprint and
+        every epic print a finding nobody can act on."""
+        directory = self.root / ".agent-kit" / "runs" / "b"
+        directory.mkdir(parents=True)
+        (directory / "run.json").write_text('{"slug": "b"}', encoding="utf-8")
+        (directory / "driver.out").write_text("driver: starting\n", encoding="utf-8")
+        _code, output = self.run_check()
+        self.assertNotIn("not a run's own", output)
+
     def test_an_audit_box_ticked_without_its_pull_request_is_named(self):
         audits = self.root / "docs" / "audits"
         audits.mkdir(parents=True)

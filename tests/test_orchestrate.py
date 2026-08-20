@@ -239,6 +239,75 @@ class DriverCase(unittest.TestCase):
         self.assertEqual(self.step(second), "skipped")
         self.assertFalse((self.runs / "b" / "control").exists())
 
+    def test_stopping_does_not_overwrite_a_feature_that_was_already_built(self):
+        """`stop` — and a weekly limit, which sets the same flag — must not rewrite a child a
+        previous pass closed `done`. Written `skipped`, the feature reads as never built, nothing
+        rebuilds it because `terminal()` still answers True, and its branch sits in the repository
+        with nothing pointing at it."""
+        first, second = self.batch("one", "two")
+        self.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}"})
+        (self.runs / "b" / "control").write_text("stop\n", encoding="utf-8")
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first, second], "step": "done", "pr": 9})
+                return True
+
+        _driver, code = self.drive(Launcher)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.step(first), "done")
+        self.assertEqual(self.step(second), "skipped")
+
+    def test_the_control_file_is_read_even_when_the_child_has_no_run_file(self):
+        """`control` is the owner's one lever. Reading it after the missing-file check loses a
+        `stop` written while a child with no run file is at the head of the queue — and the file is
+        not deleted either, so the owner watching it sit there gets no signal."""
+        only, = self.batch("one")
+        (self.runs / only / "run.json").unlink()
+        (self.runs / "b" / "control").write_text("stop\n", encoding="utf-8")
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [only], "step": "done", "pr": 4})
+                return True
+
+        _driver, _code = self.drive(Launcher)
+        self.assertFalse((self.runs / "b" / "control").exists())
+
+    def test_a_batch_with_no_children_writes_its_step_before_handing_back(self):
+        """Left at the step it was composed at, the batch is one the advance session cannot tell
+        apart from a batch nobody started — and that field is what it decides on."""
+        (self.runs / "b").mkdir()
+        self.write("b", {"slug": "b", "command": "sprint", "base": "main", "children": []})
+        _driver, code = self.drive(FakeLauncher)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.step("b"), "blocked")
+
+    def test_the_cost_a_child_recorded_survives_the_drivers_own_count(self):
+        """The driver writes `spent.sessions`; `hours` and `features` are the child's own. A fresh
+        dict here drops them, and the frame child of the next batch reads exactly those."""
+        first, = self.batch("one")
+        case = self
+
+        class Launcher(FakeLauncher):
+            def start(self, name, prompt, model=None):
+                if first in name:
+                    case.write(first, {"slug": first, "step": "done", "branch": f"claude/{first}",
+                                       "spent": {"hours": 2.5, "features": 1, "sessions": 1}})
+                if name.endswith("-close"):
+                    case.write("b", {"slug": "b", "children": [first], "step": "done", "pr": 5})
+                return True
+
+        _driver, _code = self.drive(Launcher)
+        spent = json.loads((self.runs / first / "run.json").read_text(encoding="utf-8"))["spent"]
+        self.assertEqual(spent["hours"], 2.5)
+        self.assertEqual(spent["features"], 1)
+        self.assertGreaterEqual(spent["sessions"], 1)
+
     def test_a_closing_session_that_never_returns_does_not_hang_the_driver(self):
         first, = self.batch("one")
         case = self

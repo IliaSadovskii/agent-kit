@@ -3,6 +3,33 @@
 All notable changes to the kit. Versions follow semver from the perspective of a project that
 installed it — see [docs/developing.md](docs/developing.md#versioning).
 
+## 2.28.3
+
+**Five defects a full read of the kit found, each one small and each one proved by a test that was
+red first.** The read itself is in [docs/map/](docs/map/) — twelve sectors, one merged graph, 58
+findings. These five are the ones whose fix has only one possible shape, so they ship before the
+work that needs a decision.
+
+- **`stop` no longer overwrites a feature that was already built.** The `stopping` branch sat above
+  the already-terminal check, so the owner's `stop` — and the weekly limit, which sets the same flag
+  — wrote `skipped` over a child a previous pass had closed `done`. On `--resume` that feature reads
+  as never built, `terminal()` still answers True so nothing rebuilds it, and its branch sits in the
+  repository with nothing pointing at it. The two branches are the other way round now.
+- **`control` is read before the missing-file check.** The owner's one lever was skipped for as long
+  as the head of the queue had no run file — and the file was not deleted either, so a `stop`
+  written at that moment sat there giving no signal at all.
+- **A batch with no children writes its step before handing back.** It handed back at whatever step
+  it was composed at, which the advance session cannot tell apart from a batch nobody started.
+- **The cost a child recorded survives the driver's own count.** The driver wrote a fresh `spent`
+  holding only `sessions`, dropping the `hours` and `features` the child itself had written — the
+  numbers the next batch's frame child reads to decide what to split.
+- **`driver.out` has a row in `rules/channels.md`.** The kit's own launch line creates it and the
+  kit's own channel check called it "a mechanism nothing declared and nothing tracks", so every
+  sprint and every epic printed a finding nobody could act on. It is history, like `run.log`, and it
+  dies with the run directory.
+
+Also: a failed `tmux` call now names the command it actually ran.
+
 ## 2.28.2
 
 **The driver that moved itself out took none of its path with it.** 2.28.1 put the driver in a

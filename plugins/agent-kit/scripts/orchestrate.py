@@ -148,7 +148,7 @@ class Launcher:
         try:
             return subprocess.run(["tmux", *args], capture_output=True, text=True)
         except FileNotFoundError:                 # checked once in main(); this is the belt
-            return subprocess.CompletedProcess(args, 127, "", "tmux is not installed")
+            return subprocess.CompletedProcess(["tmux", *args], 127, "", "tmux is not installed")
 
     def tmux_name(self, name: str) -> str:
         return f"cc-{name}" if self.helper else f"agent-kit-{name}"
@@ -808,8 +808,12 @@ class Driver:
         # composed into a single child. Per feature, that is visible; averaged, it is not — and the
         # frame child of the next batch is the reader, deciding what to split before anything is
         # built.
-        before = int((child.state().get("spent") or {}).get("sessions") or 0)
-        child.set(spent={"sessions": max(before, self.segments)})
+        # Merged, not replaced: `hours` and `features` are the child's own to write, and a fresh
+        # dict here drops them. The batch's `record_spend` keeps all three; this path is the one
+        # that did not.
+        spent = dict(child.state().get("spent") or {})
+        spent["sessions"] = max(int(spent.get("sessions") or 0), self.segments)
+        child.set(spent=spent)
 
         # Judge by the world, not by the exit: a limit at the tail of a feature looks exactly like a
         # crash while the work is already done.
@@ -1002,6 +1006,10 @@ class Driver:
             # an `epic` whose next step was started on the wrong file stops here in silence, and
             # only `--resume` finds it. Judgement about what that means belongs to the session
             # above; saying so is this program's job.
+            # Written before the hand-back, because a batch left at the step it was composed at is
+            # one the advance session cannot tell from a batch nobody started yet — and it decides
+            # what follows by reading exactly that field.
+            self.run.set(step="blocked")
             self.run.event("empty", "no children to build — handing back")
             self.tell(f"{self.run.slug} has no children to build")
             self.hand_back(state)
@@ -1046,11 +1054,10 @@ class Driver:
             slug = remaining[0]
             seen.add(slug)
 
-            child = Run(self.run.dir.parent / slug)
-            if not child.file.is_file():
-                self.run.event("missing", f"{slug} has no run file")
-                continue
-
+            # Read before the missing-file check below: `control` is the owner's one lever, and
+            # skipping it because the head of the queue has no run file loses a `stop` written
+            # while that head was current — the file is not deleted either, so the owner watching
+            # it sit there gets no signal at all.
             instruction = take_control(self.run)
             if instruction.startswith("skip"):
                 target = instruction.split(None, 1)[1].strip() if " " in instruction else slug
@@ -1067,16 +1074,26 @@ class Driver:
                 self.tell(f"the instruction in `control` was not recognised and did nothing: "
                           f"{instruction[:60]} — the two words are `skip <slug>` and `stop`")
 
-            if self.stopping:
-                child.set(step="skipped")
+            child = Run(self.run.dir.parent / slug)
+            if not child.file.is_file():
+                self.run.event("missing", f"{slug} has no run file")
                 continue
 
+            # Asked before `stopping`, and that order is the whole point: a child a previous pass
+            # closed `done` must not be overwritten `skipped` because the owner stopped the batch
+            # or a weekly limit did. Written the other way round the feature reads as never built,
+            # `terminal()` still answers True so nothing rebuilds it, and its branch sits in the
+            # repository with nothing pointing at it.
             if child.terminal():
                 self.run.event("already-terminal", slug)
                 if child.state().get("step") == "done":
                     built += 1
                     last = child
                     self.apply_frame(child, child.state())
+                continue
+
+            if self.stopping:
+                child.set(step="skipped")
                 continue
 
             # A child that is not a feature — the frame child, an audit between two waves — has
