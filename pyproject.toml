@@ -2,7 +2,7 @@
 name = "agent-kit"
 dynamic = ["version"]
 description = "Drives other people's CLI agents through a method that is a program, not prose."
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = []
 
 [project.scripts]

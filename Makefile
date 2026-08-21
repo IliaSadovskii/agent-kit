@@ -12,13 +12,13 @@ up:            ## raise the workshop and install the kit into it
 down:          ## stop it, keeping the caches
 	$(COMPOSE) down
 
-test:          ## the whole suite
+test: up       ## the whole suite
 	$(COMPOSE) exec -T kit pytest
 
 shell:         ## a prompt inside the workshop
 	$(COMPOSE) exec kit bash
 
-install-check: ## S0's proof: `uv tool install` puts a working command on PATH
+install-check: up  ## S0's proof: `uv tool install` puts a working command on PATH
 	$(COMPOSE) exec -T kit sh -c 'uv tool install --force --reinstall . \
 	  && "$$HOME/.local/bin/agent-kit" --version \
 	  && "$$HOME/.local/bin/agent-kit" step show probe' 

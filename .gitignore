@@ -11,6 +11,7 @@ __pycache__/
 # The workshop
 .venv/
 .pytest_cache/
+dist/
 
 # Run state — never repository content
 .agent-kit/

@@ -1,10 +1,9 @@
 version = 1
 revision = 3
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 
 [[package]]
 name = "agent-kit"
-version = "3.0.0.dev0"
 source = { editable = "." }
 
 [package.dev-dependencies]

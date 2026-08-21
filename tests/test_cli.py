@@ -10,10 +10,9 @@ from agent_kit.errors import ExitCode
 
 
 @pytest.fixture
-def machine(tmp_path, monkeypatch):
+def machine(tmp_path, monkeypatch, machine_home):
+    """A home of its own (from conftest) and a project directory to stand in."""
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
-    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
-    monkeypatch.delenv("XDG_STATE_HOME", raising=False)
     monkeypatch.chdir(tmp_path / "project")
     return tmp_path
 

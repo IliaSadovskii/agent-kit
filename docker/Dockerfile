@@ -1,5 +1,5 @@
 # The kit's own workshop. Nothing is installed on the host; uv lives here.
-FROM python:3.12-slim
+FROM python:3.12.14-slim
 
 COPY --from=ghcr.io/astral-sh/uv:0.8.4 /uv /uvx /usr/local/bin/
 

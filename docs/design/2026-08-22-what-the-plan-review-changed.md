@@ -40,6 +40,29 @@ suffixes ignored.
 | `RunStore` imported the step registry | creating a run moved to `driver.create_run`, so the arrow keeps pointing one way |
 | open question 13 said "the kit's own CI" and there was none | `.github/workflows/tests.yml`: the suite, plus the install path S0 promised |
 
+## The environment, reviewed separately
+
+A second reviewer read only the packaging, the container and the server's project contract. The
+contract is met requirement by requirement, and `uv tool install` was verified end to end from a
+clean `git archive` — the wheel carries `method/` and `provider.toml`, and `method_root()` was
+checked in both of its branches, installed and checkout. One finding was blocking:
+
+**`uv sync` rewrote the committed lock at every container start.** No `--locked`, so `make up`
+silently re-resolved and left the working tree dirty from a command whose job is to raise the
+workshop — the pinned environment was never the one anybody reviewed. Now the start checks the
+lock and refuses to re-resolve; a lock that has drifted says so. A start with no network keeps the
+environment the image already has rather than restart-looping, because a workshop that was fine
+yesterday is fine today.
+
+The rest: the interpreter is pinned like the rest of the toolchain (`python:3.12.14-slim`, uv was
+already pinned); `requires-python` narrowed to `>=3.12`, which is what is actually tested;
+`make test` and `make install-check` now depend on `make up`, so neither can run against a
+workshop nobody raised; `dist/` ignored; and — the one that would have bitten quietly —
+**no test can reach the home of whoever runs it**. `main()` reads the real environment and the
+logger writes under `~/.local/state`, so a single test that forgot to redirect `HOME` would have
+written there. `tests/conftest.py` now redirects it for every test, autouse, rather than trusting
+each one to remember.
+
 ## The one that is not a code change
 
 The reviewer's sharpest note: **"the test is written first" is prose that nothing checks, and the
