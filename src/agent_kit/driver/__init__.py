@@ -2,7 +2,7 @@
 
 from .compose import compose_input
 from .executor import Executor, ExecutorFailed, ExecutorResult, StepRequest
-from .runner import ATTEMPTS_PER_PROVIDER, AttemptRecord, StepOutcome, StepRunner
+from .runner import ATTEMPTS_PER_PROVIDER, AttemptRecord, StepOutcome, StepRunner, create_run
 from .workspace import StepWorkspace
 
 __all__ = [
@@ -16,4 +16,5 @@ __all__ = [
     "StepRunner",
     "StepWorkspace",
     "compose_input",
+    "create_run",
 ]

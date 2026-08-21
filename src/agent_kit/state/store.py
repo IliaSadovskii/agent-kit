@@ -11,16 +11,13 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import Callable
 
 from ..errors import StateError
 from ..logs import get_logger
 from ..paths import ProjectPaths, project_paths
 from .migrations import migrate
 from .schema import Run, Step, check_slug
-
-if TYPE_CHECKING:  # a registry knows which steps exist; the state itself does not care
-    from ..steps.registry import Registry as StepRegistry
 
 RUN_FILE = "run.json"
 
@@ -30,10 +27,8 @@ log = get_logger("state")
 class RunStore:
     """Runs of one project, under `.agent-kit/v3/runs/`."""
 
-    def __init__(self, root: Path | str, registry: "StepRegistry | None" = None) -> None:
+    def __init__(self, root: Path | str) -> None:
         self.paths: ProjectPaths = project_paths(root)
-        #: Optional: when given, a run may only be created from steps that exist.
-        self.registry = registry
 
     # --- reading ----------------------------------------------------------
 
@@ -74,9 +69,6 @@ class RunStore:
     def create(self, slug: str, steps: list[str] | tuple[str, ...] | None = None, project: str | None = None,
                branch: str | None = None) -> Run:
         check_slug(slug)
-        for name in steps or ():
-            if self.registry is not None:
-                self.registry.get(name)
         if self.exists(slug):
             raise StateError("run-exists", f"{slug} already exists; a run is created once")
         run = Run.new(slug, steps=steps, project=project, branch=branch)
@@ -111,8 +103,9 @@ class RunStore:
     def fail_step(self, slug: str, reason: str) -> Run:
         return self.update(slug, lambda run: run.fail_step(reason))
 
-    def skip_step(self, slug: str, reason: str) -> Run:
-        return self.update(slug, lambda run: run.skip_step(reason))
+    def refuse_step(self, slug: str, reason: str) -> Run:
+        """One attempt was refused; the step waits for the next."""
+        return self.update(slug, lambda run: run.refuse_step(reason))
 
     def fail_run(self, slug: str, reason: str) -> Run:
         return self.update(slug, lambda run: run.fail(reason))

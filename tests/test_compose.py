@@ -6,10 +6,8 @@ from agent_kit.steps import builtin_registry
 
 
 def build(tmp_path, **kwargs):
-    store = RunStore(tmp_path, registry=builtin_registry())
-    run = store.create("add-login", steps=["probe"], project=str(tmp_path))
-    registry = builtin_registry()
-    return compose_input(run=run, step=run.steps[0], definition=registry.get("probe"), **kwargs)
+    run = RunStore(tmp_path).create("add-login", steps=["probe"], project=str(tmp_path))
+    return compose_input(run=run, definition=builtin_registry().get("probe"), **kwargs)
 
 
 def test_the_input_carries_the_facts_of_the_run(tmp_path):
@@ -45,6 +43,14 @@ def test_what_must_be_read_is_enclosed_not_asked_for(tmp_path):
 
     assert "the design step said" in text
     assert '"seams"' in text
+
+
+def test_an_enclosure_that_holds_a_fence_does_not_break_the_input(tmp_path):
+    body = "```json\n{\"a\": 1}\n```"
+
+    text = build(tmp_path, attempt=1, provider="fake", enclosures=[("an earlier step", body)])
+
+    assert "````" in text  # a longer fence than the one inside
 
 
 def test_a_retry_encloses_why_the_last_attempt_was_refused(tmp_path):

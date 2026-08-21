@@ -6,9 +6,10 @@ so there is no reading step to skip and nothing to check that it happened.
 
 from __future__ import annotations
 
+import re
 from typing import Sequence
 
-from ..state import Run, Step
+from ..state import Run
 from ..steps import StepDefinition
 
 Enclosure = tuple[str, str]
@@ -16,7 +17,6 @@ Enclosure = tuple[str, str]
 
 def compose_input(
     run: Run,
-    step: Step,
     definition: StepDefinition,
     attempt: int,
     provider: str,
@@ -31,7 +31,7 @@ def compose_input(
         f"branch: {run.branch}",
         f"project: {run.project or 'unstated'}",
         f"provider: {provider}",
-        f"attempt {attempt} of {attempts_allowed}",
+        f"attempt {attempt} of {attempts_allowed} on this provider",
         "",
         "## What you are doing",
         "",
@@ -41,7 +41,8 @@ def compose_input(
     if enclosures:
         parts += ["", "## What is enclosed", "", "Everything below is here so that you do not go looking for it."]
         for title, body in enclosures:
-            parts += ["", f"### {title}", "", "```", body.strip(), "```"]
+            fence = _fence_for(body)
+            parts += ["", f"### {title}", "", fence, body.strip(), fence]
 
     if refusal:
         parts += [
@@ -67,3 +68,9 @@ def compose_input(
         "",
     ]
     return "\n".join(parts)
+
+
+def _fence_for(body: str) -> str:
+    """A fence longer than any inside the body, so an enclosed output cannot break the input."""
+    longest = max((len(run) for run in re.findall(r"`+", body)), default=0)
+    return "`" * max(3, longest + 1)

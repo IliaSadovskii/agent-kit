@@ -17,7 +17,7 @@ from typing import Any, Mapping
 from ..config import RoleConfig
 from ..errors import ProviderError, StateError
 from ..logs import get_logger
-from ..state import Run, RunStore, Step
+from ..state import Run, RunStore
 from ..steps import Registry, StepDefinition
 from ..steps.contract import ContractRefusal, parse_output
 from .compose import compose_input
@@ -32,6 +32,7 @@ log = get_logger("driver")
 @dataclass
 class AttemptRecord:
     attempt: int
+    on_provider: int
     provider: str
     refusal: str | None = None
     meta: dict[str, Any] = field(default_factory=dict)
@@ -85,11 +86,14 @@ class StepRunner:
 
         outcome = StepOutcome(slug=slug, step=definition.name, passed=False)
         refusal: str | None = None
+        seen: dict[str, int] = {}
 
         for provider in providers:
+            seen[provider] = seen.get(provider, 0) + 1
             run = self.store.start_step(slug, provider=provider)
-            step = run.steps[index]
-            record = self._attempt(run, step, definition, workspace, provider, refusal, enclosures)
+            record = self._attempt(
+                run, index, definition, workspace, provider, seen[provider], refusal, enclosures
+            )
             outcome.attempts.append(record)
 
             if record.passed:
@@ -100,7 +104,7 @@ class StepRunner:
                 return outcome
 
             refusal = record.refusal
-            self.store.fail_step(slug, f"{definition.name} on {provider}: {refusal}")
+            self.store.refuse_step(slug, f"{definition.name} on {provider}: {refusal}")
             log.info("%s: %s refused on %s — %s", slug, definition.name, provider, refusal)
 
         outcome.reason = (
@@ -110,24 +114,26 @@ class StepRunner:
         self.store.fail_run(slug, outcome.reason)
         return outcome
 
+
+
     # --- one attempt ------------------------------------------------------
 
     def _attempt(
         self,
         run: Run,
-        step: Step,
+        index: int,
         definition: StepDefinition,
         workspace: StepWorkspace,
         provider: str,
+        on_provider: int,
         refusal: str | None,
         enclosures: list[tuple[str, str]],
     ) -> AttemptRecord:
-        attempt = step.attempts
+        attempt = run.steps[index].attempts
         text = compose_input(
             run=run,
-            step=step,
             definition=definition,
-            attempt=attempt,
+            attempt=on_provider,
             provider=provider,
             enclosures=enclosures,
             refusal=refusal,
@@ -148,24 +154,38 @@ class StepRunner:
         try:
             result = self.executors[provider].execute(request)
         except ExecutorFailed as failure:
-            return self._refused(workspace, attempt, provider, f"{failure.code}: {failure.detail}", {})
+            return self._refused(
+                workspace, attempt, on_provider, provider, f"{failure.code}: {failure.detail}", {}
+            )
 
         result = result if isinstance(result, ExecutorResult) else ExecutorResult(raw=str(result))
         workspace.write_raw(attempt, result.raw)
-        meta = {"provider": provider, "attempt": attempt, "step": definition.name, **result.meta}
+        meta = {
+            "provider": provider,
+            "attempt": attempt,
+            "attempt_on_provider": on_provider,
+            "step": definition.name,
+            **result.meta,
+        }
         workspace.write_meta(attempt, meta)
 
         try:
             output = definition.contract.check(parse_output(result.raw))
         except ContractRefusal as refused:
-            return self._refused(workspace, attempt, provider, f"{refused.code}: {refused.detail}", meta)
+            return self._refused(
+                workspace, attempt, on_provider, provider, f"{refused.code}: {refused.detail}", meta
+            )
 
         workspace.accept(attempt, output, meta)
-        return AttemptRecord(attempt=attempt, provider=provider, meta=meta)
+        return AttemptRecord(attempt=attempt, on_provider=on_provider, provider=provider, meta=meta)
 
-    def _refused(self, workspace: StepWorkspace, attempt: int, provider: str, reason: str, meta: dict) -> AttemptRecord:
+    def _refused(
+        self, workspace: StepWorkspace, attempt: int, on_provider: int, provider: str, reason: str, meta: dict
+    ) -> AttemptRecord:
         workspace.write_refusal(attempt, reason)
-        return AttemptRecord(attempt=attempt, provider=provider, refusal=reason, meta=meta)
+        return AttemptRecord(
+            attempt=attempt, on_provider=on_provider, provider=provider, refusal=reason, meta=meta
+        )
 
     # --- who runs it, and what it is given --------------------------------
 
@@ -178,7 +198,8 @@ class StepRunner:
                 )
             chain = [self.default_provider] * self.attempts
         else:
-            chain = [role.provider] * self.attempts + list(role.fallback)
+            spares = [name for name in dict.fromkeys(role.fallback) if name != role.provider]
+            chain = [role.provider] * self.attempts + spares
 
         for provider in dict.fromkeys(chain):
             if provider not in self.executors:
@@ -198,3 +219,20 @@ class StepRunner:
             if output is not None:
                 enclosed.append((f"{earlier}-{step.name} returned", json.dumps(output, indent=2, ensure_ascii=False)))
         return enclosed
+
+
+def create_run(
+    store: RunStore,
+    registry: Registry,
+    slug: str,
+    steps: list[str] | None = None,
+    project: str | None = None,
+) -> Run:
+    """A run may only be created from steps that exist.
+
+    The check lives here rather than in the state, so the arrow keeps pointing
+    one way: state, then the step contract, then the driver.
+    """
+    for name in steps or ():
+        registry.get(name)
+    return store.create(slug, steps=steps, project=project)

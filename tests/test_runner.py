@@ -9,7 +9,7 @@ import json
 
 import pytest
 
-from agent_kit.driver import StepRunner
+from agent_kit.driver import StepRunner, create_run
 from agent_kit.providers.fake import FakeExecutor
 from agent_kit.state import RunStatus, RunStore, StepStatus
 from agent_kit.steps import builtin_registry
@@ -20,8 +20,8 @@ NOT_JSON = "I had a look around and everything seems fine."
 
 
 def runner(tmp_path, replies, roles=None, executors=None):
-    store = RunStore(tmp_path, registry=builtin_registry())
-    store.create("add-login", steps=["probe"], project=str(tmp_path))
+    store = RunStore(tmp_path)
+    create_run(store, builtin_registry(), "add-login", steps=["probe"], project=str(tmp_path))
     fake = FakeExecutor(name="fake", replies=replies)
     return (
         StepRunner(
@@ -148,7 +148,7 @@ def test_when_the_fallback_fails_too_the_run_stops_and_says_what_was_missing(tmp
 
 
 def test_a_provider_that_dies_is_an_attempt_like_any_other(tmp_path):
-    from agent_kit.driver.executor import ExecutorFailed
+    from agent_kit.providers.base import ExecutorFailed
 
     def die(_request):
         raise ExecutorFailed("session-died", "the CLI exited with status 1")
@@ -172,6 +172,54 @@ def test_a_failed_attempt_keeps_its_raw_text_for_reading_afterwards(tmp_path):
 
 
 # --- what the runner refuses to start --------------------------------------
+
+
+def test_the_fallback_attempt_is_not_told_it_is_the_fourth_of_three(tmp_path):
+    """One number rendered as one fact: attempts are counted per provider."""
+    from agent_kit.config import RoleConfig
+
+    spare = FakeExecutor(name="spare", replies=[GOOD])
+    run_step, _, _ = runner(
+        tmp_path,
+        [NO_BRANCH, NO_BRANCH, NO_BRANCH],
+        roles={"probe": RoleConfig(name="probe", provider="fake", fallback=["spare"])},
+        executors={"spare": spare},
+    )
+
+    run_step.run_next("add-login")
+
+    assert "attempt 1 of 3" in spare.requests[0].input_text
+    assert "attempt 4" not in spare.requests[0].input_text
+
+
+def test_a_fallback_that_repeats_the_primary_is_not_a_fallback(tmp_path):
+    from agent_kit.config import RoleConfig
+
+    run_step, _, fake = runner(
+        tmp_path,
+        [NO_BRANCH, NO_BRANCH, NO_BRANCH],
+        roles={"probe": RoleConfig(name="probe", provider="fake", fallback=["fake"])},
+    )
+
+    outcome = run_step.run_next("add-login")
+
+    assert len(outcome.attempts) == 3
+
+
+def test_a_failed_run_is_not_quietly_resumed(tmp_path):
+    """Three refusals, the fallback, then a stop — and `run_next` again does not undo that."""
+    run_step, store, _ = runner(tmp_path, [NOT_JSON, NOT_JSON, NOT_JSON])
+    run_step.run_next("add-login")
+
+    from agent_kit.errors import StateError
+
+    with pytest.raises(StateError) as caught:
+        run_step.run_next("add-login")
+
+    assert caught.value.code == "run-finished"
+    run = store.load("add-login")
+    assert run.status is RunStatus.FAILED
+    assert "refused 3 times" in run.reason
 
 
 def test_a_run_with_nothing_pending_is_refused(tmp_path):
@@ -202,8 +250,8 @@ def test_a_provider_nobody_configured_is_refused_before_anything_runs(tmp_path):
 
 
 def test_the_output_of_an_earlier_step_is_enclosed_in_the_next(tmp_path):
-    store = RunStore(tmp_path, registry=builtin_registry())
-    store.create("twice", steps=["probe", "probe"], project=str(tmp_path))
+    store = RunStore(tmp_path)
+    create_run(store, builtin_registry(), "twice", steps=["probe", "probe"], project=str(tmp_path))
     fake = FakeExecutor(name="fake", replies=[GOOD, GOOD])
     run_step = StepRunner(
         store=store, registry=builtin_registry(), executors={"fake": fake}, roles={}, default_provider="fake"

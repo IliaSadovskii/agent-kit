@@ -153,6 +153,33 @@ def test_a_failure_keeps_its_reason_and_stops_the_run(store):
     assert run.steps[0].status is StepStatus.FAILED
     assert run.steps[0].reason == "output-missing-field: seams"
     assert run.status is RunStatus.FAILED
+    assert run.finished
+
+
+def test_a_failed_run_does_not_quietly_resume(store):
+    """The plan: the run stops and says why. A resumption that erases the reason is the defect."""
+    store.create("add-login", steps=["design", "build"])
+    store.start_step("add-login")
+    store.fail_step("add-login", "output-missing-field: seams")
+
+    with pytest.raises(StateError) as caught:
+        store.start_step("add-login")
+
+    assert caught.value.code == "run-finished"
+    assert store.load("add-login").reason == "output-missing-field: seams"
+
+
+def test_a_run_can_fail_after_its_step_was_refused(store):
+    """The driver's policy is exhausted: no step is running, and the run still stops."""
+    store.create("add-login")
+    store.start_step("add-login")
+    store.refuse_step("add-login", "probe on fake: output-not-json")
+
+    run = store.fail_run("add-login", "probe was refused 4 times, last on spare")
+
+    assert run.status is RunStatus.FAILED
+    assert run.steps[0].status is StepStatus.FAILED
+    assert "4 times" in run.reason
 
 
 def test_a_failure_without_a_reason_is_refused(store):
@@ -165,16 +192,28 @@ def test_a_failure_without_a_reason_is_refused(store):
     assert caught.value.code == "reason-required"
 
 
-def test_a_failed_step_is_retried_and_the_attempts_are_counted(store):
+def test_a_refused_step_is_retried_and_the_attempts_are_counted(store):
     store.create("add-login")
     store.start_step("add-login")
-    store.fail_step("add-login", "output-missing-field: seams")
+    store.refuse_step("add-login", "output-missing-field: seams")
 
     run = store.start_step("add-login")
 
     assert run.steps[0].status is StepStatus.RUNNING
     assert run.steps[0].attempts == 2
     assert run.status is RunStatus.RUNNING
+
+
+def test_a_refusal_leaves_the_run_running_and_keeps_its_reason(store):
+    store.create("add-login")
+    store.start_step("add-login")
+
+    run = store.refuse_step("add-login", "output-not-json")
+
+    assert run.status is RunStatus.RUNNING
+    assert run.steps[0].status is StepStatus.PENDING
+    assert run.steps[0].reason == "output-not-json"
+    assert not run.finished
 
 
 def test_a_run_can_be_stopped_and_says_why(store):
@@ -207,7 +246,32 @@ def test_the_state_is_written_whole_never_in_place(store, tmp_path, monkeypatch)
     assert list(path.parent.glob("*.tmp*")) == []
 
 
-def test_a_file_from_a_newer_kit_is_refused_not_guessed(store, tmp_path):
+def test_a_file_from_a_newer_kit_is_refused_by_its_kit_version(store, tmp_path):
+    """Open question 3: the kit that wrote a file is a field with a reader."""
+    store.create("add-login")
+    path = tmp_path / ".agent-kit/v3/runs/add-login/run.json"
+    data = json.loads(path.read_text())
+    data["kit"] = "9.9.0"
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(StateError) as caught:
+        store.load("add-login")
+
+    assert caught.value.code == "kit-too-new"
+    assert "9.9.0" in caught.value.detail
+
+
+def test_a_file_from_an_older_kit_of_the_same_schema_is_read(store, tmp_path):
+    store.create("add-login")
+    path = tmp_path / ".agent-kit/v3/runs/add-login/run.json"
+    data = json.loads(path.read_text())
+    data["kit"] = "1.0.0"
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    assert store.load("add-login").kit == "1.0.0"
+
+
+def test_a_file_from_a_newer_schema_is_refused_not_guessed(store, tmp_path):
     store.create("add-login")
     path = tmp_path / ".agent-kit/v3/runs/add-login/run.json"
     data = json.loads(path.read_text())

@@ -9,8 +9,9 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from .. import __version__
 from ..errors import StateError
-from .schema import SCHEMA_VERSION
+from .schema import SCHEMA_VERSION, release
 
 #: schema version -> what turns it into the next one.
 MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {}
@@ -31,6 +32,8 @@ def migrate(data: dict[str, Any], *, where: str = "run.json") -> dict[str, Any]:
     if version < OLDEST_SCHEMA:
         raise StateError("schema-too-old", f"{where}: schema {version} is older than this kit can migrate")
 
+    _check_kit(data.get("kit"), where)
+
     while version < SCHEMA_VERSION:
         step = MIGRATIONS.get(version)
         if step is None:
@@ -39,3 +42,22 @@ def migrate(data: dict[str, Any], *, where: str = "run.json") -> dict[str, Any]:
         version += 1
         data["schema"] = version
     return data
+
+
+def _check_kit(kit: object, where: str) -> None:
+    """Open question 3: a file says which kit wrote it, and a newer one is refused.
+
+    The schema number is the compatibility contract, but a kit of the same
+    schema can still have learned to write things this one would misread. A file
+    from a newer kit is refused rather than guessed at.
+    """
+    if kit is None:
+        return
+    if not isinstance(kit, str) or not release(kit):
+        raise StateError("bad-field: kit", f"{where}: kit must be a version string")
+    if release(kit) > release(__version__):
+        raise StateError(
+            "kit-too-new",
+            f"{where} was written by agent-kit {kit}, and this is {__version__}",
+            hint="upgrade agent-kit",
+        )

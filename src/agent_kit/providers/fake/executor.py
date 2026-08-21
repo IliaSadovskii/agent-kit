@@ -5,7 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Callable, Sequence
 
-from ...driver.executor import ExecutorFailed, ExecutorResult, StepRequest
+from ...errors import UsageError
+from ..base import ExecutorFailed, ExecutorResult, StepRequest
 
 Reply = str | Callable[[StepRequest], str]
 
@@ -30,3 +31,17 @@ class FakeExecutor:
     @classmethod
     def from_files(cls, name: str, paths: Sequence[Path]) -> "FakeExecutor":
         return cls(name=name, replies=[path.read_text(encoding="utf-8") for path in paths])
+
+
+def build_executor(options: dict[str, list[str]]) -> FakeExecutor:
+    """`reply=<path>`, once per attempt: the file this provider answers with."""
+    paths = [Path(value) for value in options.get("reply", [])]
+    if not paths:
+        raise UsageError(
+            "no-reply",
+            "the fake provider answers from files: pass --option reply=FILE at least once",
+        )
+    missing = [path for path in paths if not path.is_file()]
+    if missing:
+        raise UsageError("no-reply", f"no such file: {', '.join(str(path) for path in missing)}")
+    return FakeExecutor.from_files("fake", paths)

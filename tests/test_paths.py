@@ -11,7 +11,6 @@ def test_defaults_follow_xdg(tmp_path):
     assert paths.config_file == tmp_path / ".config/agent-kit/config.toml"
     assert paths.state_dir == tmp_path / ".local/state/agent-kit"
     assert paths.log_dir == paths.state_dir / "logs"
-    assert paths.daemon_db == paths.state_dir / "daemon.sqlite"
     assert paths.secrets_file == paths.state_dir / "secrets"
 
 

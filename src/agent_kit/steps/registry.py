@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..errors import StateError
-from .contract import Bool, Contract, Enum, Records, Text, TextList
+from .contract import Bool, Contract, Text, TextList
 from .definition import StepDefinition
 
 
@@ -49,19 +49,8 @@ PROBE = StepDefinition(
             Text("branch", help="the git branch this working copy has checked out"),
             Bool("can_write", help="whether you could create a file here and delete it again"),
             TextList("notes", required=False, help="anything a longer job would trip over"),
-            Records(
-                "findings",
-                required=False,
-                help="what you found, each with what it would cost",
-                shape=(
-                    Text("what", help="the finding, in one sentence"),
-                    Enum(
-                        "severity",
-                        choices=("note", "advice", "blocking"),
-                        help="blocking means no further work should be attempted here",
-                    ),
-                ),
-            ),
+            # Findings with a severity wait for the step that must refuse on one.
+            # The contract can express them; nothing reads them until S4's deliver.
         )
     ),
 )

@@ -16,9 +16,9 @@ from ..config import Config, load_config
 from ..errors import ExitCode, KitError, ProviderError, StateError, UsageError
 from ..logs import setup_logging
 from ..paths import Paths, project_paths
-from ..driver import StepRunner
+from ..driver import StepRunner, create_run
 from ..driver.compose import compose_input
-from ..providers.fake import FakeExecutor
+from ..providers import registry as providers
 from ..state import RunStore
 from ..steps import builtin_registry, method_root
 
@@ -56,7 +56,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     new = run_what.add_parser("new", help="create a run")
     new.add_argument("slug")
-    new.add_argument("--steps", help="comma-separated step names (default: the four of a feature)")
+    new.add_argument("--steps", help="comma-separated step names (default: what `step list` calls the default)")
 
     run_what.add_parser("list", help="the runs this project holds")
 
@@ -79,6 +79,10 @@ def build_parser() -> argparse.ArgumentParser:
     stopped.add_argument("slug")
     stopped.add_argument("reason")
 
+    provider = commands.add_parser("provider", help="the providers this kit ships")
+    provider_what = provider.add_subparsers(dest="what", metavar="WHAT")
+    provider_what.add_parser("list", help="every provider, with the level it declares")
+
     step = commands.add_parser("step", help="the steps this kit knows, and running one")
     step_what = step.add_subparsers(dest="what", metavar="WHAT")
 
@@ -93,9 +97,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     step_run = step_what.add_parser("run", help="run the next step of a run")
     step_run.add_argument("slug")
-    step_run.add_argument("--provider", default="fake", help="who executes it (only the fake exists until S3)")
-    step_run.add_argument("--reply", action="append", default=[], metavar="FILE",
-                          help="a file the fake provider answers with; repeat for each attempt")
+    step_run.add_argument("--provider", help="who executes it; the role table decides when this is left out")
+    step_run.add_argument("--option", action="append", default=[], metavar="KEY=VALUE",
+                          help="an option for the provider, as its own block documents; repeat to give several")
 
     return parser
 
@@ -137,6 +141,8 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace, paths: 
         return _run(args)
     if args.command == "step":
         return _step(args, paths)
+    if args.command == "provider":
+        return _provider(args, paths)
 
     raise UsageError("unknown-command", args.command)
 
@@ -163,6 +169,7 @@ def _doctor(paths: Paths, project: Path) -> int:
     registry = builtin_registry()
     print(f"  prose       {method_root()}  {_present(method_root())}")
     print(f"  steps       {', '.join(registry.names())}")
+    print(f"  providers   {', '.join(providers.provider_names())}  (shipped; what this machine configured is below)")
     print()
     print("what is configured")
     print(f"  max sessions {config.machine.max_sessions}")
@@ -195,11 +202,18 @@ def _config_as_data(config: Config) -> dict:
         "source": str(config.source) if config.source else None,
         "machine": {"max_sessions": config.machine.max_sessions},
         "providers": {
-            name: {"enabled": p.enabled, "model": p.model, "effort": p.effort, "max_sessions": p.max_sessions}
+            name: {
+                "enabled": p.enabled,
+                "model": p.model,
+                "effort": p.effort,
+                "account": p.account,
+                "max_sessions": p.max_sessions,
+            }
             for name, p in sorted(config.providers.items())
         },
         "roles": {
-            name: {"provider": r.provider, "fallback": r.fallback} for name, r in sorted(config.roles.items())
+            name: {"provider": r.provider, "fallback": r.fallback, "model": r.model, "effort": r.effort}
+            for name, r in sorted(config.roles.items())
         },
     }
 
@@ -208,14 +222,15 @@ def _config_as_data(config: Config) -> dict:
 
 
 def _run(args: argparse.Namespace) -> int:
-    store = RunStore(args.project, registry=builtin_registry())
+    store = RunStore(args.project)
+    registry = builtin_registry()
     what = args.what
     if what is None:
         raise UsageError("missing-command", "run needs one of: new, list, show, start, pass, fail, stop")
 
     if what == "new":
         steps = [name.strip() for name in args.steps.split(",")] if args.steps else None
-        run = store.create(args.slug, steps=steps)
+        run = create_run(store, registry, args.slug, steps=steps)
         print(f"{run.slug}: created on {run.branch} with {len(run.steps)} steps")
         return int(ExitCode.OK)
 
@@ -298,35 +313,26 @@ def _step(args: argparse.Namespace, paths: Paths) -> int:
         print(definition.contract.describe())
         return int(ExitCode.OK)
 
-    store = RunStore(args.project, registry=registry)
+    store = RunStore(args.project)
 
     if what == "input":
         run = store.load(args.slug)
         index = run.next_pending()
         if index is None:
-            raise StateError("no-step-pending", f"{args.slug}: every step is done")
+            raise StateError("no-step-pending", f"{args.slug}: no step is waiting to run")
         definition = registry.get(run.steps[index].name)
         print(
             compose_input(
                 run=run,
-                step=run.steps[index],
                 definition=definition,
-                attempt=run.steps[index].attempts + 1,
+                attempt=1,
                 provider=args.provider,
             )
         )
         return int(ExitCode.OK)
 
     if what == "run":
-        executors = _executors(args)
-        config = load_config(paths.config_file)
-        runner = StepRunner(
-            store=store,
-            registry=registry,
-            executors=executors,
-            roles=config.roles,
-            default_provider=args.provider,
-        )
+        runner = _runner(store, registry, args.provider, args.option)
         outcome = runner.run_next(args.slug)
         for attempt in outcome.attempts:
             mark = "passed" if attempt.passed else f"refused — {attempt.refusal}"
@@ -340,14 +346,43 @@ def _step(args: argparse.Namespace, paths: Paths) -> int:
     raise UsageError("unknown-command", f"step {what}")
 
 
-def _executors(args: argparse.Namespace) -> dict:
-    """Until S3 there is one provider, and it is not real."""
-    if args.provider != "fake":
-        raise ProviderError(
-            "no-adapter",
-            f"{args.provider!r} has no adapter yet; the first real one is Claude Code at S3",
-        )
-    replies = [Path(name).read_text(encoding="utf-8") for name in args.reply]
-    if not replies:
-        raise UsageError("no-reply", "the fake provider answers from files: pass --reply FILE at least once")
-    return {"fake": FakeExecutor(name="fake", replies=replies)}
+def _provider(args: argparse.Namespace, paths: Paths) -> int:
+    what = args.what or "list"
+    if what != "list":
+        raise UsageError("unknown-command", f"provider {what}")
+
+    config = load_config(paths.config_file)
+    for facts in providers.all_facts():
+        chosen = config.providers.get(facts.name)
+        state = "not configured here" if chosen is None else ("enabled" if chosen.enabled else "disabled")
+        real = "" if facts.real else "  (a fixture, not an agent)"
+        print(f"{facts.name:12} level {facts.level:2} {state:20}{real}")
+    return int(ExitCode.OK)
+
+
+def _runner(store: RunStore, registry, provider: str | None, options: list[str]) -> StepRunner:
+    """Everything a run needs to advance: who executes, and which role names them."""
+    paths = Paths.from_env()
+    config = load_config(paths.config_file)
+    parsed = _options(options)
+    executors = {}
+    if provider is not None:
+        executors[provider] = providers.build_executor(provider, parsed)
+    return StepRunner(
+        store=store,
+        registry=registry,
+        executors=executors,
+        roles=config.roles,
+        default_provider=provider,
+    )
+
+
+def _options(pairs: list[str]) -> dict[str, list[str]]:
+    """`--option key=value`, repeatable. What a key means is the provider's business."""
+    parsed: dict[str, list[str]] = {}
+    for pair in pairs:
+        key, separator, value = pair.partition("=")
+        if not separator or not key.strip():
+            raise UsageError("bad-option", f"{pair!r} is not KEY=VALUE")
+        parsed.setdefault(key.strip(), []).append(value)
+    return parsed

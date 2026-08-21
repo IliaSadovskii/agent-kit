@@ -38,11 +38,26 @@ class StepStatus(str, Enum):
     RUNNING = "running"
     PASSED = "passed"
     FAILED = "failed"
-    SKIPPED = "skipped"
 
 
 def now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def release(version: str) -> tuple[int, ...]:
+    """The comparable part of a version: 3.0.0.dev0 and 3.0.0 are the same release."""
+    head = version.split("+")[0]
+    numbers: list[int] = []
+    for part in head.split("."):
+        digits = ""
+        for character in part:
+            if not character.isdigit():
+                break
+            digits += character
+        if not digits:
+            break
+        numbers.append(int(digits))
+    return tuple(numbers)
 
 
 def check_slug(slug: Any) -> str:
@@ -124,11 +139,18 @@ class Run:
 
     @property
     def finished(self) -> bool:
-        return self.status in (RunStatus.DONE, RunStatus.STOPPED)
+        """Done, stopped or failed: three ways a run has nothing left to advance.
+
+        A failed run does not quietly resume. The plan is explicit — the run
+        stops and says which step, which provider and what was missing — and a
+        resumption that erases that reason is the second version's defect: the
+        record forgets what the attempt directories still remember.
+        """
+        return self.status in (RunStatus.DONE, RunStatus.STOPPED, RunStatus.FAILED)
 
     def next_pending(self) -> int | None:
         for index, step in enumerate(self.steps):
-            if step.status in (StepStatus.PENDING, StepStatus.FAILED):
+            if step.status is StepStatus.PENDING:
                 return index
         return None
 
@@ -165,31 +187,41 @@ class Run:
             self.finished_at = now()
         return self._touch(step)
 
-    def fail_step(self, reason: str) -> Step:
+    def refuse_step(self, reason: str) -> Step:
+        """One attempt was not accepted. The step waits for the next one.
+
+        The run stays running: this is the driver's retry policy at work, not a
+        decision that the run is over.
+        """
         step = self._require_running()
+        step.status = StepStatus.PENDING
+        step.ended_at = now()
+        step.reason = _reason(reason)
+        self.current_step = None
+        return self._touch(step)
+
+    def fail_step(self, reason: str) -> Step:
+        """No attempt will be accepted. The step and the run both stop here."""
+        step = self._require_running() if self.running is not None else self._last_touched()
         step.status = StepStatus.FAILED
         step.ended_at = now()
         step.reason = _reason(reason)
         self.current_step = None
         self.status = RunStatus.FAILED
         self.reason = step.reason
-        return self._touch(step)
-
-    def skip_step(self, reason: str) -> Step:
-        step = self._require_running()
-        step.status = StepStatus.SKIPPED
-        step.ended_at = now()
-        step.reason = _reason(reason)
-        self.current_step = None
-        if self.next_pending() is None:
-            self.status = RunStatus.DONE
-            self.finished_at = now()
+        self.finished_at = now()
         return self._touch(step)
 
     def fail(self, reason: str) -> "Run":
         """The run stops because a step could not be made to pass. It says which and why."""
+        step = self.running or self._last_touched()
+        if step is not None and step.status is not StepStatus.PASSED:
+            step.status = StepStatus.FAILED
+            step.ended_at = step.ended_at or now()
+        self.current_step = None
         self.status = RunStatus.FAILED
         self.reason = _reason(reason)
+        self.finished_at = now()
         self.updated_at = now()
         return self
 
@@ -206,6 +238,11 @@ class Run:
         self.reason = _reason(reason)
         self.updated_at = now()
         return self
+
+    def _last_touched(self) -> Step:
+        """The step the run got to: the last one that was ever started."""
+        started = [step for step in self.steps if step.attempts]
+        return started[-1] if started else self.steps[0]
 
     def _require_running(self) -> Step:
         step = self.running

@@ -172,7 +172,7 @@ def test_step_run_against_the_fake_provider(machine, capsys, tmp_path):
     reply.write_text('```json\n{"branch": "kit/add-login", "can_write": true}\n```', encoding="utf-8")
     run(["run", "new", "add-login"], capsys)
 
-    code, out, _ = run(["step", "run", "add-login", "--reply", str(reply)], capsys)
+    code, out, _ = run(["step", "run", "add-login", "--provider", "fake", "--option", f"reply={reply}"], capsys)
 
     assert code == ExitCode.OK
     assert "probe passed" in out
@@ -186,7 +186,7 @@ def test_step_run_reports_a_refusal_and_leaves_the_step_unpassed(machine, capsys
     reply.write_text("I had a look and it seems fine.", encoding="utf-8")
     run(["run", "new", "add-login"], capsys)
 
-    code, out, err = run(["step", "run", "add-login", "--reply", str(reply)], capsys)
+    code, out, err = run(["step", "run", "add-login", "--provider", "fake", "--option", f"reply={reply}"], capsys)
 
     assert code == ExitCode.STATE
     assert "output-not-json" in out
@@ -194,10 +194,27 @@ def test_step_run_reports_a_refusal_and_leaves_the_step_unpassed(machine, capsys
     assert run(["run", "show", "add-login", "--json"], capsys)[1].count('"passed"') == 0
 
 
-def test_a_provider_with_no_adapter_is_refused_before_anything_runs(machine, capsys):
+def test_a_provider_the_kit_does_not_ship_is_refused_before_anything_runs(machine, capsys):
     run(["run", "new", "add-login"], capsys)
 
     code, _, err = run(["step", "run", "add-login", "--provider", "codex"], capsys)
 
     assert code == ExitCode.PROVIDER
-    assert "no-adapter" in err
+    assert "unknown-provider" in err
+
+
+def test_provider_list_reads_the_folder(machine, capsys):
+    code, out, _ = run(["provider", "list"], capsys)
+
+    assert code == ExitCode.OK
+    assert "fake" in out
+    assert "fixture" in out
+
+
+def test_a_step_run_with_no_provider_at_all_is_refused(machine, capsys):
+    run(["run", "new", "add-login"], capsys)
+
+    code, _, err = run(["step", "run", "add-login"], capsys)
+
+    assert code == ExitCode.PROVIDER
+    assert "no-provider" in err or "unknown-provider" in err

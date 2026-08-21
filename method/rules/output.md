@@ -17,4 +17,5 @@ Rules the program applies to that block, without exception:
 - No prose inside the block, no comments, no trailing commas. It is parsed, not read.
 
 If the block is missing or does not satisfy the contract, the step is refused and you are
-asked again with the reason enclosed. Three refusals and the run stops.
+asked again with the reason enclosed. The head of this input says which attempt you are on
+and how many there are.

@@ -34,10 +34,11 @@ agent-kit run start add-login     # begin the next step
 agent-kit run pass add-login      # it satisfied its contract
 agent-kit run show add-login      # where it stands
 
+agent-kit provider list           # the providers the kit ships, read from the folder
 agent-kit step list               # the steps the kit knows
 agent-kit step show probe         # its prose and what it must return
 agent-kit step input add-login    # exactly what the driver would enclose
-agent-kit step run add-login --reply answer.md   # run it against the fake provider
+agent-kit step run add-login --provider fake --option reply=answer.md
 ```
 
 There is no real agent behind a step yet — the only executor is the fake, which answers from

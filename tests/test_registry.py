@@ -42,15 +42,17 @@ def test_a_registry_refuses_two_definitions_of_one_name():
 
 
 def test_a_run_may_only_be_created_from_steps_that_exist(tmp_path):
-    store = RunStore(tmp_path, registry=builtin_registry())
+    from agent_kit.driver import create_run
+
+    store = RunStore(tmp_path)
 
     with pytest.raises(StateError) as caught:
-        store.create("add-login", steps=["probe", "nonesuch"])
+        create_run(store, builtin_registry(), "add-login", steps=["probe", "nonesuch"])
 
     assert caught.value.code == "unknown-step"
     assert not store.exists("add-login")
 
 
-def test_without_a_registry_the_state_takes_any_step_name(tmp_path):
-    """The state module knows nothing about steps; the checking is the registry's."""
+def test_the_state_itself_knows_nothing_about_steps(tmp_path):
+    """Dependencies flow one way: state, then the step contract, then the driver."""
     assert RunStore(tmp_path).create("add-login", steps=["whatever"]).steps[0].name == "whatever"

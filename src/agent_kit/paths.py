@@ -38,10 +38,6 @@ class Paths:
         return self.state_dir / "logs"
 
     @property
-    def daemon_db(self) -> Path:
-        return self.state_dir / "daemon.sqlite"
-
-    @property
     def secrets_file(self) -> Path:
         return self.state_dir / "secrets"
 
@@ -61,10 +57,6 @@ class ProjectPaths:
     @property
     def kit_dir(self) -> Path:
         return self.root / PROJECT_DIR / PROJECT_KIT_DIR
-
-    @property
-    def config_file(self) -> Path:
-        return self.kit_dir / "project.toml"
 
     @property
     def runs_dir(self) -> Path:

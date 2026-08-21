@@ -42,10 +42,11 @@ reader — and rule 5 forbids that. It arrives with the thing that watches the c
 
 ## Question 6 — what the reviewer's verdict does mechanically
 
-**Half built, deliberately.** The contract can express it: `Records` with an `Enum` severity is
-in the code and the shipped `probe` step already returns findings with
-`note` / `advice` / `blocking`. The *consequence* — a blocking finding makes the deliver step
-refuse — needs a deliver step, and that is S4. Same rule: no field without its reader.
+**The vocabulary is built, the field is not.** `Records` with an `Enum` severity exists in the
+contract language and is tested, so S4's review step has the shape it needs. No shipped step
+returns findings, because the *consequence* — a blocking finding makes the deliver step refuse —
+needs a deliver step, and that is S4. The first draft of this note claimed the rule and then
+shipped `findings` on `probe` in the same paragraph; the review caught it and the field came out.
 
 ## Where this departs from the plan
 

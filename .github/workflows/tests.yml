@@ -1,0 +1,28 @@
+# The kit's own CI. Everything up to the first adapter runs with no agent CLI
+# installed and no network — that is why the second version's tests ran at all.
+name: tests
+
+on:
+  push:
+    branches: [v3, main]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.4"
+
+      - name: The suite
+        run: uv run --group dev pytest
+
+      - name: The install path S0 promised
+        run: |
+          uv tool install --force .
+          agent-kit --version
+          agent-kit step show probe   # the method travels inside the wheel
