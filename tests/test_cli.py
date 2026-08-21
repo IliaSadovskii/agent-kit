@@ -123,3 +123,81 @@ def test_passing_a_step_that_never_started_is_refused(machine, capsys):
 
     assert code == ExitCode.STATE
     assert "no-step-running" in err
+
+
+# --- the step commands -----------------------------------------------------
+
+
+def test_step_list_names_what_the_kit_can_run(machine, capsys):
+    code, out, _ = run(["step", "list"], capsys)
+
+    assert code == ExitCode.OK
+    assert "probe" in out
+
+
+def test_step_show_prints_the_contract(machine, capsys):
+    code, out, _ = run(["step", "show", "probe"], capsys)
+
+    assert code == ExitCode.OK
+    assert "branch" in out and "can_write" in out
+
+
+def test_step_show_refuses_a_step_nobody_declared(machine, capsys):
+    code, _, err = run(["step", "show", "nonesuch"], capsys)
+
+    assert code == ExitCode.STATE
+    assert "unknown-step" in err
+
+
+def test_a_run_cannot_be_created_from_a_step_that_does_not_exist(machine, capsys):
+    code, _, err = run(["run", "new", "add-login", "--steps", "probe,nonesuch"], capsys)
+
+    assert code == ExitCode.STATE
+    assert "unknown-step" in err
+
+
+def test_step_input_composes_what_would_be_enclosed(machine, capsys):
+    run(["run", "new", "add-login"], capsys)
+
+    code, out, _ = run(["step", "input", "add-login"], capsys)
+
+    assert code == ExitCode.OK
+    assert "kit/add-login" in out
+    assert "```json" in out
+    assert "can_write" in out
+
+
+def test_step_run_against_the_fake_provider(machine, capsys, tmp_path):
+    reply = tmp_path / "reply.md"
+    reply.write_text('```json\n{"branch": "kit/add-login", "can_write": true}\n```', encoding="utf-8")
+    run(["run", "new", "add-login"], capsys)
+
+    code, out, _ = run(["step", "run", "add-login", "--reply", str(reply)], capsys)
+
+    assert code == ExitCode.OK
+    assert "probe passed" in out
+    assert json.loads(
+        (tmp_path / "project/.agent-kit/v3/runs/add-login/steps/0-probe/output.json").read_text()
+    )["branch"] == "kit/add-login"
+
+
+def test_step_run_reports_a_refusal_and_leaves_the_step_unpassed(machine, capsys, tmp_path):
+    reply = tmp_path / "reply.md"
+    reply.write_text("I had a look and it seems fine.", encoding="utf-8")
+    run(["run", "new", "add-login"], capsys)
+
+    code, out, err = run(["step", "run", "add-login", "--reply", str(reply)], capsys)
+
+    assert code == ExitCode.STATE
+    assert "output-not-json" in out
+    assert "refused" in err
+    assert run(["run", "show", "add-login", "--json"], capsys)[1].count('"passed"') == 0
+
+
+def test_a_provider_with_no_adapter_is_refused_before_anything_runs(machine, capsys):
+    run(["run", "new", "add-login"], capsys)
+
+    code, _, err = run(["step", "run", "add-login", "--provider", "codex"], capsys)
+
+    assert code == ExitCode.PROVIDER
+    assert "no-adapter" in err

@@ -18,8 +18,9 @@ from ..errors import StateError
 SCHEMA_VERSION = 1
 BRANCH_PREFIX = "kit/"
 
-#: The order of work for one feature. S2 gives each of these a contract.
-DEFAULT_STEPS = ("design", "build", "verify", "deliver")
+#: What a run does when nobody says otherwise. S4 replaces this with the four
+#: steps of a feature — design, build, verify, deliver — once they have contracts.
+DEFAULT_STEPS = ("probe",)
 
 _SLUG = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 
@@ -184,6 +185,13 @@ class Run:
             self.status = RunStatus.DONE
             self.finished_at = now()
         return self._touch(step)
+
+    def fail(self, reason: str) -> "Run":
+        """The run stops because a step could not be made to pass. It says which and why."""
+        self.status = RunStatus.FAILED
+        self.reason = _reason(reason)
+        self.updated_at = now()
+        return self
 
     def stop(self, reason: str) -> "Run":
         if self.finished:

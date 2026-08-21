@@ -12,8 +12,9 @@ and the build order are in [`docs/design/2026-08-22-the-third-kit.md`](docs/desi
 |---|---|---|
 | S0 | the package: the command, the paths, the config, the exit codes | done |
 | S1 | the state: what a run is, and the one door that advances it | done |
-| S2 | the step contract | next |
-| S3 … S11 | adapters, the bench, the knowledge, the daemon, parallelism | planned |
+| S2 | the step contract: composed input, executor, validated output | done |
+| S3 | the first adapter, Claude Code | next |
+| S4 … S11 | a feature end to end, the bench, the knowledge, the daemon, parallelism | planned |
 
 ## Running it
 
@@ -32,6 +33,13 @@ agent-kit run new add-login       # a run on branch kit/add-login
 agent-kit run start add-login     # begin the next step
 agent-kit run pass add-login      # it satisfied its contract
 agent-kit run show add-login      # where it stands
+
+agent-kit step list               # the steps the kit knows
+agent-kit step show probe         # its prose and what it must return
+agent-kit step input add-login    # exactly what the driver would enclose
+agent-kit step run add-login --reply answer.md   # run it against the fake provider
 ```
 
-The steps have no executors yet — that is S2, and it is what makes the state worth advancing.
+There is no real agent behind a step yet — the only executor is the fake, which answers from
+files. That is S3, and it plugs into machinery already proven:
+[`docs/design/2026-08-22-s2-the-step-contract.md`](docs/design/2026-08-22-s2-the-step-contract.md).

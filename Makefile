@@ -19,7 +19,9 @@ shell:         ## a prompt inside the workshop
 	$(COMPOSE) exec kit bash
 
 install-check: ## S0's proof: `uv tool install` puts a working command on PATH
-	$(COMPOSE) exec -T kit sh -c 'uv tool install --force --reinstall . && "$$HOME/.local/bin/agent-kit" --version'
+	$(COMPOSE) exec -T kit sh -c 'uv tool install --force --reinstall . \
+	  && "$$HOME/.local/bin/agent-kit" --version \
+	  && "$$HOME/.local/bin/agent-kit" step show probe' 
 
 clean:         ## stop and remove the caches too
 	$(COMPOSE) down -v

@@ -1,0 +1,65 @@
+"""The step directory: where two sessions meet without ever talking.
+
+    steps/<n>-<name>/
+      attempt-<k>/input.md    exactly what the driver enclosed
+      attempt-<k>/raw.txt     what came back, before anything judged it
+      attempt-<k>/meta.json   provider, model, timing
+      attempt-<k>/refusal.txt why it was not accepted, when it was not
+      output.json             the output that satisfied the contract
+      meta.json               which attempt produced it
+
+The plan draws these flat, which is the one-attempt case. An attempt that was
+refused has to stay readable without re-running the night, so each attempt keeps
+its own directory and the accepted output sits at the top.
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from pathlib import Path
+
+from ..state.store import write_whole
+
+
+@dataclass(frozen=True)
+class StepWorkspace:
+    root: Path
+    index: int
+    name: str
+
+    @property
+    def dir(self) -> Path:
+        return self.root / "steps" / f"{self.index}-{self.name}"
+
+    def attempt_dir(self, attempt: int) -> Path:
+        return self.dir / f"attempt-{attempt}"
+
+    def write_input(self, attempt: int, text: str) -> Path:
+        return self._write(self.attempt_dir(attempt) / "input.md", text)
+
+    def write_raw(self, attempt: int, text: str) -> Path:
+        return self._write(self.attempt_dir(attempt) / "raw.txt", text)
+
+    def write_meta(self, attempt: int, meta: dict) -> Path:
+        return self._write(self.attempt_dir(attempt) / "meta.json", _json(meta))
+
+    def write_refusal(self, attempt: int, reason: str) -> Path:
+        return self._write(self.attempt_dir(attempt) / "refusal.txt", reason + "\n")
+
+    def accept(self, attempt: int, output: dict, meta: dict) -> Path:
+        self._write(self.dir / "meta.json", _json({**meta, "attempt": attempt}))
+        return self._write(self.dir / "output.json", _json(output))
+
+    def read_output(self) -> dict | None:
+        path = self.dir / "output.json"
+        return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+
+    def _write(self, path: Path, text: str) -> Path:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        write_whole(path, text)
+        return path
+
+
+def _json(data: dict) -> str:
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"

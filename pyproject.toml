@@ -18,6 +18,10 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/agent_kit"]
 
+# The method is prose the driver encloses, so it travels with the package.
+[tool.hatch.build.targets.wheel.force-include]
+"method" = "agent_kit/method"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"

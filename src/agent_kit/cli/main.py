@@ -13,10 +13,14 @@ from pathlib import Path
 
 from .. import __version__
 from ..config import Config, load_config
-from ..errors import ExitCode, KitError, UsageError
+from ..errors import ExitCode, KitError, ProviderError, StateError, UsageError
 from ..logs import setup_logging
 from ..paths import Paths, project_paths
+from ..driver import StepRunner
+from ..driver.compose import compose_input
+from ..providers.fake import FakeExecutor
 from ..state import RunStore
+from ..steps import builtin_registry, method_root
 
 PROGRAM = "agent-kit"
 
@@ -75,6 +79,24 @@ def build_parser() -> argparse.ArgumentParser:
     stopped.add_argument("slug")
     stopped.add_argument("reason")
 
+    step = commands.add_parser("step", help="the steps this kit knows, and running one")
+    step_what = step.add_subparsers(dest="what", metavar="WHAT")
+
+    step_what.add_parser("list", help="every step, with what it must return")
+
+    show_step = step_what.add_parser("show", help="one step: its prose and its contract")
+    show_step.add_argument("name")
+
+    step_input = step_what.add_parser("input", help="what the driver would enclose, without running it")
+    step_input.add_argument("slug")
+    step_input.add_argument("--provider", default="by hand")
+
+    step_run = step_what.add_parser("run", help="run the next step of a run")
+    step_run.add_argument("slug")
+    step_run.add_argument("--provider", default="fake", help="who executes it (only the fake exists until S3)")
+    step_run.add_argument("--reply", action="append", default=[], metavar="FILE",
+                          help="a file the fake provider answers with; repeat for each attempt")
+
     return parser
 
 
@@ -113,6 +135,8 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace, paths: 
         return _config(args, paths)
     if args.command == "run":
         return _run(args)
+    if args.command == "step":
+        return _step(args, paths)
 
     raise UsageError("unknown-command", args.command)
 
@@ -134,6 +158,11 @@ def _doctor(paths: Paths, project: Path) -> int:
     print(f"  root        {project.resolve()}")
     print(f"  kit         {project_dirs.kit_dir}  {_present(project_dirs.kit_dir)}")
     print(f"  runs        {len(RunStore(project).list())}")
+    print()
+    print("the method")
+    registry = builtin_registry()
+    print(f"  prose       {method_root()}  {_present(method_root())}")
+    print(f"  steps       {', '.join(registry.names())}")
     print()
     print("what is configured")
     print(f"  max sessions {config.machine.max_sessions}")
@@ -179,7 +208,7 @@ def _config_as_data(config: Config) -> dict:
 
 
 def _run(args: argparse.Namespace) -> int:
-    store = RunStore(args.project)
+    store = RunStore(args.project, registry=builtin_registry())
     what = args.what
     if what is None:
         raise UsageError("missing-command", "run needs one of: new, list, show, start, pass, fail, stop")
@@ -243,3 +272,82 @@ def _where(run) -> str:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())
+
+
+# --- step ------------------------------------------------------------------
+
+
+def _step(args: argparse.Namespace, paths: Paths) -> int:
+    registry = builtin_registry()
+    what = args.what
+    if what is None:
+        raise UsageError("missing-command", "step needs one of: list, show, input, run")
+
+    if what == "list":
+        for definition in registry.all():
+            print(f"{definition.name:12} {definition.role:10} {definition.title}")
+        return int(ExitCode.OK)
+
+    if what == "show":
+        definition = registry.get(args.name)
+        print(f"{definition.name} — {definition.title}")
+        print(f"  role      {definition.role}")
+        print(f"  prose     {method_root() / definition.method}")
+        print()
+        print("returns:")
+        print(definition.contract.describe())
+        return int(ExitCode.OK)
+
+    store = RunStore(args.project, registry=registry)
+
+    if what == "input":
+        run = store.load(args.slug)
+        index = run.next_pending()
+        if index is None:
+            raise StateError("no-step-pending", f"{args.slug}: every step is done")
+        definition = registry.get(run.steps[index].name)
+        print(
+            compose_input(
+                run=run,
+                step=run.steps[index],
+                definition=definition,
+                attempt=run.steps[index].attempts + 1,
+                provider=args.provider,
+            )
+        )
+        return int(ExitCode.OK)
+
+    if what == "run":
+        executors = _executors(args)
+        config = load_config(paths.config_file)
+        runner = StepRunner(
+            store=store,
+            registry=registry,
+            executors=executors,
+            roles=config.roles,
+            default_provider=args.provider,
+        )
+        outcome = runner.run_next(args.slug)
+        for attempt in outcome.attempts:
+            mark = "passed" if attempt.passed else f"refused — {attempt.refusal}"
+            print(f"  attempt {attempt.attempt} on {attempt.provider}: {mark}")
+        if outcome.passed:
+            print(f"{outcome.slug}: {outcome.step} passed")
+            return int(ExitCode.OK)
+        print(f"{outcome.slug}: {outcome.reason}", file=sys.stderr)
+        return int(ExitCode.STATE)
+
+    raise UsageError("unknown-command", f"step {what}")
+
+
+def _executors(args: argparse.Namespace) -> dict:
+    """Until S3 there is one provider, and it is not real."""
+    if args.provider != "fake":
+        raise ProviderError(
+            "no-adapter",
+            f"{args.provider!r} has no adapter yet; the first real one is Claude Code at S3",
+        )
+    replies = [Path(name).read_text(encoding="utf-8") for name in args.reply]
+    if not replies:
+        raise UsageError("no-reply", "the fake provider answers from files: pass --reply FILE at least once")
+    return {"fake": FakeExecutor(name="fake", replies=replies)}

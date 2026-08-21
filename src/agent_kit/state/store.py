@@ -11,13 +11,16 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from ..errors import StateError
 from ..logs import get_logger
 from ..paths import ProjectPaths, project_paths
 from .migrations import migrate
 from .schema import Run, Step, check_slug
+
+if TYPE_CHECKING:  # a registry knows which steps exist; the state itself does not care
+    from ..steps.registry import Registry as StepRegistry
 
 RUN_FILE = "run.json"
 
@@ -27,13 +30,18 @@ log = get_logger("state")
 class RunStore:
     """Runs of one project, under `.agent-kit/v3/runs/`."""
 
-    def __init__(self, root: Path | str) -> None:
+    def __init__(self, root: Path | str, registry: "StepRegistry | None" = None) -> None:
         self.paths: ProjectPaths = project_paths(root)
+        #: Optional: when given, a run may only be created from steps that exist.
+        self.registry = registry
 
     # --- reading ----------------------------------------------------------
 
+    def run_root(self, slug: str) -> Path:
+        return self.paths.run_dir(check_slug(slug))
+
     def path_for(self, slug: str) -> Path:
-        return self.paths.run_dir(check_slug(slug)) / RUN_FILE
+        return self.run_root(slug) / RUN_FILE
 
     def exists(self, slug: str) -> bool:
         return self.path_for(slug).is_file()
@@ -66,6 +74,9 @@ class RunStore:
     def create(self, slug: str, steps: list[str] | tuple[str, ...] | None = None, project: str | None = None,
                branch: str | None = None) -> Run:
         check_slug(slug)
+        for name in steps or ():
+            if self.registry is not None:
+                self.registry.get(name)
         if self.exists(slug):
             raise StateError("run-exists", f"{slug} already exists; a run is created once")
         run = Run.new(slug, steps=steps, project=project, branch=branch)
@@ -80,7 +91,7 @@ class RunStore:
 
         directory = self.paths.run_dir(run.slug)
         directory.mkdir(parents=True, exist_ok=True)
-        _write_whole(directory / RUN_FILE, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+        write_whole(directory / RUN_FILE, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
         return run
 
     def update(self, slug: str, change: Callable[[Run], object]) -> Run:
@@ -103,11 +114,15 @@ class RunStore:
     def skip_step(self, slug: str, reason: str) -> Run:
         return self.update(slug, lambda run: run.skip_step(reason))
 
+    def fail_run(self, slug: str, reason: str) -> Run:
+        return self.update(slug, lambda run: run.fail(reason))
+
     def stop(self, slug: str, reason: str) -> Run:
         return self.update(slug, lambda run: run.stop(reason))
 
 
-def _write_whole(path: Path, text: str) -> None:
+def write_whole(path: Path, text: str) -> None:
+    """Write beside, rename over: a writer that dies leaves the previous file whole."""
     handle = tempfile.NamedTemporaryFile(
         "w", encoding="utf-8", dir=path.parent, prefix=f".{path.name}.", suffix=".tmp", delete=False
     )
@@ -123,4 +138,4 @@ def _write_whole(path: Path, text: str) -> None:
         raise
 
 
-__all__ = ["RunStore", "Run", "Step", "RUN_FILE"]
+__all__ = ["RunStore", "Run", "Step", "RUN_FILE", "write_whole"]
