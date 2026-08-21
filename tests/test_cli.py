@@ -217,3 +217,56 @@ def test_a_step_run_with_no_provider_at_all_is_refused(machine, capsys):
 
     assert code == ExitCode.PROVIDER
     assert "no-provider" in err or "unknown-provider" in err
+
+
+def test_an_explicit_provider_beats_the_role_table(machine, capsys, tmp_path):
+    """The person typed a provider. Configuration does not overrule what was asked for."""
+    config = machine / "home/.config/agent-kit/config.toml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text('[roles.probe]\nprovider = "claude_code"\n', encoding="utf-8")
+    reply = tmp_path / "reply.md"
+    reply.write_text('```json\n{"branch": "kit/x", "can_write": true}\n```', encoding="utf-8")
+    run(["run", "new", "add-login"], capsys)
+
+    code, out, _ = run(
+        ["step", "run", "add-login", "--provider", "fake", "--option", f"reply={reply}"], capsys
+    )
+
+    assert code == ExitCode.OK
+    assert "probe passed" in out
+
+
+def test_step_input_refuses_a_run_that_is_over(machine, capsys):
+    run(["run", "new", "add-login"], capsys)
+    run(["run", "start", "add-login"], capsys)
+    run(["run", "fail", "add-login", "gave up"], capsys)
+
+    code, _, err = run(["step", "input", "add-login"], capsys)
+
+    assert code == ExitCode.STATE
+    assert "run-finished" in err
+
+
+@pytest.mark.parametrize(
+    "option, reason",
+    [("reply", "bad-option"), ("=value", "bad-option"), ("reply=/nowhere/at/all", "no-reply")],
+)
+def test_a_bad_option_is_refused_by_name(machine, capsys, option, reason):
+    run(["run", "new", "add-login"], capsys)
+
+    code, _, err = run(["step", "run", "add-login", "--provider", "fake", "--option", option], capsys)
+
+    assert code in (ExitCode.USAGE, ExitCode.PROVIDER)
+    assert reason in err
+
+
+def test_an_option_value_may_contain_the_separator(machine, capsys, tmp_path):
+    reply = tmp_path / "a=b.md"
+    reply.write_text('```json\n{"branch": "kit/x", "can_write": true}\n```', encoding="utf-8")
+    run(["run", "new", "add-login"], capsys)
+
+    code, _, _ = run(
+        ["step", "run", "add-login", "--provider", "fake", "--option", f"reply={reply}"], capsys
+    )
+
+    assert code == ExitCode.OK

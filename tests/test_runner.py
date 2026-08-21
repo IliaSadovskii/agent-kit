@@ -100,12 +100,15 @@ def test_three_attempts_and_each_one_is_told_why_the_last_was_refused(tmp_path):
 
 
 def test_an_attempt_that_repeats_the_same_input_is_not_an_attempt(tmp_path):
-    run_step, _, fake = runner(tmp_path, [NO_BRANCH, NO_BRANCH, NO_BRANCH])
+    run_step, _, fake = runner(tmp_path, [NO_BRANCH, NOT_JSON, NO_BRANCH])
 
     run_step.run_next("add-login")
 
     inputs = [request.input_text for request in fake.requests]
     assert len(set(inputs)) == len(inputs)
+    # each retry carries the reason the previous one was refused, not just a counter
+    assert "output-missing-field: branch" in inputs[1]
+    assert "output-not-json" in inputs[2]
 
 
 def test_after_three_the_role_s_fallback_provider_gets_one(tmp_path):
@@ -222,7 +225,7 @@ def test_a_failed_run_is_not_quietly_resumed(tmp_path):
     assert "refused 3 times" in run.reason
 
 
-def test_a_run_with_nothing_pending_is_refused(tmp_path):
+def test_a_finished_run_is_refused_by_name(tmp_path):
     run_step, _, _ = runner(tmp_path, [GOOD])
     run_step.run_next("add-login")
 
@@ -232,6 +235,74 @@ def test_a_run_with_nothing_pending_is_refused(tmp_path):
         run_step.run_next("add-login")
 
     assert caught.value.code == "run-finished"
+
+
+# --- a provider that misbehaves, and a driver that vanished ---------------
+
+
+def test_a_provider_that_raises_something_unexpected_is_still_only_an_attempt(tmp_path):
+    """An adapter is somebody else's code. A surprise from it must not wedge the run."""
+
+    def explode(_request):
+        raise RuntimeError("the CLI wrote something nobody parsed")
+
+    run_step, store, _ = runner(tmp_path, [explode, GOOD])
+
+    outcome = run_step.run_next("add-login")
+
+    assert outcome.passed
+    assert "provider-crashed" in outcome.attempts[0].refusal
+    assert "RuntimeError" in outcome.attempts[0].refusal
+    assert store.load("add-login").status is RunStatus.DONE
+
+
+def test_a_run_is_left_advanceable_when_something_escapes_mid_step(tmp_path):
+    """Whatever breaks, the state must not be left holding a step nobody can move."""
+    from agent_kit.driver import runner as runner_module
+
+    run_step, store, _ = runner(tmp_path, [GOOD])
+    original = runner_module.StepWorkspace.write_raw
+
+    def refuse_to_write(*_args, **_kwargs):
+        raise OSError("disk full")
+
+    runner_module.StepWorkspace.write_raw = refuse_to_write
+    try:
+        with pytest.raises(OSError):
+            run_step.run_next("add-login")
+    finally:
+        runner_module.StepWorkspace.write_raw = original
+
+    run = store.load("add-login")
+    assert run.steps[0].status is StepStatus.PENDING
+    assert run.current_step is None
+    assert "disk full" in run.steps[0].reason
+
+
+def test_a_step_left_running_by_a_dead_driver_is_picked_up_again(tmp_path):
+    """A killed driver leaves a step RUNNING. The next run says so and tries again."""
+    run_step, store, _ = runner(tmp_path, [GOOD])
+    store.start_step("add-login", provider="fake")  # nobody ever came back
+
+    outcome = run_step.run_next("add-login")
+
+    assert outcome.passed
+    assert store.load("add-login").steps[0].attempts == 2
+
+
+def test_a_run_with_nothing_pending_is_refused(tmp_path):
+    """The message must name what is true: nothing pending is not the same as finished."""
+    from agent_kit.errors import StateError
+    from agent_kit.state import RunStatus as Status
+
+    run_step, store, _ = runner(tmp_path, [GOOD])
+    run_step.run_next("add-login")
+    store.update("add-login", lambda run: setattr(run, "status", Status.RUNNING))
+
+    with pytest.raises(StateError) as caught:
+        run_step.run_next("add-login")
+
+    assert caught.value.code == "no-step-pending"
 
 
 def test_a_provider_nobody_configured_is_refused_before_anything_runs(tmp_path):

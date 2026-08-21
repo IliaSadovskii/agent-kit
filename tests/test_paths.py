@@ -1,7 +1,5 @@
 """S0 — the machine's paths. One home per kind of file, XDG or nothing."""
 
-from pathlib import Path
-
 from agent_kit.paths import Paths, project_paths
 
 
@@ -37,8 +35,18 @@ def test_ensure_creates_only_the_machine_directories(tmp_path):
 
 def test_the_third_version_owns_its_own_project_directory(tmp_path):
     """Open question 1: version 2 keeps .agent-kit/runs/, version 3 never touches it."""
-    project = project_paths(tmp_path)
+    from agent_kit.state import RunStore
 
+    second_version = tmp_path / ".agent-kit/runs/old-batch"
+    second_version.mkdir(parents=True)
+    (second_version / "run.json").write_text('{"schema": "version two"}', encoding="utf-8")
+
+    project = project_paths(tmp_path)
     assert project.kit_dir == tmp_path / ".agent-kit/v3"
     assert project.runs_dir == tmp_path / ".agent-kit/v3/runs"
-    assert Path(".agent-kit/runs") not in [p.relative_to(tmp_path) for p in (project.kit_dir, project.runs_dir)]
+
+    store = RunStore(tmp_path)
+    store.create("add-login")
+
+    assert store.list() == ["add-login"]  # the second version's batch is not ours to see
+    assert (second_version / "run.json").read_text() == '{"schema": "version two"}'

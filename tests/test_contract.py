@@ -121,3 +121,16 @@ def test_anything_else_is_refused_by_name(raw):
         parse_output(raw)
 
     assert caught.value.code in ("output-missing", "output-not-json")
+
+
+def test_a_fence_with_no_newline_after_the_tag_is_still_the_output():
+    assert parse_output('```json {"branch": "kit/x"}```')["branch"] == "kit/x"
+
+
+def test_a_contract_that_names_no_choices_is_refused_when_it_is_declared():
+    from agent_kit.steps.contract import ContractRefusal
+
+    with pytest.raises(ContractRefusal) as caught:
+        Enum("severity")
+
+    assert caught.value.code == "bad-contract"

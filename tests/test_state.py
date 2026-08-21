@@ -204,6 +204,32 @@ def test_a_refused_step_is_retried_and_the_attempts_are_counted(store):
     assert run.status is RunStatus.RUNNING
 
 
+def test_a_failure_with_no_step_running_does_not_rewrite_the_last_one(store):
+    """A step that demonstrably passed, with its output on disk, is not the failure."""
+    store.create("add-login", steps=["design", "build"])
+    store.start_step("add-login")
+    store.pass_step("add-login")
+
+    with pytest.raises(StateError) as caught:
+        store.fail_step("add-login", "gave up")
+
+    assert caught.value.code == "no-step-running"
+    assert store.load("add-login").steps[0].status is StepStatus.PASSED
+
+
+def test_a_run_that_fails_after_a_refusal_blames_the_step_it_reached(store):
+    store.create("add-login", steps=["design", "build"])
+    store.start_step("add-login")
+    store.pass_step("add-login")
+    store.start_step("add-login")
+    store.refuse_step("add-login", "output-not-json")
+
+    run = store.fail_run("add-login", "build was refused 3 times")
+
+    assert run.steps[0].status is StepStatus.PASSED
+    assert run.steps[1].status is StepStatus.FAILED
+
+
 def test_a_refusal_leaves_the_run_running_and_keeps_its_reason(store):
     store.create("add-login")
     store.start_step("add-login")
@@ -285,10 +311,10 @@ def test_a_file_from_a_newer_schema_is_refused_not_guessed(store, tmp_path):
 
 
 def test_a_file_from_an_older_kit_is_migrated_on_the_way_in(store, tmp_path, monkeypatch):
+    """Registering a migration is the whole of it — no second constant to remember."""
     import agent_kit.state.migrations as migrations
 
     monkeypatch.setitem(migrations.MIGRATIONS, 0, lambda data: {**data, "slug": data.pop("name")})
-    monkeypatch.setattr(migrations, "OLDEST_SCHEMA", 0)
     store.create("add-login")
     path = tmp_path / ".agent-kit/v3/runs/add-login/run.json"
     data = json.loads(path.read_text())
@@ -300,6 +326,34 @@ def test_a_file_from_an_older_kit_is_migrated_on_the_way_in(store, tmp_path, mon
 
     assert run.slug == "add-login"
     assert run.schema == SCHEMA_VERSION
+
+
+def test_how_old_a_file_may_be_follows_from_the_migrations_themselves(monkeypatch):
+    import agent_kit.state.migrations as migrations
+
+    assert migrations.oldest_schema() == SCHEMA_VERSION  # nothing older is readable yet
+
+    monkeypatch.setitem(migrations.MIGRATIONS, SCHEMA_VERSION - 1, lambda data: data)
+
+    assert migrations.oldest_schema() == SCHEMA_VERSION - 1
+
+
+@pytest.mark.parametrize(
+    "written, readable",
+    [("3.0.0.dev0", True), ("3.0.0", True), ("v3.0.0", True), ("2.28.0", True), ("v9.0.0", False)],
+)
+def test_the_kit_version_is_read_the_way_people_write_it(store, tmp_path, written, readable):
+    store.create("add-login")
+    path = tmp_path / ".agent-kit/v3/runs/add-login/run.json"
+    data = json.loads(path.read_text()) | {"kit": written}
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    if readable:
+        assert store.load("add-login").kit == written
+    else:
+        with pytest.raises(StateError) as caught:
+            store.load("add-login")
+        assert caught.value.code == "kit-too-new"
 
 
 def test_a_damaged_file_is_refused_with_its_reason(store, tmp_path):
