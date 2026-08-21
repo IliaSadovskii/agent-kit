@@ -276,3 +276,90 @@ is a conversation rather than a batch.
 **Revisit once the skeleton and the bench exist.** A list of independent modules is a real batch, it
 runs in a worktree where nobody edits the kit's own prose, and it is the first honest test of the
 third version on itself.
+
+---
+
+# The build order
+
+Replaces the sketch in §6, which listed the work without saying what holds it together.
+
+## Five rules the order obeys
+
+1. **A step ends green and ends demonstrable.** Something runs, something is tested, and there is a
+   sentence naming what can now be done that could not be done before. No half-mechanisms left
+   standing overnight.
+2. **The test is written first**, because that is what makes the proof free — the same rule the old
+   kit gave its build sessions and never checked.
+3. **Dependencies flow one way**: state → the step contract → the driver → adapters → the daemon →
+   parallelism. Nothing is built before the shape it writes into is frozen.
+4. **A frozen shape is never quietly changed.** If a later step needs a different one, changing it is
+   its own step, done first, with a migration and a test — never a side effect of building something
+   else.
+5. **Nothing lands without its reader.** A field, a file or a record with no consumer is not written
+   until the consumer is.
+
+## The steps
+
+**S0 · The package.** `agent-kit` as a command: `uv` project, config loading, the XDG paths, logging,
+exit codes that mean one thing each. No domain in it at all.
+*Done when* `uv tool install` from this branch puts a working command on PATH and `agent-kit --help`
+answers. *Why first:* the install path is where late surprises are most expensive.
+
+**S1 · The state.** What a run is, as data: a versioned schema, read and write through one module,
+validation on both sides, a migration hook. The state advances only through the program — no field is
+ever written by an agent's editor.
+*Done when* a run can be created, advanced and read back, and an invalid state is refused with a
+named reason. *Why here:* everything later writes into this, and rule 4 makes a late change costly.
+
+**S2 · The step contract.** A step is an input the driver composes, an executor, and an output the
+driver validates. Registry, one fake executor, no real CLI anywhere.
+*Done when* three tests pass: a missing output leaves the step unpassed, an output that does not
+satisfy the contract is refused, and a valid one is recorded with its trace. *Why before adapters:*
+this is the principle the whole architecture rests on. Proving it against a fake agent costs nothing
+and finds the design errors while they are still cheap.
+
+**S3 · The first adapter, Claude Code.** Level A first — start, send, stop, and the session's real
+name reported rather than guessed. Then level B — alive, context size, limit and its reset.
+*Done when* the machinery of S2 runs one real step in a real session, and the driver can say how much
+context that session holds. *Why after S2:* the adapter plugs into machinery already proven.
+
+**S4 · One feature, end to end.** Design, Build, Verify, Deliver as steps with contracts. One
+provider, one child, no parallelism, a real branch and a real pull request.
+*Done when* a small feature on a real project is built by the third version alone. This is the first
+moment anything is worth judging.
+
+**S5 · The bench.** A sample repository with planted traps and judges that are scripts.
+*Done when* one command reports which mechanisms fired and which did not. *Why here:* before S4 there
+is nothing to judge; after S4 every further change needs judging, and a live night can no longer
+answer for it.
+
+**S6 · The knowledge, through the program.** The model returns fields, the driver writes the file and
+the mark. The join the second version never made — an expensive assumption owes a block — becomes an
+impossible state rather than an oversight.
+*Done when* a feature cannot be closed while an expensive assumption has no block, and the bench has
+a trap proving it.
+
+**S7 · The daemon.** Slots on the machine, limits per account, the queue, autostart under systemd.
+*Done when* two runs on one provider account wait for each other correctly instead of sleeping blind.
+*Why not earlier:* until S4 there is only ever one run.
+
+**S8 · Parallelism.** A worktree per child, waves from the `needs` graph, several branches merged in
+an order the program decides.
+*Done when* a batch of three features that depend on nothing builds at once and all three land.
+
+**S9 · Adapters two to four.** Codex, Gemini CLI, OpenCode. Each is a config block plus a small
+module, and each is run through the bench for its level. The context ceiling is measured per
+provider, never inherited.
+*Done when* the bench reports a level for each, and the numbers behind each ceiling are written down.
+
+**S10 · Roles across providers.** The table with fallbacks, and the first night where the builder and
+the reviewer are different providers.
+*Done when* one batch runs with three providers and the bench says the result did not get worse.
+
+**S11 · AoE as an optional launcher**, so sessions appear in the dashboard the owner actually uses.
+*Done when* the kit works identically with it and without it.
+
+## What is deliberately not in this order
+
+The two-agent debate. It is one flag on a step once S2 exists — same input, two executors, the
+program compares — and it costs double, so it waits for a step that has been measured as hard.
