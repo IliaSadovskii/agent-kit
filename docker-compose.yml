@@ -1,0 +1,28 @@
+services:
+  kit:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        UID: "${UID:-1000}"
+        GID: "${GID:-1000}"
+    container_name: agent-kit
+    restart: unless-stopped
+    volumes:
+      - .:/app
+      - uv-cache:/home/kit/.cache/uv
+    working_dir: /app
+    environment:
+      GIT_AUTHOR_NAME: "agent-kit tests"
+      GIT_AUTHOR_EMAIL: "kit@localhost"
+      GIT_COMMITTER_NAME: "agent-kit tests"
+      GIT_COMMITTER_EMAIL: "kit@localhost"
+    healthcheck:
+      test: ["CMD", "agent-kit", "--version"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+volumes:
+  uv-cache:

@@ -1,0 +1,269 @@
+"""S1 — the state. A run is data; it advances only through the program."""
+
+import json
+
+import pytest
+
+from agent_kit import __version__
+from agent_kit.errors import StateError
+from agent_kit.state import DEFAULT_STEPS, SCHEMA_VERSION, RunStatus, RunStore, StepStatus
+
+
+@pytest.fixture
+def store(tmp_path):
+    return RunStore(tmp_path)
+
+
+def test_a_new_run_starts_pending_on_every_step(store):
+    run = store.create("add-login")
+
+    assert run.slug == "add-login"
+    assert run.status is RunStatus.CREATED
+    assert run.branch == "kit/add-login"
+    assert [step.name for step in run.steps] == list(DEFAULT_STEPS)
+    assert all(step.status is StepStatus.PENDING for step in run.steps)
+
+
+def test_it_writes_where_the_second_version_does_not_look(store, tmp_path):
+    store.create("add-login")
+
+    assert (tmp_path / ".agent-kit/v3/runs/add-login/run.json").is_file()
+    assert not (tmp_path / ".agent-kit/runs").exists()
+
+
+def test_the_file_carries_the_schema_and_the_kit_that_wrote_it(store, tmp_path):
+    store.create("add-login")
+
+    data = json.loads((tmp_path / ".agent-kit/v3/runs/add-login/run.json").read_text())
+
+    assert data["schema"] == SCHEMA_VERSION
+    assert data["kit"] == __version__
+
+
+def test_a_run_is_read_back_exactly(store):
+    created = store.create("add-login", steps=["design", "build"], project="beeplish")
+
+    assert store.load("add-login").to_dict() == created.to_dict()
+
+
+def test_two_runs_of_one_slug_are_refused(store):
+    store.create("add-login")
+
+    with pytest.raises(StateError) as caught:
+        store.create("add-login")
+
+    assert caught.value.code == "run-exists"
+
+
+def test_a_slug_that_is_not_a_directory_name_is_refused(store):
+    with pytest.raises(StateError) as caught:
+        store.create("../escape")
+
+    assert caught.value.code == "bad-slug"
+
+
+def test_list_is_sorted_and_names_only_real_runs(store, tmp_path):
+    store.create("fix-clock")
+    store.create("add-login")
+    (tmp_path / ".agent-kit/v3/runs/leftover").mkdir()
+
+    assert store.list() == ["add-login", "fix-clock"]
+
+
+def test_an_unknown_run_is_named_not_guessed(store):
+    with pytest.raises(StateError) as caught:
+        store.load("nonesuch")
+
+    assert caught.value.code == "unknown-run"
+
+
+# --- advancing -------------------------------------------------------------
+
+
+def test_starting_advances_the_run_and_the_step(store):
+    store.create("add-login")
+
+    run = store.start_step("add-login")
+
+    assert run.status is RunStatus.RUNNING
+    assert run.steps[0].status is StepStatus.RUNNING
+    assert run.steps[0].attempts == 1
+    assert run.steps[0].started_at is not None
+    assert store.load("add-login").current_step == 0
+
+
+def test_a_second_start_while_one_runs_is_refused(store):
+    store.create("add-login")
+    store.start_step("add-login")
+
+    with pytest.raises(StateError) as caught:
+        store.start_step("add-login")
+
+    assert caught.value.code == "step-already-running"
+
+
+def test_passing_moves_to_the_next_step(store):
+    store.create("add-login", steps=["design", "build"])
+    store.start_step("add-login")
+
+    run = store.pass_step("add-login")
+
+    assert run.steps[0].status is StepStatus.PASSED
+    assert run.steps[0].ended_at is not None
+    assert run.status is RunStatus.RUNNING
+    assert run.current_step is None
+
+
+def test_passing_the_last_step_finishes_the_run(store):
+    store.create("add-login", steps=["design"])
+    store.start_step("add-login")
+
+    run = store.pass_step("add-login")
+
+    assert run.status is RunStatus.DONE
+    assert run.finished_at is not None
+
+
+def test_a_finished_run_does_not_start_again(store):
+    store.create("add-login", steps=["design"])
+    store.start_step("add-login")
+    store.pass_step("add-login")
+
+    with pytest.raises(StateError) as caught:
+        store.start_step("add-login")
+
+    assert caught.value.code == "run-finished"
+
+
+def test_passing_with_no_step_running_is_refused(store):
+    store.create("add-login")
+
+    with pytest.raises(StateError) as caught:
+        store.pass_step("add-login")
+
+    assert caught.value.code == "no-step-running"
+
+
+def test_a_failure_keeps_its_reason_and_stops_the_run(store):
+    store.create("add-login")
+    store.start_step("add-login")
+
+    run = store.fail_step("add-login", "output-missing-field: seams")
+
+    assert run.steps[0].status is StepStatus.FAILED
+    assert run.steps[0].reason == "output-missing-field: seams"
+    assert run.status is RunStatus.FAILED
+
+
+def test_a_failure_without_a_reason_is_refused(store):
+    store.create("add-login")
+    store.start_step("add-login")
+
+    with pytest.raises(StateError) as caught:
+        store.fail_step("add-login", "  ")
+
+    assert caught.value.code == "reason-required"
+
+
+def test_a_failed_step_is_retried_and_the_attempts_are_counted(store):
+    store.create("add-login")
+    store.start_step("add-login")
+    store.fail_step("add-login", "output-missing-field: seams")
+
+    run = store.start_step("add-login")
+
+    assert run.steps[0].status is StepStatus.RUNNING
+    assert run.steps[0].attempts == 2
+    assert run.status is RunStatus.RUNNING
+
+
+def test_a_run_can_be_stopped_and_says_why(store):
+    store.create("add-login")
+    store.start_step("add-login")
+
+    run = store.stop("add-login", "asked by the owner")
+
+    assert run.status is RunStatus.STOPPED
+    assert run.reason == "asked by the owner"
+    assert run.steps[0].status is StepStatus.PENDING
+
+
+# --- what may not be written ----------------------------------------------
+
+
+def test_the_state_is_written_whole_never_in_place(store, tmp_path, monkeypatch):
+    """Open question 2: write beside, rename over — a killed writer leaves the old file."""
+    store.create("add-login")
+    path = tmp_path / ".agent-kit/v3/runs/add-login/run.json"
+    before = path.read_text()
+
+    import agent_kit.state.store as store_module
+
+    monkeypatch.setattr(store_module.os, "replace", lambda *_: (_ for _ in ()).throw(OSError("disk full")))
+    with pytest.raises(OSError):
+        store.start_step("add-login")
+
+    assert path.read_text() == before
+    assert list(path.parent.glob("*.tmp*")) == []
+
+
+def test_a_file_from_a_newer_kit_is_refused_not_guessed(store, tmp_path):
+    store.create("add-login")
+    path = tmp_path / ".agent-kit/v3/runs/add-login/run.json"
+    data = json.loads(path.read_text())
+    data["schema"] = SCHEMA_VERSION + 1
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(StateError) as caught:
+        store.load("add-login")
+
+    assert caught.value.code == "schema-too-new"
+
+
+def test_a_file_from_an_older_kit_is_migrated_on_the_way_in(store, tmp_path, monkeypatch):
+    import agent_kit.state.migrations as migrations
+
+    monkeypatch.setitem(migrations.MIGRATIONS, 0, lambda data: {**data, "slug": data.pop("name")})
+    monkeypatch.setattr(migrations, "OLDEST_SCHEMA", 0)
+    store.create("add-login")
+    path = tmp_path / ".agent-kit/v3/runs/add-login/run.json"
+    data = json.loads(path.read_text())
+    data["schema"] = 0
+    data["name"] = data.pop("slug")
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    run = store.load("add-login")
+
+    assert run.slug == "add-login"
+    assert run.schema == SCHEMA_VERSION
+
+
+def test_a_damaged_file_is_refused_with_its_reason(store, tmp_path):
+    store.create("add-login")
+    (tmp_path / ".agent-kit/v3/runs/add-login/run.json").write_text("{ not json", encoding="utf-8")
+
+    with pytest.raises(StateError) as caught:
+        store.load("add-login")
+
+    assert caught.value.code == "unreadable-run"
+
+
+@pytest.mark.parametrize(
+    "damage, code",
+    [
+        ({"status": "flying"}, "bad-field: status"),
+        ({"steps": "design"}, "bad-field: steps"),
+        ({"slug": ""}, "bad-field: slug"),
+        ({"current_step": 9}, "bad-field: current_step"),
+    ],
+)
+def test_an_invalid_state_is_refused_field_by_field(store, tmp_path, damage, code):
+    store.create("add-login")
+    path = tmp_path / ".agent-kit/v3/runs/add-login/run.json"
+    data = json.loads(path.read_text()) | damage
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(StateError) as caught:
+        store.load("add-login")
+
+    assert caught.value.code == code

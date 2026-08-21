@@ -1,0 +1,44 @@
+# agent-kit — the third version
+
+A console application for Linux that drives other people's CLI agents. The plan it is
+built from is `docs/design/2026-08-22-the-third-kit.md`; read that before changing shape.
+
+Commit messages and code in English. What the owner reads — pull requests, notes — in Russian.
+The branch prefix for work the kit itself runs is `kit/`.
+
+## Окружение
+
+Ничего не ставится на хост: `uv`, Python и тесты живут в контейнере.
+
+| Команда | Что делает |
+|---|---|
+| `make up` | собирает образ, поднимает контейнер, ставит зависимости (`uv sync`) |
+| `make test` | `pytest` внутри контейнера |
+| `make install-check` | доказательство S0: `uv tool install` кладёт рабочую команду на PATH |
+| `make shell` | приглашение внутри контейнера |
+| `make down` | гасит, кэши остаются |
+| `make clean` | гасит и сносит тома |
+
+Портов проект пока не занимает — наружу ничего не смотрит. Порт понадобится демону (S7),
+брать его тогда через `ports claim agent-kit`.
+
+Секретов нет. Когда появятся — `~/.local/state/agent-kit/secrets`, режим 600, не в git.
+
+## Где что лежит
+
+| Место | Владелец |
+|---|---|
+| `src/agent_kit/` | сам кит |
+| `~/.config/agent-kit/config.toml` | выбор этой машины: аккаунты, модели, роли |
+| `~/.local/state/agent-kit/` | что истинно прямо сейчас: логи, база демона |
+| `<проект>/.agent-kit/v3/runs/<slug>/run.json` | состояние прогона; пишет только программа |
+
+`.agent-kit/runs/` — это вторая версия. Третья туда не смотрит и не пишет.
+
+## Правила, которые уже действуют
+
+- **Тест пишется первым.** Правило 2 из плана; вторая версия его предписывала и не проверяла.
+- **Состояние двигается только через программу.** Ни один агент не редактирует `run.json`.
+- **Отказ называет причину.** У каждой ошибки есть код (`no-step-running`, `bad-field: status`),
+  и код выхода означает одно и только одно — см. `src/agent_kit/errors.py`.
+- **Поле без читателя не пишется.** Правило 5 из плана.

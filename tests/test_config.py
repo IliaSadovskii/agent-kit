@@ -1,0 +1,78 @@
+"""S0 — the configuration. One truth, and it states choices, never facts about a tool."""
+
+import pytest
+
+from agent_kit.config import DEFAULT_MAX_SESSIONS, load_config
+from agent_kit.errors import ConfigError
+
+
+def write(path, text):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+def test_a_missing_file_is_defaults_not_an_error(tmp_path):
+    config = load_config(tmp_path / "config.toml")
+
+    assert config.source is None
+    assert config.machine.max_sessions == DEFAULT_MAX_SESSIONS
+    assert config.providers == {}
+    assert config.roles == {}
+
+
+def test_reads_the_shape_the_plan_fixed(tmp_path):
+    path = write(
+        tmp_path / "config.toml",
+        """
+[machine]
+max_sessions = 4
+
+[providers.codex]
+enabled = true
+model = "gpt-5.4-codex"
+effort = "high"
+max_sessions = 2
+
+[roles.build]
+provider = "codex"
+fallback = ["claude_code"]
+""",
+    )
+
+    config = load_config(path)
+
+    assert config.source == path
+    assert config.machine.max_sessions == 4
+    codex = config.providers["codex"]
+    assert (codex.enabled, codex.model, codex.effort, codex.max_sessions) == (True, "gpt-5.4-codex", "high", 2)
+    build = config.roles["build"]
+    assert (build.provider, build.fallback) == ("codex", ["claude_code"])
+
+
+def test_a_role_may_fall_back_to_nothing(tmp_path):
+    path = write(tmp_path / "config.toml", '[roles.review]\nprovider = "opencode"\n')
+
+    assert load_config(path).roles["review"].fallback == []
+
+
+@pytest.mark.parametrize(
+    "text, reason",
+    [
+        ("[machine]\nmax_sessions = 0\n", "machine.max_sessions"),
+        ('[machine]\nmax_sessions = "four"\n', "machine.max_sessions"),
+        ("[providers.codex]\nenabled = 1\n", "providers.codex.enabled"),
+        ('[roles.build]\nprovider = "codex"\nfallback = [1]\n', "roles.build.fallback"),
+        ("[roles.build]\n", "roles.build.provider"),
+        ("[nonsense]\nx = 1\n", "nonsense"),
+        ("[providers.codex]\ntranscript = \"~/x\"\n", "providers.codex.transcript"),
+        ("not toml at all = = =\n", "config.toml"),
+    ],
+)
+def test_a_refusal_names_what_it_refused(tmp_path, text, reason):
+    path = write(tmp_path / "config.toml", text)
+
+    with pytest.raises(ConfigError) as caught:
+        load_config(path)
+
+    assert reason in str(caught.value)
