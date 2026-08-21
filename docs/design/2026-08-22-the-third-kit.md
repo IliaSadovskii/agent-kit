@@ -458,3 +458,76 @@ readable without re-running the night.
 kit states what is true about the tool. `config.toml` on the machine states what this installation
 chose — which account, which model, which role. The kit never ships a choice; the machine never
 ships a fact.
+
+---
+
+# The control surface: how a person configures this
+
+There is no control *session*. The second version made the owner's own agent session the window,
+which meant configuring anything required a live model somewhere. A session is a worker here, never
+a controller.
+
+**One truth, three editors.** `~/.config/agent-kit/config.toml` is the configuration. The commands
+edit it safely, the daemon's page edits it from a phone, and a text editor edits it directly. All
+three write the same file, and it is readable and commentable by a person.
+
+`daemon.sqlite` never holds a setting. It holds only what is true right now — which slots are taken,
+which account is limited until when, what is queued. Settings survive a wipe of it; state does not
+survive a reboot and should not.
+
+## What a programmer actually does
+
+```bash
+agent-kit provider list                 # what the kit knows, and what this machine has
+agent-kit provider add codex            # writes the block, then runs the checks
+agent-kit provider check codex          # the level it earns, measured rather than claimed
+agent-kit role set build codex --model gpt-5.4-codex --effort high --fallback claude_code
+agent-kit doctor                        # everything configured, everything missing, in one screen
+```
+
+**A provider's level is measured, not declared.** `provider check` runs the ladder: the binary is on
+PATH, the login answers, the full-access flag is accepted, a one-shot job returns something, the
+session's context and limit are readable. It prints A or B and says which rung failed. A level
+nobody measured is the same class of claim as a rule nobody tested.
+
+## The shape of the file
+
+```toml
+[machine]
+max_sessions = 4                  # the ceiling the daemon enforces, memory before quota
+
+[providers.codex]
+enabled  = true
+model    = "gpt-5.4-codex"
+effort   = "high"
+max_sessions = 2                  # of the machine's four, at most two here
+[providers.opencode]
+enabled  = true
+model    = "glm-5.3"
+
+[roles.build]
+provider = "codex"
+fallback = ["claude_code"]
+[roles.review]
+provider = "opencode"
+[roles.interview]
+provider = "claude_code"
+```
+
+**Two levels of settings, and neither may hold the other's kind.** `provider.toml` in the kit states
+what is true about a tool — flags, capabilities, where its transcript lives. `config.toml` states
+what this installation chose — which model, which account, which role, how many at once. A project
+may override the role table in its own `.agent-kit/project.toml`, and nothing else.
+
+**Secrets are in neither.** `agent-kit auth` writes them to `~/.local/state/agent-kit/secrets`, mode
+600, or leaves them to the provider's own login where it has one. `config.toml` is safe to commit
+and safe to show.
+
+## The daemon's page
+
+The same operations, plus what only it knows: what is running now, what is queued, which account is
+limited and until when, and the last lines of each live session. It is the reason the daemon exists
+at all — a phone cannot read a config file over ssh, and that is the whole difference.
+
+Read-only until it is asked for more: showing is what was missing, and every button is a way to
+break a night from a bus.
