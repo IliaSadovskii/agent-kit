@@ -363,3 +363,98 @@ the reviewer are different providers.
 
 The two-agent debate. It is one flag on a step once S2 exists — same input, two executors, the
 program compares — and it costs double, so it waits for a step that has been measured as hard.
+
+---
+
+# Where everything lives
+
+Three places, each with one owner. A fact has one home; where two would want it, the second reads
+rather than copies.
+
+| Place | Owner | Dies with |
+|---|---|---|
+| the kit's repository | the kit | nothing — it is the source |
+| the machine — `~/.config/agent-kit`, `~/.local/state/agent-kit` | the installation | the machine |
+| the project — `.agent-kit/` and `docs/` | the project | never; `docs/` is committed |
+
+## The repository
+
+```
+agent-kit/
+  pyproject.toml
+  src/agent_kit/
+    cli/                 the command surface
+    state/               what a run is: schema, read/write, migrations
+    steps/               the step contract and the registry of steps
+    driver/              running a run: compose input, execute, validate output
+    knowledge/           reading and writing the project's knowledge, by program
+    providers/
+      base.py            the adapter contract — the only file that defines it
+      claude_code/
+        adapter.py       what cannot be declared: transcript, limits, context
+        provider.toml    what can: binary, flags, model, effort, capabilities, level
+      codex/
+      gemini_cli/
+      opencode/
+    daemon/              slots, limits, the queue, the web view
+    bench/               the runner and the judges
+  method/                the prose the driver encloses in a step's input
+    roles/               build.md, review.md, frame.md, close.md, interview.md
+    rules/               what more than one role needs
+    templates/           the shape of a record, read by whoever writes one
+  bench/cases/           the sample repository and its planted traps
+  docs/design/           the arguments
+  tests/
+```
+
+**A provider is a folder and nothing else.** Adding one at level A is `provider.toml` alone;
+promoting it to level B adds `adapter.py` beside it. Nothing outside `providers/` ever names a
+provider — the registry reads the folder.
+
+**The method is prose in `method/`, not a package.** No `.claude-plugin`, no marketplace, nothing
+installed into any agent CLI. The driver reads a role's file and puts it in the step's input, which
+is why a provider with no skills is not a lesser provider.
+
+## The project
+
+```
+<project>/
+  .agent-kit/
+    project.toml              what this project declares: commands, verification, roles
+    runs/<slug>/
+      run.json                the run's state — written by the program only
+      steps/<n>-<name>/
+        input.md              exactly what the driver enclosed
+        output.json           what came back, after it satisfied the contract
+        raw.txt               what came back before that
+        meta.json             provider, model, cost, timing, attempts
+  docs/
+    knowledge/                the owner's, unchanged
+    runs/<slug>.json          the durable record of a batch
+    manual.md, technical_debt.md
+```
+
+**The step directory is where agents meet.** Two sessions never talk; one writes `output.json` and
+the driver hands it to the next as part of an `input.md`. That makes every handover a file with a
+name — replayable, diffable, and answerable after the fact, which no conversation between two live
+sessions could ever be.
+
+It is also what makes the debate cheap when its turn comes: `output-a.json`, `output-b.json`, and a
+`verdict.json` the program wrote by comparing them. No new mechanism, one more file.
+
+`raw.txt` beside `output.json` is deliberate: when a contract is not satisfied, the reason has to be
+readable without re-running the night.
+
+## The machine
+
+```
+~/.config/agent-kit/config.toml     accounts, role table, per-provider overrides
+~/.local/state/agent-kit/
+  daemon.sqlite                     slots, limits, the queue, the project registry
+  logs/
+```
+
+**Two levels of provider settings, and they are not the same kind of thing.** `provider.toml` in the
+kit states what is true about the tool. `config.toml` on the machine states what this installation
+chose — which account, which model, which role. The kit never ships a choice; the machine never
+ships a fact.
