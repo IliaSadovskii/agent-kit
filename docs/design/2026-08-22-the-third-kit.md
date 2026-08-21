@@ -531,3 +531,88 @@ at all — a phone cannot read a config file over ssh, and that is the whole dif
 
 Read-only until it is asked for more: showing is what was missing, and every button is a way to
 break a night from a bus.
+
+---
+
+# What is still open, ordered by the step that needs it
+
+Written before building rather than discovered during it. Each says which step forces the answer,
+and carries a proposal where one is obvious.
+
+## Needed by S1 — the state
+
+**1 · Two kits on one project.** Version 2 is frozen but its nightly run on beeplish writes
+`.agent-kit/runs/<slug>/run.json` under its own schema. The third version writes the same path with a
+different shape, and the second version's checker judges anything it finds there.
+*Proposal:* the third version writes `.agent-kit/v3/` and never touches `.agent-kit/runs/`. One
+directory, one owner, no version sniffing. Deleted the day the second version is gone.
+
+**2 · Who may write a run file, and how they do not collide.** The driver writes it, the daemon reads
+it, and under parallelism several drivers exist at once. Two writers on one file is how a night ends
+with a truncated record.
+*Proposal:* one writer per run — its own driver — and everyone else reads. Cross-run facts (slots,
+limits) live in the daemon and never in a run file. Writes are atomic: write beside, rename over.
+
+**3 · The kit's own version, in the state.** A run file written by 3.0 and read by 3.2 has to say
+which it was. The old kit learned this the expensive way.
+*Proposal:* a `kit` field, refused if newer than the reader, migrated if older.
+
+## Needed by S2 — the step contract
+
+**4 · What happens when a step fails.** Missing output, an output that never satisfies the contract, a
+session that goes silent, a provider that dies. This is the sharpest gap in the plan: the contract
+defines success and says nothing about the other three.
+*Proposal, and it wants your eye:* three attempts on the same provider with the reason enclosed each
+time, then the role's fallback provider, then the run stops and says why. Never silent, never
+infinite. What must **not** happen is the second version's nudge — typing "continue" at a stuck
+session, which is a guess dressed as a recovery.
+
+**5 · The ceiling, inside a step.** Steps make handover cheaper — each has its own composed input —
+but one build step can still outgrow its window.
+*Proposal:* a step declares whether it may be split. If it may, the driver closes the session at the
+ceiling and starts the next with the same input plus what the previous produced. If it may not, the
+step is too big and that is a design error to fix rather than to survive.
+
+**6 · What the reviewer's verdict does mechanically.** A review that only prints is the second
+version's problem restated. A finding needs a level, and a level needs a consequence — one blocks the
+pull request, another rides along in it.
+*Proposal:* the review step's contract is a list of records with `severity`, and `blocking` findings
+make the deliver step refuse. That is the whole of it.
+
+## Needed by S4 — the first real feature
+
+**7 · The owner's channel, and it is a real hole.** The second version reached the owner by typing a
+line into their tmux session, which became a phone notification through Anthropic's app. That
+dependency dies with the plugin, and nothing replaces it. `docs/planned.md` item 3 proposed Telegram —
+thirty lines around one HTTP call.
+*Needs your decision:* Telegram, or the daemon's page with a push, or both.
+
+**8 · Asking a question mid-night.** With no channel there is no question, so this rides on 7. The
+second version's answer was a twenty-minute window against a phone, then the default is taken and
+recorded as an assumption. It was measured and it worked.
+*Proposal:* keep exactly that, and make the waiting a state of the step rather than prose.
+
+**9 · Stop and skip, while a night runs.** The second version read a `control` file between features.
+*Proposal:* the daemon owns it — `agent-kit stop <run>`, `agent-kit skip <slug>` — and the driver
+reads it at a step boundary. Same mechanism, an address instead of a file.
+
+**10 · Onboarding a project.** `agent-kit init` in a repository: write `project.toml`, read what the
+second version left in `docs/knowledge/`, migrate the format, say what is missing.
+
+## Needed by S5 — the bench
+
+**11 · What the bench is allowed to spend.** Four providers times a suite of cases is real quota, and
+a bench nobody can afford to run is a bench nobody runs.
+*Proposal:* a declared ceiling per bench run, and cases marked cheap or full — the cheap set on every
+change, the full set before a release.
+
+## Needed by S0, and cheap
+
+**12 · Names, decided once.** The binary is `agent-kit`. The branch prefix stops being `claude/` and
+becomes `kit/`, which is a lie on nobody. Commit messages and code in English; what the owner reads
+in the project's language, as before.
+
+**13 · The kit's own CI, and a provider that is not real.** Everything up to S3 must be testable with
+no provider installed and no network — the second version's tests ran with no tmux and no `claude`,
+and that is why they ran at all. A fake adapter in `providers/fake/` is a test fixture and ships with
+the kit.
