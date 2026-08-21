@@ -616,3 +616,32 @@ in the project's language, as before.
 no provider installed and no network — the second version's tests ran with no tmux and no `claude`,
 and that is why they ran at all. A fake adapter in `providers/fake/` is a test fixture and ships with
 the kit.
+
+---
+
+# Two answers, settled 22 August
+
+**A failing step: three attempts, then the fallback, then a stop.** Each attempt encloses the reason
+the previous one was refused — an attempt that repeats the same input is not an attempt, it is a
+coin toss. If three fail, the role's fallback provider gets one. If that fails, the run stops and
+says which step, which provider, and what the output was missing. Never silent, never infinite, and
+never the second version's nudge: typing "continue" at a stuck session is a guess wearing the
+clothes of a recovery.
+
+**The owner's channel is Telegram, and AoE is not it.** They do different jobs and the plan conflated
+them:
+
+| | AoE | Telegram |
+|---|---|---|
+| what it is for | you came to look and want to intervene | the night came to find you |
+| works when the kit runs without AoE | no | yes |
+| covers a one-shot job with no live pane | no | yes |
+| wakes a phone | no | yes |
+
+So: news and questions go to Telegram — thirty lines around one HTTP call, both directions. A
+question waits the measured twenty minutes against a phone; unanswered, the default is taken and
+recorded as an assumption, exactly as the second version measured it. The waiting is a state of the
+step, not a sentence of prose.
+
+AoE stays what it is: the optional launcher that makes sessions visible and typeable when you open
+it yourself.
