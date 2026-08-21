@@ -47,7 +47,8 @@ def executor(tmp_path, body: str = None, **options):
     body = f"cat {tmp_path}/answer.json" if body is None else body
     (tmp_path / "answer.json").write_text(json.dumps(ANSWER), encoding="utf-8")
     binary = fake_claude(tmp_path, body)
-    return registry.build_executor("claude_code", {"binary": [str(binary)], **options})
+    given = {key: value if isinstance(value, list) else [value] for key, value in options.items()}
+    return registry.build_executor("claude_code", {"binary": [str(binary)], **given})
 
 
 def request(tmp_path, text="do the thing"):
@@ -97,14 +98,26 @@ def test_the_flags_come_from_the_provider_s_own_declaration(tmp_path):
     assert "--permission-mode bypassPermissions" in argv
 
 
-def test_the_session_is_named_by_the_kit_and_confirmed_by_the_answer(tmp_path):
-    """The plan: the session's real name reported rather than guessed."""
+def test_the_kit_names_the_session_rather_than_hunting_for_it(tmp_path):
     result = executor(tmp_path).execute(request(tmp_path))
 
     argv = (tmp_path / "argv.txt").read_text()
     assert "--session-id" in argv
+    assert result.meta["session"] in argv  # the name the kit asked for
+
+
+def test_the_name_the_session_reports_is_the_one_that_counts(tmp_path):
+    """The plan: the session's real name reported rather than guessed.
+
+    The kit asks for a name. If the answer comes back under a different one,
+    the answer is right and the request was a wish — the transcript is filed
+    under what the CLI actually used.
+    """
+    result = executor(tmp_path).execute(request(tmp_path))
+
     assert result.facts.session == ANSWER["session_id"]
-    assert result.facts.session in argv
+    assert result.facts.session != result.meta["session"]
+    assert result.facts.transcript.name == f"{ANSWER['session_id']}.jsonl"
 
 
 def test_what_the_session_said_is_the_raw_output(tmp_path):

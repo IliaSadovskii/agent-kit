@@ -75,7 +75,7 @@ def build_executor(name: str, options: dict[str, list[str]] | None = None) -> Ex
     """Ask a provider's own module for an executor. Only it knows how to make one."""
     declared = facts(name)
     try:
-        module = import_module(f"{__package__}.{declared.name}.executor")
+        module = import_module(f"{__package__}.{declared.name}.adapter")
     except ModuleNotFoundError as error:
         raise ProviderError(
             "no-adapter", f"{name} declares itself but ships no executor: {error}"

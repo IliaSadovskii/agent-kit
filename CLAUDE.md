@@ -16,6 +16,7 @@ The branch prefix for work the kit itself runs is `kit/`.
 | `make test` | `pytest` внутри контейнера |
 | `make install-check` | доказательство S0: `uv tool install` кладёт рабочую команду на PATH |
 | `make shell` | приглашение внутри контейнера |
+| `PYTHONPATH=/projects/agent-kit/src python3 -m agent_kit …` | запуск на хосте, где живёт настоящий `claude` |
 | `make down` | гасит, кэши остаются |
 | `make clean` | гасит и сносит тома |
 
@@ -50,7 +51,10 @@ The branch prefix for work the kit itself runs is `kit/`.
 - **Метод — проза в `method/`**, не пакет. Едет внутри wheel (`force-include` в `pyproject.toml`),
   проверяется целью `make install-check`.
 - **Провайдера по имени не называет никто вне `providers/`.** Реестр читает папку: есть
-  `provider.toml` — есть провайдер.
+  `provider.toml` — есть провайдер. Что верно про инструмент — в `provider.toml`; что выбрала
+  эта машина — в `~/.config/agent-kit/config.toml`; ни один файл не держит чужое.
+- **Уровень провайдера меряется, а не объявляется:** `agent-kit provider check <имя>` проходит
+  лестницу и называет ступень, на которой споткнулся.
 - **Провалившийся прогон не возобновляется молча.** `failed` — конечное состояние, причина
   остаётся в записи. Отказ одной попытки (`refuse_step`) и провал шага (`fail_step`) — разные
   события, и слова у них разные.

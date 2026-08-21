@@ -320,6 +320,24 @@ def test_a_provider_nobody_configured_is_refused_before_anything_runs(tmp_path):
     assert store.load("add-login").steps[0].status is StepStatus.PENDING
 
 
+def test_a_session_is_run_in_the_project_not_in_the_step_s_own_directory(tmp_path):
+    """The step directory is where the driver keeps its paperwork, not where work happens."""
+    run_step, _, fake = runner(tmp_path, [GOOD])
+
+    run_step.run_next("add-login")
+
+    assert fake.requests[0].project == tmp_path
+
+
+def test_a_run_created_without_a_project_still_knows_where_it_is(tmp_path):
+    from agent_kit.driver import create_run
+
+    store = RunStore(tmp_path)
+    run = create_run(store, builtin_registry(), "unstated", steps=["probe"])
+
+    assert run.project == str(tmp_path)
+
+
 def test_the_output_of_an_earlier_step_is_enclosed_in_the_next(tmp_path):
     store = RunStore(tmp_path)
     create_run(store, builtin_registry(), "twice", steps=["probe", "probe"], project=str(tmp_path))

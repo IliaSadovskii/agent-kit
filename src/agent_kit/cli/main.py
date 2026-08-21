@@ -83,6 +83,11 @@ def build_parser() -> argparse.ArgumentParser:
     provider_what = provider.add_subparsers(dest="what", metavar="WHAT")
     provider_what.add_parser("list", help="every provider, with the level it declares")
 
+    check = provider_what.add_parser("check", help="the level it earns, measured rather than claimed")
+    check.add_argument("name")
+    check.add_argument("--option", action="append", default=[], metavar="KEY=VALUE",
+                       help="an option for the provider, as its own block documents")
+
     step = commands.add_parser("step", help="the steps this kit knows, and running one")
     step_what = step.add_subparsers(dest="what", metavar="WHAT")
 
@@ -355,6 +360,8 @@ def _step(args: argparse.Namespace, paths: Paths) -> int:
 
 def _provider(args: argparse.Namespace, paths: Paths) -> int:
     what = args.what or "list"
+    if what == "check":
+        return _provider_check(args)
     if what != "list":
         raise UsageError("unknown-command", f"provider {what}")
 
@@ -396,3 +403,35 @@ def _options(pairs: list[str]) -> dict[str, list[str]]:
             raise UsageError("bad-option", f"{pair!r} is not KEY=VALUE")
         parsed.setdefault(key.strip(), []).append(value)
     return parsed
+
+
+def _provider_check(args: argparse.Namespace) -> int:
+    """The ladder, printed. A level nobody measured is a claim, not a fact."""
+    from ..providers.check import check_provider
+
+    report = check_provider(args.name, _options(args.option), project=Path(args.project).resolve())
+
+    for rung in report.rungs:
+        mark = "ok  " if rung.passed else "no  "
+        print(f"  {mark}{rung.name:10} {rung.detail}")
+    print()
+
+    if report.level is None:
+        print(f"{args.name}: no level — it failed at {report.failed}", file=sys.stderr)
+        return int(ExitCode.PROVIDER)
+
+    print(f"{args.name}: level {report.level}, declared {report.declared_level}")
+    if report.facts.observed:
+        share = report.facts.context_share or 0
+        print(f"  context   {report.facts.context_used:,} of {report.facts.context_window:,} ({share:.1%})")
+    if report.facts.transcript:
+        print(f"  session   {report.facts.session}")
+        print(f"  record    {report.facts.transcript}")
+    if not report.matches_declaration:
+        print(
+            f"{args.name}: it declares level {report.declared_level} and earned {report.level}"
+            f" — it failed at {report.failed}",
+            file=sys.stderr,
+        )
+        return int(ExitCode.PROVIDER)
+    return int(ExitCode.OK)

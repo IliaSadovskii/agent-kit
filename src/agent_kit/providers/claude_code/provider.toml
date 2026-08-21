@@ -1,0 +1,41 @@
+# What is true about Claude Code. Not what this machine chose — that lives in
+# ~/.config/agent-kit/config.toml, and neither file may hold the other's kind.
+
+[provider]
+title  = "Claude Code"
+level  = "B"
+real   = true
+binary = "claude"
+notes  = """
+Driven headless: one composed input on stdin, one JSON answer on stdout. The
+session is named by the kit with --session-id and the name is confirmed from the
+answer, so nothing is guessed. The subscription is the CLI's own login; the kit
+never sees a key and never talks to a model API.
+"""
+
+[provider.flags]
+# The shape: a flag that carries a value is [flag], and the value follows it.
+headless    = ["-p", "--output-format", "json"]
+full_access = ["--permission-mode", "bypassPermissions"]
+model       = ["--model"]
+effort      = ["--effort"]
+session     = ["--session-id"]
+version     = ["--version"]
+
+[provider.answer]
+# Where each fact lives in the JSON the CLI prints.
+text     = "result"
+session  = "session_id"
+cost     = "total_cost_usd"
+failed   = "is_error"
+window   = "modelUsage"
+used     = "usage"
+
+[provider.transcript]
+# A session's record: <root>/<the project path, slashes and dots turned to dashes>/<session>.jsonl
+root = "~/.claude/projects"
+
+[provider.limits]
+# How a limited account announces itself in the text it returns.
+says  = ["usage limit reached", "rate limit", "limit will reset"]
+until = "(?:reset(?:s|ting)?(?: at)?|until)\\s+([^.\\n]+)"

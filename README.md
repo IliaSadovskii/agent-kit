@@ -13,8 +13,9 @@ and the build order are in [`docs/design/2026-08-22-the-third-kit.md`](docs/desi
 | S0 | the package: the command, the paths, the config, the exit codes | done |
 | S1 | the state: what a run is, and the one door that advances it | done |
 | S2 | the step contract: composed input, executor, validated output | done |
-| S3 | the first adapter, Claude Code | next |
-| S4 … S11 | a feature end to end, the bench, the knowledge, the daemon, parallelism | planned |
+| S3 | the first adapter, Claude Code, measured at level B | done |
+| S4 | one feature end to end: design, build, verify, deliver | next |
+| S5 … S11 | the bench, the knowledge, the daemon, parallelism, more adapters | planned |
 
 ## Running it
 
@@ -35,12 +36,18 @@ agent-kit run pass add-login      # it satisfied its contract
 agent-kit run show add-login      # where it stands
 
 agent-kit provider list           # the providers the kit ships, read from the folder
+agent-kit provider check claude_code   # the level it earns, measured rather than claimed
 agent-kit step list               # the steps the kit knows
 agent-kit step show probe         # its prose and what it must return
 agent-kit step input add-login    # exactly what the driver would enclose
-agent-kit step run add-login --provider fake --option reply=answer.md
+agent-kit step run add-login --provider claude_code --option model=sonnet
 ```
 
-There is no real agent behind a step yet — the only executor is the fake, which answers from
-files. That is S3, and it plugs into machinery already proven:
-[`docs/design/2026-08-22-s2-the-step-contract.md`](docs/design/2026-08-22-s2-the-step-contract.md).
+Claude Code is driven headless — one composed input on stdin, one JSON answer back — and measures
+at level B: the driver can say how much context a session holds, what it cost, and where its
+transcript landed. The fake provider is still there for tests and for anything that has no CLI:
+`--provider fake --option reply=answer.md`.
+
+The arguments: [S2, the step contract](docs/design/2026-08-22-s2-the-step-contract.md),
+[S3, the first adapter](docs/design/2026-08-22-s3-the-first-adapter.md), and
+[what three reviews changed](docs/design/2026-08-22-what-the-plan-review-changed.md).

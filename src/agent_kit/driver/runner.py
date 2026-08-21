@@ -162,7 +162,7 @@ class StepRunner:
             provider=provider,
             input_text=text,
             workdir=workspace.attempt_dir(attempt),
-            project=Path(run.project) if run.project else None,
+            project=Path(run.project) if run.project else self.store.paths.root.resolve(),
         )
 
         try:
@@ -186,6 +186,7 @@ class StepRunner:
             "attempt": attempt,
             "attempt_on_provider": on_provider,
             "step": definition.name,
+            **result.facts.as_dict(),
             **result.meta,
         }
         workspace.write_meta(attempt, meta)
@@ -256,7 +257,9 @@ def create_run(
     """
     for name in steps or ():
         registry.get(name)
-    return store.create(slug, steps=steps, project=project)
+    # A run always knows where it is. A session that does not is run wherever
+    # the driver happened to keep its paperwork, which is nowhere useful.
+    return store.create(slug, steps=steps, project=project or str(store.paths.root.resolve()))
 
 
 def _named(error: BaseException) -> str:

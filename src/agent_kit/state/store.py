@@ -15,7 +15,7 @@ from typing import Callable
 
 from ..errors import StateError
 from ..logs import get_logger
-from ..paths import ProjectPaths, project_paths
+from ..paths import PROJECT_DIR, ProjectPaths, project_paths
 from .migrations import migrate
 from .schema import Run, Step, check_slug
 
@@ -83,6 +83,7 @@ class RunStore:
 
         directory = self.paths.run_dir(run.slug)
         directory.mkdir(parents=True, exist_ok=True)
+        _keep_out_of_git(self.paths.root / PROJECT_DIR)
         write_whole(directory / RUN_FILE, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
         return run
 
@@ -112,6 +113,20 @@ class RunStore:
 
     def stop(self, slug: str, reason: str) -> Run:
         return self.update(slug, lambda run: run.stop(reason))
+
+
+def _keep_out_of_git(kit_dir: Path) -> None:
+    """A run's state is not repository content, and the project should not have to say so.
+
+    Writing this once, beside the state rather than into the project's own
+    `.gitignore`, leaves the project's files alone: removing the kit removes
+    every trace of it.
+    """
+    ignore = kit_dir / ".gitignore"
+    if ignore.exists():
+        return
+    kit_dir.mkdir(parents=True, exist_ok=True)
+    write_whole(ignore, "# The kit's own state. Not repository content — see docs/runs/ for what is.\n*\n")
 
 
 def write_whole(path: Path, text: str) -> None:

@@ -123,3 +123,50 @@ def test_a_provider_the_kit_does_not_ship_is_refused(tmp_path):
         check_provider("codex", {}, project=tmp_path)
 
     assert caught.value.code == "unknown-provider"
+
+
+# --- the command surface --------------------------------------------------
+
+
+def cli(argv, capsys, project):
+    from agent_kit.cli.main import main
+
+    code = main(["-C", str(project), *argv])
+    captured = capsys.readouterr()
+    return code, captured.out, captured.err
+
+
+def test_the_command_prints_the_ladder_and_the_level(tmp_path, capsys):
+    binary = answering(tmp_path)["binary"][0]
+
+    code, out, _ = cli(
+        ["provider", "check", "claude_code", "--option", f"binary={binary}"], capsys, tmp_path
+    )
+
+    assert code == 0
+    assert "level B" in out
+    for rung in RUNGS:
+        assert rung in out
+    assert "context" in out
+
+
+def test_the_command_says_which_rung_failed(tmp_path, capsys):
+    code, _, err = cli(
+        ["provider", "check", "claude_code", "--option", f"binary={tmp_path / 'nowhere'}"], capsys, tmp_path
+    )
+
+    assert code == 4
+    assert "failed at binary" in err
+
+
+def test_a_provider_that_earns_less_than_it_declares_is_reported(tmp_path, capsys):
+    blind = {key: value for key, value in ANSWER.items() if key not in ("usage", "modelUsage")}
+    binary = answering(tmp_path, blind)["binary"][0]
+
+    code, out, err = cli(
+        ["provider", "check", "claude_code", "--option", f"binary={binary}"], capsys, tmp_path
+    )
+
+    assert code == 4
+    assert "level A" in out
+    assert "declares level B" in err

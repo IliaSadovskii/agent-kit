@@ -31,6 +31,14 @@ def test_it_writes_where_the_second_version_does_not_look(store, tmp_path):
     assert not (tmp_path / ".agent-kit/runs").exists()
 
 
+def test_the_kit_does_not_dirty_the_tree_it_works_in(store, tmp_path):
+    """Run state is not repository content, and the project should not have to say so."""
+    store.create("add-login")
+
+    ignore = tmp_path / ".agent-kit/.gitignore"
+    assert ignore.read_text().strip().splitlines()[-1] == "*"
+
+
 def test_the_file_carries_the_schema_and_the_kit_that_wrote_it(store, tmp_path):
     store.create("add-login")
 
