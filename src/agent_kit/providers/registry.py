@@ -46,7 +46,17 @@ def facts(name: str) -> ProviderFacts:
             "unknown-provider",
             f"{name!r} is not a provider this kit ships: {', '.join(provider_names())}",
         )
-    declared: dict[str, Any] = tomllib.loads(path.read_text(encoding="utf-8")).get("provider", {})
+    try:
+        document = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError, OSError) as error:
+        raise ProviderError("bad-declaration", f"{path} cannot be read: {error}") from error
+
+    declared: Any = document.get("provider")
+    if not isinstance(declared, dict):
+        raise ProviderError(
+            "bad-declaration",
+            f"{path} has no [provider] table; silence must not read as a real level A agent",
+        )
     return ProviderFacts(
         name=name,
         title=declared.get("title", name),

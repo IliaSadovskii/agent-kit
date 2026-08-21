@@ -63,6 +63,41 @@ logger writes under `~/.local/state`, so a single test that forgot to redirect `
 written there. `tests/conftest.py` now redirects it for every test, autouse, rather than trusting
 each one to remember.
 
+## The code, reviewed a third time
+
+A third reviewer read only the code, ran it, and proved every finding by hand. Four were blocking,
+and three of them were the same defect wearing different clothes: **a failure the state could not
+be moved out of.**
+
+**Any exception that was not `ExecutorFailed` wedged the run.** The driver caught the one failure
+it had named and let everything else escape — after the step was already committed to disk as
+running. The run was then unadvanceable: `run_next` said *every step is done* about a run where
+nothing was, and `run start` said the step was already running. Only a lie (`run pass`) got out.
+An adapter is somebody else's code around somebody else's CLI; a surprise from it is now an
+attempt that did not work, recorded as `provider-crashed` with the exception's type, and the retry
+policy takes it from there. Whatever else escapes, the step is returned to pending with the reason
+written down before the exception is raised on. And `main()` no longer spills a traceback: an
+unhandled failure is `internal-error`, exit 70, with the whole of it in the log.
+
+**A killed driver left a step running and nothing could pick it up.** Now the next run says so —
+*the driver that started this step never came back* — returns the step to pending and tries again.
+
+**`fail_step` rewrote a step that had passed.** With no step running it reached for the last one
+touched, unguarded, so a step with its `output.json` on disk could be rewritten as the failure.
+It now requires a running step, and the run-level failure skips whatever passed.
+
+**No migration could ever have run.** `OLDEST_SCHEMA` tracked `SCHEMA_VERSION`, so the first real
+migration would have been refused as *too old* before the loop that applies it was reached — and
+the test hid it by patching that very constant. How old a file may be now follows from the
+migrations themselves; registering one is the whole of it.
+
+The rest: a role in the configuration no longer overrules the provider a person typed; `step input`
+refuses a run that is over; a malformed `provider.toml` is refused by name instead of raising, and
+one with no `[provider]` table no longer passes itself off as a real level-A agent; `release()`
+reads a version written the way people write it, with a `v`; an enum that names no choices is a
+defect at declaration rather than a field that refuses everything; and a fence whose tag shares a
+line with the output is found.
+
 ## The one that is not a code change
 
 The reviewer's sharpest note: **"the test is written first" is prose that nothing checks, and the
@@ -72,3 +107,9 @@ model makes about its own work* where a trace was owed.
 The claim is gone from the commit messages. In its place there is a trace: from here on the tests
 land in their own commit, before the commit that makes them pass. Anybody can read the history and
 see whether the rule held; nobody has to believe a sentence about it.
+
+The third review put teeth in that as well, by naming four tests that would have passed with the
+code wrong: the migration test that patched away the constant hiding the defect; a test named for a
+branch it did not exercise; a retry test that would have passed had the refusal never been
+enclosed; and a comparison between two values that can never be equal. All four are replaced. A
+test that cannot fail is prose with a green tick, which is worse than prose.

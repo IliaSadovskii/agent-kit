@@ -14,7 +14,7 @@ from typing import Any, Iterable, Sequence
 
 from ..errors import ExitCode, KitError
 
-_FENCE = re.compile(r"```(?:json)?\s*\n(.*?)```", re.DOTALL)
+_FENCE = re.compile(r"```(?:json)?[ \t]*\n?(.*?)```", re.DOTALL)
 
 
 class ContractRefusal(KitError):
@@ -84,6 +84,10 @@ class Enum(Field):
 
     kind = "one of"
 
+    def __post_init__(self) -> None:
+        if not self.choices:
+            raise ContractRefusal("bad-contract", f"{self.name} is an enum that names no choices")
+
     def check(self, value: Any, where: str) -> str:
         if value not in self.choices:
             self._refuse(where, f"{where} must be one of {', '.join(self.choices)}, not {value!r}")
@@ -102,7 +106,8 @@ class TextList(Field):
     def check(self, value: Any, where: str) -> list[str]:
         if not isinstance(value, list):
             self._refuse(where, f"{where} must be a list of strings")
-        return [Text(self.name).check(item, f"{where}[{index}]") for index, item in enumerate(value)]
+        item_field = Text(self.name, help=self.help)
+        return [item_field.check(item, f"{where}[{index}]") for index, item in enumerate(value)]
 
 
 @dataclass(frozen=True)

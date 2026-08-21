@@ -14,7 +14,7 @@ from pathlib import Path
 from .. import __version__
 from ..config import Config, load_config
 from ..errors import ExitCode, KitError, ProviderError, StateError, UsageError
-from ..logs import setup_logging
+from ..logs import get_logger, setup_logging
 from ..paths import Paths, project_paths
 from ..driver import StepRunner, create_run
 from ..driver.compose import compose_input
@@ -121,6 +121,11 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         print(f"{PROGRAM}: stopped", file=sys.stderr)
         return int(ExitCode.INTERRUPTED)
+    except Exception as crash:  # a defect in the kit, reported rather than spilled
+        get_logger("cli").exception("unhandled failure")
+        print(f"{PROGRAM}: internal-error: {type(crash).__name__}: {crash}", file=sys.stderr)
+        print(f"  this is a defect in the kit; the whole of it is in {paths.log_dir}", file=sys.stderr)
+        return int(ExitCode.INTERNAL)
 
 
 def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace, paths: Paths) -> int:
@@ -317,6 +322,8 @@ def _step(args: argparse.Namespace, paths: Paths) -> int:
 
     if what == "input":
         run = store.load(args.slug)
+        if run.finished:
+            raise StateError("run-finished", f"{args.slug} is {run.status.value}; there is no next step")
         index = run.next_pending()
         if index is None:
             raise StateError("no-step-pending", f"{args.slug}: no step is waiting to run")
@@ -365,14 +372,17 @@ def _runner(store: RunStore, registry, provider: str | None, options: list[str])
     paths = Paths.from_env()
     config = load_config(paths.config_file)
     parsed = _options(options)
-    executors = {}
-    if provider is not None:
-        executors[provider] = providers.build_executor(provider, parsed)
+    if provider is None:
+        # Nobody named one, so the role table decides — and it must name a
+        # provider for every role the run will reach.
+        return StepRunner(store=store, registry=registry, executors={}, roles=config.roles)
+
+    # Somebody typed a provider. Configuration does not overrule what was asked for.
     return StepRunner(
         store=store,
         registry=registry,
-        executors=executors,
-        roles=config.roles,
+        executors={provider: providers.build_executor(provider, parsed)},
+        roles={},
         default_provider=provider,
     )
 

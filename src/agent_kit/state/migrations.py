@@ -16,7 +16,13 @@ from .schema import SCHEMA_VERSION, release
 #: schema version -> what turns it into the next one.
 MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {}
 
-OLDEST_SCHEMA = SCHEMA_VERSION
+def oldest_schema() -> int:
+    """The oldest file this kit can read: whatever the migrations reach back to.
+
+    Two constants that must be kept in step are one constant too many — the
+    first real migration would have been refused before the loop ever saw it.
+    """
+    return min(MIGRATIONS) if MIGRATIONS else SCHEMA_VERSION
 
 
 def migrate(data: dict[str, Any], *, where: str = "run.json") -> dict[str, Any]:
@@ -29,7 +35,7 @@ def migrate(data: dict[str, Any], *, where: str = "run.json") -> dict[str, Any]:
             f"{where} was written by a newer kit (schema {version}, this kit reads {SCHEMA_VERSION})",
             hint="upgrade agent-kit",
         )
-    if version < OLDEST_SCHEMA:
+    if version < oldest_schema():
         raise StateError("schema-too-old", f"{where}: schema {version} is older than this kit can migrate")
 
     _check_kit(data.get("kit"), where)

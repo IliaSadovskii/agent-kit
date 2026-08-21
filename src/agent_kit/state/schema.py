@@ -46,7 +46,7 @@ def now() -> str:
 
 def release(version: str) -> tuple[int, ...]:
     """The comparable part of a version: 3.0.0.dev0 and 3.0.0 are the same release."""
-    head = version.split("+")[0]
+    head = version.split("+")[0].lstrip("vV")
     numbers: list[int] = []
     for part in head.split("."):
         digits = ""
@@ -202,7 +202,7 @@ class Run:
 
     def fail_step(self, reason: str) -> Step:
         """No attempt will be accepted. The step and the run both stop here."""
-        step = self._require_running() if self.running is not None else self._last_touched()
+        step = self._require_running()
         step.status = StepStatus.FAILED
         step.ended_at = now()
         step.reason = _reason(reason)
@@ -239,10 +239,10 @@ class Run:
         self.updated_at = now()
         return self
 
-    def _last_touched(self) -> Step:
-        """The step the run got to: the last one that was ever started."""
-        started = [step for step in self.steps if step.attempts]
-        return started[-1] if started else self.steps[0]
+    def _last_touched(self) -> Step | None:
+        """The step the run got to: the last one started that did not pass."""
+        reached = [step for step in self.steps if step.attempts and step.status is not StepStatus.PASSED]
+        return reached[-1] if reached else None
 
     def _require_running(self) -> Step:
         step = self.running

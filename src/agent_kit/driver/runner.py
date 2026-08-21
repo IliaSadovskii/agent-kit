@@ -75,6 +75,14 @@ class StepRunner:
         run = self.store.load(slug)
         if run.finished:
             raise StateError("run-finished", f"{slug} is {run.status.value}; there is no next step")
+
+        if run.running is not None:
+            # A driver was killed between starting a step and hearing back. The
+            # step is nobody's now; it goes back to pending and is tried again.
+            left = run.running.name
+            run = self.store.refuse_step(slug, f"{left}: the driver that started this step never came back")
+            log.info("%s: %s was left running by a driver that vanished; trying again", slug, left)
+
         index = run.next_pending()
         if index is None:
             raise StateError("no-step-pending", f"{slug}: every step is done")
@@ -91,9 +99,15 @@ class StepRunner:
         for provider in providers:
             seen[provider] = seen.get(provider, 0) + 1
             run = self.store.start_step(slug, provider=provider)
-            record = self._attempt(
-                run, index, definition, workspace, provider, seen[provider], refusal, enclosures
-            )
+            try:
+                record = self._attempt(
+                    run, index, definition, workspace, provider, seen[provider], refusal, enclosures
+                )
+            except BaseException as escaped:
+                # Whatever broke, the state must not be left holding a step
+                # nobody can move. The reason is written down before it is raised.
+                self.store.refuse_step(slug, f"{definition.name} on {provider}: {_named(escaped)}")
+                raise
             outcome.attempts.append(record)
 
             if record.passed:
@@ -156,6 +170,13 @@ class StepRunner:
         except ExecutorFailed as failure:
             return self._refused(
                 workspace, attempt, on_provider, provider, f"{failure.code}: {failure.detail}", {}
+            )
+        except Exception as crash:
+            # An adapter is somebody else's code around somebody else's CLI. A
+            # surprise from it is an attempt that did not work, not a run that
+            # cannot continue — and the type is written down, so it is fixable.
+            return self._refused(
+                workspace, attempt, on_provider, provider, f"provider-crashed: {_named(crash)}", {}
             )
 
         result = result if isinstance(result, ExecutorResult) else ExecutorResult(raw=str(result))
@@ -236,3 +257,8 @@ def create_run(
     for name in steps or ():
         registry.get(name)
     return store.create(slug, steps=steps, project=project)
+
+
+def _named(error: BaseException) -> str:
+    """A failure anybody can act on names its type as well as its message."""
+    return f"{type(error).__name__}: {error}".strip().rstrip(":")
