@@ -270,3 +270,53 @@ def test_an_option_value_may_contain_the_separator(machine, capsys, tmp_path):
     )
 
     assert code == ExitCode.OK
+
+
+def test_run_show_says_what_a_step_cost_and_how_full_the_session_got(machine, capsys, tmp_path):
+    """Every field the driver writes has a reader, and this is it."""
+    reply = tmp_path / "reply.md"
+    reply.write_text('```json\n{"branch": "kit/x", "can_write": true}\n```', encoding="utf-8")
+    run(["run", "new", "add-login"], capsys)
+    run(["step", "run", "add-login", "--provider", "fake", "--option", f"reply={reply}"], capsys)
+
+    meta = tmp_path / "project/.agent-kit/v3/runs/add-login/steps/0-probe/meta.json"
+    meta.write_text(json.dumps({
+        "provider": "fake", "attempt": 1, "step": "probe", "model": "fake-script",
+        "session": "s-1", "cost_usd": 0.12, "context_used": 27249, "context_window": 1000000,
+        "duration_ms": 1737,
+    }), encoding="utf-8")
+
+    code, out, _ = run(["run", "show", "add-login"], capsys)
+
+    assert code == ExitCode.OK
+    assert "0.12" in out
+    assert "27,249" in out or "27249" in out
+    assert "fake-script" in out
+
+
+def test_provider_list_says_whether_a_level_was_ever_measured(machine, capsys):
+    code, out, _ = run(["provider", "list"], capsys)
+
+    assert code == ExitCode.OK
+    assert "not measured" in out
+
+
+def test_the_configuration_reaches_the_provider_it_configures(machine, capsys, tmp_path):
+    """`config.toml` answers what `provider.toml` asks. An answer nobody passes on is not an answer."""
+    config = machine / "home/.config/agent-kit/config.toml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text(
+        '[providers.claude_code]\nmodel = "opus"\neffort = "high"\n'
+        '[roles.probe]\nprovider = "claude_code"\n',
+        encoding="utf-8",
+    )
+    run(["run", "new", "add-login"], capsys)
+
+    from agent_kit.cli.main import _runner
+    from agent_kit.state import RunStore
+    from agent_kit.steps import builtin_registry
+
+    runner = _runner(RunStore(tmp_path / "project"), builtin_registry(), provider=None, options=[])
+
+    assert runner.executors["claude_code"].model == "opus"
+    assert runner.executors["claude_code"].effort == "high"

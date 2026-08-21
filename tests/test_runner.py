@@ -290,6 +290,62 @@ def test_a_step_left_running_by_a_dead_driver_is_picked_up_again(tmp_path):
     assert store.load("add-login").steps[0].attempts == 2
 
 
+def test_a_failure_that_cannot_come_right_does_not_get_three_paid_attempts(tmp_path):
+    """Three tries at a missing binary is three times nothing. With a real
+    provider each attempt is a session, and a session is money."""
+    from agent_kit.config import RoleConfig
+    from agent_kit.providers.base import ExecutorFailed
+
+    def hopeless(_request):
+        raise ExecutorFailed("binary-missing", "claude is not on PATH", retryable=False)
+
+    spare = FakeExecutor(name="spare", replies=[GOOD])
+    run_step, _, fake = runner(
+        tmp_path,
+        [hopeless, hopeless, hopeless],
+        roles={"probe": RoleConfig(name="probe", provider="fake", fallback=["spare"])},
+        executors={"spare": spare},
+    )
+
+    outcome = run_step.run_next("add-login")
+
+    assert outcome.passed
+    assert len(fake.requests) == 1  # asked once, believed the first time
+    assert [attempt.provider for attempt in outcome.attempts] == ["fake", "spare"]
+
+
+def test_a_limited_account_is_not_asked_again_it_is_left_alone(tmp_path):
+    from agent_kit.providers.base import ExecutorFailed
+
+    def limited(_request):
+        raise ExecutorFailed("provider-limited", "resets at 5pm", retryable=False)
+
+    run_step, store, fake = runner(tmp_path, [limited, limited, limited])
+
+    outcome = run_step.run_next("add-login")
+
+    assert not outcome.passed
+    assert len(fake.requests) == 1
+    assert "5pm" in store.load("add-login").reason
+
+
+def test_what_a_refused_attempt_cost_is_written_down(tmp_path):
+    from agent_kit.providers.base import ExecutorFailed, SessionFacts
+
+    def costly(_request):
+        raise ExecutorFailed(
+            "session-error", "it went wrong", facts=SessionFacts(session="s-1", cost_usd=0.12)
+        )
+
+    run_step, _, _ = runner(tmp_path, [costly, GOOD])
+
+    run_step.run_next("add-login")
+
+    meta = json.loads((step_dir(tmp_path, 1) / "meta.json").read_text())
+    assert meta["cost_usd"] == 0.12
+    assert meta["session"] == "s-1"
+
+
 def test_a_run_with_nothing_pending_is_refused(tmp_path):
     """The message must name what is true: nothing pending is not the same as finished."""
     from agent_kit.errors import StateError

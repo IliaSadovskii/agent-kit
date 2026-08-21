@@ -58,3 +58,44 @@ def test_a_provider_with_no_executor_module_is_refused(tmp_path, monkeypatch):
         registry.build_executor("hollow")
 
     assert caught.value.code == "no-adapter"
+
+
+def test_a_folder_with_only_a_declaration_is_a_level_a_provider(tmp_path, monkeypatch):
+    """The plan: adding one at level A is provider.toml alone."""
+    import stat
+
+    binary = tmp_path / "some-cli"
+    binary.write_text('#!/bin/sh\ncat > /dev/null\necho "it answered"\n', encoding="utf-8")
+    binary.chmod(binary.stat().st_mode | stat.S_IEXEC)
+    declare(tmp_path, monkeypatch, "declared_only", f"""
+[provider]
+title = "a provider that is only a declaration"
+level = "A"
+binary = "{binary}"
+[provider.flags]
+headless = ["-p"]
+""")
+
+    executor = registry.build_executor("declared_only", {})
+    from pathlib import Path
+
+    from agent_kit.driver.executor import StepRequest
+
+    result = executor.execute(
+        StepRequest(slug="s", step_name="probe", attempt=1, provider="declared_only",
+                    input_text="hello", workdir=tmp_path, project=tmp_path)
+    )
+
+    assert result.raw.strip() == "it answered"
+    assert result.facts.observed is False  # level A knows nothing about context
+
+
+def test_a_declaration_with_a_key_the_kit_does_not_read_is_refused(tmp_path, monkeypatch):
+    """The stricter half must not be the one only the kit writes."""
+    declare(tmp_path, monkeypatch, "typo", "[provider]\ntitle = 'x'\nlevle = 'B'\n")
+
+    with pytest.raises(ProviderError) as caught:
+        registry.facts("typo")
+
+    assert caught.value.code == "bad-declaration"
+    assert "levle" in caught.value.detail
