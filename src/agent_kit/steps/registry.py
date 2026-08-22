@@ -67,6 +67,11 @@ DESIGN = StepDefinition(
     needs_brief=True,
     contract=Contract(
         fields=(
+            Text(
+                "title",
+                help="one line naming the feature, at most 72 characters: it becomes the commit "
+                     "subject and the pull request's title, so no full stop and no essay",
+            ),
             LongText("summary", help="what changes and why, in a few sentences the owner could read"),
             TextList("changes", help="each place that changes, one line each: the file and what happens to it"),
             TextList("seams", help="where this meets what is already there, and what must not break"),

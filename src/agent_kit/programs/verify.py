@@ -61,7 +61,9 @@ class Verify:
         passed = all(record["passed"] for record in ran)
         return ExecutorResult(
             raw=json.dumps({"commands": ran, "passed": passed}, indent=2, ensure_ascii=False),
-            meta={"model": self.name, "commands_run": len(ran)},
+            # No `model`: a program is not a session and must not appear in the
+            # record as one. `run show` reads that field to say who did the work.
+            meta={"commands_run": len(ran)},
         )
 
     def _one(self, name: str, command: str, root: Path) -> dict:

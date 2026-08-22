@@ -32,6 +32,9 @@ DEFAULT_TIMEOUT = 300
 
 BLOCKING = "blocking"
 
+#: What git's own tooling wraps a subject at, near enough.
+SUBJECT = 72
+
 log = get_logger("programs.deliver")
 
 
@@ -56,7 +59,7 @@ class Deliver:
                 retryable=False,
             )
 
-        body = _body(request, design, build, verify, review)
+        body = compose_body(request, design, build, verify, review)
         # It goes beside the run's own state, which means it must be kept out
         # of the commit this step is about to make.
         runs_dir = project_paths(root).runs_dir
@@ -65,7 +68,7 @@ class Deliver:
         body_file.parent.mkdir(parents=True, exist_ok=True)
         body_file.write_text(body, encoding="utf-8")
 
-        title = _title(design, request)
+        title = subject_line(design, request)
         branch = request.branch
 
         self._git(root, "checkout", "-B", branch)
@@ -80,7 +83,9 @@ class Deliver:
             raw=json.dumps(
                 {"branch": branch, "commit": commit, "pull_request": url}, indent=2, ensure_ascii=False
             ),
-            meta={"model": self.name, "pull_request": url},
+            # No `model`: a program is not a session, and the record must not
+            # read as though one did this.
+            meta={"pull_request": url},
         )
 
     # --- the two commands it runs ----------------------------------------
@@ -186,69 +191,107 @@ def _where(finding: dict) -> str:
 # --- what the owner reads ----------------------------------------------------
 
 
-def _title(design: dict, request: StepRequest) -> str:
-    first = (design.get("summary") or request.brief or request.slug).strip().split("\n")[0]
-    sentence = first.split(". ")[0].rstrip(".")
-    return sentence if len(sentence) <= 72 else sentence[:69].rstrip() + "…"
+def subject_line(design: dict, request: StepRequest) -> str:
+    """What the history and the pull request are called.
+
+    The design writes it, because the first 72 characters of an essay are not a
+    subject line. When it comes back too long anyway it is cut at a word, never
+    mid-word: a subject ending in half a word reads as a broken tool.
+    """
+    written = (design.get("title") or design.get("summary") or request.brief or request.slug).strip()
+    first = written.split("\n")[0].rstrip(".")
+    if len(first) <= SUBJECT:
+        return first
+    cut = first[:SUBJECT].rsplit(" ", 1)[0].rstrip(" ,;:—-")
+    return (cut or first[:SUBJECT]) + "…"
 
 
-def _message(title: str, build: dict) -> str:
+def _message(subject: str, build: dict) -> str:
     """The history reads English, and it reads what was built, not what was planned."""
-    return f"{title}\n\n{(build.get('summary') or '').strip()}\n"
+    return f"{subject}\n\n{(build.get('summary') or '').strip()}\n"
 
 
-def _body(request: StepRequest, design: dict, build: dict, verify: dict, review: dict) -> str:
-    lines = [
+def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, review: dict) -> str:
+    """The pull request, written as a report to the owner rather than a dump.
+
+    Three things are open, because they are the three the owner has to act on:
+    what was done, what is wanted of them, and anything blocking. Everything
+    else is the record — true, worth keeping, and folded away, because a body
+    that opens with all of it is one nobody reads to the end.
+    """
+    findings = review.get("findings") or []
+    blocking = [item for item in findings if item.get("severity") == BLOCKING]
+    expensive = [item for item in (design.get("assumptions") or []) if item.get("expensive")]
+
+    open_part = [
         "## Что сделано", "",
         (build.get("summary") or "").strip(), "",
         "**Задача:** " + (request.brief or "не записана").strip(), "",
-        "## Замысел", "",
-        (design.get("summary") or "").strip(), "",
     ]
 
-    lines += _list("Что меняется", design.get("changes"))
-    lines += _list("Швы", design.get("seams"))
-    lines += _list("Чем это доказано — решено до кода", design.get("verification"))
-    lines += _list("Файлы", build.get("files"))
-    lines += _list("Тесты", build.get("tests"))
+    if blocking:
+        open_part += ["## Что мешает выпуску", ""]
+        open_part += [f"- {_where(item)}" for item in blocking]
+        open_part.append("")
+
+    open_part += ["## Что нужно от владельца", ""]
+    if expensive:
+        open_part.append("Дорогие допущения — если хоть одно неверно, работа сделана не та:")
+        open_part.append("")
+        open_part += [f"- **{item.get('what')}** — {item.get('because')}" for item in expensive]
+    else:
+        open_part.append("Ничего: дорогих допущений нет, ревью ничего не заблокировало.")
+    open_part.append("")
+
+    green = [f"`{item.get('command')}`" for item in (verify.get("commands") or []) if item.get("passed")]
+    red = [
+        f"`{item.get('command')}` — код {item.get('exit_code')}"
+        for item in (verify.get("commands") or [])
+        if not item.get("passed")
+    ]
+    open_part += [
+        "## Проверка", "",
+        ("Зелено: " + ", ".join(green) if green else "Ничего не запускалось") + ("" if not red else ""),
+        "",
+    ]
+    if red:
+        open_part += ["Не зелено: " + ", ".join(red), ""]
+
+    folded = ["## Замысел", "", (design.get("summary") or "").strip(), ""]
+    folded += _list("Что меняется", design.get("changes"))
+    folded += _list("Швы", design.get("seams"))
+    folded += _list("Чем это доказано — решено до кода", design.get("verification"))
+    folded += _list("Файлы", build.get("files"))
+    folded += _list("Тесты", build.get("tests"))
 
     departures = build.get("deviations") or []
     if departures:
-        lines += ["## Отступления от замысла", ""]
-        lines += [f"- {item.get('what')} — {item.get('because')}" for item in departures]
-        lines.append("")
+        folded += ["## Отступления от замысла", ""]
+        folded += [f"- {item.get('what')} — {item.get('because')}" for item in departures]
+        folded.append("")
 
-    expensive = [item for item in (design.get("assumptions") or []) if item.get("expensive")]
-    other = [item for item in (design.get("assumptions") or []) if not item.get("expensive")]
-    if expensive or other:
-        lines += ["## Допущения", ""]
-        lines += [f"- **дорогое:** {item.get('what')} — {item.get('because')}" for item in expensive]
-        lines += [f"- {item.get('what')} — {item.get('because')}" for item in other]
-        lines.append("")
+    ordinary = [item for item in (design.get("assumptions") or []) if not item.get("expensive")]
+    if ordinary:
+        folded += ["## Остальные допущения", ""]
+        folded += [f"- {item.get('what')} — {item.get('because')}" for item in ordinary]
+        folded.append("")
 
-    lines += ["## Проверка", "", "Команды проекта, запущенные китом:", ""]
-    for command in verify.get("commands") or []:
-        mark = "ok" if command.get("passed") else f"код {command.get('exit_code')}"
-        lines.append(f"- `{command.get('command')}` — {mark}")
-    lines.append("")
+    rest = [item for item in findings if item.get("severity") != BLOCKING]
+    folded += ["## Что ещё нашло ревью", ""]
+    folded += [f"- *{item.get('severity')}* — {_where(item)}" for item in rest] if rest else ["Ничего."]
+    folded.append("")
 
-    findings = review.get("findings") or []
-    lines += ["## Что нашло ревью", ""]
-    if findings:
-        lines += [f"- *{finding.get('severity')}* — {_where(finding)}" for finding in findings]
-    else:
-        lines.append("Ничего.")
-    lines += [
-        "",
-        "---",
-        "",
-        f"Собрано китом, прогон `{request.slug}`. Каждый пункт выше — запись шага, а не пересказ.",
-        "",
-    ]
-    return "\n".join(lines)
+    return "\n".join(
+        open_part
+        + ["<details>", "<summary>Запись прогона: замысел, швы, тесты, допущения</summary>", ""]
+        + folded
+        + ["</details>", "",
+           "---", "",
+           f"Собрано китом, прогон `{request.slug}`. Каждый пункт выше — запись шага, а не пересказ.", ""]
+    )
 
 
 def _list(heading: str, items: Any) -> list[str]:
     if not items:
         return []
-    return [f"## {heading}", "", *[f"- {item}" for item in items], ""]
+    return [f"### {heading}", "", *[f"- {item}" for item in items], ""]
