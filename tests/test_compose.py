@@ -83,3 +83,20 @@ def test_a_run_with_no_brief_says_nothing_about_one(tmp_path):
     text = build(tmp_path, attempt=1, provider="fake")
 
     assert "What this run is for" not in text
+
+
+def test_a_program_step_is_given_a_record_not_instructions(tmp_path):
+    """Nobody reads prose to a program. Its input.md is what it was handed."""
+    run = RunStore(tmp_path).create("add-vat", steps=["verify"], project=str(tmp_path), brief="VAT")
+
+    text = compose_input(
+        run=run,
+        definition=builtin_registry().get("verify"),
+        attempt=1,
+        provider="program:verify",
+        enclosures=[("0-design returned", '{"summary": "add a rate"}')],
+    )
+
+    assert "What you must return" not in text
+    assert "add a rate" in text
+    assert "VAT" in text
