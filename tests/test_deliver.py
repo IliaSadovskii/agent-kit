@@ -453,3 +453,25 @@ def test_a_design_that_wants_nothing_from_the_owner_says_so_and_asks_nothing(rep
     ).partition("<details>")
 
     assert "Ничего" in open_part
+
+
+def test_a_branch_the_session_made_and_left_empty_is_ours_to_use(repo):
+    """The composed input names the branch, and a session will helpfully create it."""
+    git(repo, "checkout", "-q", "-b", "kit/add-vat")  # no commit on it: it holds no work
+    worked_on(repo)
+
+    said = json.loads(deliver(repo).raw)
+
+    assert said["branch"] == "kit/add-vat"
+    assert git(repo, "log", "--oneline", "main..kit/add-vat").stdout.strip().count("\n") == 0
+
+
+def test_a_branch_that_holds_somebody_else_s_commit_is_still_refused(repo):
+    commit_on(repo, "kit/other", "other.py")
+    git(repo, "branch", "-m", "kit/other", "kit/add-vat")
+    worked_on(repo)
+
+    with pytest.raises(ExecutorFailed) as refused:
+        deliver(repo)
+
+    assert refused.value.code == "branch-exists"

@@ -100,3 +100,14 @@ def test_a_program_step_is_given_a_record_not_instructions(tmp_path):
     assert "What you must return" not in text
     assert "add a rate" in text
     assert "VAT" in text
+
+
+def test_the_input_tells_a_session_the_branch_is_not_its_business(tmp_path):
+    """A session that reads `branch:` as an instruction creates it, and deliver then refuses."""
+    run = RunStore(tmp_path).create("add-vat", steps=["probe"], project=str(tmp_path), brief="VAT")
+
+    text = compose_input(
+        run=run, definition=builtin_registry().get("probe"), attempt=1, provider="fake"
+    )
+
+    assert "do not create it" in text
