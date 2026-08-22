@@ -110,6 +110,18 @@ def build_parser() -> argparse.ArgumentParser:
     step_input.add_argument("slug")
     step_input.add_argument("--provider", default="by hand")
 
+    bench = commands.add_parser("bench", help="the planted traps, and which mechanisms fired")
+    bench_what = bench.add_subparsers(dest="what", metavar="WHAT")
+
+    bench_list = bench_what.add_parser("list", help="every case, and what it says must fire")
+    bench_list.add_argument("--cases", metavar="DIR", help="where the cases are (default: the kit's own)")
+
+    bench_run = bench_what.add_parser("run", help="run every case and say which mechanisms fired")
+    bench_run.add_argument("--case", metavar="NAME", help="one case, by name")
+    bench_run.add_argument("--cases", metavar="DIR", help="where the cases are (default: the kit's own)")
+    bench_run.add_argument("--keep", metavar="DIR",
+                           help="where to leave the world of a case that did not fire, for reading")
+
     step_run = step_what.add_parser("run", help="run the next step of a run")
     step_run.add_argument("slug")
     step_run.add_argument("--provider", help="who executes it; the role table decides when this is left out")
@@ -165,6 +177,8 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace, paths: 
         return _step(args, paths)
     if args.command == "provider":
         return _provider(args, paths)
+    if args.command == "bench":
+        return _bench(args)
 
     raise UsageError("unknown-command", args.command)
 
@@ -353,7 +367,11 @@ def _go(store: RunStore, registry, args: argparse.Namespace) -> int:
             print(f"  attempt {attempt.attempt} on {attempt.provider}: {mark}")
         if not outcome.passed:
             print(f"{outcome.slug}: {outcome.reason}", file=sys.stderr)
-            return int(ExitCode.STATE)
+            # `stopped` means the method said no, whichever step said it. A gate
+            # that closes already exited 5; a step refused for a reason the
+            # method expects — a blocking finding, a build that never finished —
+            # stops the run the same way and must exit the same way.
+            return int(_over(store.load(args.slug)))
 
         print(f"{outcome.slug}: {outcome.step} passed")
         run = store.load(args.slug)
@@ -362,7 +380,12 @@ def _go(store: RunStore, registry, args: argparse.Namespace) -> int:
         if run.status is RunStatus.DONE:
             return int(ExitCode.OK)
         print(f"{outcome.slug}: {run.reason}", file=sys.stderr)
-        return int(ExitCode.REFUSED if run.status is RunStatus.STOPPED else ExitCode.STATE)
+        return int(_over(run))
+
+
+def _over(run) -> ExitCode:
+    """How a run that is not going on ended: the method said no, or the kit could not."""
+    return ExitCode.REFUSED if run.status is RunStatus.STOPPED else ExitCode.STATE
 
 
 def _where(run) -> str:
@@ -454,6 +477,55 @@ def _provider(args: argparse.Namespace, paths: Paths) -> int:
         )
         print(f"{facts.name:12} declares {facts.level:2} {earned:38} {state:20}{real}")
     return int(ExitCode.OK)
+
+
+# --- bench -----------------------------------------------------------------
+
+
+def _bench(args: argparse.Namespace) -> int:
+    """One line per case: fired, did not fire, or could not be judged.
+
+    Non-zero when anything did not fire, because a bench whose answer no script
+    can read is one that gets run once and then trusted.
+    """
+    from tempfile import TemporaryDirectory
+
+    from ..bench import case_names, cases_root, read_case, run_named
+
+    root = Path(args.cases).resolve() if args.cases else cases_root()
+    what = args.what or "run"
+    names = case_names(root)
+
+    if what == "list":
+        for name in names:
+            print(f"{name:38}  {read_case(root, name).fires}")
+        return int(ExitCode.OK)
+    if what != "run":
+        raise UsageError("unknown-command", f"bench {what}")
+
+    if args.case is not None:
+        if args.case not in names:
+            raise UsageError("unknown-case", f"{args.case!r} is not a case: {', '.join(names) or 'there are none'}")
+        names = [args.case]
+
+    keep = Path(args.keep).resolve() if args.keep else None
+    if keep is not None:
+        keep.mkdir(parents=True, exist_ok=True)
+
+    results = []
+    with TemporaryDirectory(prefix="agent-kit-bench-") as scratch:
+        into = keep or Path(scratch)
+        for name in names:
+            result = run_named(root, name, into, keep=keep is not None)
+            results.append(result)
+            print(f"{result.name:38}  {result.said}")
+            if result.where is not None:
+                print(f"{'':38}  left in {result.where}")
+
+    fired = [result for result in results if result.verdict.fired]
+    print()
+    print(f"{len(fired)} of {len(results)} mechanisms fired")
+    return int(ExitCode.OK if len(fired) == len(results) else ExitCode.BENCH)
 
 
 def _runner(store: RunStore, registry, provider: str | None, options: list[str]) -> StepRunner:

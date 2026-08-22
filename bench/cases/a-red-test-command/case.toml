@@ -1,0 +1,11 @@
+# a red test command
+
+[case]
+title = "a red test command"
+fires = "the gate closes, the step still records passed"
+
+[expect]
+exit_code = 5
+status = "stopped"
+refusal = "passed as false"
+steps = { verify = "passed" }

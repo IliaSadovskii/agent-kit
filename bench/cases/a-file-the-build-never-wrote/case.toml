@@ -1,0 +1,11 @@
+# the build names a file it never wrote
+
+[case]
+title = "the build names a file it never wrote"
+fires = "delivery refuses, and nothing is committed"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "no-such-file"
+steps = { deliver = "failed" }

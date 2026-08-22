@@ -1,0 +1,9 @@
+# a .env and a log beside the changed files
+
+[case]
+title = "a .env and a log beside the changed files"
+fires = "only what build.files names is committed"
+
+[expect]
+exit_code = 0
+status = "done"

@@ -1,0 +1,11 @@
+# an assumption with no expensive
+
+[case]
+title = "an assumption with no expensive"
+fires = "the step is refused and the reason names the field"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "expensive"
+steps = { design = "failed" }

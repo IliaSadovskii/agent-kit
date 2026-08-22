@@ -1,0 +1,12 @@
+{
+  "complete": true,
+  "summary": "The rounding rule, and the feature is whole.",
+  "files": [
+    "rounding.py"
+  ],
+  "tests": [
+    "the declared command"
+  ],
+  "deviations": [],
+  "remaining": null
+}

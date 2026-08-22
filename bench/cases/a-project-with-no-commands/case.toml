@@ -1,0 +1,11 @@
+# a project that declares no commands
+
+[case]
+title = "a project that declares no commands"
+fires = "verify refuses with no-commands"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "no-commands"
+steps = { verify = "failed" }

@@ -1,0 +1,9 @@
+# a build that says complete: false twice, then finishes
+
+[case]
+title = "a build that says complete: false twice, then finishes"
+fires = "every part reaches review and delivery"
+
+[expect]
+exit_code = 0
+status = "done"

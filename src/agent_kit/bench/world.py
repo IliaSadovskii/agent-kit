@@ -1,0 +1,172 @@
+"""The world a case runs in, and it touches nothing outside itself.
+
+A temporary directory, its own `HOME`, its own git identity, a bare remote a
+directory away, and a `gh` on `PATH` that is a script. Nothing reaches the
+network, so a case is the same on a machine with no login as on one with — which
+is the whole reason the bench can compare one version of the kit against the next.
+
+The baseline project is deliberately tiny: one file worth changing and one
+command worth running. What a case plants goes on top of it.
+"""
+
+from __future__ import annotations
+
+import os
+import shutil
+import subprocess
+from dataclasses import dataclass
+from pathlib import Path
+
+from ..errors import StateError
+from .cases import Case
+
+#: The project every case starts from. `check.sh` is what `verify` runs: a
+#: command that is instantly green, so a case that is not about the suite does
+#: not pay for one, and a case that is about it replaces this file.
+BASELINE = {
+    "money.py": "AMOUNT = 1000\n",
+    "check.sh": "#!/bin/sh\nexit 0\n",
+    ".agent-kit/v3/project.toml": (
+        "[project]\n"
+        'default_branch = "main"\n'
+        "command_timeout = 20\n"
+        "\n"
+        "[commands]\n"
+        'test = "sh check.sh"\n'
+    ),
+}
+
+#: A `gh` that answers the two things delivery asks it, and writes down every
+#: call so a judge can read what it was asked.
+GH = """#!/bin/sh
+printf '%s\\n' "$@" >> "$BENCH/gh-argv"
+if [ "$2" = "view" ]; then [ -f "$BENCH/gh-opened" ] || exit 1; fi
+touch "$BENCH/gh-opened"
+echo https://github.com/owner/project/pull/7
+"""
+
+
+class WorldError(StateError):
+    """The world could not be made, so nothing was judged."""
+
+
+@dataclass(frozen=True)
+class World:
+    """Where a case lives while it runs."""
+
+    bench: Path
+    repo: Path
+    origin: Path
+    home: Path
+    env: dict[str, str]
+
+    @property
+    def run_dir(self) -> Path:
+        return self.repo / ".agent-kit/v3/runs"
+
+
+def make_world(case: Case, into: Path) -> World:
+    """Everything the case needs, in one directory that can be deleted whole."""
+    into.mkdir(parents=True, exist_ok=True)
+    home = _made(into / "home")
+    binaries = _made(into / "bin")
+    repo = _made(into / "project")
+    origin = into / "origin.git"
+
+    env = _environment(into, home, binaries)
+    _write_gh(binaries / "gh")
+
+    _lay_out(repo, case)
+    _make_repository(repo, origin, env)
+    _plant(case, repo, origin, env)
+
+    return World(bench=into, repo=repo, origin=origin, home=home, env=env)
+
+
+def _environment(bench: Path, home: Path, binaries: Path) -> dict[str, str]:
+    """A machine of its own. Nothing here reads the one the bench is running on."""
+    env = dict(os.environ)
+    env.update(
+        {
+            "HOME": str(home),
+            "XDG_CONFIG_HOME": str(home / ".config"),
+            "XDG_STATE_HOME": str(home / ".local/state"),
+            # git reads two files outside the repository unless it is told not to.
+            "GIT_CONFIG_GLOBAL": str(home / ".gitconfig"),
+            "GIT_CONFIG_SYSTEM": str(home / ".gitconfig-system"),
+            "GIT_TERMINAL_PROMPT": "0",
+            "PATH": f"{binaries}{os.pathsep}{os.environ.get('PATH', '')}",
+            # Read by the scripts a case plants, and by the `gh` above.
+            "BENCH": str(bench),
+        }
+    )
+    for name in ("XDG_DATA_HOME", "XDG_CACHE_HOME"):
+        env.pop(name, None)
+    return env
+
+
+def _write_gh(path: Path) -> None:
+    path.write_text(GH, encoding="utf-8")
+    path.chmod(0o755)
+
+
+def _lay_out(repo: Path, case: Case) -> None:
+    """The baseline, then whatever the case lays over it."""
+    for relative, text in BASELINE.items():
+        _write(repo / relative, text)
+    overlay = case.overlay
+    if overlay is not None:
+        shutil.copytree(overlay, repo, dirs_exist_ok=True)
+
+
+def _make_repository(repo: Path, origin: Path, env: dict[str, str]) -> None:
+    _git(repo, env, "init", "-b", "main")
+    _git(repo, env, "config", "user.email", "bench@example.com")
+    _git(repo, env, "config", "user.name", "the bench")
+    _run(["git", "init", "--bare", "-b", "main", str(origin)], repo.parent, env)
+    _git(repo, env, "remote", "add", "origin", str(origin))
+    _git(repo, env, "add", "-A")
+    _git(repo, env, "commit", "-m", "the baseline every case starts from")
+    _git(repo, env, "push", "-u", "origin", "main")
+
+
+def _plant(case: Case, repo: Path, origin: Path, env: dict[str, str]) -> None:
+    script = case.plant
+    if script is None:
+        return
+    planting = dict(env, SLUG=case.slug, BRANCH=case.branch, REPO=str(repo), ORIGIN=str(origin))
+    done = subprocess.run(
+        ["sh", str(script)], cwd=repo, env=planting, capture_output=True, text=True, timeout=120
+    )
+    if done.returncode != 0:
+        raise WorldError(
+            "plant-failed",
+            f"{case.name}: plant.sh exited with {done.returncode}: "
+            f"{(done.stderr or done.stdout).strip()[:400] or 'and said nothing'}",
+        )
+
+
+def _made(path: Path) -> Path:
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _write(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    if path.suffix == ".sh":
+        path.chmod(0o755)
+
+
+def _git(repo: Path, env: dict[str, str], *argv: str) -> None:
+    _run(["git", *argv], repo, env)
+
+
+def _run(argv: list[str], cwd: Path, env: dict[str, str]) -> None:
+    done = subprocess.run(argv, cwd=cwd, env=env, capture_output=True, text=True, timeout=120)
+    if done.returncode != 0:
+        raise WorldError(
+            "world-failed",
+            f"{' '.join(argv)} exited with {done.returncode}: "
+            f"{(done.stderr or done.stdout).strip()[:400] or 'and said nothing'}",
+        )

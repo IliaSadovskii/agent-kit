@@ -1,0 +1,11 @@
+# a review whose verdict and findings disagree
+
+[case]
+title = "a review whose verdict and findings disagree"
+fires = "delivery refuses as a disagreement"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "review-disagrees-with-itself"
+steps = { deliver = "failed" }

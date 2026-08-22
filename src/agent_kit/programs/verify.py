@@ -8,6 +8,10 @@ returns exit codes.
 
 A command that fails stops the ones after it. Running a test suite over code the
 linter already refused costs minutes and tells nobody anything new.
+
+How long it waits is the project's to say — `command_timeout` in its own
+declaration. A project knows whether its suite is seconds or half an hour, and
+the kit does not.
 """
 
 from __future__ import annotations
@@ -21,10 +25,6 @@ from ..project import require_project
 from ..shell import kill_group
 from ..providers.base import ExecutorFailed, ExecutorResult, StepRequest
 
-#: A project's own suite is minutes. One that has said nothing for this long is
-#: not slow, it is stuck, and a night must not wait on it.
-DEFAULT_TIMEOUT = 3600
-
 #: What is kept of a command's output. Failures announce themselves at the end,
 #: so it is the tail that is kept, and the whole of it is in the step's raw.txt.
 KEPT = 8000
@@ -35,8 +35,10 @@ log = get_logger("programs.verify")
 class Verify:
     name = "program:verify"
 
-    def __init__(self, root: Path, timeout: int = DEFAULT_TIMEOUT) -> None:
+    def __init__(self, root: Path, timeout: int | None = None) -> None:
         self.root = Path(root)
+        #: None means the project decides, which is the usual case. A number
+        #: here is somebody overruling it on purpose.
         self.timeout = timeout
 
     def execute(self, request: StepRequest) -> ExecutorResult:
@@ -50,10 +52,11 @@ class Verify:
                 retryable=False,  # the file will not have changed by the next attempt
             )
 
+        waiting = self.timeout if self.timeout is not None else project.command_timeout
         ran: list[dict] = []
         for command in project.commands:
             log.info("verify: %s — %s", command.name, command.command)
-            record = self._one(command.name, command.command, root)
+            record = self._one(command.name, command.command, root, waiting)
             ran.append(record)
             if not record["passed"]:
                 # Everything after this would be run over code already refused.
@@ -67,7 +70,7 @@ class Verify:
             meta={"commands_run": len(ran)},
         )
 
-    def _one(self, name: str, command: str, root: Path) -> dict:
+    def _one(self, name: str, command: str, root: Path, waiting: int) -> dict:
         """One declared command, and everything it started dies with it.
 
         A project's test command is usually a wrapper — here it is `make test`,
@@ -98,7 +101,7 @@ class Verify:
             }
 
         try:
-            stdout, stderr = finished.communicate(timeout=self.timeout)
+            stdout, stderr = finished.communicate(timeout=waiting)
         except subprocess.TimeoutExpired:
             kill_group(finished)
             return {
@@ -106,7 +109,7 @@ class Verify:
                 "command": command,
                 "exit_code": None,
                 "passed": False,
-                "output": f"it said nothing for {self.timeout} seconds and was stopped, along with everything it started",
+                "output": f"it said nothing for {waiting} seconds and was stopped, along with everything it started",
             }
 
         return {

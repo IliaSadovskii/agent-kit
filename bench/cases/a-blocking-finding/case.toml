@@ -1,0 +1,10 @@
+# a blocking finding
+
+[case]
+title = "a blocking finding"
+fires = "delivery refuses, the run stops rather than fails, exit code 5"
+
+[expect]
+exit_code = 5
+status = "stopped"
+refusal = "blocked-by-review"

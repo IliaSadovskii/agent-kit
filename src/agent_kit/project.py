@@ -2,7 +2,8 @@
 
 Three facts, each with exactly one reader:
 
-- the commands — `verify` runs these and nothing else;
+- the commands — `verify` runs these and nothing else, waiting `command_timeout`
+  seconds for each;
 - the default branch — `deliver` opens the pull request against it;
 - the role table — the driver prefers it to the machine's, and only for roles
   this project names.
@@ -28,8 +29,13 @@ PROJECT_FILE = "project.toml"
 
 DEFAULT_BRANCH = "main"
 
+#: A project's own suite is minutes. One that has said nothing for this long is
+#: not slow, it is stuck, and a night must not wait on it. A project that knows
+#: better says so; this is what the kit assumes when it does not.
+DEFAULT_COMMAND_TIMEOUT = 3600
+
 _TOP_KEYS = {"project", "commands", "roles"}
-_PROJECT_KEYS = {"default_branch"}
+_PROJECT_KEYS = {"default_branch", "command_timeout"}
 
 
 @dataclass(frozen=True)
@@ -44,6 +50,9 @@ class Command:
 class Project:
     root: Path
     default_branch: str = DEFAULT_BRANCH
+    #: Seconds `verify` waits for one declared command before killing it and
+    #: everything it started.
+    command_timeout: int = DEFAULT_COMMAND_TIMEOUT
     commands: tuple[Command, ...] = ()
     roles: dict[str, RoleConfig] = field(default_factory=dict)
     source: Path | None = None
@@ -73,6 +82,7 @@ def read_project(root: Path | str) -> Project | None:
     return Project(
         root=Path(root),
         default_branch=_text(block.get("default_branch", DEFAULT_BRANCH), "project.default_branch"),
+        command_timeout=_seconds(block.get("command_timeout", DEFAULT_COMMAND_TIMEOUT), "project.command_timeout"),
         commands=_commands(_table(document.get("commands", {}), "commands")),
         roles=roles_from_table(_table(document.get("roles", {}), "roles")),
         source=path,
@@ -117,6 +127,7 @@ def discover(root: Path) -> tuple[Project, list[str]]:
         Project(
             root=root,
             default_branch=standing.default_branch if standing else _default_branch(root),
+            command_timeout=standing.command_timeout if standing else DEFAULT_COMMAND_TIMEOUT,
             commands=tuple(commands),
             roles=dict(standing.roles) if standing else {},
         ),
@@ -131,6 +142,8 @@ def render(project: Project) -> str:
         "",
         "[project]",
         f'default_branch = "{project.default_branch}"',
+        "# How long `verify` waits for one command before killing it and its children.",
+        f"command_timeout = {project.command_timeout}",
         "",
         "[commands]",
         "# What `verify` runs, in this order. One fact, one home.",
@@ -253,6 +266,12 @@ def _text(value: Any, where: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ConfigError("bad-value", f"{where} must be a non-empty string")
     return value.strip()
+
+
+def _seconds(value: Any, where: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+        raise ConfigError("bad-value", f"{where} must be a whole number of seconds above zero")
+    return value
 
 
 def _commands(table: dict[str, Any]) -> tuple[Command, ...]:

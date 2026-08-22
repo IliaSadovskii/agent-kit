@@ -10,6 +10,7 @@ one: every case the kit ships fires.
 """
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -126,7 +127,7 @@ def test_a_case_that_does_not_fire_says_what_it_expected_and_the_bench_exits_non
     code, printed = bench(cases, capsys=capsys)
 
     assert "did not fire" in printed.out
-    assert "failed" in printed.out  # it names what it wanted and what it got
+    assert "exited 0" in printed.out and "wants 3" in printed.out  # what it got, and what it wanted
     assert code == int(ExitCode.BENCH)
 
 
@@ -233,9 +234,10 @@ def test_a_case_touches_neither_the_home_nor_the_repository_of_whoever_ran_it(ca
     bench(cases, "--keep", str(tmp_path / "kept"), capsys=capsys)
 
     world = tmp_path / "kept" / "kept-for-reading"
-    assert (world / "home/.local/state/agent-kit").is_dir()  # the kit wrote its state there
-    assert not (machine_home / ".local/state/agent-kit").exists()
+    assert (world / "home/.local/state/agent-kit").is_dir()  # the case's kit wrote its state there
+    assert (world / "project/.agent-kit/v3/runs/add-vat").is_dir()  # and its run there
     assert not (machine_home / ".config/agent-kit").exists()
+    assert not (Path.cwd() / ".agent-kit/v3/runs/add-vat").exists()  # not in the kit's own checkout
 
 
 def test_a_case_that_fires_leaves_nothing_behind(cases, capsys, tmp_path):

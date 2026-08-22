@@ -1,0 +1,14 @@
+{
+  "complete": false,
+  "summary": "The gross helper.",
+  "files": [
+    "gross.py"
+  ],
+  "tests": [
+    "the declared command"
+  ],
+  "deviations": [],
+  "remaining": [
+    "the rounding rule"
+  ]
+}

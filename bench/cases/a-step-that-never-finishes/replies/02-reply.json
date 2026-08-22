@@ -1,0 +1,15 @@
+{
+  "complete": false,
+  "summary": "The rate itself.",
+  "files": [
+    "money.py"
+  ],
+  "tests": [
+    "the declared command"
+  ],
+  "deviations": [],
+  "remaining": [
+    "the gross helper",
+    "the rounding rule"
+  ]
+}

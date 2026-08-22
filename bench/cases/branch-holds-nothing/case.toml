@@ -1,0 +1,9 @@
+# the branch exists and holds nothing
+
+[case]
+title = "the branch exists and holds nothing"
+fires = "delivery uses it rather than stranding the feature"
+
+[expect]
+exit_code = 0
+status = "done"

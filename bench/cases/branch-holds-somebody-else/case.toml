@@ -1,0 +1,11 @@
+# the branch already exists and holds somebody's commit
+
+[case]
+title = "the branch already exists and holds somebody's commit"
+fires = "delivery refuses before touching it"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "branch-exists"
+steps = { deliver = "failed" }

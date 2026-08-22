@@ -1,0 +1,11 @@
+# a design with no verification
+
+[case]
+title = "a design with no verification"
+fires = "the step is refused and the reason names the field"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "verification"
+steps = { design = "failed" }

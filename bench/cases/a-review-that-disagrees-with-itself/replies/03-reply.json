@@ -1,0 +1,10 @@
+{
+  "verdict": "pass",
+  "findings": [
+    {
+      "severity": "blocking",
+      "what": "a negative rate is not refused",
+      "where": "money.py:1"
+    }
+  ]
+}

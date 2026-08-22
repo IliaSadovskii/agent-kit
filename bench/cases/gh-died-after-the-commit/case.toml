@@ -1,0 +1,9 @@
+# gh failed after the commit, and the work is already on the branch
+
+[case]
+title = "gh failed after the commit, and the work is already on the branch"
+fires = "running it again carries on rather than starting over"
+
+[expect]
+exit_code = 0
+status = "done"
