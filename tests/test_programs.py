@@ -232,3 +232,19 @@ def test_a_program_does_not_pretend_to_be_a_model(tmp_path):
 
     assert "model" not in meta
     assert meta["commands_run"] == 1
+
+
+def test_a_command_that_hangs_takes_its_children_with_it(tmp_path):
+    """`make test` is `docker compose exec`. A build left running spends a shared machine."""
+    from agent_kit.programs.verify import Verify
+
+    mark = tmp_path / "still-alive"
+    declare(tmp_path, f'[commands]\ntest = "(while true; do echo x >> {mark}; sleep 0.2; done) & sleep 30"\n')
+
+    said = answer(Verify(tmp_path, timeout=2).execute(request(tmp_path)))
+
+    assert said["passed"] is False
+    assert said["commands"][0]["exit_code"] is None
+    grew = mark.stat().st_size if mark.exists() else 0
+    __import__("time").sleep(1.5)
+    assert (mark.stat().st_size if mark.exists() else 0) == grew
