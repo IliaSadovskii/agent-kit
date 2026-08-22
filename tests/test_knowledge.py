@@ -368,3 +368,107 @@ def test_an_address_cannot_climb_out_of_the_knowledge(knowledge):
     assert refused.value.code == "no-such-file"
 
 
+
+
+# --- what the review round found ---------------------------------------------
+
+
+def test_two_blocks_with_nothing_between_them_are_two_blocks(knowledge):
+    (knowledge.root / "stack.md").write_text(
+        STACK
+        + "\n> **[assumed 2026-08-01 · kit/one · id: aaaaaa]** первый\n"
+        + "> **[assumed 2026-08-02 · kit/two · id: bbbbbb]** второй\n",
+        encoding="utf-8",
+    )
+
+    assert [block.id for block in knowledge.blocks()] == ["aaaaaa", "bbbbbb"]
+
+
+def test_two_blocks_split_by_a_bare_quote_line_are_two_blocks(knowledge):
+    (knowledge.root / "stack.md").write_text(
+        STACK
+        + "\n> **[assumed 2026-08-01 · kit/one · id: aaaaaa]** первый\n"
+        + ">\n"
+        + "> **[assumed 2026-08-02 · kit/two · id: bbbbbb]** второй\n",
+        encoding="utf-8",
+    )
+
+    assert [block.id for block in knowledge.blocks()] == ["aaaaaa", "bbbbbb"]
+
+
+def test_closing_the_first_of_two_touching_blocks_leaves_the_second(knowledge):
+    (knowledge.root / "stack.md").write_text(
+        STACK
+        + "\n> **[assumed 2026-08-01 · kit/one · id: aaaaaa]** первый\n"
+        + "> **[assumed 2026-08-02 · kit/two · id: bbbbbb]** второй\n",
+        encoding="utf-8",
+    )
+
+    knowledge.close("aaaaaa")
+
+    text = (knowledge.root / "stack.md").read_text()
+    assert "первый" not in text
+    assert "второй" in text
+
+
+def test_a_block_indented_under_a_list_item_is_still_a_block(knowledge):
+    (knowledge.root / "stack.md").write_text(
+        STACK + "\n- пункт\n\n  > **[assumed 2026-08-01 · kit/one · id: aaaaaa]** внутри списка\n",
+        encoding="utf-8",
+    )
+
+    assert "aaaaaa" in [block.id for block in knowledge.blocks()]
+
+
+def test_a_file_that_is_not_part_of_the_knowledge_is_not_addressable(knowledge):
+    # `.md` is what `files()` reads, so a block written anywhere else could
+    # never be found again: not by the index, not by `close`, not by `free_id`.
+    (knowledge.root / "notes.txt").write_text("### Заметка\n", encoding="utf-8")
+
+    with pytest.raises(KnowledgeError) as refused:
+        knowledge.resolve("notes.txt#Заметка")
+
+    assert refused.value.code == "no-such-file"
+
+
+def test_moving_a_block_to_another_file_reports_both_files(knowledge):
+    written(knowledge)
+
+    touched = knowledge.write(
+        at="stack.md#Вызовы модели", run="kit/add-vat", body="то же самое",
+        id=identifier("add-vat", "the rate is a whole percent"), date="2026-08-22",
+    )
+
+    names = sorted(path.name for path in touched)
+    assert names == ["entities.md", "stack.md"]
+    assert "kit/add-vat" not in (knowledge.root / "entities.md").read_text()
+
+
+def test_a_file_that_ended_in_a_blank_line_still_does(knowledge):
+    path = knowledge.root / "stack.md"
+    path.write_text(STACK + "\n", encoding="utf-8")  # a trailing blank line of its own
+
+    written(knowledge, at="stack.md#Вызовы модели")
+    knowledge.close(identifier("add-vat", "the rate is a whole percent"))
+
+    assert path.read_text().endswith("`down()`.\n\n")
+
+
+def test_closing_a_block_at_the_head_of_a_file_leaves_no_blank_line_above(knowledge):
+    path = knowledge.root / "opening.md"
+    path.write_text("> **[assumed 2026-08-01 · kit/one · id: aaaaaa]** первый\n\n## Раздел\n\nтело\n",
+                    encoding="utf-8")
+
+    knowledge.close("aaaaaa")
+
+    assert path.read_text().startswith("## Раздел")
+
+
+def test_the_identifier_is_pinned_to_a_value_and_not_only_to_itself():
+    """A silent change of alphabet, length or seed turns over every block in
+
+    every project's knowledge, and no test comparing a call to another call in
+    the same process would notice.
+    """
+    assert identifier("add-vat", "the rate is a whole percent") == "kmw26z"
+    assert identifier("add-vat", "the rate is a whole percent", salt=1) == "2zgszb"

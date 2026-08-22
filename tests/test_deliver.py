@@ -560,3 +560,20 @@ def test_what_was_written_into_the_knowledge_is_in_the_report(repo):
     body = (repo / ".agent-kit/v3/runs/add-vat/pull-request.md").read_text()
     assert "entities.md#money" in body
     assert "k7f3q2" in body
+
+
+def test_two_assumptions_worded_the_same_owe_two_blocks_not_one(repo):
+    """The join counted distinct wordings, so one block answered for two.
+
+    A set of `what` cannot see that the second block is missing, and the whole
+    point of the join is that it can.
+    """
+    with_knowledge(repo)
+    worked_on(repo)
+    wrote_a_block(repo)
+    twice = dict(DESIGN, assumptions=[DESIGN["assumptions"][0], dict(DESIGN["assumptions"][0])])
+
+    with pytest.raises(ExecutorFailed) as refused:
+        deliver(repo, {"design": twice, "record": RECORD})
+
+    assert refused.value.code == "assumption-with-no-block"

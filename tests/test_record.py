@@ -285,3 +285,66 @@ def test_nothing_is_closed_until_every_address_has_resolved(project):
 
     assert refused.value.code == "no-such-block"
     assert entities(project) == standing
+
+
+# --- what the review round found ---------------------------------------------
+
+
+def test_two_assumptions_worded_the_same_get_two_blocks(project):
+    """The identifier is derived from the run and the words, so siblings collide.
+
+    Reusing it made the second block delete the first, and the step still
+    reported two — the record lying about the knowledge, which is the one thing
+    a step that exists to leave a trace may not do.
+    """
+    twice = dict(
+        DESIGN,
+        assumptions=[
+            DESIGN["assumptions"][0],
+            dict(DESIGN["assumptions"][0], at="entities.md#tax"),
+        ],
+    )
+
+    said = json.loads(record(project, {"design": twice}).raw)
+
+    ids = [block["id"] for block in said["blocks"]]
+    assert len(set(ids)) == 2, ids
+    text = entities(project)
+    assert text.count("kit/add-vat") == 2
+    assert all(id in text for id in ids)
+
+
+def test_the_same_two_assumptions_written_again_are_still_two(project):
+    twice = dict(
+        DESIGN,
+        assumptions=[DESIGN["assumptions"][0], dict(DESIGN["assumptions"][0], at="entities.md#tax")],
+    )
+    first = json.loads(record(project, {"design": twice}).raw)
+
+    again = json.loads(record(project, {"design": twice}).raw)
+
+    assert [b["id"] for b in again["blocks"]] == [b["id"] for b in first["blocks"]]
+    assert entities(project).count("kit/add-vat") == 2
+
+
+def test_the_same_identifier_named_twice_in_closes_is_closed_once(project):
+    record(project)
+    wanted = identifier("add-vat", WHAT)
+
+    said = json.loads(record(project, {"design": dict(DESIGN, assumptions=[], closes=[wanted, wanted])}).raw)
+
+    assert said["closed"] == [wanted]
+    assert "kit/add-vat" not in entities(project)
+
+
+def test_a_block_that_moved_to_another_file_names_both_of_them(project):
+    (project / "docs/knowledge/stack.md").write_text(
+        "# Стек\n\n## Вызовы модели\n\nвсё через шлюз\n", encoding="utf-8"
+    )
+    record(project)
+
+    moved = dict(DESIGN, assumptions=[dict(DESIGN["assumptions"][0], at="stack.md#Вызовы модели")])
+    said = json.loads(record(project, {"design": moved}).raw)
+
+    assert sorted(said["files"]) == ["docs/knowledge/entities.md", "docs/knowledge/stack.md"]
+    assert "kit/add-vat" not in entities(project)

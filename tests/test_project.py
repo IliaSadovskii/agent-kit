@@ -285,3 +285,21 @@ def test_what_it_declared_survives_being_written_out(tmp_path):
     write_project(project, force=True)
 
     assert read_project(tmp_path).knowledge == "docs/база"
+
+
+def test_a_knowledge_directory_that_leaves_the_project_is_refused_by_name(tmp_path):
+    declare(tmp_path, '[project]\nknowledge = "../shared"\n')
+
+    with pytest.raises(ConfigError) as refused:
+        read_project(tmp_path)
+
+    assert refused.value.code == "bad-field: project.knowledge"
+
+
+def test_an_absolute_knowledge_directory_is_refused_by_name(tmp_path):
+    declare(tmp_path, '[project]\nknowledge = "/etc"\n')
+
+    with pytest.raises(ConfigError) as refused:
+        read_project(tmp_path)
+
+    assert refused.value.code == "bad-field: project.knowledge"

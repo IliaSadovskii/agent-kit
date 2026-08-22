@@ -529,3 +529,20 @@ def test_a_step_a_program_executes_does_not_claim_to_have_prose(capsys):
     assert "prose" in printed
     assert "method\n" not in printed
     assert "a program" in printed
+
+
+def test_step_show_prints_the_contract_this_project_imposes(tmp_path, capsys, monkeypatch):
+    """The driver shows the agent the stricter contract and checks against it.
+
+    A person asking the kit what a step returns was still shown the pre-S6 one,
+    which says `block` is optional in a project where the run will refuse it.
+    """
+    (tmp_path / ".agent-kit/v3").mkdir(parents=True)
+    (tmp_path / ".agent-kit/v3/project.toml").write_text(
+        '[project]\ndefault_branch = "main"\n\n[commands]\ntest = "true"\n', encoding="utf-8"
+    )
+    (tmp_path / "docs/knowledge").mkdir(parents=True)
+
+    main(["-C", str(tmp_path), "step", "show", "design"])
+
+    assert "required when `expensive`" in capsys.readouterr().out
