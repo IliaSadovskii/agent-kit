@@ -19,7 +19,7 @@ from ..paths import Paths, project_paths
 from ..driver import StepRunner, create_run
 from ..driver.compose import compose_input
 from ..providers import registry as providers
-from ..state import RunStore
+from ..state import RunStatus, RunStore
 from ..steps import builtin_registry, method_root
 
 PROGRAM = "agent-kit"
@@ -63,6 +63,12 @@ def build_parser() -> argparse.ArgumentParser:
     new.add_argument("--steps", help="comma-separated step names (default: what `step list` calls the default)")
 
     run_what.add_parser("list", help="the runs this project holds")
+
+    go = run_what.add_parser("go", help="run every step that is left, and stop at the first that will not pass")
+    go.add_argument("slug")
+    go.add_argument("--provider", help="who executes the steps a session does; the role table decides when left out")
+    go.add_argument("--option", action="append", default=[], metavar="KEY=VALUE",
+                    help="an option for the provider, as its own block documents; repeat to give several")
 
     show = run_what.add_parser("show", help="a run, as it stands")
     show.add_argument("slug")
@@ -303,6 +309,9 @@ def _run(args: argparse.Namespace) -> int:
                     print(f"     {line}")
         return int(ExitCode.OK)
 
+    if what == "go":
+        return _go(store, registry, args)
+
     if what == "start":
         run = store.start_step(args.slug, provider=args.provider)
         print(f"{run.slug}: {run.running.name} running (attempt {run.running.attempts})")
@@ -324,6 +333,36 @@ def _run(args: argparse.Namespace) -> int:
         return int(ExitCode.OK)
 
     raise UsageError("unknown-command", f"run {what}")
+
+
+def _go(store: RunStore, registry, args: argparse.Namespace) -> int:
+    """Every step that is left, in order, until one will not pass.
+
+    The driver already says why a step failed and leaves the reason in the run.
+    This adds nothing to that: it walks, it prints, and it stops.
+    """
+    run = store.load(args.slug)
+    if run.finished:
+        raise StateError("run-finished", f"{args.slug} is {run.status.value}; there is nothing left to run")
+
+    runner = _runner(store, registry, args.provider, args.option)
+    while True:
+        outcome = runner.run_next(args.slug)
+        for attempt in outcome.attempts:
+            mark = "passed" if attempt.passed else f"refused — {attempt.refusal}"
+            print(f"  attempt {attempt.attempt} on {attempt.provider}: {mark}")
+        if not outcome.passed:
+            print(f"{outcome.slug}: {outcome.reason}", file=sys.stderr)
+            return int(ExitCode.STATE)
+
+        print(f"{outcome.slug}: {outcome.step} passed")
+        run = store.load(args.slug)
+        if not run.finished:
+            continue
+        if run.status is RunStatus.DONE:
+            return int(ExitCode.OK)
+        print(f"{outcome.slug}: {run.reason}", file=sys.stderr)
+        return int(ExitCode.STATE)
 
 
 def _where(run) -> str:
@@ -423,31 +462,41 @@ def _provider(args: argparse.Namespace, paths: Paths) -> int:
 
 def _runner(store: RunStore, registry, provider: str | None, options: list[str]) -> StepRunner:
     """Everything a run needs to advance: who executes, and which role names them."""
+    from ..programs import build_program, program_names
+    from ..project import read_project
+
     paths = Paths.from_env()
     config = load_config(paths.config_file)
     typed = _options(options)
+    root = store.paths.root
+
+    # The programs are not providers: nobody chooses them, nobody configures
+    # them, and a step that names one names it in the kit's own registry. They
+    # are always there, whatever the role table says.
+    executors = {name: build_program(name, root) for name in program_names()}
 
     if provider is not None:
         # Somebody typed a provider. Configuration does not overrule what was
         # asked for — but what it says *about* that provider still applies.
+        executors[provider] = providers.build_executor(provider, _settings(config, provider, typed))
         return StepRunner(
             store=store,
             registry=registry,
-            executors={provider: providers.build_executor(provider, _settings(config, provider, typed))},
+            executors=executors,
             roles={},
             default_provider=provider,
         )
 
-    # Nobody named one, so the role table decides, and every provider it names
-    # is built from what the configuration answered about it.
-    named = {role.provider for role in config.roles.values()}
-    named |= {spare for role in config.roles.values() for spare in role.fallback}
-    return StepRunner(
-        store=store,
-        registry=registry,
-        executors={name: providers.build_executor(name, _settings(config, name, typed)) for name in sorted(named)},
-        roles=config.roles,
+    # Nobody named one, so the role table decides. A project's own table wins
+    # over the machine's, and only for the roles it names.
+    declared = read_project(root)
+    roles = {**config.roles, **(declared.roles if declared else {})}
+    named = {role.provider for role in roles.values()}
+    named |= {spare for role in roles.values() for spare in role.fallback}
+    executors.update(
+        {name: providers.build_executor(name, _settings(config, name, typed)) for name in sorted(named)}
     )
+    return StepRunner(store=store, registry=registry, executors=executors, roles=roles)
 
 
 def _settings(config: Config, provider: str, typed: dict[str, list[str]]) -> dict[str, list[str]]:

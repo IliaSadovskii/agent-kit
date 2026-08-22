@@ -141,6 +141,15 @@ class StepRunner:
                 outcome.passed = True
                 outcome.output = output
                 log.info("%s: %s passed on %s (attempt %s)", slug, definition.name, provider, record.attempt)
+
+                if definition.gate and output.get(definition.gate) is False:
+                    # The step did its work and what it recorded is that the run
+                    # must not go on. Nothing was refused; the run stops here.
+                    outcome.reason = (
+                        f"{definition.name} recorded {definition.gate} as false, and the run does not go past that"
+                    )
+                    self.store.fail_run(slug, outcome.reason)
+                    log.info("%s: %s stopped the run: %s is false", slug, definition.name, definition.gate)
                 return outcome
 
             refusal = record.refusal

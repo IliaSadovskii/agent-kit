@@ -57,6 +57,10 @@ class StepDefinition:
     #: A step that cannot be composed without knowing what is being built.
     #: `create_run` refuses a run of such steps with no brief.
     needs_brief: bool = False
+    #: A boolean field of this step's own output that the run may not pass with
+    #: false. The step itself succeeded — it recorded what is true — and what is
+    #: true is that the run must not go on. Empty when the step gates nothing.
+    gate: str = ""
     #: Open question 5, the ceiling inside a step. A step that may be split is
     #: continued in a fresh session with what the previous one produced. A step
     #: that may not and outgrows its window is a design error, not a survival.

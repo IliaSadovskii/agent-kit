@@ -161,6 +161,7 @@ VERIFY = StepDefinition(
     role="verify",
     executor="program:verify",
     title="run what the project declares and record what it printed",
+    gate="passed",
     contract=Contract(
         fields=(
             Records(
