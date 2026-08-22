@@ -36,12 +36,17 @@ class ExecutorFailed(KitError):
         *,
         hint: str = "",
         retryable: bool = True,
+        expected: bool = False,
         until: str | None = None,
         facts: "SessionFacts | None" = None,
     ) -> None:
         super().__init__(code, detail, hint=hint)
         #: False when a second attempt is guaranteed to fail the same way.
         self.retryable = retryable
+        #: True when this is the method working rather than the kit breaking —
+        #: a blocked review, a red suite, a build that says it never finished.
+        #: The run stops on these; it fails on everything else.
+        self.expected = expected
         #: When a limited account comes back, in the provider's own words.
         self.until = until
         self.facts = facts or SessionFacts()

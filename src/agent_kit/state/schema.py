@@ -244,6 +244,21 @@ class Run:
         self.updated_at = now()
         return self
 
+    def halt(self, reason: str) -> "Run":
+        """A step passed, and what it recorded is that the run must not go on.
+
+        Legal from `done`, and that is the whole reason it exists: the last step
+        passing does not make a run done when the thing that step recorded is
+        that the work is not deliverable. The step keeps its `passed` — it did
+        its job — and the run says why it stopped.
+        """
+        self.current_step = None
+        self.status = RunStatus.STOPPED
+        self.finished_at = now()
+        self.reason = _reason(reason)
+        self.updated_at = now()
+        return self
+
     def stop(self, reason: str) -> "Run":
         if self.finished:
             raise StateError("run-finished", f"{self.slug} is already {self.status.value}")

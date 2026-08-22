@@ -139,7 +139,8 @@ REVIEW = StepDefinition(
             Enum(
                 "verdict",
                 choices=("pass", "blocked"),
-                help="blocked when any finding is blocking; the program checks that they agree",
+                help="blocked when any finding is blocking, and pass otherwise. Delivery reads "
+                     "this as well as the findings, and refuses if the two disagree",
             ),
             Records(
                 "findings",

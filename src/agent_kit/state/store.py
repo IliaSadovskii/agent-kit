@@ -115,6 +115,10 @@ class RunStore:
     def fail_run(self, slug: str, reason: str) -> Run:
         return self.update(slug, lambda run: run.fail(reason))
 
+    def halt(self, slug: str, reason: str) -> Run:
+        """A step passed and said the run must not go on."""
+        return self.update(slug, lambda run: run.halt(reason))
+
     def stop(self, slug: str, reason: str) -> Run:
         return self.update(slug, lambda run: run.stop(reason))
 

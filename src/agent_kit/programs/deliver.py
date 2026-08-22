@@ -261,7 +261,7 @@ def _refuse_unless_deliverable(build: dict, verify: dict, review: dict) -> None:
     if not build.get("complete"):
         left = ", ".join(build.get("remaining") or []) or "it did not say what is left"
         raise ExecutorFailed(
-            "build-unfinished", f"the build did not finish: {left}", retryable=False
+            "build-unfinished", f"the build did not finish: {left}", retryable=False, expected=True
         )
 
     if not verify.get("passed"):
@@ -274,15 +274,27 @@ def _refuse_unless_deliverable(build: dict, verify: dict, review: dict) -> None:
             "not-verified",
             f"the project's own commands did not come back green: {', '.join(failed) or 'no command ran'}",
             retryable=False,
+            expected=True,
         )
 
+    # The verdict is the reviewer's own summary of its findings, and the two
+    # must agree — a reviewer that blocks and lists nothing, or lists something
+    # blocking and passes anyway, has not made a decision the program can act on.
     blocking = [finding for finding in review.get("findings") or [] if finding.get("severity") == BLOCKING]
-    if blocking:
+    verdict = review.get("verdict")
+    if blocking and verdict != "blocked":
+        raise ExecutorFailed(
+            "review-disagrees-with-itself",
+            f"the verdict is {verdict!r} and yet a finding blocks: " + "; ".join(_where(f) for f in blocking),
+            retryable=False,
+        )
+    if verdict == "blocked":
+        named = "; ".join(_where(finding) for finding in blocking) or "and it named nothing that does"
         raise ExecutorFailed(
             "blocked-by-review",
-            "the review found something that blocks delivery: "
-            + "; ".join(_where(finding) for finding in blocking),
+            f"the review blocks delivery: {named}",
             retryable=False,
+            expected=True,
         )
 
 

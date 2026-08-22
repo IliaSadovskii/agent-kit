@@ -362,7 +362,7 @@ def _go(store: RunStore, registry, args: argparse.Namespace) -> int:
         if run.status is RunStatus.DONE:
             return int(ExitCode.OK)
         print(f"{outcome.slug}: {run.reason}", file=sys.stderr)
-        return int(ExitCode.STATE)
+        return int(ExitCode.REFUSED if run.status is RunStatus.STOPPED else ExitCode.STATE)
 
 
 def _where(run) -> str:

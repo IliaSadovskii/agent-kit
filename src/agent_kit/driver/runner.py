@@ -42,6 +42,8 @@ class AttemptRecord:
     refusal: str | None = None
     #: False when asking this provider again is guaranteed to fail the same way.
     retryable: bool = True
+    #: True when this was the method working rather than the kit breaking.
+    expected: bool = False
     meta: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -149,11 +151,14 @@ class StepRunner:
 
                 if definition.gate and output.get(definition.gate) is False:
                     # The step did its work and what it recorded is that the run
-                    # must not go on. Nothing was refused; the run stops here.
+                    # must not go on. Nothing was refused and nothing broke, so
+                    # the run stops rather than fails: `failed` is for a kit that
+                    # could not do its work, and this one did.
                     outcome.reason = (
-                        f"{definition.name} recorded {definition.gate} as false, and the run does not go past that"
+                        f"{definition.name} passed and recorded {definition.gate} as false; "
+                        "the run does not go past that"
                     )
-                    self.store.fail_run(slug, outcome.reason)
+                    self.store.halt(slug, outcome.reason)
                     log.info("%s: %s stopped the run: %s is false", slug, definition.name, definition.gate)
                 return outcome
 
@@ -167,9 +172,18 @@ class StepRunner:
                 # money. This provider has said its piece; ask the next one.
                 remaining = [name for name in remaining if name != provider]
 
+        last = outcome.attempts[-1]
+        if last.expected:
+            # The method said no. That is what it is for, and it is not a fault
+            # of the kit, so the run is stopped and the reason is the answer.
+            outcome.reason = f"{definition.name}: {refusal}"
+            self.store.stop(slug, outcome.reason)
+            log.info("%s: %s refused delivery — %s", slug, definition.name, refusal)
+            return outcome
+
         outcome.reason = (
             f"{definition.name} was refused {len(outcome.attempts)} times, last on "
-            f"{outcome.attempts[-1].provider}: {refusal}"
+            f"{last.provider}: {refusal}"
         )
         self.store.fail_run(slug, outcome.reason)
         return outcome
@@ -252,6 +266,7 @@ class StepRunner:
                 f"{failure.code}: {failure.detail}",
                 {"provider": provider, "attempt": attempt, "step": definition.name, **failure.facts.as_dict()},
                 retryable=failure.retryable,
+                expected=failure.expected,
             )
         except Exception as crash:
             # An adapter is somebody else's code around somebody else's CLI. A
@@ -292,6 +307,7 @@ class StepRunner:
         reason: str,
         meta: dict,
         retryable: bool = True,
+        expected: bool = False,
     ) -> AttemptRecord:
         workspace.write_refusal(attempt, reason)
         if meta:
@@ -302,6 +318,7 @@ class StepRunner:
             provider=provider,
             refusal=reason,
             retryable=retryable,
+            expected=expected,
             meta=meta,
         )
 

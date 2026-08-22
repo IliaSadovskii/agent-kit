@@ -407,9 +407,9 @@ def test_run_go_stops_at_the_step_that_would_not_pass(machine, capsys, tmp_path)
         capsys,
     )
 
-    assert code == ExitCode.STATE
+    assert code == ExitCode.REFUSED
     assert "verify" in err
-    assert json.loads(run(["run", "show", "add-vat", "--json"], capsys)[1])["status"] == "failed"
+    assert json.loads(run(["run", "show", "add-vat", "--json"], capsys)[1])["status"] == "stopped"
 
 
 def test_run_go_refuses_a_run_that_is_already_over(machine, capsys, tmp_path):

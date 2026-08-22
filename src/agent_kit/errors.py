@@ -15,6 +15,7 @@ class ExitCode(IntEnum):
     CONFIG = 2  # the machine's configuration is missing something or is wrong
     STATE = 3  # a run's state refuses what was asked of it
     PROVIDER = 4  # an agent CLI is missing, unauthenticated or limited
+    REFUSED = 5  # the method said no: a blocking finding, a red suite, an unfinished build
     INTERRUPTED = 130  # the operator stopped it
     INTERNAL = 70  # a defect in the kit: it should have been one of the above
 
