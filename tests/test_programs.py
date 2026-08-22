@@ -248,3 +248,20 @@ def test_a_command_that_hangs_takes_its_children_with_it(tmp_path):
     grew = mark.stat().st_size if mark.exists() else 0
     __import__("time").sleep(1.5)
     assert (mark.stat().st_size if mark.exists() else 0) == grew
+
+
+def test_verify_waits_as_long_as_the_project_said_and_no_longer(tmp_path):
+    """The kit's hour is a default, not a rule: a project knows its own suite."""
+    from agent_kit.programs.verify import Verify
+
+    mark = tmp_path / "still-alive"
+    declare(
+        tmp_path,
+        "[project]\ncommand_timeout = 2\n\n"
+        f'[commands]\ntest = "(while true; do echo x >> {mark}; sleep 0.2; done) & sleep 30"\n',
+    )
+
+    said = answer(Verify(tmp_path).execute(request(tmp_path)))
+
+    assert said["passed"] is False
+    assert "2 seconds" in said["commands"][0]["output"]

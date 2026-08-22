@@ -11,7 +11,12 @@ import pytest
 
 from agent_kit.cli.main import main
 from agent_kit.errors import ConfigError, ExitCode
-from agent_kit.project import PROJECT_FILE, read_project, require_project
+from agent_kit.project import (
+    DEFAULT_COMMAND_TIMEOUT,
+    PROJECT_FILE,
+    read_project,
+    require_project,
+)
 
 
 def git(root, *argv):
@@ -222,3 +227,36 @@ def test_a_project_from_an_older_kit_stops_hiding_its_own_declaration(repo):
     ).returncode == 0
     assert not ignored
     assert not old.exists()
+
+
+# --- how long the project will wait for its own commands --------------------
+
+
+def test_a_project_says_how_long_it_waits_for_its_own_commands(tmp_path):
+    declare(tmp_path, '[project]\ncommand_timeout = 30\n\n[commands]\ntest = "true"\n')
+
+    assert read_project(tmp_path).command_timeout == 30
+
+
+def test_a_project_that_says_nothing_waits_the_hour_a_suite_is_allowed(tmp_path):
+    declare(tmp_path, '[commands]\ntest = "true"\n')
+
+    assert read_project(tmp_path).command_timeout == DEFAULT_COMMAND_TIMEOUT
+
+
+def test_a_waiting_time_that_is_not_a_number_of_seconds_is_refused_by_name(tmp_path):
+    declare(tmp_path, '[project]\ncommand_timeout = "soon"\n\n[commands]\ntest = "true"\n')
+
+    with pytest.raises(ConfigError) as caught:
+        read_project(tmp_path)
+
+    assert caught.value.code == "bad-value"
+    assert "command_timeout" in caught.value.detail
+
+
+def test_what_the_project_declared_survives_being_written_out_again(repo):
+    declare(repo, '[project]\ndefault_branch = "main"\ncommand_timeout = 45\n\n[commands]\ntest = "make test"\n')
+
+    main(["-C", str(repo), "init", "--force"])
+
+    assert read_project(repo).command_timeout == 45

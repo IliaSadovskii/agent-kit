@@ -471,3 +471,34 @@ def test_a_provider_that_will_not_answer_still_fails_the_run(machine, capsys, tm
 
     assert code == ExitCode.STATE
     assert json.loads(run(["run", "show", "add-vat", "--json"], capsys)[1])["status"] == "failed"
+
+
+REVIEW_BLOCKED = json.dumps(
+    {
+        "verdict": "blocked",
+        "findings": [{"severity": "blocking", "what": "a negative rate is not refused"}],
+    }
+)
+
+
+def test_a_run_the_method_stopped_exits_on_the_refused_code_not_the_state_one(machine, capsys, tmp_path):
+    """`stopped` means one thing, whichever step said so.
+
+    A gate that closes already exits 5. A blocking finding stops the run in the
+    same way and used to exit 3, so a script could not tell "the method said no"
+    from "the kit could not do its work" — which is the whole point of the code.
+    """
+    declare(tmp_path, '[commands]\ntest = "true"\n')
+    run(["run", "new", "add-vat", "--brief", "VAT"], capsys)
+
+    code, _, err = run(
+        [
+            "run", "go", "add-vat", "--provider", "fake",
+            *scripted(tmp_path, DESIGN_REPLY, BUILD_REPLY, REVIEW_BLOCKED),
+        ],
+        capsys,
+    )
+
+    assert code == ExitCode.REFUSED
+    assert "blocked-by-review" in err
+    assert json.loads(run(["run", "show", "add-vat", "--json"], capsys)[1])["status"] == "stopped"

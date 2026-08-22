@@ -101,3 +101,57 @@ def test_a_declaration_with_a_key_the_kit_does_not_read_is_refused(tmp_path, mon
 
     assert caught.value.code == "bad-declaration"
     assert "levle" in caught.value.detail
+
+
+# --- the fixture answers, and may also act ----------------------------------
+
+
+def test_a_scripted_reply_may_do_what_a_session_would_have_done(tmp_path):
+    """A session answers and edits. A fixture that only answers cannot plant a trap.
+
+    So a reply file may carry a script beside it, and it runs in the project
+    before the answer is given. Only the fake provider has this: it is the one
+    thing that stands where a session would.
+    """
+    from agent_kit.providers.base import StepRequest
+    from agent_kit.providers.fake.adapter import build_executor
+
+    reply = tmp_path / "01-build.json"
+    reply.write_text('{"complete": true}', encoding="utf-8")
+    (tmp_path / "01-build.sh").write_text("#!/bin/sh\nprintf 'RATE = 20\\n' >> money.py\n", encoding="utf-8")
+    (tmp_path / "01-build.sh").chmod(0o755)
+    project = tmp_path / "project"
+    project.mkdir()
+
+    executor = build_executor({"reply": [str(reply)]})
+    result = executor.execute(
+        StepRequest(
+            slug="add-vat", step_name="build", attempt=1, provider="fake",
+            input_text="", workdir=project, project=project,
+        )
+    )
+
+    assert result.raw == '{"complete": true}'
+    assert (project / "money.py").read_text() == "RATE = 20\n"
+
+
+def test_a_reply_whose_script_fails_is_a_refused_attempt_not_a_crash(tmp_path):
+    from agent_kit.providers.base import ExecutorFailed, StepRequest
+    from agent_kit.providers.fake.adapter import build_executor
+
+    reply = tmp_path / "01-build.json"
+    reply.write_text("{}", encoding="utf-8")
+    (tmp_path / "01-build.sh").write_text("#!/bin/sh\necho no >&2\nexit 3\n", encoding="utf-8")
+    (tmp_path / "01-build.sh").chmod(0o755)
+
+    executor = build_executor({"reply": [str(reply)]})
+
+    with pytest.raises(ExecutorFailed) as refused:
+        executor.execute(
+            StepRequest(
+                slug="add-vat", step_name="build", attempt=1, provider="fake",
+                input_text="", workdir=tmp_path, project=tmp_path,
+            )
+        )
+
+    assert refused.value.code == "reply-script-failed"
