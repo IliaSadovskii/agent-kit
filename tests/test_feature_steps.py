@@ -24,6 +24,7 @@ DESIGN = {
     "changes": ["src/kit_sandbox/money.py — a with_vat method"],
     "seams": ["Money is frozen, so with_vat returns a new one"],
     "verification": ["a test that 1000 at 20% is 1200", "a test that a negative rate is refused"],
+    "needs_owner": [],
     "assumptions": [{"what": "VAT is a whole percent", "expensive": False, "because": "the sandbox has no fractions"}],
 }
 
@@ -172,3 +173,17 @@ def test_each_step_is_handed_what_the_one_before_it_returned(tmp_path):
 
 def test_a_design_that_gives_no_subject_line_is_refused():
     assert refuse("design", {**DESIGN, "title": None}) == "output-missing-field: title"
+
+
+def test_nothing_to_say_is_said_and_not_left_out():
+    """An empty list is an answer. A missing field is a step that did not answer."""
+    for step, field in (
+        ("design", "assumptions"), ("design", "needs_owner"),
+        ("build", "deviations"), ("review", "findings"),
+    ):
+        whole = {"design": DESIGN, "build": BUILD, "review": REVIEW}[step]
+        contract(step).check({**whole, field: []})  # nothing to say, said
+
+        assert refuse(step, {k: v for k, v in whole.items() if k != field}) == (
+            f"output-missing-field: {field}"
+        )

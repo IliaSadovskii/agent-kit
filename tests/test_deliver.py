@@ -24,6 +24,7 @@ DESIGN = {
     "changes": ["money.py — a with_vat method"],
     "seams": ["Money is frozen, so with_vat returns a new one"],
     "verification": ["a test that 1000 at 20% is 1200"],
+    "needs_owner": [],
     "assumptions": [
         {"what": "the rate is a whole percent", "expensive": True, "because": "nothing in the sandbox uses fractions"}
     ],
