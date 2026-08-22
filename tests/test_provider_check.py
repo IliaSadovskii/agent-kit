@@ -9,7 +9,7 @@ import stat
 
 import pytest
 
-from agent_kit.providers.check import RUNGS, check_provider
+from agent_kit.driver.check import RUNGS, check_provider
 
 ANSWER = {
     "type": "result",
@@ -20,6 +20,10 @@ ANSWER = {
     "usage": {"input_tokens": 2, "cache_read_input_tokens": 16091, "output_tokens": 4},
     "modelUsage": {"claude-sonnet-5": {"contextWindow": 1000000}},
 }
+
+
+def _rung(report, name):
+    return next(rung for rung in report.rungs if rung.name == name)
 
 
 def claude_that(tmp_path, body: str):
@@ -70,7 +74,7 @@ def test_the_login_is_a_rung_of_its_own(tmp_path, monkeypatch):
 
     assert report.failed == "login"
     assert report.level is None
-    assert "login" in report.rungs[2].detail.lower()
+    assert "login" in _rung(report, "login").detail.lower()
 
 
 def test_whether_a_limit_could_be_read_is_measured_too(tmp_path, monkeypatch):
@@ -132,7 +136,7 @@ def test_a_cli_that_does_not_answer_fails_the_second(tmp_path):
     report = check_provider("claude_code", options, project=tmp_path)
 
     assert report.failed == "answers"
-    assert "broken" in report.rungs[1].detail
+    assert "broken" in _rung(report, "answers").detail
 
 
 def test_a_one_shot_job_that_returns_nothing_useful_fails_the_third(tmp_path):
@@ -156,7 +160,7 @@ def test_an_answer_that_misses_the_contract_earns_level_a_not_b(tmp_path, monkey
 
     assert report.level == "A"
     assert report.failed == "contract"
-    assert "branch" in report.rungs[3].detail
+    assert "branch" in _rung(report, "contract").detail
 
 
 def test_a_provider_that_cannot_say_how_much_context_is_level_a(tmp_path, monkeypatch):
@@ -184,14 +188,15 @@ def test_a_provider_that_cannot_even_be_built_is_a_report_not_a_traceback(tmp_pa
 
     assert report.level is None
     assert report.failed == "binary"
-    assert "no-reply" in report.rungs[0].detail
+    assert "no-reply" in _rung(report, "binary").detail
 
 
 def test_checking_leaves_nothing_behind_in_the_project(tmp_path, monkeypatch):
     _transcript(tmp_path, monkeypatch)
+    options = answering(tmp_path)
     before = sorted(entry.name for entry in tmp_path.iterdir())
 
-    check_provider("claude_code", answering(tmp_path), project=tmp_path)
+    check_provider("claude_code", options, project=tmp_path)
 
     assert sorted(entry.name for entry in tmp_path.iterdir()) == before
 

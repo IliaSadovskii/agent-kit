@@ -22,10 +22,29 @@ class ExecutorFailed(KitError):
     """The session did not answer: it died, it hung, the provider is limited.
 
     This is an attempt like any other — the driver encloses the reason and tries
-    again — never a crash of the run.
+    again — never a crash of the run. Two things ride along, because both cost
+    money when they are missing: whether trying again could possibly help, and
+    what the attempt spent before it failed.
     """
 
     exit_code = ExitCode.PROVIDER
+
+    def __init__(
+        self,
+        code: str,
+        detail: str = "",
+        *,
+        hint: str = "",
+        retryable: bool = True,
+        until: str | None = None,
+        facts: "SessionFacts | None" = None,
+    ) -> None:
+        super().__init__(code, detail, hint=hint)
+        #: False when a second attempt is guaranteed to fail the same way.
+        self.retryable = retryable
+        #: When a limited account comes back, in the provider's own words.
+        self.until = until
+        self.facts = facts or SessionFacts()
 
 
 @dataclass(frozen=True)
@@ -50,10 +69,15 @@ class SessionFacts:
 
     session: str | None = None
     model: str | None = None
+    #: What the session was actually carrying when it last answered.
     context_used: int | None = None
     context_window: int | None = None
+    #: Every token the account was billed for, cache re-reads included. Spend,
+    #: not fullness: over several turns it outgrows the window many times over.
+    tokens_billed: int | None = None
     cost_usd: float | None = None
     transcript: Path | None = None
+    limited_until: str | None = None
 
     @property
     def observed(self) -> bool:
@@ -72,8 +96,10 @@ class SessionFacts:
             "model": self.model,
             "context_used": self.context_used,
             "context_window": self.context_window,
+            "tokens_billed": self.tokens_billed,
             "cost_usd": self.cost_usd,
             "transcript": str(self.transcript) if self.transcript else None,
+            "limited_until": self.limited_until,
         }
 
 

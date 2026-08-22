@@ -90,6 +90,83 @@ The probe also did its job, and found two defects in the kit rather than in the 
 Neither was found by 168 passing tests. That is the argument for a step whose only job is to look
 around, and the argument for running one against something real before building anything on top.
 
+## What two reviews changed, the same day
+
+Two reviewers read S3 — one the code, one the plan — and between them found seven blocking
+defects. Six of the seven share a shape: **the kit believed something it had not measured.**
+
+**A good answer that talks about limits was read as a limited account.** The adapter grepped the
+*successful* result text for "usage limit reached" and "rate limit". A probe whose notes said *the
+endpoint has no rate limit* therefore refused itself. The reviewer proved it by running the driver:
+three real sessions spent, three valid answers discarded, the run failed. A limit is a thing that
+happens on the failure path — `is_error`, or a non-zero exit — and that is now the only place it is
+read. Reading the model's prose as if it were the account's state was the whole mistake.
+
+**The context number was three times the truth.** The counters in the result JSON are totals over
+every turn of the session, and the cached prefix is re-counted in each one, so the number grows with
+the number of turns while the context does not — it can exceed the very window it is compared
+against. The honest occupancy is the *last* assistant turn, and only the transcript carries it. The
+same session that reported 80,694 tokens above was carrying 27,249. The totals are kept, renamed to
+what they are: `tokens_billed`, spend rather than fullness.
+
+**Two more that cost money to be wrong about.** A line of anything before the JSON — a node warning,
+a shell notice — lost the whole answer, and the runner paid for it three more times; the JSON is now
+found inside whatever stream it arrives in. And a byte that is not UTF-8 escaped as a decode error
+nothing caught; the stream is decoded with `errors="replace"`, because an odd byte is not worth
+losing an answer over.
+
+**The ladder measured three rungs of five and printed level B.** The plan's list is *the binary is
+on PATH, the login answers, the full-access flag is accepted, a one-shot job returns something, the
+session's context and limit are readable.* The login had no rung of its own — a logged-out CLI
+answers `--version` perfectly well — and nothing measured whether a limit could be read at all,
+which is half of level B's own definition. Both are rungs now, and a rung a provider cannot be
+asked is marked so rather than counted as passed: the fake climbed one rung and was being credited
+with three.
+
+**The measured level was printed and thrown away.** It is written to
+`~/.local/state/agent-kit/providers.json` now, and `provider list` says *measured B on 2026-08-22*
+or *not measured — A is what it claims*. A level nobody wrote down is a claim again by morning.
+
+**A folder with only a `provider.toml` did not work**, though the plan says that is exactly what
+level A is, and the registry's own docstring repeated the claim. The process runner moved to
+`providers/process.py` and is built from the declaration, so a provider with no Python at all now
+runs; `claude_code/adapter.py` is what is left after that — the transcript, the model, the limit,
+which is precisely "what cannot be declared".
+
+The rest, each small and each paid for in real money if left: a timeout killed the session but not
+the tools it had started (the child gets its own process group now); a second model in the answer
+mislabelled the model and shrank the window fivefold; what a refused attempt cost was thrown away,
+so spend was invisible exactly while the kit was burning it; failures that can never come right —
+a missing binary, an exhausted account — were retried three times each and now say so; the fields
+in `meta.json` had no reader, and `run show` is now it; `config.toml`'s answers never reached the
+provider they configure; and `check.py` moved to `driver/`, because a module that composes an input
+and runs an executor is driver work, and `providers/` importing `driver/` pointed the arrow
+backwards.
+
+Measured again afterwards, on the real CLI:
+
+```
+  ok  binary     /home/dev/.local/bin/claude
+  ok  answers    2.1.239 (Claude Code)
+  ok  login      the account answered
+  ok  one_shot   584 characters came back
+  ok  contract   the answer satisfied the probe's contract
+  ok  observed   26,983 of 1,000,000 tokens
+  ok  limits     a limited account is read, with the hour it resets (5pm (UTC))
+```
+
+**The lesson, and it is not "write more tests".** All 169 tests passed while every one of these was
+true. They passed because every fake answer in them was a clean success or a clean failure, and
+nothing outside is clean. S3 is the first code that runs somebody else's process: a stream that can
+carry anything, a text that can say anything, a child that can outlive its parent, and a bill. The
+tests that now exist are the dirty cases, and they are the ones worth having.
+
+**One number that is not a budget.** `context_window` is 1,000,000 for this provider and nothing in
+the kit treats it as a ceiling. The plan is explicit that the old 210k was fitted to the price of a
+token and the cache rather than the size of a window, and that every provider is measured again.
+Until something measures it, this number is what the window holds, not what a step should be allowed
+to spend.
+
 ## Open, and it wants a decision at S4
 
 **A driven session inherits instructions the kit did not compose.** The probe's first real answer

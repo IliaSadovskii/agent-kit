@@ -35,6 +35,8 @@ class AttemptRecord:
     on_provider: int
     provider: str
     refusal: str | None = None
+    #: False when asking this provider again is guaranteed to fail the same way.
+    retryable: bool = True
     meta: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -96,7 +98,9 @@ class StepRunner:
         refusal: str | None = None
         seen: dict[str, int] = {}
 
-        for provider in providers:
+        remaining = list(providers)
+        while remaining:
+            provider = remaining.pop(0)
             seen[provider] = seen.get(provider, 0) + 1
             run = self.store.start_step(slug, provider=provider)
             try:
@@ -120,6 +124,12 @@ class StepRunner:
             refusal = record.refusal
             self.store.refuse_step(slug, f"{definition.name} on {provider}: {refusal}")
             log.info("%s: %s refused on %s — %s", slug, definition.name, provider, refusal)
+
+            if not record.retryable:
+                # Three tries at a missing binary is three times nothing, and
+                # with a real provider each try is a session, and a session is
+                # money. This provider has said its piece; ask the next one.
+                remaining = [name for name in remaining if name != provider]
 
         outcome.reason = (
             f"{definition.name} was refused {len(outcome.attempts)} times, last on "
@@ -168,8 +178,16 @@ class StepRunner:
         try:
             result = self.executors[provider].execute(request)
         except ExecutorFailed as failure:
+            # What the attempt spent before it failed is recorded too: the spend
+            # must be visible exactly when the kit is burning money on retries.
             return self._refused(
-                workspace, attempt, on_provider, provider, f"{failure.code}: {failure.detail}", {}
+                workspace,
+                attempt,
+                on_provider,
+                provider,
+                f"{failure.code}: {failure.detail}",
+                {"provider": provider, "attempt": attempt, "step": definition.name, **failure.facts.as_dict()},
+                retryable=failure.retryable,
             )
         except Exception as crash:
             # An adapter is somebody else's code around somebody else's CLI. A
@@ -202,11 +220,25 @@ class StepRunner:
         return AttemptRecord(attempt=attempt, on_provider=on_provider, provider=provider, meta=meta)
 
     def _refused(
-        self, workspace: StepWorkspace, attempt: int, on_provider: int, provider: str, reason: str, meta: dict
+        self,
+        workspace: StepWorkspace,
+        attempt: int,
+        on_provider: int,
+        provider: str,
+        reason: str,
+        meta: dict,
+        retryable: bool = True,
     ) -> AttemptRecord:
         workspace.write_refusal(attempt, reason)
+        if meta:
+            workspace.write_meta(attempt, meta)
         return AttemptRecord(
-            attempt=attempt, on_provider=on_provider, provider=provider, refusal=reason, meta=meta
+            attempt=attempt,
+            on_provider=on_provider,
+            provider=provider,
+            refusal=reason,
+            retryable=retryable,
+            meta=meta,
         )
 
     # --- who runs it, and what it is given --------------------------------

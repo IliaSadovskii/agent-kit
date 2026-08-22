@@ -51,13 +51,15 @@ def test_a_declaration_with_no_provider_table_is_refused(tmp_path, monkeypatch):
     assert caught.value.code == "bad-declaration"
 
 
-def test_a_provider_with_no_executor_module_is_refused(tmp_path, monkeypatch):
+def test_a_provider_that_declares_nothing_to_run_is_refused(tmp_path, monkeypatch):
+    """A folder with no binary and no adapter is not a provider, it is a wish."""
     declare(tmp_path, monkeypatch, "hollow", "[provider]\ntitle = 'nothing behind it'\n")
 
     with pytest.raises(ProviderError) as caught:
         registry.build_executor("hollow")
 
-    assert caught.value.code == "no-adapter"
+    assert caught.value.code == "bad-declaration"
+    assert "binary" in caught.value.detail
 
 
 def test_a_folder_with_only_a_declaration_is_a_level_a_provider(tmp_path, monkeypatch):

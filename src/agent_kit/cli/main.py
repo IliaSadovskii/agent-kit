@@ -263,6 +263,8 @@ def _run(args: argparse.Namespace) -> int:
                 mark = ">" if index == run.current_step else " "
                 reason = f"  {step.reason}" if step.reason else ""
                 print(f" {mark} {step.name:12} {step.status.value:8} attempts {step.attempts}{reason}")
+                for line in _what_the_step_cost(store, run.slug, index, step.name):
+                    print(f"     {line}")
         return int(ExitCode.OK)
 
     if what == "start":
@@ -365,12 +367,21 @@ def _provider(args: argparse.Namespace, paths: Paths) -> int:
     if what != "list":
         raise UsageError("unknown-command", f"provider {what}")
 
+    from ..providers.measured import measured_levels
+
     config = load_config(paths.config_file)
+    measured = measured_levels(paths)
     for facts in providers.all_facts():
         chosen = config.providers.get(facts.name)
         state = "not configured here" if chosen is None else ("enabled" if chosen.enabled else "disabled")
         real = "" if facts.real else "  (a fixture, not an agent)"
-        print(f"{facts.name:12} level {facts.level:2} {state:20}{real}")
+        seen = measured.get(facts.name)
+        earned = (
+            f"not measured — {facts.level} is what it claims"
+            if seen is None
+            else f"measured {seen.level or 'no level'} on {seen.measured_at[:10]}"
+        )
+        print(f"{facts.name:12} declares {facts.level:2} {earned:38} {state:20}{real}")
     return int(ExitCode.OK)
 
 
@@ -378,20 +389,41 @@ def _runner(store: RunStore, registry, provider: str | None, options: list[str])
     """Everything a run needs to advance: who executes, and which role names them."""
     paths = Paths.from_env()
     config = load_config(paths.config_file)
-    parsed = _options(options)
-    if provider is None:
-        # Nobody named one, so the role table decides — and it must name a
-        # provider for every role the run will reach.
-        return StepRunner(store=store, registry=registry, executors={}, roles=config.roles)
+    typed = _options(options)
 
-    # Somebody typed a provider. Configuration does not overrule what was asked for.
+    if provider is not None:
+        # Somebody typed a provider. Configuration does not overrule what was
+        # asked for — but what it says *about* that provider still applies.
+        return StepRunner(
+            store=store,
+            registry=registry,
+            executors={provider: providers.build_executor(provider, _settings(config, provider, typed))},
+            roles={},
+            default_provider=provider,
+        )
+
+    # Nobody named one, so the role table decides, and every provider it names
+    # is built from what the configuration answered about it.
+    named = {role.provider for role in config.roles.values()}
+    named |= {spare for role in config.roles.values() for spare in role.fallback}
     return StepRunner(
         store=store,
         registry=registry,
-        executors={provider: providers.build_executor(provider, parsed)},
-        roles={},
-        default_provider=provider,
+        executors={name: providers.build_executor(name, _settings(config, name, typed)) for name in sorted(named)},
+        roles=config.roles,
     )
+
+
+def _settings(config: Config, provider: str, typed: dict[str, list[str]]) -> dict[str, list[str]]:
+    """`provider.toml` asks; `config.toml` answers; what was typed wins over both."""
+    chosen = config.providers.get(provider)
+    answered: dict[str, list[str]] = {}
+    if chosen is not None:
+        for key in ("model", "effort", "account"):
+            value = getattr(chosen, key)
+            if value is not None:
+                answered[key] = [value]
+    return {**answered, **typed}
 
 
 def _options(pairs: list[str]) -> dict[str, list[str]]:
@@ -407,12 +439,14 @@ def _options(pairs: list[str]) -> dict[str, list[str]]:
 
 def _provider_check(args: argparse.Namespace) -> int:
     """The ladder, printed. A level nobody measured is a claim, not a fact."""
-    from ..providers.check import check_provider
+    from ..driver.check import check_provider
 
-    report = check_provider(args.name, _options(args.option), project=Path(args.project).resolve())
+    report = check_provider(
+        args.name, _options(args.option), project=Path(args.project).resolve(), remember=True
+    )
 
     for rung in report.rungs:
-        mark = "ok  " if rung.passed else "no  "
+        mark = "ok  " if rung.passed else ("--  " if not rung.applies else "no  ")
         print(f"  {mark}{rung.name:10} {rung.detail}")
     print()
 
@@ -427,7 +461,7 @@ def _provider_check(args: argparse.Namespace) -> int:
     if report.facts.transcript:
         print(f"  session   {report.facts.session}")
         print(f"  record    {report.facts.transcript}")
-    if not report.matches_declaration:
+    if not report.earns_what_it_declares:
         print(
             f"{args.name}: it declares level {report.declared_level} and earned {report.level}"
             f" — it failed at {report.failed}",
@@ -435,3 +469,27 @@ def _provider_check(args: argparse.Namespace) -> int:
         )
         return int(ExitCode.PROVIDER)
     return int(ExitCode.OK)
+
+
+def _what_the_step_cost(store: RunStore, slug: str, index: int, name: str) -> list[str]:
+    """What the driver wrote about a step, read back. Every field it writes has a reader."""
+    from ..driver.workspace import StepWorkspace
+
+    meta = StepWorkspace(store.run_root(slug), index, name).read_meta()
+    if not meta:
+        return []
+
+    said = []
+    where = " on ".join(part for part in (meta.get("model"), meta.get("provider")) if part)
+    if where:
+        said.append(where)
+    if meta.get("context_used") and meta.get("context_window"):
+        share = meta["context_used"] / meta["context_window"]
+        said.append(f"context {meta['context_used']:,} of {meta['context_window']:,} ({share:.1%})")
+    if meta.get("cost_usd") is not None:
+        said.append(f"${meta['cost_usd']:.2f}")
+    if meta.get("duration_ms"):
+        said.append(f"{meta['duration_ms'] / 1000:.1f}s")
+    if meta.get("limited_until"):
+        said.append(f"limited until {meta['limited_until']}")
+    return [", ".join(said)] if said else []

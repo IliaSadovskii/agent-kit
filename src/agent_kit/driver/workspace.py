@@ -51,14 +51,24 @@ class StepWorkspace:
         self._write(self.dir / "meta.json", _json({**meta, "attempt": attempt}))
         return self._write(self.dir / "output.json", _json(output))
 
+    def read_meta(self) -> dict | None:
+        return _read(self.dir / "meta.json")
+
     def read_output(self) -> dict | None:
-        path = self.dir / "output.json"
-        return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+        return _read(self.dir / "output.json")
 
     def _write(self, path: Path, text: str) -> Path:
         path.parent.mkdir(parents=True, exist_ok=True)
         write_whole(path, text)
         return path
+
+
+def _read(path: Path) -> dict | None:
+    try:
+        found = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return found if isinstance(found, dict) else None
 
 
 def _json(data: dict) -> str:
