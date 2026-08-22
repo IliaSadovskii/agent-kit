@@ -421,7 +421,13 @@ def _step(args: argparse.Namespace, paths: Paths) -> int:
         print(f"  prose     {prose}")
         print()
         print("returns:")
-        print(definition.contract.describe())
+        # What *this project* asks of the step, which is what the driver will
+        # show the session and check the answer against. One description, and
+        # now a person reads the same one.
+        from ..project import read_project
+
+        declared = read_project(Path(args.project).resolve())
+        print(definition.contract_in(bool(declared and declared.keeps_knowledge)).describe())
         return int(ExitCode.OK)
 
     store = RunStore(args.project)

@@ -35,6 +35,11 @@ DEFAULT_DIR = "docs/knowledge"
 #: How much of a block's first line the index carries.
 GLIMPSE = 120
 
+#: How far the derived identifier walks before giving up. It is a bound on a
+#: loop and not a refusal anybody will meet: reaching it needs every one of
+#: these names to stand in this project's knowledge under other runs.
+SALTS = 64
+
 
 class KnowledgeError(KitError):
     """The knowledge cannot answer what was asked of it, and this says what."""
@@ -89,7 +94,9 @@ class Knowledge:
         path = self.root / name
         if not wanted:
             raise KnowledgeError("bad-address", f"{at!r} names a file and no record in it")
-        if "/" in name or name in ("", ".", "..") or not path.is_file():
+        # `files()` and not `is_file()`: a block written anywhere else could never
+        # be found again — not by the index, not by `close`, not by `free_id`.
+        if name not in {held.name for held in self.files()}:
             raise KnowledgeError(
                 "no-such-file",
                 f"{name} is not a file of this project's knowledge: {', '.join(p.name for p in self.files()) or 'none'}",
@@ -110,33 +117,46 @@ class Knowledge:
                 return block
         raise KnowledgeError("no-such-block", f"no block of this project's knowledge carries the identifier {id!r}")
 
-    def free_id(self, slug: str, what: str, run: str) -> str:
-        """The derived identifier, unless it is already somebody else's.
+    def free_id(self, slug: str, what: str, run: str, claimed: set[str] | None = None) -> str:
+        """The derived identifier, unless it is already spoken for.
 
-        Ours is one this run wrote before — the same slug and the same
-        assumption produce it again, which is what makes a second attempt a
-        replacement rather than a duplicate. Anybody else's is a collision, and
-        it is stepped over rather than overwritten.
+        Two things are true at once and they nearly cancel. A block this run
+        wrote before is *ours*: the same slug and the same wording derive the
+        same name again, which is what makes a second attempt a replacement
+        rather than a duplicate. But two assumptions of one run worded the same
+        derive the same name too, and treating the second as a replacement of
+        the first deletes a block the run is supposed to be writing.
+
+        `claimed` is what tells them apart: an identifier this execution has
+        already handed out is taken, whoever holds it. The salt then walks on,
+        deterministically, so the second sibling gets the same second name every
+        time it is written.
         """
+        claimed = claimed if claimed is not None else set()
         standing = {block.id: block for block in self.blocks() if block.id}
-        for salt in range(64):
+        for salt in range(SALTS):
             wanted = identifier(slug, what, salt)
+            if wanted in claimed:
+                continue
             held = standing.get(wanted)
             if held is None or held.run == run:
                 return wanted
-        raise KnowledgeError("no-free-identifier", f"64 identifiers derived for {what!r} are all taken")
+        raise KnowledgeError("no-free-identifier", f"{SALTS} identifiers derived for {what!r} are all taken")
 
     # --- writing ----------------------------------------------------------
 
-    def write(self, at: str, run: str, body: str, id: str, date: str, kind: str = ASSUMED) -> Path:
+    def write(self, at: str, run: str, body: str, id: str, date: str) -> list[Path]:
         """Put the block at the end of the record it addresses, replacing its own.
 
         Its own, and only its own: a block with this identifier is removed
         wherever it stands before the new one is written, so a second attempt
         does not lay one beside the other and a changed address moves it.
+
+        Every file it touched comes back, not only the destination — a move
+        edits two, and the one it left had to reach the commit as well.
         """
         anchor = self.resolve(at)  # before anything is removed: a bad address changes nothing
-        self._remove(id, missing_ok=True)
+        touched = [self._remove(id, missing_ok=True)]
 
         path = self.root / anchor.file
         lines = self._lines(path)
@@ -145,28 +165,35 @@ class Knowledge:
         while end > anchor.line + 1 and not lines[end - 1].strip():
             end -= 1
 
-        block = render(kind, date, run, id, body)
+        block = render(ASSUMED, date, run, id, body)
         _write_lines(path, lines[:end] + [""] + block + lines[end:])
-        return path
+        return [held for held in dict.fromkeys([*touched, path]) if held is not None]
 
     def close(self, id: str) -> Path:
         """Closing is deletion, and deletion needs an address. That is the identifier's second reason."""
         return self._remove(id, missing_ok=False)
 
-    def _remove(self, id: str, missing_ok: bool) -> Path:
+    def _remove(self, id: str, missing_ok: bool) -> Path | None:
         try:
             block = self.find(id)
         except KnowledgeError:
             if missing_ok:
-                return self.root
+                return None
             raise
 
         path = self.root / block.file
         lines = self._lines(path)
         start, end = block.start, block.end
-        # One blank line above it goes too, or closing leaves a hole where the
-        # block was and every later block drifts down by one.
+        # The blank line that separated it goes with it, or closing leaves a
+        # hole. Which side it comes from depends on where the block stood: one
+        # at the head of a file has nothing above it, one at the foot nothing
+        # below, and taking from the wrong side leaves a file starting or
+        # ending in white space it never had.
         while start > 0 and not lines[start - 1].strip() and end < len(lines) and not lines[end].strip():
+            start -= 1
+        while start == 0 and end < len(lines) and not lines[end].strip():
+            end += 1
+        while end >= len(lines) and start > 0 and not lines[start - 1].strip():
             start -= 1
         _write_lines(path, lines[:start] + lines[end:])
         return path
@@ -229,6 +256,10 @@ def _purpose(lines: list[str]) -> str:
 
 
 def _write_lines(path: Path, lines: list[str]) -> None:
-    while lines and not lines[-1].strip():
-        lines.pop()
+    """The file as it was, plus or minus a block.
+
+    Nothing is trimmed: a round trip over the real knowledge used to give the
+    owner a diff with a blank line removed at the end of a file the kit never
+    meant to touch.
+    """
     write_whole(path, "\n".join(lines) + "\n")

@@ -48,7 +48,10 @@ class Record:
 
         knowledge = Knowledge(project.knowledge_dir)
         owing = expensive_of(design)
-        closing = [str(item) for item in (design.get("closes") or []) if str(item).strip()]
+        # Named twice means named once. Without this the pre-check below passes
+        # twice — the block is still there when it is asked — and the second
+        # delete refuses, having already rewritten the owner's file.
+        closing = list(dict.fromkeys(str(item).strip() for item in (design.get("closes") or []) if str(item).strip()))
 
         if not knowledge.exists:
             if closing:
@@ -72,6 +75,7 @@ class Record:
             )
 
         touched: list[Path] = []
+        claimed: set[str] = set()
         try:
             # Every address resolves before anything is written. A run that
             # half-wrote the owner's knowledge and then failed leaves a working
@@ -83,7 +87,7 @@ class Record:
                 knowledge.resolve(str(item["at"]))
 
             closed = [_closed(knowledge, id, touched) for id in closing]
-            blocks = [self._write(knowledge, request, item, touched) for item in owing]
+            blocks = [self._write(knowledge, request, item, touched, claimed) for item in owing]
         except KnowledgeError as refused:
             # The address, the identifier — the knowledge said no by name, and
             # the same name reaches the run's own record.
@@ -97,10 +101,15 @@ class Record:
         log.info("%s: %s blocks written, %s closed", request.slug, len(blocks), len(closed))
         return _said(blocks, closed, files)
 
-    def _write(self, knowledge: Knowledge, request: StepRequest, item: dict, touched: list[Path]) -> dict:
+    def _write(
+        self, knowledge: Knowledge, request: StepRequest, item: dict, touched: list[Path], claimed: set[str]
+    ) -> dict:
         what = str(item["what"])
-        id = knowledge.free_id(request.slug, what, request.branch)
-        touched.append(
+        # `claimed` is what keeps two assumptions worded the same from being one
+        # block: the second cannot be handed the name the first is already using.
+        id = knowledge.free_id(request.slug, what, request.branch, claimed)
+        claimed.add(id)
+        touched.extend(
             knowledge.write(
                 at=str(item["at"]), run=request.branch, body=str(item["block"]), id=id, date=self.today
             )

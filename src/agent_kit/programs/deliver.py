@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections import Counter
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -307,8 +308,16 @@ def _refuse_a_naked_assumption(design: dict, recorded: dict) -> None:
     point: it is what survives a run assembled from different steps, or a
     contract somebody loosens later without noticing what it held.
     """
-    written = {str(block.get("what")) for block in (recorded.get("blocks") or [])}
-    naked = [item for item in expensive_of(design) if str(item.get("what")) not in written]
+    # Counted, not gathered into a set: two assumptions worded the same owe two
+    # blocks, and a set says one block answers for both.
+    written = Counter(str(block.get("what")) for block in (recorded.get("blocks") or []))
+    naked = []
+    for item in expensive_of(design):
+        what = str(item.get("what"))
+        if written[what] > 0:
+            written[what] -= 1
+        else:
+            naked.append(item)
     if naked:
         raise ExecutorFailed(
             "assumption-with-no-block",

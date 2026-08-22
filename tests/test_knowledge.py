@@ -381,7 +381,7 @@ def test_two_blocks_with_nothing_between_them_are_two_blocks(knowledge):
         encoding="utf-8",
     )
 
-    assert [block.id for block in knowledge.blocks()] == ["aaaaaa", "bbbbbb"]
+    assert [block.id for block in knowledge.blocks() if block.file == "stack.md"] == ["aaaaaa", "bbbbbb"]
 
 
 def test_two_blocks_split_by_a_bare_quote_line_are_two_blocks(knowledge):
@@ -393,7 +393,7 @@ def test_two_blocks_split_by_a_bare_quote_line_are_two_blocks(knowledge):
         encoding="utf-8",
     )
 
-    assert [block.id for block in knowledge.blocks()] == ["aaaaaa", "bbbbbb"]
+    assert [block.id for block in knowledge.blocks() if block.file == "stack.md"] == ["aaaaaa", "bbbbbb"]
 
 
 def test_closing_the_first_of_two_touching_blocks_leaves_the_second(knowledge):

@@ -17,5 +17,6 @@
       "expensive": false,
       "because": "nothing in this project uses fractions of a percent"
     }
-  ]
+  ],
+  "closes": []
 }

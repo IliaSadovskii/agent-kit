@@ -35,7 +35,8 @@ QUOTE = "> "
 #: reader, and the kit refuses both. `accepted` is dropped.
 ASSUMED = "assumed"
 
-_HEADER = re.compile(r"^>\s*\*\*\[(?P<kind>[a-z]+) (?P<date>\d{4}-\d{2}-\d{2})(?P<rest>[^\]]*)\]\*\*")
+_HEADER = re.compile(r"^\s*>\s*\*\*\[(?P<kind>[a-z]+) (?P<date>\d{4}-\d{2}-\d{2})(?P<rest>[^\]]*)\]\*\*")
+_QUOTED = re.compile(r"^\s*>")
 _PAIR = re.compile(r"^(?P<key>[a-z_]+):\s*(?P<value>.+)$")
 _HEADING = re.compile(r"^(?P<hashes>#{1,6}) (?P<text>.+?)\s*$")
 _FENCE = re.compile(r"^\s*(```|~~~)")
@@ -130,7 +131,11 @@ def read_blocks(file: str, lines: list[str]) -> list[Block]:
             index += 1
             continue
         end = index + 1
-        while end < len(lines) and lines[end].startswith(">"):
+        # A quoted line belongs to this block unless it starts the next one.
+        # Two blocks with no blank line between them — or split by a bare `>`,
+        # which is how markdown separates quotes — used to read as one, and
+        # closing the first then took the second with it.
+        while end < len(lines) and _QUOTED.match(lines[end]) and not _HEADER.match(lines[end]):
             end += 1
         run, pairs = _segments(matched.group("rest"))
         found.append(
@@ -139,7 +144,7 @@ def read_blocks(file: str, lines: list[str]) -> list[Block]:
                 date=matched.group("date"),
                 run=run,
                 id=pairs.get("id", ""),
-                first_line=_HEADER.sub("", lines[index]).strip(),
+                first_line=_HEADER.sub("", lines[index]).strip(),  # the header is a column of the index
                 file=file,
                 start=index,
                 end=end,

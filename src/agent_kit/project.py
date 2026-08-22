@@ -99,7 +99,7 @@ def read_project(root: Path | str) -> Project | None:
         root=Path(root),
         default_branch=_text(block.get("default_branch", DEFAULT_BRANCH), "project.default_branch"),
         command_timeout=_seconds(block.get("command_timeout", DEFAULT_COMMAND_TIMEOUT), "project.command_timeout"),
-        knowledge=_text(block.get("knowledge", KNOWLEDGE_DIR), "project.knowledge"),
+        knowledge=_inside(block.get("knowledge", KNOWLEDGE_DIR), "project.knowledge"),
         commands=_commands(_table(document.get("commands", {}), "commands")),
         roles=roles_from_table(_table(document.get("roles", {}), "roles")),
         source=path,
@@ -286,6 +286,19 @@ def _text(value: Any, where: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ConfigError("bad-value", f"{where} must be a non-empty string")
     return value.strip()
+
+
+def _inside(value: Any, where: str) -> str:
+    """A directory of this project, and not a way out of it.
+
+    It is a path the kit writes into. An absolute one, or one that climbs, puts
+    a block somewhere no run can find again and takes the kit out with an
+    unnamed crash on the way.
+    """
+    text = _text(value, where)
+    if Path(text).is_absolute() or ".." in Path(text).parts:
+        raise ConfigError("bad-field: project.knowledge", f"{where} must be a path inside the project, not {text!r}")
+    return text
 
 
 def _seconds(value: Any, where: str) -> int:
