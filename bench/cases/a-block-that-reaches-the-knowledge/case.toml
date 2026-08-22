@@ -1,0 +1,10 @@
+# a run that goes green in a project that keeps knowledge
+
+[case]
+title = "a run that goes green in a project that keeps knowledge"
+fires = "the block is under the record it addressed, carries a derived identifier, and is in the commit"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { record = "passed" }

@@ -1,0 +1,11 @@
+# closing an identifier the knowledge does not hold
+
+[case]
+title = "closing an identifier the knowledge does not hold"
+fires = "record refuses rather than deleting nothing quietly"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "no-such-block"
+steps = { record = "failed" }

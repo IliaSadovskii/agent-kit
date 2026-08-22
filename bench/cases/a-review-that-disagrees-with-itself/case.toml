@@ -2,10 +2,10 @@
 
 [case]
 title = "a review whose verdict and findings disagree"
-fires = "delivery refuses as a disagreement"
+fires = "the run stops as a disagreement, before the knowledge or the branch is touched"
 
 [expect]
 exit_code = 3
 status = "failed"
 refusal = "review-disagrees-with-itself"
-steps = { deliver = "failed" }
+steps = { record = "failed" }

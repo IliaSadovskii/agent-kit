@@ -1,0 +1,11 @@
+# an expensive assumption with no block, in a project that keeps knowledge
+
+[case]
+title = "an expensive assumption with no block, in a project that keeps knowledge"
+fires = "the design step is refused and the reason names the field"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "output-missing-field: assumptions[0].block"
+steps = { design = "failed" }

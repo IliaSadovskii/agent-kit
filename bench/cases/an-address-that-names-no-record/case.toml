@@ -1,0 +1,11 @@
+# a block addressed to a record the knowledge does not hold
+
+[case]
+title = "a block addressed to a record the knowledge does not hold"
+fires = "record refuses rather than writing where it guessed"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "no-such-record"
+steps = { record = "failed" }

@@ -2,7 +2,7 @@
 
 [case]
 title = "a blocking finding"
-fires = "delivery refuses, the run stops rather than fails, exit code 5"
+fires = "the run stops rather than fails before anything is written, exit code 5"
 
 [expect]
 exit_code = 5

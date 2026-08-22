@@ -134,3 +134,63 @@ def test_a_contract_that_names_no_choices_is_refused_when_it_is_declared():
         Enum("severity")
 
     assert caught.value.code == "bad-contract"
+
+
+# --- S6: a field a project can make required --------------------------------
+#
+# The join — an expensive assumption owes a block — binds a project that keeps
+# knowledge and not one that keeps none. So the contract is not fixed for all
+# time: the driver asks for the stricter copy, and renders that same copy into
+# the step's input. The agent is told in the form the program checks.
+
+ASSUMPTIONS = Contract(
+    fields=(
+        Records(
+            "assumptions",
+            shape=(
+                Text("what"),
+                Bool("expensive"),
+                Text("block", required=False),
+            ),
+        ),
+    )
+)
+
+STRICTER = ASSUMPTIONS.requiring("assumptions.block", when="expensive")
+
+
+def test_the_base_contract_lets_an_expensive_assumption_through_with_no_block():
+    output = ASSUMPTIONS.check({"assumptions": [{"what": "the rate is whole", "expensive": True}]})
+
+    assert output["assumptions"][0]["block"] is None
+
+
+def test_the_stricter_copy_refuses_it_and_names_the_field():
+    with pytest.raises(ContractRefusal) as refused:
+        STRICTER.check({"assumptions": [{"what": "the rate is whole", "expensive": True}]})
+
+    assert refused.value.code == "output-missing-field: assumptions[0].block"
+
+
+def test_the_stricter_copy_asks_nothing_of_an_assumption_that_is_not_expensive():
+    output = STRICTER.check({"assumptions": [{"what": "the rate is whole", "expensive": False}]})
+
+    assert output["assumptions"][0]["block"] is None
+
+
+def test_the_stricter_copy_says_so_where_the_agent_reads_it():
+    assert "required when `expensive`" in STRICTER.describe()
+    assert "required when `expensive`" not in ASSUMPTIONS.describe()
+
+
+def test_making_a_copy_leaves_the_original_alone():
+    ASSUMPTIONS.requiring("assumptions.block", when="expensive")
+
+    assert ASSUMPTIONS.check({"assumptions": [{"what": "x", "expensive": True}]})["assumptions"][0]["block"] is None
+
+
+def test_a_path_that_names_no_field_is_a_defect_in_the_kit_not_a_refused_step():
+    with pytest.raises(ContractRefusal) as refused:
+        ASSUMPTIONS.requiring("assumptions.ghost", when="expensive")
+
+    assert refused.value.code == "bad-contract"

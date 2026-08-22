@@ -476,3 +476,87 @@ def test_a_branch_that_holds_somebody_else_s_commit_is_still_refused(repo):
         deliver(repo)
 
     assert refused.value.code == "branch-exists"
+
+
+# --- S6: the knowledge rides in the same commit as the code -----------------
+#
+# A block written into the owner's knowledge and left out of the commit is a
+# block nobody but this machine ever sees. `record` says which files it changed
+# and delivery commits them beside the ones the build named — still only what
+# was named, and now the program named half of it.
+
+ENTITIES = "# Сущности\n\n### Деньги\n`key: money`\n\n**Что это:** сумма в копейках\n"
+
+RECORD = {
+    "blocks": [{"id": "k7f3q2", "at": "entities.md#money", "what": "the rate is a whole percent"}],
+    "closed": [],
+    "files": ["docs/knowledge/entities.md"],
+}
+
+
+def with_knowledge(root):
+    (root / "docs/knowledge").mkdir(parents=True, exist_ok=True)
+    (root / "docs/knowledge/entities.md").write_text(ENTITIES, encoding="utf-8")
+    git(root, "add", "-A")
+    git(root, "commit", "-m", "the knowledge as it stood")
+    git(root, "push", "origin", "main")
+    return root
+
+
+def wrote_a_block(root):
+    path = root / "docs/knowledge/entities.md"
+    path.write_text(path.read_text() + "\n> **[assumed 2026-08-22 · kit/add-vat · id: k7f3q2]** так\n")
+
+
+def test_the_knowledge_a_run_wrote_is_committed_beside_the_code(repo):
+    with_knowledge(repo)
+    worked_on(repo)
+    wrote_a_block(repo)
+
+    deliver(repo, {"record": RECORD})
+
+    changed = git(repo, "show", "--name-only", "--format=").stdout
+    assert "money.py" in changed
+    assert "docs/knowledge/entities.md" in changed
+    assert git(repo, "status", "--porcelain").stdout.strip() == ""
+
+
+def test_a_project_that_keeps_knowledge_cannot_close_a_feature_with_a_naked_assumption(repo):
+    with_knowledge(repo)
+    worked_on(repo)
+
+    with pytest.raises(ExecutorFailed) as refused:
+        deliver(repo, {"record": {"blocks": [], "closed": [], "files": []}})
+
+    assert refused.value.code == "assumption-with-no-block"
+    assert "the rate is a whole percent" in refused.value.detail
+    assert git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
+
+
+def test_a_project_that_keeps_knowledge_cannot_close_a_feature_that_skipped_the_step(repo):
+    with_knowledge(repo)
+    worked_on(repo)
+
+    with pytest.raises(ExecutorFailed) as refused:
+        deliver(repo)
+
+    assert refused.value.code == "nothing-to-read"
+    assert "record" in refused.value.detail
+
+
+def test_a_project_that_keeps_no_knowledge_delivers_without_the_step(repo):
+    worked_on(repo)
+
+    assert json.loads(deliver(repo).raw)["commit"]
+
+
+def test_what_was_written_into_the_knowledge_is_in_the_report(repo):
+    with_knowledge(repo)
+    worked_on(repo)
+    wrote_a_block(repo)
+
+    deliver(repo, {"record": RECORD})
+
+    body = (repo / ".agent-kit/v3/runs/add-vat/pull-request.md").read_text()
+    assert "entities.md#money" in body
+    assert "k7f3q2" in body

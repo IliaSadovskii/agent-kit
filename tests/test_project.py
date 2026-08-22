@@ -16,6 +16,7 @@ from agent_kit.project import (
     PROJECT_FILE,
     read_project,
     require_project,
+    write_project,
 )
 
 
@@ -260,3 +261,27 @@ def test_what_the_project_declared_survives_being_written_out_again(repo):
     main(["-C", str(repo), "init", "--force"])
 
     assert read_project(repo).command_timeout == 45
+
+
+# --- S6: where this project keeps its knowledge -----------------------------
+
+
+def test_a_project_keeps_its_knowledge_where_the_second_version_left_it(tmp_path):
+    declare(tmp_path, '[project]\ndefault_branch = "main"\n')
+
+    assert read_project(tmp_path).knowledge == "docs/knowledge"
+
+
+def test_a_project_may_say_otherwise(tmp_path):
+    declare(tmp_path, '[project]\nknowledge = "docs/база"\n')
+
+    assert read_project(tmp_path).knowledge == "docs/база"
+
+
+def test_what_it_declared_survives_being_written_out(tmp_path):
+    declare(tmp_path, '[project]\nknowledge = "docs/база"\n')
+    project = read_project(tmp_path)
+
+    write_project(project, force=True)
+
+    assert read_project(tmp_path).knowledge == "docs/база"
