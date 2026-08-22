@@ -27,6 +27,7 @@ PART = {
     "summary": "The test is written and one half of the code.",
     "files": ["tests/test_money.py"],
     "tests": ["test_vat_is_added_to_the_amount"],
+    "deviations": [],
     "remaining": ["the negative rate is still unrefused"],
 }
 

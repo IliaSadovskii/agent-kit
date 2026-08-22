@@ -3,7 +3,7 @@
 The design is enclosed above, and it is what you build. You do not redesign it. Where it
 turns out to be wrong, you depart from it and you record the departure — that is what
 `deviations` is for, and a departure with no cause recorded is the defect, not the
-departure itself.
+departure itself. Following the design exactly is an empty list, not a missing field.
 
 The order is not decoration:
 

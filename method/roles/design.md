@@ -23,7 +23,8 @@ Do this, in this order:
 5. **Decide what will prove it — now, before any code exists.** This is the field that
    matters most. Written afterwards, a test proves whatever was built; written here, it
    proves what was meant. Name the cases, not the framework.
-6. **Say what you assumed.** Anything you took as true without checking. For each one,
+6. **Say what you assumed.** Anything you took as true without checking; an empty list is a
+   real answer and says you looked. For each one,
    `expensive` is true when being wrong about it would cost more than checking it would
    have. Answer it for every assumption; an unanswered one is the same as no assumption
    at all, and the second version left 14% of them unanswered.

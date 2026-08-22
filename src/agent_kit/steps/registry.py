@@ -56,6 +56,12 @@ PROBE = StepDefinition(
 )
 
 
+#: Four lists below are required and may be empty, which is not the same as
+#: absent: an empty list is a step saying it considered the question and had
+#: nothing, and a missing field is a step that did not answer. The measurement
+#: caught the second version on exactly that gap — 14% of assumptions with
+#: `expensive` unanswered, and nobody able to tell which were which.
+#:
 #: design: what changes, where it meets what is already there, and — before any
 #: code exists — what will prove it. The second version prescribed all three in
 #: prose and checked none of them.
@@ -81,14 +87,13 @@ DESIGN = StepDefinition(
             ),
             TextList(
                 "needs_owner",
-                required=False,
-                help="anything only the owner can decide. It is asked in the open half of the "
-                     "pull request, which is the only channel to them there is",
+                help="anything only the owner can decide, one line each; empty when there is "
+                     "nothing. It is asked in the open half of the pull request, which is the "
+                     "only channel to them there is",
             ),
             Records(
                 "assumptions",
-                required=False,
-                help="what you had to take as true without checking",
+                help="what you had to take as true without checking; empty when there was nothing",
                 shape=(
                     Text("what", help="the assumption itself"),
                     Bool("expensive", help="true when being wrong about it would cost more than checking it"),
@@ -116,8 +121,7 @@ BUILD = StepDefinition(
             TextList("tests", help="the tests you wrote, by name"),
             Records(
                 "deviations",
-                required=False,
-                help="anywhere you did not do what the design said",
+                help="anywhere you did not do what the design said; empty when you followed it",
                 shape=(
                     Text("what", help="what you did instead"),
                     Text("because", help="why the design could not be followed here"),
@@ -150,8 +154,7 @@ REVIEW = StepDefinition(
             ),
             Records(
                 "findings",
-                required=False,
-                help="what is wrong, one record each",
+                help="what is wrong, one record each; empty when you found nothing, which is a real answer",
                 shape=(
                     Enum(
                         "severity",
