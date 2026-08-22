@@ -502,3 +502,15 @@ def test_a_run_the_method_stopped_exits_on_the_refused_code_not_the_state_one(ma
     assert code == ExitCode.REFUSED
     assert "blocked-by-review" in err
     assert json.loads(run(["run", "show", "add-vat", "--json"], capsys)[1])["status"] == "stopped"
+
+
+def test_a_gate_that_closed_names_a_code_as_well_as_a_sentence(machine, capsys, tmp_path):
+    """Every refusal has a code — the rule applied to the one refusal that had none."""
+    declare(tmp_path, '[commands]\ntest = "exit 1"\n')
+    run(["run", "new", "add-vat", "--brief", "VAT", "--steps", "design,build,verify"], capsys)
+
+    run(["run", "go", "add-vat", "--provider", "fake", *scripted(tmp_path, DESIGN_REPLY, BUILD_REPLY)], capsys)
+
+    state = json.loads(run(["run", "show", "add-vat", "--json"], capsys)[1])
+    assert state["reason"].startswith("gate-closed:")
+    assert "verify" in state["reason"] and "passed" in state["reason"]

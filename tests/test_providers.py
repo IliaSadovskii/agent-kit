@@ -155,3 +155,45 @@ def test_a_reply_whose_script_fails_is_a_refused_attempt_not_a_crash(tmp_path):
         )
 
     assert refused.value.code == "reply-script-failed"
+
+
+def test_a_reply_script_that_hangs_takes_its_children_with_it(tmp_path):
+    """The fixture starts other people's processes too, and the rule is the kit's own."""
+    import time
+
+    from agent_kit.providers.base import ExecutorFailed, StepRequest
+    from agent_kit.providers.fake import adapter
+
+    mark = tmp_path / "still-alive"
+    reply = tmp_path / "01-build.json"
+    reply.write_text("{}", encoding="utf-8")
+    (tmp_path / "01-build.sh").write_text(
+        "#!/bin/sh\n"
+        f'(while true; do echo x >> "{mark}"; sleep 0.2; done) &\n'
+        "sleep 30\n",
+        encoding="utf-8",
+    )
+
+    executor = adapter.build_executor({"reply": [str(reply)]})
+    with pytest.raises(ExecutorFailed) as stopped:
+        with_short_patience(adapter, 2, executor, tmp_path)
+
+    assert stopped.value.code == "reply-script-failed"
+    grew = mark.stat().st_size if mark.exists() else 0
+    time.sleep(1.5)
+    assert (mark.stat().st_size if mark.exists() else 0) == grew
+
+
+def with_short_patience(adapter, seconds, executor, where):
+    from agent_kit.providers.base import StepRequest
+
+    was, adapter.ACTS_TIMEOUT = adapter.ACTS_TIMEOUT, seconds
+    try:
+        return executor.execute(
+            StepRequest(
+                slug="add-vat", step_name="build", attempt=1, provider="fake",
+                input_text="", workdir=where, project=where,
+            )
+        )
+    finally:
+        adapter.ACTS_TIMEOUT = was

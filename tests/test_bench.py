@@ -270,7 +270,7 @@ def test_the_case_runs_against_a_gh_that_is_a_script_and_a_remote_that_is_a_dire
 def test_every_shipped_case_is_readable_and_says_what_must_fire(capsys):
     shipped = read_cases(cases_root())
 
-    assert len(shipped) >= 14
+    assert len(shipped) >= 15
     for case in shipped:
         assert case.fires.strip(), f"{case.name} does not say what mechanism it plants"
         assert case.title.strip()
@@ -283,4 +283,228 @@ def test_every_shipped_case_fires(capsys):
 
     assert "did not fire" not in printed.out, printed.out
     assert "could not be judged" not in printed.out, printed.out
+    assert code == int(ExitCode.OK)
+
+
+# --- what the review of S5 found ---------------------------------------------
+
+
+def test_every_file_a_case_needs_is_in_the_repository():
+    """A bench that is green only in one working copy measures that copy.
+
+    `.gitignore` held `.agent-kit/`, which is the run state a project must not
+    commit — and it silently swallowed the two cases that declare a project of
+    their own. From a fresh clone the bench was red and nobody would know why.
+    """
+    import subprocess
+
+    root = Path(__file__).resolve().parents[1]
+    ignored = subprocess.run(
+        ["git", "status", "--ignored", "--short", "--", "bench/cases"],
+        cwd=root, capture_output=True, text=True,
+    ).stdout.strip()
+
+    assert ignored == "", f"the bench needs files git is not keeping:\n{ignored}"
+
+
+def test_a_case_whose_trap_was_never_planted_does_not_fire(tmp_path, capsys):
+    """A judge must prove the trap sprang, not merely that nothing went wrong.
+
+    Both weak judges had the same shape: they read a state the world reaches
+    anyway when the trap is absent, so the case reported `fired` against a
+    mechanism it never exercised.
+    """
+    import shutil
+
+    from agent_kit.bench import cases_root
+
+    for name in ("a-command-that-hangs", "branch-holds-nothing"):
+        elsewhere = tmp_path / name
+        shutil.rmtree(elsewhere, ignore_errors=True)
+        (tmp_path / "cases").mkdir(exist_ok=True)
+        shutil.copytree(cases_root() / name, tmp_path / "cases" / name)
+        _script(tmp_path / "cases" / name / "plant.sh", "exit 0\n")  # the trap is not laid
+        if name == "a-command-that-hangs":
+            _script(tmp_path / "cases" / name / "repo" / "check.sh", "sleep 60\n")  # and nothing is spawned
+
+        main(["bench", "run", "--cases", str(tmp_path / "cases"), "--case", name])
+        printed = capsys.readouterr().out
+
+        assert "fired" not in printed.replace("did not fire", ""), f"{name} fires with no trap in place:\n{printed}"
+
+
+def test_a_judge_reads_the_reason_the_run_recorded(cases, capsys):
+    write_case(
+        cases,
+        "wants-a-reason-that-is-not-there",
+        {"exit_code": 0, "status": "done", "refusal": "branch-exists"},
+        plant=WROTE_IT,
+    )
+
+    code, printed = bench(cases, capsys=capsys)
+
+    assert "did not fire" in printed.out
+    assert "branch-exists" in printed.out
+    assert code == int(ExitCode.BENCH)
+
+
+def test_a_judge_reads_the_status_each_step_ended_on(cases, capsys):
+    write_case(
+        cases,
+        "wants-a-step-that-did-not-fail",
+        {"exit_code": 0, "status": "done", "steps": {"verify": "failed"}},
+        plant=WROTE_IT,
+    )
+
+    code, printed = bench(cases, capsys=capsys)
+
+    assert "did not fire" in printed.out
+    assert "verify" in printed.out
+    assert code == int(ExitCode.BENCH)
+
+
+def test_a_trap_that_could_not_be_laid_is_could_not_be_judged(cases, capsys):
+    """A plant that fails leaves a world that is not the one the case is about."""
+    write_case(
+        cases,
+        "the-trap-would-not-lie-down",
+        {"exit_code": 0, "status": "done"},
+        plant='echo "there is no such branch here" >&2\nexit 1\n',
+    )
+
+    code, printed = bench(cases, capsys=capsys)
+
+    assert "could not be judged" in printed.out
+    assert "there is no such branch here" in printed.out
+    assert code == int(ExitCode.BROKEN_BENCH)
+
+
+def test_a_kit_that_crashed_is_not_reported_as_a_mechanism_that_did_not_fire(cases, capsys, monkeypatch):
+    """Exit 70 is a defect in the kit. Reading it as a regression points at the wrong thing."""
+    import subprocess
+
+    write_case(cases, "the-kit-broke", {"exit_code": 3, "status": "failed"}, plant=WROTE_IT)
+
+    from agent_kit.bench import runner
+
+    real = runner.subprocess.run
+
+    def crashing(argv, **kwargs):
+        if "go" in argv:
+            return subprocess.CompletedProcess(
+                argv, 70, stdout="", stderr="agent-kit: internal-error: TypeError: nope"
+            )
+        return real(argv, **kwargs)
+
+    monkeypatch.setattr(runner.subprocess, "run", crashing)
+
+    code, printed = bench(cases, capsys=capsys)
+
+    assert "could not be judged" in printed.out
+    assert "did not fire" not in printed.out
+    assert code == int(ExitCode.BROKEN_BENCH)
+
+
+def test_a_bench_that_broke_and_a_mechanism_that_regressed_have_different_codes(cases, capsys):
+    """The distinction the kit spent S5 learning to make, applied to the bench itself."""
+    write_case(cases, "regressed", {"exit_code": 3, "status": "failed"}, plant=WROTE_IT)
+    regression, _ = bench(cases, "--case", "regressed", capsys=capsys)
+
+    write_case(cases, "broke", {"exit_code": 0, "status": "done"}, plant="exit 1\n")
+    broken, _ = bench(cases, "--case", "broke", capsys=capsys)
+
+    assert regression == int(ExitCode.BENCH)
+    assert broken == int(ExitCode.BROKEN_BENCH)
+    assert regression != broken
+
+
+def test_the_bench_with_no_word_after_it_runs_the_cases(cases, capsys):
+    write_case(cases, "one", {"exit_code": 0, "status": "done"}, plant=WROTE_IT)
+
+    code = main(["bench"])
+    printed = capsys.readouterr()
+
+    assert "internal-error" not in printed.err
+    assert "fired" in printed.out
+    assert code in (int(ExitCode.OK), int(ExitCode.BENCH))
+
+
+def test_one_unreadable_case_does_not_hide_the_others_in_the_listing(cases, capsys):
+    write_case(cases, "readable", {"exit_code": 0, "status": "done"})
+    broken = write_case(cases, "unreadable", {"exit_code": 0, "status": "done"})
+    (broken / "case.toml").write_text("this is not toml at all\n", encoding="utf-8")
+
+    code = main(["bench", "list", "--cases", str(cases)])
+    printed = capsys.readouterr().out
+
+    assert "readable" in printed
+    assert "unreadable" in printed  # named, with what is wrong with it
+    assert code == int(ExitCode.BROKEN_BENCH)
+
+
+def test_a_case_does_not_borrow_the_git_identity_of_the_machine(cases, capsys, tmp_path, monkeypatch):
+    """Determinism the bench exists for: the commit is the bench's, not the machine's."""
+    monkeypatch.setenv("GIT_AUTHOR_NAME", "somebody else")
+    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "elsewhere@example.com")
+    monkeypatch.setenv("GIT_COMMITTER_NAME", "somebody else")
+    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "elsewhere@example.com")
+    write_case(
+        cases,
+        "whose-commit-is-it",
+        {"exit_code": 0, "status": "done"},
+        plant=WROTE_IT,
+        judge='git log -1 --format=%an%ae | grep -q elsewhere && { echo "the machine signed it"; exit 1; }\nexit 0\n',
+    )
+
+    code, printed = bench(cases, capsys=capsys)
+
+    assert "fired" in printed.out, printed.out
+    assert code == int(ExitCode.OK)
+
+
+def test_a_case_cannot_be_pointed_at_the_repository_it_is_run_from(cases, capsys, monkeypatch, tmp_path):
+    """`git` reads GIT_DIR before anything else. A bench run from a hook must not follow it."""
+    monkeypatch.setenv("GIT_DIR", str(tmp_path / "not-a-repo"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(tmp_path))
+    write_case(cases, "its-own-repository", {"exit_code": 0, "status": "done"}, plant=WROTE_IT)
+
+    code, printed = bench(cases, capsys=capsys)
+
+    assert "fired" in printed.out, printed.out
+    assert code == int(ExitCode.OK)
+
+
+def test_the_judge_is_told_where_the_run_is(cases, capsys):
+    write_case(
+        cases,
+        "the-judge-knows-where-it-stands",
+        {"exit_code": 0, "status": "done"},
+        plant=WROTE_IT,
+        judge=(
+            'test -n "$RUN_DIR" && test -d "$RUN_DIR" || { echo "RUN_DIR: $RUN_DIR"; exit 1; }\n'
+            'test -n "$ORIGIN" && test -d "$ORIGIN" || { echo "ORIGIN: $ORIGIN"; exit 1; }\n'
+            'test "$EXIT_CODE" = 0 || { echo "EXIT_CODE: $EXIT_CODE"; exit 1; }\n'
+            'test -n "$BENCH" && test -n "$BRANCH" && test -n "$SLUG" || { echo "a name is missing"; exit 1; }\n'
+        ),
+    )
+
+    code, printed = bench(cases, capsys=capsys)
+
+    assert "fired" in printed.out, printed.out
+    assert code == int(ExitCode.OK)
+
+
+def test_a_reply_that_acts_reaches_the_working_copy_through_the_bench(cases, capsys):
+    """The fixture's script is tested on its own; this is the whole path, end to end."""
+    write_case(
+        cases,
+        "the-session-wrote-something",
+        {"exit_code": 0, "status": "done"},
+        plant=WROTE_IT,
+        judge='git show HEAD:money.py | grep -q "RATE = 20" || { echo "the work never landed"; exit 1; }\n',
+    )
+
+    code, printed = bench(cases, capsys=capsys)
+
+    assert "fired" in printed.out, printed.out
     assert code == int(ExitCode.OK)

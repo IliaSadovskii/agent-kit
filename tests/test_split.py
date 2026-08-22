@@ -221,3 +221,14 @@ def test_every_part_reaches_the_step_after_it_and_not_only_the_last(tmp_path):
     ]
     assert outcome.output["complete"] is True
     assert "tests/test_money.py" in fake.requests[2].input_text  # the reviewer sees all of it
+
+
+def test_a_step_that_outgrew_its_room_names_a_code_and_not_only_a_sentence(tmp_path):
+    """A bench case that matches on English prose measures the sentence, not the mechanism."""
+    runner, store, _ = build(tmp_path, [fenced(PART)] * 4, continuations=2)
+
+    runner.run_next("add-vat")
+
+    run = store.load("add-vat")
+    assert run.status is RunStatus.FAILED
+    assert run.reason.startswith("step-outgrew-its-room:")
