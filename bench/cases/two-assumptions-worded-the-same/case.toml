@@ -1,0 +1,10 @@
+# two expensive assumptions worded exactly the same
+
+[case]
+title = "two expensive assumptions worded exactly the same"
+fires = "each gets a block of its own, because the identifier walks on for a sibling"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { record = "passed" }

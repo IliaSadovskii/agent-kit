@@ -1,0 +1,10 @@
+# the same identifier named twice in closes
+
+[case]
+title = "the same identifier named twice in closes"
+fires = "it is closed once and the run carries on, rather than refusing on a file it has already rewritten"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { record = "passed" }
