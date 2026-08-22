@@ -1,0 +1,11 @@
+# a block addressed into a file that is not part of the knowledge
+
+[case]
+title = "a block addressed into a file that is not part of the knowledge"
+fires = "record refuses, rather than writing where nothing could ever read it again"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "no-such-file"
+steps = { record = "failed" }

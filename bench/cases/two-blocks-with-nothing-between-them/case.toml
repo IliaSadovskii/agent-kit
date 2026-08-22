@@ -1,0 +1,10 @@
+# closing one of two blocks with no blank line between them
+
+[case]
+title = "closing one of two blocks with no blank line between them"
+fires = "the neighbour survives: a block ends where the next one begins, not at the first unquoted line"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { record = "passed" }
