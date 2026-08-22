@@ -19,6 +19,7 @@ from agent_kit.steps import builtin_registry
 from agent_kit.steps.contract import parse_output
 
 DESIGN = {
+    "title": "Money learns a VAT rate",
     "summary": "Money learns a VAT rate, so a price can be quoted with tax.",
     "changes": ["src/kit_sandbox/money.py — a with_vat method"],
     "seams": ["Money is frozen, so with_vat returns a new one"],
@@ -224,3 +225,66 @@ def test_it_refuses_when_the_steps_it_reads_never_ran(repo):
         build_program("program:deliver", repo).execute(request(repo, {"design": DESIGN}))
 
     assert refused.value.code == "nothing-to-read"
+
+
+# --- what the live run found ------------------------------------------------
+
+
+def test_the_commit_subject_is_the_line_the_design_wrote_for_it(repo):
+    worked_on(repo)
+
+    deliver(repo)
+
+    subject = git(repo, "log", "-1", "--format=%s").stdout.strip()
+    assert subject == "Money learns a VAT rate"
+    assert "…" not in subject
+
+
+def test_a_subject_line_too_long_for_a_commit_is_cut_at_a_word(repo):
+    worked_on(repo)
+    long = "Money learns a VAT rate and every other tax this sandbox will ever plausibly need"
+
+    deliver(repo, {"design": {**DESIGN, "title": long}})
+
+    subject = git(repo, "log", "-1", "--format=%s").stdout.strip()
+    assert len(subject) <= 72
+    assert not subject.rstrip("…").endswith(" ")
+    assert subject.startswith("Money learns a VAT rate and every")
+
+
+def test_the_owner_reads_the_gist_and_what_is_wanted_of_them_before_anything_else(repo):
+    """A pull request is a report to the owner: three things open, the rest folded away."""
+    worked_on(repo)
+
+    deliver(repo)
+
+    text = (repo / ".agent-kit/v3/runs/add-vat/pull-request.md").read_text()
+    open_part, _, folded = text.partition("<details>")
+
+    assert "Что сделано" in open_part
+    assert "the rate is a whole percent" in open_part  # an expensive assumption is asked about
+    assert "Money is frozen" not in open_part  # the seams are detail
+    assert "Money is frozen" in folded
+    assert "1000 at 20% is 1200" in folded
+
+
+def test_a_blocking_finding_would_be_open_and_not_folded_away(repo):
+    """It cannot reach a pull request, but the body must be written as if it could."""
+    from agent_kit.programs.deliver import compose_body
+
+    text = compose_body(
+        request(repo, whole()), DESIGN, BUILD, VERIFY,
+        {"verdict": "blocked", "findings": [{"severity": "blocking", "what": "a negative rate is not refused"}]},
+    )
+    open_part, _, _ = text.partition("<details>")
+
+    assert "a negative rate is not refused" in open_part
+
+
+def test_a_program_does_not_pretend_to_be_a_model(repo):
+    worked_on(repo)
+
+    meta = deliver(repo).meta
+
+    assert "model" not in meta
+    assert meta["pull_request"].startswith("http")

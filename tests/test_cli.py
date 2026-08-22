@@ -355,6 +355,7 @@ def test_run_show_says_what_the_run_is_for(machine, capsys):
 
 DESIGN_REPLY = json.dumps(
     {
+        "title": "Money learns a VAT rate",
         "summary": "Money learns a VAT rate.",
         "changes": ["money.py — with_vat"],
         "seams": ["Money is frozen"],

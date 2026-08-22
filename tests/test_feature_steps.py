@@ -19,6 +19,7 @@ from agent_kit.steps import builtin_registry
 from agent_kit.steps.contract import ContractRefusal
 
 DESIGN = {
+    "title": "Money learns a VAT rate",
     "summary": "Money learns a VAT rate, so a price can be quoted with tax.",
     "changes": ["src/kit_sandbox/money.py — a with_vat method"],
     "seams": ["Money is frozen, so with_vat returns a new one"],
@@ -167,3 +168,7 @@ def test_each_step_is_handed_what_the_one_before_it_returned(tmp_path):
     assert "Money should know about VAT" in build_input  # and so did the brief
     assert "test_vat_is_added_to_the_amount" in review_input
     assert "1000 at 20% is 1200" in review_input  # what design said would prove it
+
+
+def test_a_design_that_gives_no_subject_line_is_refused():
+    assert refuse("design", {**DESIGN, "title": None}) == "output-missing-field: title"

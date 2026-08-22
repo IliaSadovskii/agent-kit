@@ -222,3 +222,13 @@ def test_a_program_is_told_the_branch_and_the_brief_without_reading_prose(tmp_pa
     ).run_next("add-vat")
 
     assert seen == {"branch": "kit/add-vat", "brief": "VAT"}
+
+
+def test_a_program_does_not_pretend_to_be_a_model(tmp_path):
+    """`run show` reads meta.model to say who did the work. No program did."""
+    declare(tmp_path, '[commands]\ntest = "true"\n')
+
+    meta = build_program("program:verify", tmp_path).execute(request(tmp_path)).meta
+
+    assert "model" not in meta
+    assert meta["commands_run"] == 1
