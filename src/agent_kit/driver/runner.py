@@ -137,6 +137,11 @@ class StepRunner:
                     remaining, refusal, seen = list(providers), None, {}
                     continue
 
+                if definition.splittable and len(parts) > 1:
+                    # Several sessions did this step, each answering only for
+                    # its own part. What the next step reads must be all of it.
+                    output = definition.contract.merge(parts)
+                    workspace.accept(record.attempt, output, record.meta)
                 self.store.pass_step(slug)
                 outcome.passed = True
                 outcome.output = output

@@ -13,9 +13,7 @@ spending; so the child gets its own process group and the group is what dies.
 from __future__ import annotations
 
 import json
-import os
 import re
-import signal
 import subprocess
 import tomllib
 from dataclasses import dataclass, field
@@ -24,6 +22,7 @@ from typing import Any
 
 from ..errors import UsageError
 from ..logs import get_logger
+from ..shell import kill_group
 from .base import ExecutorFailed, ExecutorResult, SessionFacts, StepRequest
 
 #: A step of real work is minutes, not hours; a session that has said nothing
@@ -167,7 +166,7 @@ class ProcessExecutor:
         try:
             stdout, stderr = child.communicate(input_text, timeout=timeout)
         except subprocess.TimeoutExpired:
-            self._kill(child)
+            kill_group(child)
             raise ExecutorFailed(
                 "session-timeout", f"the session said nothing for {timeout} seconds and was stopped"
             ) from None
@@ -180,18 +179,6 @@ class ProcessExecutor:
                 f"{short(stderr) or short(stdout) or 'and said nothing'}",
             )
         return stdout, stderr
-
-    @staticmethod
-    def _kill(child: subprocess.Popen) -> None:
-        """The session and everything it started."""
-        try:
-            os.killpg(os.getpgid(child.pid), signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
-            child.kill()
-        try:
-            child.communicate(timeout=10)
-        except subprocess.TimeoutExpired:  # pragma: no cover - the group is gone by now
-            log.warning("%s did not die when its group was killed", self.binary if hasattr(self, "binary") else "child")
 
     # --- the limit --------------------------------------------------------
 

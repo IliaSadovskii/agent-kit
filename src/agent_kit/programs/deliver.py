@@ -17,14 +17,13 @@ anything addressed to the history.
 from __future__ import annotations
 
 import json
-import os
-import signal
 import subprocess
 from pathlib import Path
 from typing import Any, Sequence
 
 from ..logs import get_logger
 from ..paths import project_paths
+from ..shell import kill_group
 from ..project import require_project
 from ..providers.base import ExecutorFailed, ExecutorResult, StepRequest
 from ..state.store import keep_runs_out_of_git
@@ -228,18 +227,6 @@ def _run(argv: Sequence[str], cwd: Path, timeout: int, code: str, allowed_to_fai
             f"{(stderr or stdout).strip()[:600] or 'and said nothing'}",
         )
     return stdout
-
-
-def kill_group(child: subprocess.Popen) -> None:
-    """The command and everything it started."""
-    try:
-        os.killpg(os.getpgid(child.pid), signal.SIGKILL)
-    except (ProcessLookupError, PermissionError):
-        child.kill()
-    try:
-        child.communicate(timeout=10)
-    except subprocess.TimeoutExpired:  # pragma: no cover - the group is gone by now
-        log.warning("a killed process group did not go away")
 
 
 def _branch_exists(root: Path, branch: str, timeout: int) -> bool:

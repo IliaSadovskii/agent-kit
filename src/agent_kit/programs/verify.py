@@ -18,6 +18,7 @@ from pathlib import Path
 
 from ..logs import get_logger
 from ..project import require_project
+from ..shell import kill_group
 from ..providers.base import ExecutorFailed, ExecutorResult, StepRequest
 
 #: A project's own suite is minutes. One that has said nothing for this long is
@@ -67,26 +68,26 @@ class Verify:
         )
 
     def _one(self, name: str, command: str, root: Path) -> dict:
+        """One declared command, and everything it started dies with it.
+
+        A project's test command is usually a wrapper — here it is `make test`,
+        which is `docker compose exec`. Killing the wrapper and leaving what it
+        started is how a stuck build keeps a shared machine busy all night, so
+        the command gets its own process group and the group is what dies.
+        """
         try:
-            finished = subprocess.run(
+            finished = subprocess.Popen(
                 command,
                 shell=True,  # a declared command is a shell line, as its author wrote it
                 cwd=root,
-                capture_output=True,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                timeout=self.timeout,
                 start_new_session=True,
             )
-        except subprocess.TimeoutExpired as expired:
-            return {
-                "name": name,
-                "command": command,
-                "exit_code": None,
-                "passed": False,
-                "output": f"it said nothing for {self.timeout} seconds and was stopped: {_tail(expired.stdout)}",
-            }
         except OSError as error:
             return {
                 "name": name,
@@ -96,12 +97,24 @@ class Verify:
                 "output": f"it could not be run: {error}",
             }
 
+        try:
+            stdout, stderr = finished.communicate(timeout=self.timeout)
+        except subprocess.TimeoutExpired:
+            kill_group(finished)
+            return {
+                "name": name,
+                "command": command,
+                "exit_code": None,
+                "passed": False,
+                "output": f"it said nothing for {self.timeout} seconds and was stopped, along with everything it started",
+            }
+
         return {
             "name": name,
             "command": command,
             "exit_code": finished.returncode,
             "passed": finished.returncode == 0,
-            "output": _tail(f"{finished.stdout}\n{finished.stderr}"),
+            "output": _tail(f"{stdout}\n{stderr}"),
         }
 
 

@@ -143,6 +143,31 @@ class Contract:
     def field(self, name: str) -> Field | None:
         return next((field for field in self.fields if field.name == name), None)
 
+    def merge(self, parts: Sequence[dict[str, Any]]) -> dict[str, Any]:
+        """One output from the several a split step produced.
+
+        The contract is the only thing that knows what a field means, so it is
+        what decides: a list accumulates across the sessions, because each of
+        them answered only for its own part, and anything else is the last
+        session's answer, because that is the one that finished.
+
+        Without this, a build that took two sessions hands the reviewer and the
+        pull request whatever the second one happened to mention.
+        """
+        if not parts:
+            return {}
+        merged = dict(parts[-1])
+        for field in self.fields:
+            if not isinstance(field, (TextList, Records)):
+                continue
+            gathered: list[Any] = []
+            for part in parts:
+                for item in part.get(field.name) or []:
+                    if item not in gathered:
+                        gathered.append(item)
+            merged[field.name] = gathered or None
+        return merged
+
 
 def _check_fields(fields: Sequence[Field], data: Any, where: str) -> dict[str, Any]:
     if not isinstance(data, dict):

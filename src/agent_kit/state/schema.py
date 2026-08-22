@@ -233,6 +233,10 @@ class Run:
         if step is not None and step.status is not StepStatus.PASSED:
             step.status = StepStatus.FAILED
             step.ended_at = step.ended_at or now()
+            # A failed step with no reason is the one thing the kit refuses to
+            # write anywhere else; `fail_step` has always required it and this
+            # path quietly did not, so `run show` printed a failure and no cause.
+            step.reason = _reason(reason)
         self.current_step = None
         self.status = RunStatus.FAILED
         self.reason = _reason(reason)
