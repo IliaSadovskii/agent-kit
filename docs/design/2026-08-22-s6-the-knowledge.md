@@ -23,7 +23,7 @@ and is the only real knowledge there is:
 | | |
 |---|---|
 | files, lines | 8, 7 380 |
-| blocks | 193 — 96 `frame`, 95 `assumed`, 1 `stale`, 1 `found` |
+| blocks | 197 — 99 `frame`, 96 `assumed`, 1 `stale`, 1 `found` |
 | blocks that are a markdown blockquote | 193 of 193 |
 | distinct header shapes | **2** |
 | `### …` records | 122, of which 102 carry a `` `key: …` `` line |
@@ -270,7 +270,7 @@ makes exactly one case say it did not.
 # What was built, 22 August 2026
 
 Six steps to a run now — `design`, `build`, `verify`, `review`, `record`, `deliver` —
-nineteen bench cases all firing, and 412 tests. Everything decided above was built as
+twenty-three bench cases all firing, and 429 tests. Everything decided above was built as
 decided; what changed on the way is in the last section, and so is what was not built.
 
 ## The identifier, in the file
@@ -298,9 +298,9 @@ Over the real knowledge of `beeplish`, read and not written:
 | | |
 |---|---|
 | the knowledge | 8 files, 7 380 lines, 868 KB |
-| the index the driver encloses | 377 lines, **47 KB** |
+| the index the driver encloses | 373 lines, **47 KB** |
 | addressable records | 155 |
-| blocks listed, of which addressable | 193, of which 0 |
+| blocks listed, of which addressable | 197, of which 0 |
 
 Five and a half per cent of the knowledge, and it does not grow when a record's body does:
 a record reaches the index by its address and its heading, a block by its first 120
@@ -308,7 +308,12 @@ characters. Two things were cut after the first measurement, which was 50 KB: a 
 glimpse repeated the header the index already prints as columns, and a file's own `#`
 title was an address — a block "under `# Сущности`" is a block anywhere in the file.
 
-`0 of 193` addressable is the honest number and it is not a defect: every block standing in
+The line count in the first version of this section said 377, taken before that trim and
+never re-taken. A reviewer caught it. A stale figure in the project's own record of a
+measurement is the "assertion instead of a trace" the plan is written against, and it is
+noted here rather than quietly corrected.
+
+`0 of 197` addressable is the honest number and it is not a defect: every block standing in
 `beeplish` today was written by the second version, and the identifier is additive. The
 index says so in its own last line rather than leaving it to be discovered.
 
@@ -380,3 +385,99 @@ do before the next live run.
 **No `full` case, still.** Every one of the nineteen answers from `providers/fake/`. A case
 that drives a real provider needs the runner to stop passing `--provider fake`
 unconditionally, which S5 already wrote down and S9 still owns.
+
+---
+
+# The review round, and what it cost
+
+Three reviewers over `25dc3b4..HEAD`, one lens each: the new code against the real knowledge,
+the traps and tests against the question *can this fail*, and the whole of it against the
+project's own rules and its own claims. Two of them found the same pair independently, and
+that pair is the reason this section exists rather than a paragraph.
+
+## The blocker: a feature could be closed with an expensive assumption and no block
+
+Which is the one thing S6 exists to make impossible, written into the plan as its
+done-condition.
+
+The identifier is derived from the run and the assumption's own words. Two assumptions of
+one run worded the same therefore derive the same name — and the writer read that collision
+as *its own earlier block*, because `held.run == run` is exactly how a second attempt
+recognises what it wrote before. So the second block deleted the first. `record` then
+reported two blocks with one identifier, and the join's second half compared a **set** of
+wordings, so one block answered for two and the run went green with a pull request open.
+
+Two goals genuinely collide here: a re-attempt must replace its own block, and two siblings
+must never be one. The fix separates them by asking a different question — an identifier
+this *execution* has already handed out is taken, whoever holds it, and the salt walks on
+deterministically so the second sibling gets the same second name every time. The join now
+counts wordings instead of gathering them.
+
+Section 2 above claimed this behaviour before it existed: *"the writer bumps the last
+character until the identifier is free"*. It bumped past other runs and not past itself.
+
+## The second one: a repeated identifier in `closes` half-wrote the owner's knowledge
+
+`closes: [k7f3q2, k7f3q2]`. The pre-check asked twice whether the block was there and got
+yes twice, because nothing had been deleted yet. The first delete rewrote the file; the
+second refused. That is precisely the failure the pre-check was added to prevent, three
+lines under a comment saying so — *"A half-written knowledge is worse than an unwritten
+one, and the same is true of closing."*
+
+## The rest
+
+| What | Why it mattered |
+|---|---|
+| two blocks with no blank line between them read as one | closing the first took the second with it, and the second was invisible to the index, to `close` and to `free_id` |
+| an address resolved into any file that existed | a block written into `notes.txt` can never be found again: not by the index, not by `close`, not by the identifier search |
+| a block that moved between files reported only where it landed | the deletion never reached the commit |
+| a file that could not be read, and a `knowledge` directory outside the project | crashes with exit 70, where every other failure in the kit names a code |
+| a round trip over the real knowledge removed a trailing blank line | a diff the owner never asked for |
+| `step show` printed the pre-S6 contract | a person was told `block` is optional in a project where the run refuses without it |
+
+## Two traps that were measuring nothing, and four that did not exist
+
+**The green case addressed the last record in its file**, so "under the record it addressed"
+and "at the end of the file" were the same place. Gutting `section_end` left the case
+firing. There is a record after the addressed one now, and the same break makes exactly that
+case say so.
+
+**Two cases promised the knowledge was spared and had none planted to spare.** The
+deliverable question moving in front of `record` is what made them promise it;
+`a-blocking-finding` and `a-review-that-disagrees-with-itself` now carry knowledge and a
+judge that proves it stood before it judges that it is untouched.
+
+Four mechanisms had no trap at all — which is how the first two of them shipped broken. The
+bench is twenty-three cases now:
+
+| Trap | The mechanism it must fire |
+|---|---|
+| two expensive assumptions worded exactly the same | each gets a block of its own |
+| the same identifier named twice in `closes` | it is closed once and the run carries on |
+| a block addressed into a file that is not part of the knowledge | `record` refuses rather than writing where nothing can read it |
+| closing one of two blocks with no blank line between them | the neighbour survives |
+
+Each was broken by hand afterwards and each pointed at one case and no others.
+
+## What the review cost that is not a defect
+
+**The count of blocks in the live knowledge was wrong, and the fix is what showed it.** This
+note said 193; the parser and a plain `grep` both say **197**. The first figure came from a
+shell pipeline that dropped four, not from the kit. Nobody's knowledge changed.
+
+**One commit in this range lands source and its tests together** — `1b0a41c`, the index
+trims. The rule in CLAUDE.md is that tests go in their own commit *before* the one that
+makes them pass, and the other four pairs in this range obey it. Rewriting the history to
+show a trace that did not happen would be worse than the violation, so it stands and is
+written down here instead.
+
+**A reviewer left the container's environment pointing at its own copy of the tree.** It had
+gutted `section_end` there to prove a judge was blind — correctly — and the virtualenv was
+still resolving `agent_kit` to that copy afterwards, so a later test run failed against code
+this repository does not contain. Worth knowing for the next round: a read-only review that
+runs the code is not read-only about the *environment*, and the first thing to check when a
+test fails for no reason is what `agent_kit.__file__` says.
+
+**One mechanism is still proved by tests only:** a block that moves between files reports
+both of them. Reaching it on the bench needs a `record` that runs twice with a changed
+address, which no single run does. It is named here rather than rounded up.
