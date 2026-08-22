@@ -325,3 +325,46 @@ def test_a_block_reaches_the_index_by_what_it_says_not_by_its_header(knowledge):
 
     assert "«Берётся список моделей этим" in line
     assert "**[assumed" not in line
+
+
+# --- what a careful read of it found -----------------------------------------
+
+
+def test_a_heading_inside_a_code_fence_is_not_an_address(knowledge):
+    (knowledge.root / "stack.md").write_text(
+        STACK + "\n```md\n### Пример\n`key: sample`\n```\n", encoding="utf-8"
+    )
+
+    assert "stack.md#sample" not in knowledge.index()
+    with pytest.raises(KnowledgeError) as refused:
+        knowledge.resolve("stack.md#sample")
+
+    assert refused.value.code == "no-such-record"
+
+
+def test_a_quoted_block_inside_a_code_fence_is_not_a_block(knowledge):
+    (knowledge.root / "stack.md").write_text(
+        STACK + "\n```md\n> **[assumed 2026-08-01 · kit/example · id: qqqqqq]** пример\n```\n",
+        encoding="utf-8",
+    )
+
+    assert "qqqqqq" not in [block.id for block in knowledge.blocks()]
+
+
+def test_a_file_that_cannot_be_read_is_refused_by_name_not_by_a_stack_trace(knowledge):
+    (knowledge.root / "broken.md").write_bytes(b"### \xff\xfe\n")
+
+    with pytest.raises(KnowledgeError) as refused:
+        knowledge.index()
+
+    assert refused.value.code == "unreadable-knowledge"
+    assert "broken.md" in refused.value.detail
+
+
+def test_an_address_cannot_climb_out_of_the_knowledge(knowledge):
+    with pytest.raises(KnowledgeError) as refused:
+        knowledge.resolve("../../../etc/passwd#root")
+
+    assert refused.value.code == "no-such-file"
+
+

@@ -248,3 +248,40 @@ def test_it_refuses_when_the_steps_it_reads_never_ran(project):
         build_program("program:record", project).execute(request)
 
     assert refused.value.code == "nothing-to-read"
+
+
+# --- what a careful read of it found -----------------------------------------
+
+
+def test_nothing_is_written_until_every_address_has_resolved(project):
+    """A half-written knowledge is worse than an unwritten one.
+
+    Two expensive assumptions, and the second names a record that is not there.
+    Writing as it goes would leave the first block on disk under a run that
+    failed, in a working copy nobody will look at again.
+    """
+    two = dict(
+        DESIGN,
+        assumptions=[
+            DESIGN["assumptions"][0],
+            dict(DESIGN["assumptions"][0], what="the tax is charged once", at="entities.md#ghost"),
+        ],
+    )
+
+    with pytest.raises(ExecutorFailed) as refused:
+        record(project, {"design": two})
+
+    assert refused.value.code == "no-such-record"
+    assert "kit/add-vat" not in entities(project)
+
+
+def test_nothing_is_closed_until_every_address_has_resolved(project):
+    record(project)
+    standing = entities(project)
+    both = dict(DESIGN, assumptions=[], closes=[identifier("add-vat", WHAT), "zzzzzz"])
+
+    with pytest.raises(ExecutorFailed) as refused:
+        record(project, {"design": both})
+
+    assert refused.value.code == "no-such-block"
+    assert entities(project) == standing
