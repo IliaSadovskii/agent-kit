@@ -17,6 +17,8 @@ anything addressed to the history.
 from __future__ import annotations
 
 import json
+import os
+import signal
 import subprocess
 from pathlib import Path
 from typing import Any, Sequence
@@ -52,13 +54,6 @@ class Deliver:
 
         _refuse_unless_deliverable(build, verify, review)
 
-        if not _changed(root, self.timeout):
-            raise ExecutorFailed(
-                "nothing-to-deliver",
-                "the working tree holds no change, so there is nothing to put on a branch",
-                retryable=False,
-            )
-
         body = compose_body(request, design, build, verify, review)
         # It goes beside the run's own state, which means it must be kept out
         # of the commit this step is about to make.
@@ -71,10 +66,11 @@ class Deliver:
         title = subject_line(design, request)
         branch = request.branch
 
-        self._git(root, "checkout", "-B", branch)
-        self._git(root, "add", "-A")
-        self._git(root, "commit", "-m", _message(title, build))
-        commit = self._git(root, "rev-parse", "HEAD").strip()
+        # Nothing above this line touched the repository, and nothing below it
+        # is reached until the branch has been accounted for. A delivery that
+        # overwrites somebody's work has already done the damage by the time it
+        # notices, and `checkout -B` does exactly that.
+        commit = self._settle_branch(root, branch, title, build)
         self._git(root, "push", "--set-upstream", "origin", branch)
 
         url = self._open_pull_request(root, project.default_branch, branch, title, body_file)
@@ -88,12 +84,92 @@ class Deliver:
             meta={"pull_request": url},
         )
 
+    # --- the branch, and whose it is --------------------------------------
+
+    def _settle_branch(self, root: Path, branch: str, title: str, build: dict) -> str:
+        """Make the branch hold this work, or refuse without having touched it.
+
+        Three cases, and only the first two go on. The branch is not there, so
+        it is ours to make. Or it is there and holds exactly the commit this run
+        would write, which means an earlier attempt died after committing and
+        this one carries it on — starting again would say there is nothing to
+        deliver, and the work would sit on a branch with no pull request. Or it
+        is somebody else's, and that is where this stops.
+        """
+        ours = self._already_delivered(root, branch, title)
+        if ours:
+            self._git(root, "checkout", branch)
+            return ours
+        if _branch_exists(root, branch, self.timeout):
+            raise ExecutorFailed(
+                "branch-exists",
+                f"{branch} already exists and does not hold this run's work; it is not ours to overwrite",
+                retryable=False,
+            )
+
+        files = [name for name in (build.get("files") or []) if str(name).strip()]
+        if not files:
+            raise ExecutorFailed(
+                "nothing-to-deliver", "the build named no file it changed", retryable=False
+            )
+        missing = [name for name in files if not (root / name).exists()]
+        if missing:
+            raise ExecutorFailed(
+                "no-such-file",
+                f"the build says it changed files that are not there: {', '.join(missing)}",
+                retryable=False,
+            )
+
+        self._git(root, "checkout", "-b", branch)
+        try:
+            # Only what the build named. `git add -A` sweeps up whatever else is
+            # in the tree — a .env, a log, a half-written experiment — and pushes
+            # it to a remote, and no project's .gitignore can be relied on for that.
+            self._git(root, "add", "--", *files)
+            if not _staged(root, self.timeout):
+                raise ExecutorFailed(
+                    "nothing-to-deliver",
+                    f"none of the files the build named has changed: {', '.join(files)}",
+                    retryable=False,
+                )
+            self._git(root, "commit", "-m", _message(title, build))
+        except BaseException:
+            # The branch was made a moment ago and holds nothing; leaving it
+            # behind would make the next attempt refuse as though it were
+            # somebody else's work.
+            self._git(root, "checkout", "-")
+            _run(["git", "branch", "-D", branch], root, self.timeout, "git-failed")
+            raise
+        return self._git(root, "rev-parse", "HEAD").strip()
+
+    def _already_delivered(self, root: Path, branch: str, title: str) -> str | None:
+        """The tip of an existing branch, when it is the commit this run would have written."""
+        if not _branch_exists(root, branch, self.timeout):
+            return None
+        printed = _run(
+            ["git", "log", "-1", "--format=%H%n%s", branch], root, self.timeout, "git-failed",
+            allowed_to_fail=True,
+        )
+        lines = printed.strip().split("\n")
+        if len(lines) < 2:
+            return None
+        return lines[0] if lines[1].strip() == title.strip() else None
+
     # --- the two commands it runs ----------------------------------------
 
     def _git(self, root: Path, *argv: str) -> str:
         return _run(["git", *argv], root, self.timeout, "git-failed")
 
     def _open_pull_request(self, root: Path, base: str, head: str, title: str, body_file: Path) -> str:
+        standing = _run(
+            ["gh", "pr", "view", head, "--json", "url", "--jq", ".url"], root, self.timeout, "gh-failed",
+            allowed_to_fail=True,
+        )
+        for line in standing.splitlines():
+            if line.strip().startswith("http"):
+                # An earlier attempt opened it and died before it could say so.
+                return line.strip()
+
         printed = _run(
             [
                 "gh", "pr", "create",
@@ -114,30 +190,70 @@ class Deliver:
         return url
 
 
-def _run(argv: Sequence[str], cwd: Path, timeout: int, code: str) -> str:
+def _run(argv: Sequence[str], cwd: Path, timeout: int, code: str, allowed_to_fail: bool = False) -> str:
+    """One command, and everything it started dies with it.
+
+    `git` and `gh` spawn helpers — a credential helper, a pager, an ssh — and a
+    helper that outlives the command it belongs to holds a lock or a terminal
+    nobody is watching. So the child gets its own process group and the group is
+    what dies.
+    """
     try:
-        finished = subprocess.run(
-            list(argv), cwd=cwd, capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=timeout,
+        child = subprocess.Popen(
+            list(argv), cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
+            start_new_session=True,
         )
     except FileNotFoundError as missing:
         raise ExecutorFailed(
             "binary-missing", f"{argv[0]} is not on PATH, and delivery needs it", retryable=False
         ) from missing
-    except subprocess.TimeoutExpired as expired:
-        raise ExecutorFailed(code, f"{' '.join(argv)} said nothing for {timeout} seconds") from expired
+    except OSError as error:
+        raise ExecutorFailed(
+            "binary-missing", f"{argv[0]} cannot be run: {error}", retryable=False
+        ) from error
 
-    if finished.returncode != 0:
+    try:
+        stdout, stderr = child.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        kill_group(child)
+        raise ExecutorFailed(code, f"{' '.join(argv)} said nothing for {timeout} seconds") from None
+
+    if child.returncode != 0:
+        if allowed_to_fail:
+            return ""
         raise ExecutorFailed(
             code,
-            f"{' '.join(argv)} exited with {finished.returncode}: "
-            f"{(finished.stderr or finished.stdout).strip()[:600] or 'and said nothing'}",
+            f"{' '.join(argv)} exited with {child.returncode}: "
+            f"{(stderr or stdout).strip()[:600] or 'and said nothing'}",
         )
-    return finished.stdout
+    return stdout
 
 
-def _changed(root: Path, timeout: int) -> bool:
-    return bool(_run(["git", "status", "--porcelain"], root, timeout, "git-failed").strip())
+def kill_group(child: subprocess.Popen) -> None:
+    """The command and everything it started."""
+    try:
+        os.killpg(os.getpgid(child.pid), signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        child.kill()
+    try:
+        child.communicate(timeout=10)
+    except subprocess.TimeoutExpired:  # pragma: no cover - the group is gone by now
+        log.warning("a killed process group did not go away")
+
+
+def _branch_exists(root: Path, branch: str, timeout: int) -> bool:
+    """Asked of git, and through the same door as everything else: a git that
+    hangs here must die with its group rather than take the timeout uncaught."""
+    printed = _run(
+        ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
+        root, timeout, "git-failed", allowed_to_fail=True,
+    )
+    return bool(printed.strip())
+
+
+def _staged(root: Path, timeout: int) -> bool:
+    return bool(_run(["git", "diff", "--cached", "--name-only"], root, timeout, "git-failed").strip())
 
 
 # --- what it reads, and what makes it refuse --------------------------------

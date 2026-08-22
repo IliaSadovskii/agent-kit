@@ -21,7 +21,7 @@ from agent_kit.steps.contract import parse_output
 DESIGN = {
     "title": "Money learns a VAT rate",
     "summary": "Money learns a VAT rate, so a price can be quoted with tax.",
-    "changes": ["src/kit_sandbox/money.py — a with_vat method"],
+    "changes": ["money.py — a with_vat method"],
     "seams": ["Money is frozen, so with_vat returns a new one"],
     "verification": ["a test that 1000 at 20% is 1200"],
     "assumptions": [
@@ -32,7 +32,7 @@ DESIGN = {
 BUILD = {
     "complete": True,
     "summary": "with_vat, and the test that was decided before it.",
-    "files": ["src/kit_sandbox/money.py"],
+    "files": ["money.py"],
     "tests": ["test_vat_is_added_to_the_amount"],
     "deviations": [{"what": "a free function, not a method", "because": "Money is frozen"}],
     "remaining": None,
@@ -75,8 +75,11 @@ def repo(tmp_path, monkeypatch):
     fake_gh = bin_dir / "gh"
     fake_gh.write_text(
         "#!/bin/sh\n"
-        f'printf "%s\\n" "$@" > "{tmp_path}/gh-argv"\n'
-        'cat "${5:-/dev/null}" >/dev/null 2>&1\n'
+        f'printf "%s\\n" "$@" >> "{tmp_path}/gh-argv"\n'
+        # `pr view` answers only once a pull request has been created, exactly
+        # as the real one does; otherwise deliver could never tell the two apart.
+        f'if [ "$2" = "view" ]; then [ -f "{tmp_path}/gh-opened" ] || exit 1; fi\n'
+        f'touch "{tmp_path}/gh-opened"\n'
         "echo https://github.com/owner/project/pull/7\n"
     )
     fake_gh.chmod(0o755)
