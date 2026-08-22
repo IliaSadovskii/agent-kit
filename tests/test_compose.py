@@ -62,3 +62,24 @@ def test_a_retry_encloses_why_the_last_attempt_was_refused(tmp_path):
 
 def test_a_first_attempt_says_nothing_about_refusals(tmp_path):
     assert "The previous attempt was refused" not in build(tmp_path, attempt=1, provider="fake")
+
+
+# --- S4: the brief is what the whole run is for ----------------------------
+
+
+def test_the_brief_is_enclosed_so_no_step_has_to_be_told_what_it_is_building(tmp_path):
+    run = RunStore(tmp_path).create(
+        "add-vat", steps=["probe"], project=str(tmp_path), brief="Money should know about VAT"
+    )
+
+    text = compose_input(
+        run=run, definition=builtin_registry().get("probe"), attempt=1, provider="fake"
+    )
+
+    assert "Money should know about VAT" in text
+
+
+def test_a_run_with_no_brief_says_nothing_about_one(tmp_path):
+    text = build(tmp_path, attempt=1, provider="fake")
+
+    assert "What this run is for" not in text

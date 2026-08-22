@@ -393,3 +393,38 @@ def test_an_invalid_state_is_refused_field_by_field(store, tmp_path, damage, cod
         store.load("add-login")
 
     assert caught.value.code == code
+
+
+# --- S4: a run says what it is for -----------------------------------------
+
+
+def test_a_run_carries_the_brief_it_was_created_for(store):
+    store.create("add-vat", steps=["probe"], brief="Money should know about VAT")
+
+    assert store.load("add-vat").brief == "Money should know about VAT"
+
+
+def test_a_brief_that_is_not_text_is_refused(store, tmp_path):
+    store.create("add-vat", steps=["probe"])
+    path = tmp_path / ".agent-kit/v3/runs/add-vat/run.json"
+    data = json.loads(path.read_text())
+    data["brief"] = 7
+    path.write_text(json.dumps(data))
+
+    with pytest.raises(StateError) as refused:
+        store.load("add-vat")
+    assert refused.value.code == "bad-field: brief"
+
+
+def test_a_run_file_from_schema_1_gains_an_empty_brief(store, tmp_path):
+    store.create("add-vat", steps=["probe"])
+    path = tmp_path / ".agent-kit/v3/runs/add-vat/run.json"
+    data = json.loads(path.read_text())
+    data["schema"] = 1
+    data.pop("brief", None)
+    path.write_text(json.dumps(data))
+
+    run = store.load("add-vat")
+
+    assert run.brief is None
+    assert run.schema == SCHEMA_VERSION
