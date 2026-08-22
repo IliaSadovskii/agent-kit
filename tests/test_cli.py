@@ -84,7 +84,7 @@ def test_config_show_prints_the_effective_configuration(machine, capsys):
 
 
 def test_a_run_is_created_advanced_and_read_back(machine, capsys):
-    assert run(["run", "new", "add-login"], capsys)[0] == ExitCode.OK
+    assert run(["run", "new", "add-login", "--steps", "probe"], capsys)[0] == ExitCode.OK
 
     assert run(["run", "start", "add-login"], capsys)[0] == ExitCode.OK
     assert run(["run", "pass", "add-login"], capsys)[0] == ExitCode.OK
@@ -99,8 +99,8 @@ def test_a_run_is_created_advanced_and_read_back(machine, capsys):
 
 
 def test_run_list_shows_what_the_project_holds(machine, capsys):
-    run(["run", "new", "add-login"], capsys)
-    run(["run", "new", "fix-clock"], capsys)
+    run(["run", "new", "add-login", "--steps", "probe"], capsys)
+    run(["run", "new", "fix-clock", "--steps", "probe"], capsys)
 
     code, out, _ = run(["run", "list"], capsys)
 
@@ -116,7 +116,7 @@ def test_an_unknown_run_is_a_state_error_with_a_named_reason(machine, capsys):
 
 
 def test_passing_a_step_that_never_started_is_refused(machine, capsys):
-    run(["run", "new", "add-login"], capsys)
+    run(["run", "new", "add-login", "--steps", "probe"], capsys)
 
     code, _, err = run(["run", "pass", "add-login"], capsys)
 
@@ -156,7 +156,7 @@ def test_a_run_cannot_be_created_from_a_step_that_does_not_exist(machine, capsys
 
 
 def test_step_input_composes_what_would_be_enclosed(machine, capsys):
-    run(["run", "new", "add-login"], capsys)
+    run(["run", "new", "add-login", "--steps", "probe"], capsys)
 
     code, out, _ = run(["step", "input", "add-login"], capsys)
 
@@ -169,7 +169,7 @@ def test_step_input_composes_what_would_be_enclosed(machine, capsys):
 def test_step_run_against_the_fake_provider(machine, capsys, tmp_path):
     reply = tmp_path / "reply.md"
     reply.write_text('```json\n{"branch": "kit/add-login", "can_write": true}\n```', encoding="utf-8")
-    run(["run", "new", "add-login"], capsys)
+    run(["run", "new", "add-login", "--steps", "probe"], capsys)
 
     code, out, _ = run(["step", "run", "add-login", "--provider", "fake", "--option", f"reply={reply}"], capsys)
 
@@ -183,7 +183,7 @@ def test_step_run_against_the_fake_provider(machine, capsys, tmp_path):
 def test_step_run_reports_a_refusal_and_leaves_the_step_unpassed(machine, capsys, tmp_path):
     reply = tmp_path / "reply.md"
     reply.write_text("I had a look and it seems fine.", encoding="utf-8")
-    run(["run", "new", "add-login"], capsys)
+    run(["run", "new", "add-login", "--steps", "probe"], capsys)
 
     code, out, err = run(["step", "run", "add-login", "--provider", "fake", "--option", f"reply={reply}"], capsys)
 
@@ -194,7 +194,7 @@ def test_step_run_reports_a_refusal_and_leaves_the_step_unpassed(machine, capsys
 
 
 def test_a_provider_the_kit_does_not_ship_is_refused_before_anything_runs(machine, capsys):
-    run(["run", "new", "add-login"], capsys)
+    run(["run", "new", "add-login", "--steps", "probe"], capsys)
 
     code, _, err = run(["step", "run", "add-login", "--provider", "codex"], capsys)
 
@@ -211,7 +211,7 @@ def test_provider_list_reads_the_folder(machine, capsys):
 
 
 def test_a_step_run_with_no_provider_at_all_is_refused(machine, capsys):
-    run(["run", "new", "add-login"], capsys)
+    run(["run", "new", "add-login", "--steps", "probe"], capsys)
 
     code, _, err = run(["step", "run", "add-login"], capsys)
 
@@ -226,7 +226,7 @@ def test_an_explicit_provider_beats_the_role_table(machine, capsys, tmp_path):
     config.write_text('[roles.probe]\nprovider = "claude_code"\n', encoding="utf-8")
     reply = tmp_path / "reply.md"
     reply.write_text('```json\n{"branch": "kit/x", "can_write": true}\n```', encoding="utf-8")
-    run(["run", "new", "add-login"], capsys)
+    run(["run", "new", "add-login", "--steps", "probe"], capsys)
 
     code, out, _ = run(
         ["step", "run", "add-login", "--provider", "fake", "--option", f"reply={reply}"], capsys
@@ -237,7 +237,7 @@ def test_an_explicit_provider_beats_the_role_table(machine, capsys, tmp_path):
 
 
 def test_step_input_refuses_a_run_that_is_over(machine, capsys):
-    run(["run", "new", "add-login"], capsys)
+    run(["run", "new", "add-login", "--steps", "probe"], capsys)
     run(["run", "start", "add-login"], capsys)
     run(["run", "fail", "add-login", "gave up"], capsys)
 
@@ -252,7 +252,7 @@ def test_step_input_refuses_a_run_that_is_over(machine, capsys):
     [("reply", "bad-option"), ("=value", "bad-option"), ("reply=/nowhere/at/all", "no-reply")],
 )
 def test_a_bad_option_is_refused_by_name(machine, capsys, option, reason):
-    run(["run", "new", "add-login"], capsys)
+    run(["run", "new", "add-login", "--steps", "probe"], capsys)
 
     code, _, err = run(["step", "run", "add-login", "--provider", "fake", "--option", option], capsys)
 
@@ -263,7 +263,7 @@ def test_a_bad_option_is_refused_by_name(machine, capsys, option, reason):
 def test_an_option_value_may_contain_the_separator(machine, capsys, tmp_path):
     reply = tmp_path / "a=b.md"
     reply.write_text('```json\n{"branch": "kit/x", "can_write": true}\n```', encoding="utf-8")
-    run(["run", "new", "add-login"], capsys)
+    run(["run", "new", "add-login", "--steps", "probe"], capsys)
 
     code, _, _ = run(
         ["step", "run", "add-login", "--provider", "fake", "--option", f"reply={reply}"], capsys
@@ -276,7 +276,7 @@ def test_run_show_says_what_a_step_cost_and_how_full_the_session_got(machine, ca
     """Every field the driver writes has a reader, and this is it."""
     reply = tmp_path / "reply.md"
     reply.write_text('```json\n{"branch": "kit/x", "can_write": true}\n```', encoding="utf-8")
-    run(["run", "new", "add-login"], capsys)
+    run(["run", "new", "add-login", "--steps", "probe"], capsys)
     run(["step", "run", "add-login", "--provider", "fake", "--option", f"reply={reply}"], capsys)
 
     meta = tmp_path / "project/.agent-kit/v3/runs/add-login/steps/0-probe/meta.json"
@@ -310,7 +310,7 @@ def test_the_configuration_reaches_the_provider_it_configures(machine, capsys, t
         '[roles.probe]\nprovider = "claude_code"\n',
         encoding="utf-8",
     )
-    run(["run", "new", "add-login"], capsys)
+    run(["run", "new", "add-login", "--steps", "probe"], capsys)
 
     from agent_kit.cli.main import _runner
     from agent_kit.state import RunStore
@@ -320,3 +320,31 @@ def test_the_configuration_reaches_the_provider_it_configures(machine, capsys, t
 
     assert runner.executors["claude_code"].model == "opus"
     assert runner.executors["claude_code"].effort == "high"
+
+
+# --- S4: a run of a feature says which feature ------------------------------
+
+
+def test_a_run_that_says_nothing_else_is_a_whole_feature(machine, capsys, tmp_path):
+    code, out, _ = run(["run", "new", "add-vat", "--brief", "Money should know about VAT"], capsys)
+
+    assert code == ExitCode.OK
+    state = json.loads(run(["run", "show", "add-vat", "--json"], capsys)[1])
+    assert [step["name"] for step in state["steps"]] == ["design", "build", "verify", "review", "deliver"]
+    assert state["brief"] == "Money should know about VAT"
+
+
+def test_a_feature_with_no_brief_is_refused_before_anything_runs(machine, capsys):
+    code, _, err = run(["run", "new", "add-vat"], capsys)
+
+    assert code == ExitCode.STATE
+    assert "no-brief" in err
+
+
+def test_run_show_says_what_the_run_is_for(machine, capsys):
+    run(["run", "new", "add-vat", "--brief", "Money should know about VAT"], capsys)
+
+    code, out, _ = run(["run", "show", "add-vat"], capsys)
+
+    assert code == ExitCode.OK
+    assert "Money should know about VAT" in out
