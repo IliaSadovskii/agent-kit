@@ -19,7 +19,7 @@ SCHEMA_VERSION = 2
 BRANCH_PREFIX = "kit/"
 
 #: What a run does when nobody says otherwise: one feature, end to end.
-DEFAULT_STEPS = ("design", "build", "verify", "review", "deliver")
+DEFAULT_STEPS = ("design", "build", "verify", "review", "record", "deliver")
 
 _SLUG = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 

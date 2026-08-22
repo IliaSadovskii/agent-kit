@@ -32,7 +32,11 @@ DESIGN = {
     "verification": ["1000 at 20% is 1200"],
     "needs_owner": [],
     "closes": [],
-    "assumptions": [{"what": "the rate is whole", "expensive": True, "because": "it is"}],
+    # It names where the block goes and not what it says: the join is about the
+    # block, and a design missing both would be refused for the address first.
+    "assumptions": [
+        {"what": "the rate is whole", "expensive": True, "because": "it is", "at": "entities.md#money"}
+    ],
 }
 
 

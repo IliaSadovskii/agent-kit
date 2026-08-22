@@ -71,6 +71,15 @@ DESIGN = StepDefinition(
     method="roles/design.md",
     title="decide what changes, and what will prove it",
     needs_brief=True,
+    needs_knowledge=True,
+    # What a project that keeps knowledge asks of a design, and a project that
+    # keeps none does not. The join the second version never made lives here:
+    # an expensive assumption owes a block, and a block owes an address.
+    knowledge_requires=(
+        ("assumptions.block", "expensive"),
+        ("assumptions.at", "expensive"),
+        ("closes", ""),
+    ),
     contract=Contract(
         fields=(
             Text(
@@ -91,6 +100,13 @@ DESIGN = StepDefinition(
                      "nothing. It is asked in the open half of the pull request, which is the "
                      "only channel to them there is",
             ),
+            TextList(
+                "closes",
+                required=False,
+                help="identifiers of blocks in the project's knowledge this feature makes untrue; "
+                     "the program deletes them. Empty is a real answer, and an identifier the "
+                     "knowledge does not hold stops the run",
+            ),
             Records(
                 "assumptions",
                 help="what you had to take as true without checking; empty when there was nothing",
@@ -98,6 +114,19 @@ DESIGN = StepDefinition(
                     Text("what", help="the assumption itself"),
                     Bool("expensive", help="true when being wrong about it would cost more than checking it"),
                     Text("because", help="why you took it as true"),
+                    Text(
+                        "at",
+                        required=False,
+                        help="where in the project's knowledge this belongs, as `file.md#anchor` — "
+                             "one of the addresses the enclosed index prints, and nothing else",
+                    ),
+                    LongText(
+                        "block",
+                        required=False,
+                        help="what the knowledge should say about it, in the project's own language: "
+                             "what the record does not say, what you took, and what it costs to be "
+                             "wrong. The program writes it; you do not touch the file",
+                    ),
                 ),
             ),
         )
@@ -214,6 +243,37 @@ DELIVER = StepDefinition(
 )
 
 
+#: record: the model returns fields, the program writes the file. S6's whole
+#: sentence. It is a step of its own rather than a half of `deliver` because a
+#: step leaves an output naming what it wrote, and a run that never had the step
+#: is visible in its own record — where the same work folded into delivery would
+#: leave a line in a log.
+#:
+#: It asks the deliverable question before it writes anything, so a blocking
+#: finding stops the run before it reaches the owner's knowledge.
+RECORD = StepDefinition(
+    name="record",
+    role="record",
+    executor="program:record",
+    title="write what was decided into the project's knowledge",
+    contract=Contract(
+        fields=(
+            Records(
+                "blocks",
+                help="every block written, in the order they were written",
+                shape=(
+                    Text("id", help="the identifier it carries, derived from the run and the assumption"),
+                    Text("at", help="the address it was written to"),
+                    Text("what", help="the assumption it answers"),
+                ),
+            ),
+            TextList("closed", help="the identifiers removed"),
+            TextList("files", help="the knowledge files this changed; delivery commits them beside the code"),
+        )
+    ),
+)
+
+
 def builtin_registry() -> Registry:
-    """The steps the kit ships. S4 adds design, build, review and deliver."""
-    return Registry([PROBE, DESIGN, BUILD, VERIFY, REVIEW, DELIVER])
+    """The steps the kit ships. S4 added design, build, review and deliver; S6, record."""
+    return Registry([PROBE, DESIGN, BUILD, VERIFY, REVIEW, RECORD, DELIVER])

@@ -278,11 +278,23 @@ def test_the_index_names_every_file_every_record_and_every_block(knowledge):
     assert "claude/2026-08-17-own-key-01-key-storage" in index
 
 
-def test_the_index_is_an_index_and_not_the_knowledge(knowledge):
-    index = knowledge.index()
+def test_the_index_does_not_grow_with_what_the_records_say(knowledge):
+    # The real knowledge is 7 380 lines: a window, not an enclosure. What makes
+    # the index affordable is that a record's body never reaches it.
+    before = knowledge.index()
+    path = knowledge.root / "entities.md"
+    path.write_text(path.read_text().replace("аккаунт человека в приложении", "слово " * 2000), encoding="utf-8")
 
-    assert "Инварианты" not in index  # the body of a record is not enclosed
-    assert len(index) < len(ENTITIES) + len(STACK)
+    assert knowledge.index() == before
+    assert "Инварианты" not in before
+
+
+def test_a_block_reaches_the_index_by_its_first_line_and_not_by_its_body(knowledge):
+    path = knowledge.root / "entities.md"
+    path.write_text(path.read_text().replace("публичный.", "публичный. " + "ещё " * 200), encoding="utf-8")
+
+    line = next(l for l in knowledge.index().splitlines() if "own-key-01" in l)
+    assert len(line) < 200
 
 
 def test_a_project_that_keeps_no_knowledge_says_so_rather_than_breaking(tmp_path):

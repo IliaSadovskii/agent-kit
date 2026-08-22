@@ -11,6 +11,7 @@ from typing import Sequence
 
 from ..state import Run
 from ..steps import StepDefinition
+from ..steps.contract import Contract
 
 Enclosure = tuple[str, str]
 
@@ -25,7 +26,12 @@ def compose_input(
     attempts_allowed: int = 3,
     parts_done: int = 0,
     parts_allowed: int = 0,
+    contract: Contract | None = None,
 ) -> str:
+    # What the *project* asks of this step, which may be more than the kit does.
+    # The same object is checked against what comes back: one description, two
+    # readers, and neither reads a description the other did not.
+    contract = definition.contract if contract is None else contract
     parts = [
         f"# {definition.name} — {definition.title or definition.role}",
         "",
@@ -90,7 +96,7 @@ def compose_input(
             "",
             "### The fields of this step",
             "",
-            definition.contract.describe(),
+            contract.describe(),
         ]
     parts.append("")
     return "\n".join(parts)

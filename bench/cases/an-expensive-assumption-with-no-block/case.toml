@@ -2,7 +2,7 @@
 
 [case]
 title = "an expensive assumption with no block, in a project that keeps knowledge"
-fires = "the design step is refused and the reason names the field"
+fires = "the design step is refused and the reason names the field, not the record it sits in"
 
 [expect]
 exit_code = 3

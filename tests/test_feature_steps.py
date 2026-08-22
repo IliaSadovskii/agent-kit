@@ -57,7 +57,7 @@ def refuse(name, data):
 
 
 def test_a_run_that_says_nothing_else_designs_builds_verifies_reviews_and_delivers():
-    assert list(DEFAULT_STEPS) == ["design", "build", "verify", "review", "deliver"]
+    assert list(DEFAULT_STEPS) == ["design", "build", "verify", "review", "record", "deliver"]
     for name in DEFAULT_STEPS:
         builtin_registry().get(name)
 

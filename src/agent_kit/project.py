@@ -6,7 +6,9 @@ Three facts, each with exactly one reader:
   seconds for each;
 - the default branch — `deliver` opens the pull request against it;
 - the role table — the driver prefers it to the machine's, and only for roles
-  this project names.
+  this project names;
+- where its knowledge lives — the driver encloses an index of it for the step
+  that must address it, and `record` writes into it.
 
 Nothing about *how* a provider works reaches here, and nothing this machine
 chose about itself does either. This file is the project's, it is committed
@@ -22,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import RoleConfig, roles_from_table
+from .knowledge import DEFAULT_DIR as KNOWLEDGE_DIR
 from .errors import ConfigError
 from .paths import project_paths
 
@@ -35,7 +38,7 @@ DEFAULT_BRANCH = "main"
 DEFAULT_COMMAND_TIMEOUT = 3600
 
 _TOP_KEYS = {"project", "commands", "roles"}
-_PROJECT_KEYS = {"default_branch", "command_timeout"}
+_PROJECT_KEYS = {"default_branch", "command_timeout", "knowledge"}
 
 
 @dataclass(frozen=True)
@@ -53,9 +56,22 @@ class Project:
     #: Seconds `verify` waits for one declared command before killing it and
     #: everything it started.
     command_timeout: int = DEFAULT_COMMAND_TIMEOUT
+    #: Where this project keeps its knowledge, relative to its root. The
+    #: default is where the second version left it, because the owner's answer
+    #: of 22 August is that the format — and the place — do not change.
+    knowledge: str = KNOWLEDGE_DIR
     commands: tuple[Command, ...] = ()
     roles: dict[str, RoleConfig] = field(default_factory=dict)
     source: Path | None = None
+
+    @property
+    def knowledge_dir(self) -> Path:
+        return self.root / self.knowledge
+
+    @property
+    def keeps_knowledge(self) -> bool:
+        """A project that keeps none owes no block, and is not made to invent one."""
+        return self.knowledge_dir.is_dir()
 
 
 def project_file(root: Path | str) -> Path:
@@ -83,6 +99,7 @@ def read_project(root: Path | str) -> Project | None:
         root=Path(root),
         default_branch=_text(block.get("default_branch", DEFAULT_BRANCH), "project.default_branch"),
         command_timeout=_seconds(block.get("command_timeout", DEFAULT_COMMAND_TIMEOUT), "project.command_timeout"),
+        knowledge=_text(block.get("knowledge", KNOWLEDGE_DIR), "project.knowledge"),
         commands=_commands(_table(document.get("commands", {}), "commands")),
         roles=roles_from_table(_table(document.get("roles", {}), "roles")),
         source=path,
@@ -128,6 +145,7 @@ def discover(root: Path) -> tuple[Project, list[str]]:
             root=root,
             default_branch=standing.default_branch if standing else _default_branch(root),
             command_timeout=standing.command_timeout if standing else DEFAULT_COMMAND_TIMEOUT,
+            knowledge=standing.knowledge if standing else KNOWLEDGE_DIR,
             commands=tuple(commands),
             roles=dict(standing.roles) if standing else {},
         ),
@@ -144,6 +162,8 @@ def render(project: Project) -> str:
         f'default_branch = "{project.default_branch}"',
         "# How long `verify` waits for one command before killing it and its children.",
         f"command_timeout = {project.command_timeout}",
+        "# Where this project keeps its knowledge. A project that keeps none owes no block.",
+        f'knowledge = "{project.knowledge}"',
         "",
         "[commands]",
         "# What `verify` runs, in this order. One fact, one home.",

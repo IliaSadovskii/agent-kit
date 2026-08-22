@@ -1,12 +1,14 @@
 """The executors that are not sessions.
 
 Question 1 of the plan's four — *can this be a program instead?* — applied to
-the method itself. Two steps of a feature answer yes:
+the method itself. Three steps of a feature answer yes:
 
 - `verify` runs the project's declared commands, because an agent cannot lie
   about green tests it did not run;
 - `deliver` composes the pull request from what was already recorded, because a
-  body assembled from the facts cannot describe work that did not happen.
+  body assembled from the facts cannot describe work that did not happen;
+- `record` writes the project's knowledge, because an agent that writes the file
+  itself can always claim it did, and the join S6 exists for must be checkable.
 
 They are executors like any other: the driver hands over a `StepRequest` and is
 given back raw text, which the step's contract then judges. Nothing here knows
@@ -48,9 +50,11 @@ def build_program(name: str, root: Path | str) -> Executor:
 
 def _register() -> None:
     from .deliver import Deliver
+    from .record import Record
     from .verify import Verify
 
     _BUILDERS[Verify.name] = Verify
+    _BUILDERS[Record.name] = Record
     _BUILDERS[Deliver.name] = Deliver
 
 

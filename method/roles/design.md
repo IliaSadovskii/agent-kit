@@ -28,6 +28,20 @@ Do this, in this order:
    `expensive` is true when being wrong about it would cost more than checking it would
    have. Answer it for every assumption; an unanswered one is the same as no assumption
    at all, and the second version left 14% of them unanswered.
+7. **An expensive assumption owes the knowledge a block.** If the project keeps knowledge,
+   the index of it is enclosed above, and an assumption you called expensive carries two
+   more fields. `at` is where the block belongs, as `file.md#anchor` — one of the addresses
+   the index prints, copied, not invented: the program resolves it against the file and
+   refuses one that names nothing. `block` is what the knowledge should say, in the
+   project's own language: what the record does not say, what you took instead, and what it
+   costs to be wrong. **You do not edit the knowledge yourself.** The program writes it,
+   gives it an identifier and commits it with the code — which is why what you write has to
+   stand on its own, read a month later by somebody who never saw this run.
+8. **Say what this feature makes untrue.** `closes` is the identifiers of blocks the
+   enclosed index lists that this work answers — the program deletes them. Empty is a real
+   answer. An identifier the knowledge does not hold stops the run, so copy them, and note
+   that a block the index shows with `—` was written before the kit could address one and
+   cannot be closed.
 
 If the brief cannot be designed as written — it contradicts what is here, or it needs a
 decision only the owner can make — put the question in `needs_owner`, one line each. That

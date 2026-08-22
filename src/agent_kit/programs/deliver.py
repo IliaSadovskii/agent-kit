@@ -5,9 +5,11 @@ steps already recorded cannot describe work that did not happen; and a review
 finding needs a consequence, or it is the second version's problem restated.
 So `blocking` is read here, and it refuses.
 
-Three refusals, and all three are final: a blocking finding, a verify that did
-not pass, a build that never finished. None of them will have changed by the
-next attempt, so none of them is worth a second session.
+The three final refusals it used to own — a blocking finding, a verify that did
+not pass, a build that never finished — are asked of `deliverable.py` now,
+because `record` has to ask the same question before it writes into the owner's
+knowledge. They are still asked here: a run assembled from other steps may never
+have had a `record` at all.
 
 What the owner reads is in Russian, which is the project's rule for anything
 addressed to them. The commit message is in English, which is the rule for
@@ -27,11 +29,11 @@ from ..shell import kill_group
 from ..project import require_project
 from ..providers.base import ExecutorFailed, ExecutorResult, StepRequest
 from ..state.store import keep_runs_out_of_git
+from .deliverable import BLOCKING, expensive_of, read, refuse_unless_deliverable
+from .deliverable import where as _where
 
 #: git and gh are local commands; one that has hung for this long has hung.
 DEFAULT_TIMEOUT = 300
-
-BLOCKING = "blocking"
 
 #: What git's own tooling wraps a subject at, near enough.
 SUBJECT = 72
@@ -49,11 +51,18 @@ class Deliver:
     def execute(self, request: StepRequest) -> ExecutorResult:
         root = Path(request.project) if request.project else self.root
         project = require_project(root)
-        design, build, verify, review = _read(request.prior)
+        # A project that keeps knowledge cannot close a feature without the step
+        # that writes it: the join is what S6 exists for, and a run that skipped
+        # `record` has not made it.
+        keeps = project.keeps_knowledge
+        design, build, verify, review = read(request.prior, *(("record",) if keeps else ()))
+        recorded = request.prior.get("record") or {"blocks": [], "closed": [], "files": []}
 
-        _refuse_unless_deliverable(build, verify, review)
+        refuse_unless_deliverable(build, verify, review)
+        if keeps:
+            _refuse_a_naked_assumption(design, recorded)
 
-        body = compose_body(request, design, build, verify, review)
+        body = compose_body(request, design, build, verify, review, recorded)
         # It goes beside the run's own state, which means it must be kept out
         # of the commit this step is about to make.
         runs_dir = project_paths(root).runs_dir
@@ -69,7 +78,9 @@ class Deliver:
         # is reached until the branch has been accounted for. A delivery that
         # overwrites somebody's work has already done the damage by the time it
         # notices, and `checkout -B` does exactly that.
-        commit = self._settle_branch(root, branch, project.default_branch, title, build)
+        commit = self._settle_branch(
+            root, branch, project.default_branch, title, _files(build, recorded), _message(title, build)
+        )
         self._git(root, "push", "--set-upstream", "origin", branch)
 
         url = self._open_pull_request(root, project.default_branch, branch, title, body_file)
@@ -85,7 +96,9 @@ class Deliver:
 
     # --- the branch, and whose it is --------------------------------------
 
-    def _settle_branch(self, root: Path, branch: str, base: str, title: str, build: dict) -> str:
+    def _settle_branch(
+        self, root: Path, branch: str, base: str, title: str, files: list[str], message: str
+    ) -> str:
         """Make the branch hold this work, or refuse without having touched it.
 
         Four cases. It is not there, so it is ours to make. It holds exactly the
@@ -113,7 +126,6 @@ class Deliver:
                 retryable=False,
             )
 
-        files = [name for name in (build.get("files") or []) if str(name).strip()]
         if not files:
             raise ExecutorFailed(
                 "nothing-to-deliver", "the build named no file it changed", retryable=False
@@ -142,7 +154,7 @@ class Deliver:
                     f"none of the files the build named has changed: {', '.join(files)}",
                     retryable=False,
                 )
-            self._git(root, "commit", "-m", _message(title, build))
+            self._git(root, "commit", "-m", message)
         except BaseException:
             if made_it:
                 # It was made a moment ago and holds nothing; leaving it behind
@@ -274,61 +286,36 @@ def _staged(root: Path, timeout: int) -> bool:
 # --- what it reads, and what makes it refuse --------------------------------
 
 
-def _read(prior: dict[str, dict[str, Any]]) -> tuple[dict, dict, dict, dict]:
-    missing = [name for name in ("design", "build", "verify", "review") if not prior.get(name)]
-    if missing:
+def _files(build: dict, recorded: dict) -> list[str]:
+    """What goes into the commit: what the build named, and what the program wrote.
+
+    A block written into the owner's knowledge and left out of the commit is one
+    nobody but this machine will ever see. It is still only what was named — the
+    program named half of it.
+    """
+    named = [str(name) for name in (build.get("files") or []) if str(name).strip()]
+    for name in (recorded.get("files") or []):
+        if str(name).strip() and str(name) not in named:
+            named.append(str(name))
+    return named
+
+
+def _refuse_a_naked_assumption(design: dict, recorded: dict) -> None:
+    """The join, asked a second time by the step that closes the feature.
+
+    It cannot fire while the design step's contract stands, and that is the
+    point: it is what survives a run assembled from different steps, or a
+    contract somebody loosens later without noticing what it held.
+    """
+    written = {str(block.get("what")) for block in (recorded.get("blocks") or [])}
+    naked = [item for item in expensive_of(design) if str(item.get("what")) not in written]
+    if naked:
         raise ExecutorFailed(
-            "nothing-to-read",
-            f"delivery composes itself from what earlier steps returned, and {', '.join(missing)} returned nothing",
+            "assumption-with-no-block",
+            "this project keeps knowledge, and a feature is not closed while an expensive assumption "
+            "has no block: " + "; ".join(str(item.get("what")) for item in naked),
             retryable=False,
         )
-    return prior["design"], prior["build"], prior["verify"], prior["review"]
-
-
-def _refuse_unless_deliverable(build: dict, verify: dict, review: dict) -> None:
-    if not build.get("complete"):
-        left = ", ".join(build.get("remaining") or []) or "it did not say what is left"
-        raise ExecutorFailed(
-            "build-unfinished", f"the build did not finish: {left}", retryable=False, expected=True
-        )
-
-    if not verify.get("passed"):
-        failed = [
-            f"{command.get('name')} exited with {command.get('exit_code')}"
-            for command in verify.get("commands") or []
-            if not command.get("passed")
-        ]
-        raise ExecutorFailed(
-            "not-verified",
-            f"the project's own commands did not come back green: {', '.join(failed) or 'no command ran'}",
-            retryable=False,
-            expected=True,
-        )
-
-    # The verdict is the reviewer's own summary of its findings, and the two
-    # must agree — a reviewer that blocks and lists nothing, or lists something
-    # blocking and passes anyway, has not made a decision the program can act on.
-    blocking = [finding for finding in review.get("findings") or [] if finding.get("severity") == BLOCKING]
-    verdict = review.get("verdict")
-    if blocking and verdict != "blocked":
-        raise ExecutorFailed(
-            "review-disagrees-with-itself",
-            f"the verdict is {verdict!r} and yet a finding blocks: " + "; ".join(_where(f) for f in blocking),
-            retryable=False,
-        )
-    if verdict == "blocked":
-        named = "; ".join(_where(finding) for finding in blocking) or "and it named nothing that does"
-        raise ExecutorFailed(
-            "blocked-by-review",
-            f"the review blocks delivery: {named}",
-            retryable=False,
-            expected=True,
-        )
-
-
-def _where(finding: dict) -> str:
-    place = finding.get("where")
-    return f"{finding.get('what')} ({place})" if place else str(finding.get("what"))
 
 
 # --- what the owner reads ----------------------------------------------------
@@ -354,7 +341,8 @@ def _message(subject: str, build: dict) -> str:
     return f"{subject}\n\n{(build.get('summary') or '').strip()}\n"
 
 
-def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, review: dict) -> str:
+def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, review: dict,
+                 recorded: dict | None = None) -> str:
     """The pull request, written as a report to the owner rather than a dump.
 
     Three things are open, because they are the three the owner has to act on:
@@ -364,7 +352,8 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
     """
     findings = review.get("findings") or []
     blocking = [item for item in findings if item.get("severity") == BLOCKING]
-    expensive = [item for item in (design.get("assumptions") or []) if item.get("expensive")]
+    expensive = expensive_of(design)
+    recorded = recorded or {}
 
     open_part = [
         "## Что сделано", "",
@@ -422,6 +411,14 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
     if ordinary:
         folded += ["## Остальные допущения", ""]
         folded += [f"- {item.get('what')} — {item.get('because')}" for item in ordinary]
+        folded.append("")
+
+    written = recorded.get("blocks") or []
+    closed = recorded.get("closed") or []
+    if written or closed:
+        folded += ["## Что записано в знание", ""]
+        folded += [f"- `{item.get('id')}` → `{item.get('at')}` — {item.get('what')}" for item in written]
+        folded += [f"- закрыт `{item}`" for item in closed]
         folded.append("")
 
     rest = [item for item in findings if item.get("severity") != BLOCKING]

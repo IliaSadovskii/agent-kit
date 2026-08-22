@@ -1,0 +1,113 @@
+"""record — what the run decided, written into the project's knowledge by the program.
+
+The plan's whole sentence for S6: *the model returns fields, the driver writes
+the file and the mark.* The reason it is a program rather than a role is the
+reason `verify` is one — an agent that writes the file itself can always claim
+it did, and the join this step exists for has to be checkable.
+
+The join: **an expensive assumption owes a block.** It binds a project that
+keeps knowledge; a project that keeps none is not made to invent one, and its
+expensive assumptions still reach the owner in the open half of the pull
+request, which is the channel that exists.
+
+Nothing here is written until the work is known to be deliverable. A blocking
+finding, a red suite or a build that never finished stops the run before the
+owner's knowledge is touched.
+"""
+
+from __future__ import annotations
+
+import json
+from datetime import date as _date
+from pathlib import Path
+
+from ..knowledge import Knowledge, KnowledgeError
+from ..logs import get_logger
+from ..project import require_project
+from ..providers.base import ExecutorFailed, ExecutorResult, StepRequest
+from .deliverable import expensive_of, read, refuse_unless_deliverable
+
+log = get_logger("programs.record")
+
+
+class Record:
+    name = "program:record"
+
+    def __init__(self, root: Path, today: str = "") -> None:
+        self.root = Path(root)
+        self.today = today or _date.today().isoformat()
+
+    def execute(self, request: StepRequest) -> ExecutorResult:
+        root = Path(request.project) if request.project else self.root
+        project = require_project(root)
+        design, build, verify, review = read(request.prior)
+
+        # Before anything is written, and this is the whole reason the step
+        # stands in front of `deliver` rather than inside it.
+        refuse_unless_deliverable(build, verify, review)
+
+        knowledge = Knowledge(project.knowledge_dir)
+        owing = expensive_of(design)
+        closing = [str(item) for item in (design.get("closes") or []) if str(item).strip()]
+
+        if not knowledge.exists:
+            if closing:
+                raise ExecutorFailed(
+                    "no-knowledge",
+                    f"the design closes {', '.join(closing)} and this project keeps no knowledge under "
+                    f"{project.knowledge}",
+                    retryable=False,
+                )
+            # Nothing is owed and nothing is written. The expensive assumptions
+            # still reach the owner: `deliver` opens the pull request with them.
+            return _said([], [], [])
+
+        naked = [item for item in owing if not (item.get("block") and item.get("at"))]
+        if naked:
+            raise ExecutorFailed(
+                "assumption-with-no-block",
+                "this project keeps knowledge, so an expensive assumption owes a block, and these have "
+                "none: " + "; ".join(str(item.get("what")) for item in naked),
+                retryable=False,
+            )
+
+        touched: list[Path] = []
+        try:
+            closed = [_closed(knowledge, id, touched) for id in closing]
+            blocks = [self._write(knowledge, request, item, touched) for item in owing]
+        except KnowledgeError as refused:
+            # The address, the identifier — the knowledge said no by name, and
+            # the same name reaches the run's own record.
+            raise ExecutorFailed(refused.code, refused.detail, retryable=False) from refused
+
+        files = []
+        for path in touched:
+            relative = str(path.relative_to(root))
+            if relative not in files:
+                files.append(relative)
+        log.info("%s: %s blocks written, %s closed", request.slug, len(blocks), len(closed))
+        return _said(blocks, closed, files)
+
+    def _write(self, knowledge: Knowledge, request: StepRequest, item: dict, touched: list[Path]) -> dict:
+        what = str(item["what"])
+        id = knowledge.free_id(request.slug, what, request.branch)
+        touched.append(
+            knowledge.write(
+                at=str(item["at"]), run=request.branch, body=str(item["block"]), id=id, date=self.today
+            )
+        )
+        return {"id": id, "at": str(item["at"]), "what": what}
+
+
+def _closed(knowledge: Knowledge, id: str, touched: list[Path]) -> str:
+    touched.append(knowledge.close(id))
+    return id
+
+
+def _said(blocks: list[dict], closed: list[str], files: list[str]) -> ExecutorResult:
+    return ExecutorResult(
+        raw=json.dumps({"blocks": blocks, "closed": closed, "files": files}, indent=2, ensure_ascii=False),
+        # No `model`: a program is not a session, and the record must not read
+        # as though one did this.
+        meta={"blocks": len(blocks), "closed": len(closed)},
+    )

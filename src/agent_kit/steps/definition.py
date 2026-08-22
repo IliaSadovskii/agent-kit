@@ -61,6 +61,15 @@ class StepDefinition:
     #: false. The step itself succeeded — it recorded what is true — and what is
     #: true is that the run must not go on. Empty when the step gates nothing.
     gate: str = ""
+    #: True when this step decides where something goes in the project's
+    #: knowledge. The driver encloses an index of it; the step is never sent to
+    #: go and find it, because a prescribed reading leaves no trace.
+    needs_knowledge: bool = False
+    #: What a project that keeps knowledge makes required of this step's output:
+    #: `(path, the sibling whose truth requires it)`. Empty for every step but
+    #: `design`, and it is here rather than in the contract because the contract
+    #: is the kit's and this is the project's.
+    knowledge_requires: tuple[tuple[str, str], ...] = ()
     #: Open question 5, the ceiling inside a step. A step that may be split is
     #: continued in a fresh session with what the previous one produced. A step
     #: that may not and outgrows its window is a design error, not a survival.
@@ -69,6 +78,15 @@ class StepDefinition:
     @property
     def by_agent(self) -> bool:
         return self.executor == AGENT
+
+    def contract_in(self, keeps_knowledge: bool) -> Contract:
+        """The contract this project imposes, which is the one the agent is shown."""
+        if not (keeps_knowledge and self.knowledge_requires):
+            return self.contract
+        contract = self.contract
+        for path, when in self.knowledge_requires:
+            contract = contract.requiring(path, when=when)
+        return contract
 
     def instructions(self) -> str:
         return read_method(self.method) if self.method else ""

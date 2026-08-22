@@ -330,7 +330,7 @@ def test_a_run_that_says_nothing_else_is_a_whole_feature(machine, capsys, tmp_pa
 
     assert code == ExitCode.OK
     state = json.loads(run(["run", "show", "add-vat", "--json"], capsys)[1])
-    assert [step["name"] for step in state["steps"]] == ["design", "build", "verify", "review", "deliver"]
+    assert [step["name"] for step in state["steps"]] == ["design", "build", "verify", "review", "record", "deliver"]
     assert state["brief"] == "Money should know about VAT"
 
 

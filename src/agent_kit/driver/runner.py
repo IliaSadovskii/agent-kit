@@ -15,7 +15,8 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from ..config import RoleConfig
-from ..errors import ProviderError, StateError
+from ..errors import KitError, ProviderError, StateError
+from ..knowledge import DEFAULT_DIR as KNOWLEDGE_DIR, Knowledge
 from ..logs import get_logger
 from ..state import DEFAULT_STEPS, Run, RunStore
 from ..steps import Registry, StepDefinition
@@ -99,9 +100,10 @@ class StepRunner:
             raise StateError("no-step-pending", f"{slug}: every step is done")
 
         definition = self.registry.get(run.steps[index].name)
+        contract = definition.contract_in(self._keeps_knowledge(run))
         providers = self._providers_for(definition)
         workspace = StepWorkspace(self.store.run_root(slug), index, definition.name)
-        enclosures, prior = self._enclosures(run, index)
+        enclosures, prior = self._enclosures(run, index, definition)
 
         outcome = StepOutcome(slug=slug, step=definition.name, passed=False)
         refusal: str | None = None
@@ -116,7 +118,7 @@ class StepRunner:
             try:
                 record = self._attempt(
                     run, index, definition, workspace, provider, seen[provider], refusal,
-                    enclosures + _parts_enclosure(parts), prior, len(parts),
+                    enclosures + _parts_enclosure(parts), prior, len(parts), contract,
                 )
             except BaseException as escaped:
                 # Whatever broke, the state must not be left holding a step
@@ -142,7 +144,7 @@ class StepRunner:
                 if definition.splittable and len(parts) > 1:
                     # Several sessions did this step, each answering only for
                     # its own part. What the next step reads must be all of it.
-                    output = definition.contract.merge(parts)
+                    output = contract.merge(parts)
                     workspace.accept(record.attempt, output, record.meta)
                 self.store.pass_step(slug)
                 outcome.passed = True
@@ -224,7 +226,9 @@ class StepRunner:
         enclosures: list[tuple[str, str]],
         prior: dict[str, dict[str, Any]],
         parts_done: int = 0,
+        contract: Any = None,
     ) -> AttemptRecord:
+        contract = definition.contract if contract is None else contract
         attempt = run.steps[index].attempts
         allowed = self.attempts if definition.by_agent else 1
         text = compose_input(
@@ -237,6 +241,7 @@ class StepRunner:
             attempts_allowed=allowed,
             parts_done=parts_done,
             parts_allowed=self.continuations,
+            contract=contract,
         )
         workspace.write_input(attempt, text)
 
@@ -289,7 +294,7 @@ class StepRunner:
         workspace.write_meta(attempt, meta)
 
         try:
-            output = definition.contract.check(parse_output(result.raw))
+            output = contract.check(parse_output(result.raw))
         except ContractRefusal as refused:
             return self._refused(
                 workspace, attempt, on_provider, provider, f"{refused.code}: {refused.detail}", meta
@@ -355,11 +360,40 @@ class StepRunner:
                 )
         return chain
 
-    def _enclosures(self, run: Run, index: int) -> tuple[list[tuple[str, str]], dict[str, dict[str, Any]]]:
+    def _project_of(self, run: Run):
+        """What the project declares, or nothing when it declares nothing.
+
+        A run against a project with no declaration is still a run — the probe
+        needs none — so this never raises. The steps that cannot work without
+        one refuse for themselves, by name.
+        """
+        from ..project import read_project
+
+        try:
+            return read_project(Path(run.project) if run.project else self.store.paths.root)
+        except KitError:
+            return None
+
+    def _keeps_knowledge(self, run: Run) -> bool:
+        project = self._project_of(run)
+        return bool(project and project.keeps_knowledge)
+
+    def _knowledge_of(self, run: Run) -> Knowledge:
+        project = self._project_of(run)
+        root = Path(run.project) if run.project else self.store.paths.root
+        return Knowledge(project.knowledge_dir if project else root / KNOWLEDGE_DIR)
+
+    def _enclosures(
+        self, run: Run, index: int, definition: StepDefinition | None = None
+    ) -> tuple[list[tuple[str, str]], dict[str, dict[str, Any]]]:
         """Everything an earlier step produced, so this one never goes looking.
 
         Twice, because the two kinds of executor read differently: a session is
         handed prose it can read, a program is handed the same outputs as data.
+
+        A step that must address the knowledge is handed an index of it here for
+        the same reason: reading is never an instruction, so there is no reading
+        to skip and nothing to check that it happened.
         """
         enclosed: list[tuple[str, str]] = []
         prior: dict[str, dict[str, Any]] = {}
@@ -370,6 +404,8 @@ class StepRunner:
             if output is not None:
                 enclosed.append((f"{earlier}-{step.name} returned", json.dumps(output, indent=2, ensure_ascii=False)))
                 prior[step.name] = output
+        if definition is not None and definition.needs_knowledge:
+            enclosed.append(("the project's knowledge, as an index", self._knowledge_of(run).index()))
         return enclosed, prior
 
 

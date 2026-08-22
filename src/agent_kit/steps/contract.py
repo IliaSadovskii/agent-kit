@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Iterable, Sequence
 
 from ..errors import ExitCode, KitError
@@ -28,16 +28,27 @@ class Field:
     name: str
     required: bool = True
     help: str = ""
+    #: Required exactly when this sibling of the same record is true. Set by
+    #: `Contract.requiring`, never by hand at a step: it is what a *project*
+    #: makes of a field, and the kit ships no project.
+    required_when: str = ""
 
     kind = "value"
+
+    def needed(self, beside: dict[str, Any]) -> bool:
+        return bool(beside.get(self.required_when)) if self.required_when else self.required
+
+    def _need(self) -> str:
+        if self.required_when:
+            return f"required when `{self.required_when}`"
+        return "required" if self.required else "optional"
 
     def check(self, value: Any, where: str) -> Any:  # pragma: no cover - overridden
         raise NotImplementedError
 
     def describe(self) -> str:
-        need = "required" if self.required else "optional"
         help_text = f" — {self.help}" if self.help else ""
-        return f"- `{self.name}` ({self.kind}, {need}){help_text}"
+        return f"- `{self.name}` ({self.kind}, {self._need()}){help_text}"
 
     def _refuse(self, where: str, detail: str) -> None:
         raise ContractRefusal(f"output-bad-field: {where}", detail)
@@ -94,9 +105,8 @@ class Enum(Field):
         return value
 
     def describe(self) -> str:
-        need = "required" if self.required else "optional"
         help_text = f" — {self.help}" if self.help else ""
-        return f"- `{self.name}` (one of {', '.join(self.choices)}, {need}){help_text}"
+        return f"- `{self.name}` (one of {', '.join(self.choices)}, {self._need()}){help_text}"
 
 
 @dataclass(frozen=True)
@@ -122,10 +132,9 @@ class Records(Field):
         return [_check_fields(self.shape, item, f"{where}[{index}]") for index, item in enumerate(value)]
 
     def describe(self) -> str:
-        need = "required" if self.required else "optional"
         help_text = f" — {self.help}" if self.help else ""
         inner = "\n".join("  " + field.describe() for field in self.shape)
-        return f"- `{self.name}` (list of records, {need}){help_text}\n{inner}"
+        return f"- `{self.name}` (list of records, {self._need()}){help_text}\n{inner}"
 
 
 @dataclass(frozen=True)
@@ -142,6 +151,34 @@ class Contract:
 
     def field(self, name: str) -> Field | None:
         return next((field for field in self.fields if field.name == name), None)
+
+    def requiring(self, path: str, when: str = "") -> "Contract":
+        """A stricter copy of this contract, because a project asked for one.
+
+        The join S6 exists for — an expensive assumption owes a block — binds a
+        project that keeps knowledge and not one that keeps none. So the
+        requirement cannot live in the definition: the driver asks for the copy
+        the project imposes, and renders that same copy into the step's input.
+        One description, two readers, still.
+        """
+        head, _, inner = path.partition(".")
+        fields = list(self.fields)
+        for index, field in enumerate(fields):
+            if field.name != head:
+                continue
+            if not inner:
+                fields[index] = replace(field, required=True, required_when=when)
+                return Contract(fields=tuple(fields))
+            if not isinstance(field, Records):
+                raise ContractRefusal("bad-contract", f"{head} is not a list of records, so {path} names nothing")
+            shape = list(field.shape)
+            for at, inside in enumerate(shape):
+                if inside.name == inner:
+                    shape[at] = replace(inside, required=True, required_when=when)
+                    fields[index] = replace(field, shape=tuple(shape))
+                    return Contract(fields=tuple(fields))
+            raise ContractRefusal("bad-contract", f"{path} names no field of this contract")
+        raise ContractRefusal("bad-contract", f"{path} names no field of this contract")
 
     def merge(self, parts: Sequence[dict[str, Any]]) -> dict[str, Any]:
         """One output from the several a split step produced.
@@ -179,7 +216,7 @@ def _check_fields(fields: Sequence[Field], data: Any, where: str) -> dict[str, A
         name = field.name
         at = name if where == "output" else f"{where}.{name}"
         if data.get(name) is None:
-            if field.required:
+            if field.needed(data):
                 raise ContractRefusal(f"output-missing-field: {at}", "the contract requires it and it was not returned")
             checked[name] = None
             continue
