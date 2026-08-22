@@ -270,7 +270,7 @@ makes exactly one case say it did not.
 # What was built, 22 August 2026
 
 Six steps to a run now — `design`, `build`, `verify`, `review`, `record`, `deliver` —
-nineteen bench cases all firing, and 434 tests. Everything decided above was built as
+nineteen bench cases all firing, and 412 tests. Everything decided above was built as
 decided; what changed on the way is in the last section, and so is what was not built.
 
 ## The identifier, in the file
