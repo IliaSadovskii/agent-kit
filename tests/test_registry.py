@@ -64,3 +64,13 @@ def test_a_run_may_only_be_created_from_steps_that_exist(tmp_path):
 def test_the_state_itself_knows_nothing_about_steps(tmp_path):
     """Dependencies flow one way: state, then the step contract, then the driver."""
     assert RunStore(tmp_path).create("add-login", steps=["whatever"]).steps[0].name == "whatever"
+
+
+def test_the_prose_of_a_step_does_not_promise_what_the_driver_does_not_enclose():
+    """`compose.py` encloses the brief and earlier outputs. Nothing else exists to promise."""
+    for definition in builtin_registry().all():
+        if not definition.by_agent:
+            continue
+        prose = definition.instructions()
+        assert "knowledge are enclosed" not in prose
+        assert "enclosed knowledge" not in prose

@@ -165,3 +165,56 @@ def test_what_a_project_declares_is_repository_content_and_its_runs_are_not(repo
 
     assert not ignored(".agent-kit/v3/" + PROJECT_FILE)
     assert ignored(".agent-kit/v3/runs/add-vat/run.json")
+
+
+# --- what the review found: init destroys what it cannot write --------------
+
+
+def test_init_keeps_what_it_did_not_write(repo):
+    (repo / "Makefile").write_text("test:\n\tpytest\n")
+    declare(
+        repo,
+        '[commands]\ntest = "make test"\nsmoke = "make smoke"\n\n[roles.build]\nprovider = "codex"\n',
+    )
+
+    assert main(["-C", str(repo), "init", "--force"]) == int(ExitCode.OK)
+
+    project = require_project(repo)
+    assert dict((c.name, c.command) for c in project.commands)["smoke"] == "make smoke"
+    assert project.roles["build"].provider == "codex"
+
+
+def test_a_command_somebody_edited_by_hand_wins_over_what_init_found(repo):
+    (repo / "Makefile").write_text("test:\n\tpytest\n")
+    declare(repo, '[commands]\ntest = "make test-by-hand"\n')
+
+    main(["-C", str(repo), "init", "--force"])
+
+    assert require_project(repo).commands[0].command == "make test-by-hand"
+
+
+def test_roles_survive_a_round_trip_through_the_file(repo):
+    declare(repo, '[commands]\ntest = "pytest"\n\n[roles.design]\nprovider = "fake"\nfallback = ["codex"]\n')
+    (repo / "Makefile").write_text("test:\n\tpytest\n")
+
+    main(["-C", str(repo), "init", "--force"])
+
+    role = require_project(repo).roles["design"]
+    assert role.provider == "fake"
+    assert role.fallback == ["codex"]
+
+
+def test_a_project_from_an_older_kit_stops_hiding_its_own_declaration(repo):
+    """S0-S3 wrote the ignore one directory up, where it covers project.toml too."""
+    old = repo / ".agent-kit/v3/.gitignore"
+    old.parent.mkdir(parents=True, exist_ok=True)
+    old.write_text("# The kit's own state.\n*\n")
+    (repo / "Makefile").write_text("test:\n\tpytest\n")
+
+    main(["-C", str(repo), "init"])
+
+    ignored = subprocess.run(
+        ["git", "check-ignore", "-q", ".agent-kit/v3/" + PROJECT_FILE], cwd=repo, capture_output=True
+    ).returncode == 0
+    assert not ignored
+    assert not old.exists()

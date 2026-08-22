@@ -430,3 +430,26 @@ def test_a_refusal_of_the_method_is_not_a_breakage_of_the_kit(repo):
         assert refused.value.code == code
         assert refused.value.expected is True
         assert refused.value.retryable is False
+
+
+def test_a_question_only_the_owner_can_answer_is_not_folded_away(repo):
+    from agent_kit.programs.deliver import compose_body
+
+    asked = {**DESIGN, "needs_owner": ["Should VAT be added on top, or extracted from a gross amount?"]}
+
+    text = compose_body(request(repo, whole()), asked, BUILD, VERIFY, REVIEW_PASSED)
+    open_part, _, _ = text.partition("<details>")
+
+    assert "extracted from a gross amount" in open_part
+
+
+def test_a_design_that_wants_nothing_from_the_owner_says_so_and_asks_nothing(repo):
+    from agent_kit.programs.deliver import compose_body
+
+    plain = {**DESIGN, "assumptions": [], "needs_owner": None}
+
+    open_part, _, _ = compose_body(
+        request(repo, whole()), plain, BUILD, VERIFY, {"verdict": "pass", "findings": []}
+    ).partition("<details>")
+
+    assert "Ничего" in open_part
