@@ -35,7 +35,7 @@ def test_the_kit_does_not_dirty_the_tree_it_works_in(store, tmp_path):
     """Run state is not repository content, and the project should not have to say so."""
     store.create("add-login")
 
-    ignore = tmp_path / ".agent-kit/.gitignore"
+    ignore = tmp_path / ".agent-kit/v3/runs/.gitignore"
     assert ignore.read_text().strip().splitlines()[-1] == "*"
 
 

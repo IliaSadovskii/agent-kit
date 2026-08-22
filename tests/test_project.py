@@ -1,0 +1,167 @@
+"""S4 — what a project declares about itself, and the command that writes it down.
+
+`agent-kit init` reads what is already in the repository rather than asking. A
+Makefile with a `test` target is the test command; what it cannot find it says
+is missing instead of guessing.
+"""
+
+import subprocess
+
+import pytest
+
+from agent_kit.cli.main import main
+from agent_kit.errors import ConfigError, ExitCode
+from agent_kit.project import PROJECT_FILE, read_project, require_project
+
+
+def git(root, *argv):
+    subprocess.run(["git", *argv], cwd=root, check=True, capture_output=True)
+
+
+@pytest.fixture
+def repo(tmp_path):
+    git(tmp_path, "init", "-b", "main")
+    git(tmp_path, "config", "user.email", "kit@example.com")
+    git(tmp_path, "config", "user.name", "kit")
+    (tmp_path / "README.md").write_text("a project\n")
+    git(tmp_path, "add", "-A")
+    git(tmp_path, "commit", "-m", "first")
+    return tmp_path
+
+
+def declare(root, text):
+    path = root / ".agent-kit/v3" / PROJECT_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+# --- reading what a project declares ---------------------------------------
+
+
+def test_a_project_declares_its_commands_in_the_order_they_run(tmp_path):
+    declare(
+        tmp_path,
+        '[project]\ndefault_branch = "trunk"\n\n[commands]\nlint = "make lint"\ntest = "make test"\n',
+    )
+
+    project = require_project(tmp_path)
+
+    assert project.default_branch == "trunk"
+    assert [(command.name, command.command) for command in project.commands] == [
+        ("lint", "make lint"),
+        ("test", "make test"),
+    ]
+
+
+def test_a_project_may_say_which_provider_runs_a_role_here(tmp_path):
+    declare(tmp_path, '[commands]\ntest = "pytest"\n\n[roles.build]\nprovider = "fake"\n')
+
+    assert require_project(tmp_path).roles["build"].provider == "fake"
+
+
+def test_a_project_that_declared_nothing_is_not_guessed_at(tmp_path):
+    assert read_project(tmp_path) is None
+
+    with pytest.raises(ConfigError) as refused:
+        require_project(tmp_path)
+    assert refused.value.code == "no-project"
+
+
+def test_a_setting_the_kit_does_not_read_is_refused(tmp_path):
+    declare(tmp_path, '[project]\nnickname = "sandbox"\n')
+
+    with pytest.raises(ConfigError) as refused:
+        require_project(tmp_path)
+    assert refused.value.code == "unknown-key"
+
+
+def test_a_command_that_is_not_a_command_is_refused(tmp_path):
+    declare(tmp_path, "[commands]\ntest = 7\n")
+
+    with pytest.raises(ConfigError) as refused:
+        require_project(tmp_path)
+    assert refused.value.code == "bad-value"
+
+
+# --- init reads the repository ---------------------------------------------
+
+
+def test_init_finds_the_test_command_in_the_makefile(repo, capsys):
+    (repo / "Makefile").write_text("test:\n\tpytest\n\nlint:\n\truff check .\n")
+
+    code = main(["-C", str(repo), "init"])
+
+    assert code == int(ExitCode.OK)
+    project = require_project(repo)
+    assert dict((c.name, c.command) for c in project.commands) == {
+        "test": "make test",
+        "lint": "make lint",
+    }
+    assert project.default_branch == "main"
+
+
+def test_init_falls_back_to_pytest_when_there_is_no_makefile(repo):
+    (repo / "pyproject.toml").write_text('[project]\nname = "p"\n\n[tool.pytest.ini_options]\n')
+
+    assert main(["-C", str(repo), "init"]) == int(ExitCode.OK)
+    assert [c.command for c in require_project(repo).commands] == ["pytest"]
+
+
+def test_init_says_what_is_missing_rather_than_guessing(repo, capsys):
+    code = main(["-C", str(repo), "init"])
+
+    assert code == int(ExitCode.CONFIG)
+    assert "test" in capsys.readouterr().err
+    assert require_project(repo).commands == ()
+
+
+def test_init_outside_a_repository_is_refused(tmp_path, capsys):
+    code = main(["-C", str(tmp_path), "init"])
+
+    assert code == int(ExitCode.CONFIG)
+    assert "not-a-repository" in capsys.readouterr().err
+
+
+def test_init_does_not_overwrite_what_somebody_edited(repo, capsys):
+    (repo / "Makefile").write_text("test:\n\tpytest\n")
+    main(["-C", str(repo), "init"])
+    declare(repo, '[commands]\ntest = "make test-by-hand"\n')
+
+    code = main(["-C", str(repo), "init"])
+
+    assert code == int(ExitCode.CONFIG)
+    assert "exists" in capsys.readouterr().err
+    assert require_project(repo).commands[0].command == "make test-by-hand"
+
+
+def test_init_writes_over_it_when_asked(repo):
+    (repo / "Makefile").write_text("test:\n\tpytest\n")
+    declare(repo, '[commands]\ntest = "make test-by-hand"\n')
+
+    assert main(["-C", str(repo), "init", "--force"]) == int(ExitCode.OK)
+    assert require_project(repo).commands[0].command == "make test"
+
+
+def test_what_init_writes_is_what_the_kit_reads_back(repo):
+    (repo / "Makefile").write_text("test:\n\tpytest\n")
+
+    main(["-C", str(repo), "init"])
+
+    assert require_project(repo).source == repo / ".agent-kit/v3" / PROJECT_FILE
+
+
+def test_what_a_project_declares_is_repository_content_and_its_runs_are_not(repo):
+    from agent_kit.state import RunStore
+
+    (repo / "Makefile").write_text("test:\n\tpytest\n")
+    main(["-C", str(repo), "init"])
+    RunStore(repo).create("add-vat", steps=["probe"])
+
+    def ignored(relative):
+        return subprocess.run(
+            ["git", "check-ignore", "-q", relative], cwd=repo, capture_output=True
+        ).returncode == 0
+
+    assert not ignored(".agent-kit/v3/" + PROJECT_FILE)
+    assert ignored(".agent-kit/v3/runs/add-vat/run.json")
