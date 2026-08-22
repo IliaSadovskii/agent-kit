@@ -154,3 +154,74 @@ Each feature cost about $1.05 across three sessions and roughly four minutes of 
 time. No session went past 3.8% of its window, which says the ceiling question is not yet
 a real question at this size of feature — it will be measured on something larger rather
 than assumed from these.
+
+---
+
+# The review round, and what it cost
+
+Two reviewers, as the rule above says: one reading the code and running it, one reading
+the plan. Between them, nineteen findings against 274 green tests and two delivered
+features. Fourteen were fixed, two were argued down, three were kept deliberately and are
+named below.
+
+## The shape they all had
+
+Six of the eight defects proved by running had one shape: **the program trusted something
+it had not checked.** The working tree was assumed clean, the branch assumed free, the
+`verdict` assumed to agree with its own findings, the last session of a split build
+assumed to speak for all of them. Every one of those assumptions held in the sandbox on
+the day it was written, which is exactly why 274 tests and two live features did not
+notice.
+
+The rest were the same rule applied to the kit itself: a failing step with no reason, a
+program calling itself a model, `init --force` deleting what it could not write.
+
+## What the tests could not have found
+
+Three of the eight only exist outside a clean room:
+
+- `git add -A` staged a `.env` and pushed it. The sandbox's own `.gitignore` covers `.env`,
+  so nothing happened; a project whose does not would have published a token.
+- `checkout -B` overwrote a branch. It needed somebody else's commit to be there first.
+- A timed-out command left its children running. `subprocess.run` kills the shell, and
+  `make test` here is `docker compose exec`.
+
+And one was found only by the third live run, after all of the above were fixed: **the
+build session created the branch itself.** The composed input's header reads `branch:
+kit/…`, and a session reads a line like that as something to act on. Delivery then refused
+its own run's branch as somebody else's. The input now says the branch is the program's
+business, the build role is told not to touch git, and delivery tells a branch that holds
+work from one that holds none.
+
+## Two findings argued down
+
+**"Question 5 was answered in the wrong form."** The plan said the driver would close the
+session at the ceiling. A headless session ends when it answers; there is nothing to
+close. What is built — the step declares it may be split, the session says `complete:
+false` when it is running out of room, and the driver carries it on with every part
+enclosed — is the same mechanism with the trigger where it can actually be observed. It
+remains true and worth saying that this has never fired: no session has passed 3.8% of its
+window.
+
+**"`input.md` for a program step is a file with no reader."** It is the record of what the
+program was handed, and it is read by whoever is working out afterwards why a night went
+the way it did. The rule is about fields invented for a consumer that does not exist, not
+about the audit trail.
+
+## Three kept deliberately
+
+- **`init` exits on the configuration code when it wrote the file but found no test
+  command.** That is one meaning, not two: the project's configuration is incomplete, and
+  a script needs to know without parsing prose.
+- **A failed run does not resume.** The plan is explicit and CLAUDE.md repeats it. The
+  consequence — a run that failed at delivery leaves its work in the working copy and the
+  slug is spent — is real, and the answer is a `retry` command, which is not this step.
+- **The owner's channel is still Telegram-shaped and still unbuilt.** What changed is that
+  `design` now has `needs_owner`, and it is printed in the open half of the pull request
+  rather than folded under a spoiler beneath a line reading "nothing is needed".
+
+## The number
+
+Three live features now: pull requests 1, 2 and 3 on `kit-sandbox`, the last of them
+against a deliberately dirty working tree, and its commit holds the two files the build
+named and nothing else. 299 tests.
