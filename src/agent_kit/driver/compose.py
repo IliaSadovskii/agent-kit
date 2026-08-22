@@ -38,6 +38,9 @@ def compose_input(
         definition.instructions().strip(),
     ]
 
+    if run.brief:
+        parts += ["", "## What this run is for", "", run.brief.strip()]
+
     if enclosures:
         parts += ["", "## What is enclosed", "", "Everything below is here so that you do not go looking for it."]
         for title, body in enclosures:

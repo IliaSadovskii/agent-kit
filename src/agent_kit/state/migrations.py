@@ -16,6 +16,20 @@ from .schema import SCHEMA_VERSION, release
 #: schema version -> what turns it into the next one.
 MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {}
 
+
+def _brief_arrives(data: dict[str, Any]) -> dict[str, Any]:
+    """Schema 2 — a run says what it is for.
+
+    Schema 1 predates the feature steps, so nothing it holds was ever built
+    from a brief. An older run gets an empty one rather than an invented one.
+    """
+    data.setdefault("brief", None)
+    return data
+
+
+MIGRATIONS[1] = _brief_arrives
+
+
 def oldest_schema() -> int:
     """The oldest file this kit can read: whatever the migrations reach back to.
 

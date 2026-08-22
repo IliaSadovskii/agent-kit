@@ -339,11 +339,11 @@ def test_a_file_from_an_older_kit_is_migrated_on_the_way_in(store, tmp_path, mon
 def test_how_old_a_file_may_be_follows_from_the_migrations_themselves(monkeypatch):
     import agent_kit.state.migrations as migrations
 
-    assert migrations.oldest_schema() == SCHEMA_VERSION  # nothing older is readable yet
+    assert migrations.oldest_schema() == min(migrations.MIGRATIONS)
 
-    monkeypatch.setitem(migrations.MIGRATIONS, SCHEMA_VERSION - 1, lambda data: data)
+    monkeypatch.setitem(migrations.MIGRATIONS, 0, lambda data: data)
 
-    assert migrations.oldest_schema() == SCHEMA_VERSION - 1
+    assert migrations.oldest_schema() == 0
 
 
 @pytest.mark.parametrize(

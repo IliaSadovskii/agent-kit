@@ -15,11 +15,12 @@ from typing import Any
 from .. import __version__
 from ..errors import StateError
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 BRANCH_PREFIX = "kit/"
 
-#: What a run does when nobody says otherwise. S4 replaces this with the four
-#: steps of a feature — design, build, verify, deliver — once they have contracts.
+#: What a run does when nobody says otherwise. The feature steps replace this
+#: once they exist; changing it before then would leave every run pointing at
+#: names the registry does not know.
 DEFAULT_STEPS = ("probe",)
 
 _SLUG = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
@@ -109,6 +110,9 @@ class Run:
     status: RunStatus = RunStatus.CREATED
     branch: str = ""
     project: str | None = None
+    #: What this run is for, in the owner's own words. Every step's input
+    #: encloses it, so no step is ever told to go and find out.
+    brief: str | None = None
     current_step: int | None = None
     created_at: str = field(default_factory=now)
     updated_at: str = field(default_factory=now)
@@ -119,7 +123,7 @@ class Run:
 
     @classmethod
     def new(cls, slug: str, steps: list[str] | tuple[str, ...] | None = None, project: str | None = None,
-            branch: str | None = None) -> "Run":
+            branch: str | None = None, brief: str | None = None) -> "Run":
         check_slug(slug)
         names = list(steps or DEFAULT_STEPS)
         if not names:
@@ -129,6 +133,7 @@ class Run:
             steps=[Step(name=_text(name, "steps[].name")) for name in names],
             branch=branch or f"{BRANCH_PREFIX}{slug}",
             project=project,
+            brief=_optional_text(brief, "brief"),
         )
 
     # --- reading ----------------------------------------------------------
@@ -262,6 +267,7 @@ class Run:
             "kit": self.kit,
             "slug": self.slug,
             "project": self.project,
+            "brief": self.brief,
             "branch": self.branch,
             "status": self.status.value,
             "current_step": self.current_step,
@@ -289,6 +295,7 @@ class Run:
             status=_enum(RunStatus, data.get("status"), "status"),
             branch=_text(data.get("branch"), "branch"),
             project=_optional_text(data.get("project"), "project"),
+            brief=_optional_text(data.get("brief"), "brief"),
             current_step=_step_index(data.get("current_step"), len(raw_steps)),
             created_at=_text(data.get("created_at"), "created_at"),
             updated_at=_text(data.get("updated_at"), "updated_at"),
