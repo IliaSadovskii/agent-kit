@@ -46,6 +46,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     commands.add_parser("doctor", help="what is configured, what is missing, in one screen")
 
+    init = commands.add_parser("init", help="write what this project declares, from what it already says")
+    init.add_argument("--force", action="store_true", help="overwrite a declaration that is already there")
+
     config = commands.add_parser("config", help="the machine's configuration")
     config_what = config.add_subparsers(dest="what", metavar="WHAT")
     config_what.add_parser("show", help="the effective configuration")
@@ -145,6 +148,8 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace, paths: 
 
     if args.command == "doctor":
         return _doctor(paths, Path(args.project))
+    if args.command == "init":
+        return _init(Path(args.project).resolve(), args.force)
     if args.command == "config":
         return _config(args, paths)
     if args.command == "run":
@@ -190,6 +195,34 @@ def _doctor(paths: Paths, project: Path) -> int:
 
 def _present(path: Path) -> str:
     return "ok" if path.exists() else "missing"
+
+
+# --- init ------------------------------------------------------------------
+
+
+def _init(root: Path, force: bool) -> int:
+    """Read the repository, write the declaration, and name what was not found."""
+    from ..project import discover, is_repository, write_project
+
+    if not is_repository(root):
+        print(f"{PROGRAM}: not-a-repository: {root} is not a git working tree", file=sys.stderr)
+        print("  the kit delivers on a branch and opens a pull request; both need one", file=sys.stderr)
+        return int(ExitCode.CONFIG)
+
+    project, missing = discover(root)
+    path = write_project(project, force=force)
+
+    print(f"wrote {path}")
+    print(f"  default branch  {project.default_branch}")
+    for command in project.commands:
+        print(f"  {command.name:14}  {command.command}")
+    if not missing:
+        return int(ExitCode.OK)
+
+    for gap in missing:
+        print(f"{PROGRAM}: missing: {gap}", file=sys.stderr)
+    print(f"  fill it in by hand: {path}", file=sys.stderr)
+    return int(ExitCode.CONFIG)
 
 
 # --- config ----------------------------------------------------------------

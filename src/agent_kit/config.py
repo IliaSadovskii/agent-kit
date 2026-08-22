@@ -71,7 +71,7 @@ def load_config(path: Path | str) -> Config:
     return Config(
         machine=_machine(_table(raw.get("machine", {}), "machine")),
         providers=_providers(_table(raw.get("providers", {}), "providers")),
-        roles=_roles(_table(raw.get("roles", {}), "roles")),
+        roles=roles_from_table(_table(raw.get("roles", {}), "roles")),
         source=path,
     )
 
@@ -111,7 +111,8 @@ def _providers(table: dict[str, Any]) -> dict[str, ProviderConfig]:
     return providers
 
 
-def _roles(table: dict[str, Any]) -> dict[str, RoleConfig]:
+def roles_from_table(table: dict[str, Any]) -> dict[str, RoleConfig]:
+    """A role table, wherever it was declared: the machine's or the project's."""
     roles = {}
     for name, block in table.items():
         where = f"roles.{name}"
