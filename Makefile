@@ -4,7 +4,7 @@ export GID := $(shell id -g)
 
 COMPOSE := docker compose
 
-.PHONY: up down test shell install-check clean
+.PHONY: up down test bench shell install-check clean
 
 up:            ## raise the workshop and install the kit into it
 	$(COMPOSE) up -d --build --wait
@@ -14,6 +14,9 @@ down:          ## stop it, keeping the caches
 
 test: up       ## the whole suite
 	$(COMPOSE) exec -T kit pytest
+
+bench: up      ## the planted traps: which mechanisms fired and which did not
+	$(COMPOSE) exec -T kit python -m agent_kit bench run
 
 shell:         ## a prompt inside the workshop
 	$(COMPOSE) exec kit bash
