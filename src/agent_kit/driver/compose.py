@@ -30,7 +30,7 @@ def compose_input(
         f"# {definition.name} — {definition.title or definition.role}",
         "",
         f"run: {run.slug}",
-        f"branch: {run.branch}",
+        f"branch: {run.branch} — the program puts the work there at the end; do not create it",
         f"project: {run.project or 'unstated'}",
         f"provider: {provider}",
         f"attempt {attempt} of {attempts_allowed} on this provider",

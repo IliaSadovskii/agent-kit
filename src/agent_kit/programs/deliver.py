@@ -69,7 +69,7 @@ class Deliver:
         # is reached until the branch has been accounted for. A delivery that
         # overwrites somebody's work has already done the damage by the time it
         # notices, and `checkout -B` does exactly that.
-        commit = self._settle_branch(root, branch, title, build)
+        commit = self._settle_branch(root, branch, project.default_branch, title, build)
         self._git(root, "push", "--set-upstream", "origin", branch)
 
         url = self._open_pull_request(root, project.default_branch, branch, title, body_file)
@@ -85,24 +85,31 @@ class Deliver:
 
     # --- the branch, and whose it is --------------------------------------
 
-    def _settle_branch(self, root: Path, branch: str, title: str, build: dict) -> str:
+    def _settle_branch(self, root: Path, branch: str, base: str, title: str, build: dict) -> str:
         """Make the branch hold this work, or refuse without having touched it.
 
-        Three cases, and only the first two go on. The branch is not there, so
-        it is ours to make. Or it is there and holds exactly the commit this run
-        would write, which means an earlier attempt died after committing and
-        this one carries it on — starting again would say there is nothing to
-        deliver, and the work would sit on a branch with no pull request. Or it
-        is somebody else's, and that is where this stops.
+        Four cases. It is not there, so it is ours to make. It holds exactly the
+        commit this run would write, so an earlier attempt died after committing
+        and this one carries it on — starting again would say there is nothing
+        to deliver, and the work would sit on a branch with no pull request. It
+        exists and holds no work at all, which is what happens when a session
+        read `branch:` in its input as something to act on: committing onto it
+        destroys nothing, and refusing it would strand a finished feature in a
+        working copy. Or it holds somebody's commits, and that is where this stops.
         """
         ours = self._already_delivered(root, branch, title)
         if ours:
             self._git(root, "checkout", branch)
             return ours
-        if _branch_exists(root, branch, self.timeout):
+
+        existing = _branch_exists(root, branch, self.timeout)
+        if existing and not self._holds_work(root, branch, base):
+            self._git(root, "checkout", branch)
+            existing = False
+        elif existing:
             raise ExecutorFailed(
                 "branch-exists",
-                f"{branch} already exists and does not hold this run's work; it is not ours to overwrite",
+                f"{branch} already exists and holds commits that are not {base}'s; it is not ours to overwrite",
                 retryable=False,
             )
 
@@ -119,7 +126,11 @@ class Deliver:
                 retryable=False,
             )
 
-        self._git(root, "checkout", "-b", branch)
+        if not _on_branch(root, branch, self.timeout):
+            self._git(root, "checkout", "-b", branch)
+            made_it = True
+        else:
+            made_it = False
         try:
             # Only what the build named. `git add -A` sweeps up whatever else is
             # in the tree — a .env, a log, a half-written experiment — and pushes
@@ -133,13 +144,25 @@ class Deliver:
                 )
             self._git(root, "commit", "-m", _message(title, build))
         except BaseException:
-            # The branch was made a moment ago and holds nothing; leaving it
-            # behind would make the next attempt refuse as though it were
-            # somebody else's work.
-            self._git(root, "checkout", "-")
-            _run(["git", "branch", "-D", branch], root, self.timeout, "git-failed")
+            if made_it:
+                # It was made a moment ago and holds nothing; leaving it behind
+                # would make the next attempt look at somebody else's work.
+                self._git(root, "checkout", "-")
+                _run(["git", "branch", "-D", branch], root, self.timeout, "git-failed")
             raise
         return self._git(root, "rev-parse", "HEAD").strip()
+
+    def _holds_work(self, root: Path, branch: str, base: str) -> bool:
+        """Does this branch carry commits the base does not already have?
+
+        A branch checked out and never committed to is not work, whoever made
+        it. One with commits on top of the base is somebody's, and not ours.
+        """
+        printed = _run(
+            ["git", "rev-list", "--count", f"{base}..{branch}"], root, self.timeout, "git-failed",
+            allowed_to_fail=True,
+        ).strip()
+        return printed != "0"  # unreadable counts as work: refusing costs less than overwriting
 
     def _already_delivered(self, root: Path, branch: str, title: str) -> str | None:
         """The tip of an existing branch, when it is the commit this run would have written."""
@@ -237,6 +260,11 @@ def _branch_exists(root: Path, branch: str, timeout: int) -> bool:
         root, timeout, "git-failed", allowed_to_fail=True,
     )
     return bool(printed.strip())
+
+
+def _on_branch(root: Path, branch: str, timeout: int) -> bool:
+    printed = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"], root, timeout, "git-failed")
+    return printed.strip() == branch
 
 
 def _staged(root: Path, timeout: int) -> bool:

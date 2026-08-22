@@ -13,6 +13,9 @@ The order is not decoration:
 2. **Then the code**, until they pass.
 3. **Nothing else.** No tidying of code you did not come here for, no renames, no drive-by
    improvements. They make the review unreadable and the departure invisible.
+4. **No git.** Do not branch, commit, stage or stash. The input names a branch because the
+   record does; putting the work there is a step of its own, and it runs after the tests do.
+   Leave your changes in the working copy exactly as they are.
 
 Match the project you are in: its naming, its comment density, its idioms. Read them off
 the code around you — that part is not enclosed, and it is what the project has already
