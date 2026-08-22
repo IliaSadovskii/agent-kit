@@ -92,7 +92,7 @@ class StepRunner:
         definition = self.registry.get(run.steps[index].name)
         providers = self._providers_for(definition)
         workspace = StepWorkspace(self.store.run_root(slug), index, definition.name)
-        enclosures = self._enclosures(run, index)
+        enclosures, prior = self._enclosures(run, index)
 
         outcome = StepOutcome(slug=slug, step=definition.name, passed=False)
         refusal: str | None = None
@@ -105,7 +105,7 @@ class StepRunner:
             run = self.store.start_step(slug, provider=provider)
             try:
                 record = self._attempt(
-                    run, index, definition, workspace, provider, seen[provider], refusal, enclosures
+                    run, index, definition, workspace, provider, seen[provider], refusal, enclosures, prior
                 )
             except BaseException as escaped:
                 # Whatever broke, the state must not be left holding a step
@@ -152,8 +152,10 @@ class StepRunner:
         on_provider: int,
         refusal: str | None,
         enclosures: list[tuple[str, str]],
+        prior: dict[str, dict[str, Any]],
     ) -> AttemptRecord:
         attempt = run.steps[index].attempts
+        allowed = self.attempts if definition.by_agent else 1
         text = compose_input(
             run=run,
             definition=definition,
@@ -161,7 +163,7 @@ class StepRunner:
             provider=provider,
             enclosures=enclosures,
             refusal=refusal,
-            attempts_allowed=self.attempts,
+            attempts_allowed=allowed,
         )
         workspace.write_input(attempt, text)
 
@@ -173,6 +175,9 @@ class StepRunner:
             input_text=text,
             workdir=workspace.attempt_dir(attempt),
             project=Path(run.project) if run.project else self.store.paths.root.resolve(),
+            branch=run.branch,
+            brief=run.brief,
+            prior=prior,
         )
 
         try:
@@ -244,6 +249,17 @@ class StepRunner:
     # --- who runs it, and what it is given --------------------------------
 
     def _providers_for(self, definition: StepDefinition) -> list[str]:
+        if not definition.by_agent:
+            # A program has no role, no fallback and no second chance: what it
+            # refused once it refuses the same way, and each retry costs the
+            # project's whole suite.
+            if definition.executor not in self.executors:
+                raise ProviderError(
+                    "unknown-program",
+                    f"{definition.name} is executed by {definition.executor}, which is not configured here",
+                )
+            return [definition.executor]
+
         role = self.roles.get(definition.role)
         if role is None:
             if self.default_provider is None:
@@ -263,16 +279,22 @@ class StepRunner:
                 )
         return chain
 
-    def _enclosures(self, run: Run, index: int) -> list[tuple[str, str]]:
-        """Everything an earlier step produced, so this one never goes looking."""
+    def _enclosures(self, run: Run, index: int) -> tuple[list[tuple[str, str]], dict[str, dict[str, Any]]]:
+        """Everything an earlier step produced, so this one never goes looking.
+
+        Twice, because the two kinds of executor read differently: a session is
+        handed prose it can read, a program is handed the same outputs as data.
+        """
         enclosed: list[tuple[str, str]] = []
+        prior: dict[str, dict[str, Any]] = {}
         for earlier in range(index):
             step = run.steps[earlier]
             workspace = StepWorkspace(self.store.run_root(run.slug), earlier, step.name)
             output = workspace.read_output()
             if output is not None:
                 enclosed.append((f"{earlier}-{step.name} returned", json.dumps(output, indent=2, ensure_ascii=False)))
-        return enclosed
+                prior[step.name] = output
+        return enclosed, prior
 
 
 def create_run(

@@ -16,6 +16,10 @@ from .contract import Contract
 #: The prose the driver encloses. Shipped with the kit, read from disk.
 METHOD_DIR_NAME = "method"
 
+#: A step done by a session. Anything else names a program the kit ships, and
+#: the role table is not consulted for it — see `programs/`.
+AGENT = "agent"
+
 
 @lru_cache(maxsize=1)
 def method_root() -> Path:
@@ -41,14 +45,22 @@ def read_method(relative: str) -> str:
 class StepDefinition:
     name: str
     role: str
-    method: str
     contract: Contract
+    #: The role's prose. Empty for a step a program executes: nobody reads
+    #: instructions to a program, and prose with no reader is not written.
+    method: str = ""
     title: str = ""
     #: Prose every step carries: how an output is returned at all.
     envelope: str = "rules/output.md"
+    #: `AGENT`, or the name of a program the kit ships.
+    executor: str = AGENT
+
+    @property
+    def by_agent(self) -> bool:
+        return self.executor == AGENT
 
     def instructions(self) -> str:
-        return read_method(self.method)
+        return read_method(self.method) if self.method else ""
 
     def output_rules(self) -> str:
         return read_method(self.envelope)

@@ -49,6 +49,14 @@ class ExecutorFailed(KitError):
 
 @dataclass(frozen=True)
 class StepRequest:
+    """What an executor is handed. A session reads `input_text` and nothing else.
+
+    The three fields below it are for the executors that are programs: a
+    program must not parse prose to find out which branch it is on or what an
+    earlier step returned, so it is handed both as data. A session ignores
+    them — everything they hold is already in the input the driver composed.
+    """
+
     slug: str
     step_name: str
     attempt: int
@@ -56,6 +64,9 @@ class StepRequest:
     input_text: str
     workdir: Path
     project: Path | None = None
+    branch: str = ""
+    brief: str | None = None
+    prior: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

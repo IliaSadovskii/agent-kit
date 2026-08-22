@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..errors import StateError
-from .contract import Bool, Contract, Text, TextList
+from .contract import Bool, Contract, Int, Records, Text, TextList
 from .definition import StepDefinition
 
 
@@ -56,6 +56,32 @@ PROBE = StepDefinition(
 )
 
 
+#: verify: the kit runs the project's declared commands itself. No role, no
+#: session — an agent cannot lie about green tests it did not run.
+VERIFY = StepDefinition(
+    name="verify",
+    role="verify",
+    executor="program:verify",
+    title="run what the project declares and record what it printed",
+    contract=Contract(
+        fields=(
+            Records(
+                "commands",
+                help="each declared command, in the order it was run",
+                shape=(
+                    Text("name"),
+                    Text("command"),
+                    Int("exit_code", required=False, help="absent when it could not be run at all"),
+                    Bool("passed"),
+                    Text("output", required=False),
+                ),
+            ),
+            Bool("passed", help="every command that ran came back green"),
+        )
+    ),
+)
+
+
 def builtin_registry() -> Registry:
-    """The steps the kit ships. S4 adds design, build, verify and deliver."""
-    return Registry([PROBE])
+    """The steps the kit ships. S4 adds design, build, review and deliver."""
+    return Registry([PROBE, VERIFY])

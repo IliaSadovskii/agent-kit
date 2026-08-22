@@ -33,10 +33,16 @@ def compose_input(
         f"provider: {provider}",
         f"attempt {attempt} of {attempts_allowed} on this provider",
         "",
-        "## What you are doing",
-        "",
-        definition.instructions().strip(),
     ]
+
+    if definition.by_agent:
+        parts += ["", "## What you are doing", "", definition.instructions().strip()]
+    else:
+        parts += [
+            "",
+            f"Executed by {definition.executor}, not by a session. This file is the record of",
+            "what it was handed; nothing here is read by anybody as an instruction.",
+        ]
 
     if run.brief:
         parts += ["", "## What this run is for", "", run.brief.strip()]
@@ -59,17 +65,18 @@ def compose_input(
             "Fix that. Repeating the previous answer wastes one of the attempts this step has.",
         ]
 
-    parts += [
-        "",
-        "## What you must return",
-        "",
-        definition.output_rules().strip(),
-        "",
-        "### The fields of this step",
-        "",
-        definition.contract.describe(),
-        "",
-    ]
+    if definition.by_agent:
+        parts += [
+            "",
+            "## What you must return",
+            "",
+            definition.output_rules().strip(),
+            "",
+            "### The fields of this step",
+            "",
+            definition.contract.describe(),
+        ]
+    parts.append("")
     return "\n".join(parts)
 
 

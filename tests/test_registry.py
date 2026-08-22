@@ -18,9 +18,17 @@ def test_the_kit_ships_the_probe_step():
     assert [field.name for field in probe.contract.fields]
 
 
-def test_every_shipped_step_has_its_prose_on_disk():
+def test_every_step_a_session_does_has_its_prose_on_disk():
     for definition in builtin_registry().all():
-        assert definition.instructions().strip(), f"{definition.name} has no method file"
+        if definition.by_agent:
+            assert definition.instructions().strip(), f"{definition.name} has no method file"
+
+
+def test_a_step_a_program_does_carries_no_prose_at_all():
+    """Prose with no reader is not written, and nobody reads instructions to a program."""
+    for definition in builtin_registry().all():
+        if not definition.by_agent:
+            assert definition.method == ""
 
 
 def test_an_unknown_step_is_refused_by_name():
