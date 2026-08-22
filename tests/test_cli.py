@@ -348,3 +348,94 @@ def test_run_show_says_what_the_run_is_for(machine, capsys):
 
     assert code == ExitCode.OK
     assert "Money should know about VAT" in out
+
+
+# --- S4: driving a whole run ------------------------------------------------
+
+
+DESIGN_REPLY = json.dumps(
+    {
+        "summary": "Money learns a VAT rate.",
+        "changes": ["money.py — with_vat"],
+        "seams": ["Money is frozen"],
+        "verification": ["1000 at 20% is 1200"],
+        "assumptions": [],
+    }
+)
+BUILD_REPLY = json.dumps(
+    {"complete": True, "summary": "Done.", "files": ["money.py"], "tests": ["test_vat"], "deviations": []}
+)
+
+
+def scripted(tmp_path, *bodies):
+    """The fake provider answers from files, one per attempt."""
+    options = []
+    for number, body in enumerate(bodies):
+        path = tmp_path / f"reply-{number}.json"
+        path.write_text("```json\n" + body + "\n```", encoding="utf-8")
+        options += ["--option", f"reply={path}"]
+    return options
+
+
+def declare(tmp_path, text):
+    path = tmp_path / "project/.agent-kit/v3/project.toml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+def test_run_go_walks_every_step_to_the_end(machine, capsys, tmp_path):
+    declare(tmp_path, '[commands]\ntest = "true"\n')
+    run(["run", "new", "add-vat", "--brief", "VAT", "--steps", "design,build,verify"], capsys)
+
+    code, out, _ = run(
+        ["run", "go", "add-vat", "--provider", "fake", *scripted(tmp_path, DESIGN_REPLY, BUILD_REPLY)],
+        capsys,
+    )
+
+    assert code == ExitCode.OK
+    assert "design passed" in out and "build passed" in out and "verify passed" in out
+    assert json.loads(run(["run", "show", "add-vat", "--json"], capsys)[1])["status"] == "done"
+
+
+def test_run_go_stops_at_the_step_that_would_not_pass(machine, capsys, tmp_path):
+    declare(tmp_path, '[commands]\ntest = "exit 1"\n')
+    run(["run", "new", "add-vat", "--brief", "VAT", "--steps", "design,build,verify"], capsys)
+
+    code, out, err = run(
+        ["run", "go", "add-vat", "--provider", "fake", *scripted(tmp_path, DESIGN_REPLY, BUILD_REPLY)],
+        capsys,
+    )
+
+    assert code == ExitCode.STATE
+    assert "verify" in err
+    assert json.loads(run(["run", "show", "add-vat", "--json"], capsys)[1])["status"] == "failed"
+
+
+def test_run_go_refuses_a_run_that_is_already_over(machine, capsys, tmp_path):
+    run(["run", "new", "add-vat", "--brief", "VAT", "--steps", "probe"], capsys)
+    run(["run", "stop", "add-vat", "the owner said so"], capsys)
+
+    code, _, err = run(["run", "go", "add-vat", "--provider", "fake"], capsys)
+
+    assert code == ExitCode.STATE
+    assert "run-finished" in err
+
+
+def test_the_programs_are_always_there_whatever_the_role_table_says(machine, capsys, tmp_path):
+    declare(tmp_path, '[commands]\ntest = "true"\n')
+    run(["run", "new", "add-vat", "--brief", "VAT", "--steps", "verify"], capsys)
+
+    code, out, _ = run(["run", "go", "add-vat"], capsys)
+
+    assert code == ExitCode.OK
+    assert "verify passed" in out
+
+
+def test_a_project_may_say_which_provider_runs_a_role_here(machine, capsys, tmp_path):
+    declare(tmp_path, '[commands]\ntest = "true"\n\n[roles.design]\nprovider = "fake"\n')
+    run(["run", "new", "add-vat", "--brief", "VAT", "--steps", "design"], capsys)
+
+    code, out, _ = run(["run", "go", "add-vat", *scripted(tmp_path, DESIGN_REPLY)], capsys)
+
+    assert code == ExitCode.OK
+    assert "design passed" in out
