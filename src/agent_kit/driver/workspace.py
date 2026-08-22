@@ -47,6 +47,17 @@ class StepWorkspace:
     def write_refusal(self, attempt: int, reason: str) -> Path:
         return self._write(self.attempt_dir(attempt) / "refusal.txt", reason + "\n")
 
+    def add_part(self, output: dict) -> Path:
+        """A splittable step that stopped short. Every part is kept, not only the last."""
+        parts = self.read_parts()
+        parts.append(output)
+        return self._write(self.dir / "parts.json", _json({"parts": parts}))
+
+    def read_parts(self) -> list[dict]:
+        held = _read(self.dir / "parts.json") or {}
+        parts = held.get("parts")
+        return [part for part in parts if isinstance(part, dict)] if isinstance(parts, list) else []
+
     def accept(self, attempt: int, output: dict, meta: dict) -> Path:
         self._write(self.dir / "meta.json", _json({**meta, "attempt": attempt}))
         return self._write(self.dir / "output.json", _json(output))

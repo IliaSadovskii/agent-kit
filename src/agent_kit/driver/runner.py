@@ -26,6 +26,11 @@ from .workspace import StepWorkspace
 
 ATTEMPTS_PER_PROVIDER = 3
 
+#: How often a splittable step may stop short and be carried on. A step that
+#: needs more than this is not a step that ran out of room; it is a step that
+#: was too big, and that is a design error to fix rather than a night to survive.
+CONTINUATIONS_ALLOWED = 3
+
 log = get_logger("driver")
 
 
@@ -63,6 +68,7 @@ class StepRunner:
         roles: Mapping[str, RoleConfig] | None = None,
         default_provider: str | None = None,
         attempts_per_provider: int = ATTEMPTS_PER_PROVIDER,
+        continuations_allowed: int = CONTINUATIONS_ALLOWED,
     ) -> None:
         self.store = store
         self.registry = registry
@@ -70,6 +76,7 @@ class StepRunner:
         self.roles = dict(roles or {})
         self.default_provider = default_provider
         self.attempts = attempts_per_provider
+        self.continuations = continuations_allowed
 
     # --- the one thing it does -------------------------------------------
 
@@ -97,6 +104,7 @@ class StepRunner:
         outcome = StepOutcome(slug=slug, step=definition.name, passed=False)
         refusal: str | None = None
         seen: dict[str, int] = {}
+        parts = workspace.read_parts() if definition.splittable else []
 
         remaining = list(providers)
         while remaining:
@@ -105,7 +113,8 @@ class StepRunner:
             run = self.store.start_step(slug, provider=provider)
             try:
                 record = self._attempt(
-                    run, index, definition, workspace, provider, seen[provider], refusal, enclosures, prior
+                    run, index, definition, workspace, provider, seen[provider], refusal,
+                    enclosures + _parts_enclosure(parts), prior, len(parts),
                 )
             except BaseException as escaped:
                 # Whatever broke, the state must not be left holding a step
@@ -115,9 +124,22 @@ class StepRunner:
             outcome.attempts.append(record)
 
             if record.passed:
+                output = workspace.read_output() or {}
+                if definition.splittable:
+                    workspace.add_part(output)
+                    parts.append(output)
+                if definition.splittable and output.get("complete") is False:
+                    room = self._carry_on(slug, definition, parts, outcome)
+                    if room is None:
+                        return outcome
+                    # A part is real work, not a refused attempt: the provider
+                    # chain starts again and no refusal is carried forward.
+                    remaining, refusal, seen = list(providers), None, {}
+                    continue
+
                 self.store.pass_step(slug)
                 outcome.passed = True
-                outcome.output = workspace.read_output()
+                outcome.output = output
                 log.info("%s: %s passed on %s (attempt %s)", slug, definition.name, provider, record.attempt)
                 return outcome
 
@@ -138,6 +160,26 @@ class StepRunner:
         self.store.fail_run(slug, outcome.reason)
         return outcome
 
+    def _carry_on(
+        self, slug: str, definition: StepDefinition, parts: list[dict[str, Any]], outcome: StepOutcome
+    ) -> int | None:
+        """A splittable step stopped short. Say so in its own words, or stop the run."""
+        left = ", ".join(parts[-1].get("remaining") or []) or "it did not say what is left"
+        if len(parts) > self.continuations:
+            outcome.reason = (
+                f"{definition.name} outgrew the room a step is allowed: {len(parts)} sessions and it is "
+                f"still not finished — {left}"
+            )
+            self.store.fail_run(slug, outcome.reason)
+            log.info("%s: %s outgrew its room after %s parts", slug, definition.name, len(parts))
+            return None
+
+        self.store.continue_step(
+            slug, f"{definition.name} part {len(parts)} is done and it goes on: {left}"
+        )
+        log.info("%s: %s carries on after part %s", slug, definition.name, len(parts))
+        return len(parts)
+
 
 
     # --- one attempt ------------------------------------------------------
@@ -153,6 +195,7 @@ class StepRunner:
         refusal: str | None,
         enclosures: list[tuple[str, str]],
         prior: dict[str, dict[str, Any]],
+        parts_done: int = 0,
     ) -> AttemptRecord:
         attempt = run.steps[index].attempts
         allowed = self.attempts if definition.by_agent else 1
@@ -164,6 +207,8 @@ class StepRunner:
             enclosures=enclosures,
             refusal=refusal,
             attempts_allowed=allowed,
+            parts_done=parts_done,
+            parts_allowed=self.continuations,
         )
         workspace.write_input(attempt, text)
 
@@ -324,6 +369,14 @@ def create_run(
     return store.create(
         slug, steps=steps, project=project or str(store.paths.root.resolve()), brief=brief
     )
+
+
+def _parts_enclosure(parts: list[dict[str, Any]]) -> list[tuple[str, str]]:
+    """What the earlier sessions of this same step produced."""
+    return [
+        (f"this step already did part {number}", json.dumps(part, indent=2, ensure_ascii=False))
+        for number, part in enumerate(parts, start=1)
+    ]
 
 
 def _named(error: BaseException) -> str:

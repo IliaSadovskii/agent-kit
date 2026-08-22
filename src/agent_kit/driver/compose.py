@@ -23,6 +23,8 @@ def compose_input(
     enclosures: Sequence[Enclosure] = (),
     refusal: str | None = None,
     attempts_allowed: int = 3,
+    parts_done: int = 0,
+    parts_allowed: int = 0,
 ) -> str:
     parts = [
         f"# {definition.name} — {definition.title or definition.role}",
@@ -63,6 +65,20 @@ def compose_input(
             f"    {refusal}",
             "",
             "Fix that. Repeating the previous answer wastes one of the attempts this step has.",
+        ]
+
+    if definition.splittable and definition.by_agent:
+        left = max(parts_allowed - parts_done, 0)
+        parts += [
+            "",
+            "## This step may be split",
+            "",
+            "You do not have to finish in one session. If you are running out of room, stop while you",
+            "can still write a good answer: return what you did with `complete: false`, and put what is",
+            "left in `remaining`, in enough detail that a session which never saw this one can carry on.",
+            "",
+            f"Sessions already spent on this step: {parts_done}. Sessions left after this one: {left}.",
+            "Running out of them stops the run, so do not spend one on work you could have finished.",
         ]
 
     if definition.by_agent:

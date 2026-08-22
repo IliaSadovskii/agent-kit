@@ -196,6 +196,18 @@ class Run:
         The run stays running: this is the driver's retry policy at work, not a
         decision that the run is over.
         """
+        return self._park(reason)
+
+    def continue_step(self, note: str) -> Step:
+        """The step did real work and ran out of room. It goes on in a new session.
+
+        A third event, and it has its own word: nothing here was refused, and
+        nothing here failed. What the session produced is kept and handed to
+        the one that carries on.
+        """
+        return self._park(note)
+
+    def _park(self, reason: str) -> Step:
         step = self._require_running()
         step.status = StepStatus.PENDING
         step.ended_at = now()

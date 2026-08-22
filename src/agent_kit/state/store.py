@@ -108,6 +108,10 @@ class RunStore:
         """One attempt was refused; the step waits for the next."""
         return self.update(slug, lambda run: run.refuse_step(reason))
 
+    def continue_step(self, slug: str, note: str) -> Run:
+        """The step ran out of room; what it did is kept and a new session carries on."""
+        return self.update(slug, lambda run: run.continue_step(note))
+
     def fail_run(self, slug: str, reason: str) -> Run:
         return self.update(slug, lambda run: run.fail(reason))
 
