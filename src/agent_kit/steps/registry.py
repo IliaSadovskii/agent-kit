@@ -79,6 +79,12 @@ DESIGN = StepDefinition(
                 "verification",
                 help="what will prove it works — decided here, before the code, never after",
             ),
+            TextList(
+                "needs_owner",
+                required=False,
+                help="anything only the owner can decide. It is asked in the open half of the "
+                     "pull request, which is the only channel to them there is",
+            ),
             Records(
                 "assumptions",
                 required=False,

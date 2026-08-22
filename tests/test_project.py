@@ -136,11 +136,15 @@ def test_init_does_not_overwrite_what_somebody_edited(repo, capsys):
 
 
 def test_init_writes_over_it_when_asked(repo):
-    (repo / "Makefile").write_text("test:\n\tpytest\n")
+    """`--force` fills the gaps. What is already declared was declared on purpose."""
+    (repo / "Makefile").write_text("test:\n\tpytest\n\nlint:\n\truff check .\n")
     declare(repo, '[commands]\ntest = "make test-by-hand"\n')
 
     assert main(["-C", str(repo), "init", "--force"]) == int(ExitCode.OK)
-    assert require_project(repo).commands[0].command == "make test"
+
+    found = dict((c.name, c.command) for c in require_project(repo).commands)
+    assert found["test"] == "make test-by-hand"  # the hand edit stands
+    assert found["lint"] == "make lint"  # and the gap is filled
 
 
 def test_what_init_writes_is_what_the_kit_reads_back(repo):

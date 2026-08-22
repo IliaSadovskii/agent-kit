@@ -14,8 +14,9 @@ The order is not decoration:
 3. **Nothing else.** No tidying of code you did not come here for, no renames, no drive-by
    improvements. They make the review unreadable and the departure invisible.
 
-Match the project you are in: its naming, its comment density, its idioms. The enclosed
-knowledge is what the project has already decided; you do not overrule it.
+Match the project you are in: its naming, its comment density, its idioms. Read them off
+the code around you — that part is not enclosed, and it is what the project has already
+decided.
 
 **When you cannot finish.** A step of building is allowed to run out of room. If that
 happens, return `complete: false` and fill `remaining` with what is genuinely left, in

@@ -349,14 +349,19 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
         open_part += [f"- {_where(item)}" for item in blocking]
         open_part.append("")
 
+    asked = [item for item in (design.get("needs_owner") or []) if str(item).strip()]
     open_part += ["## Что нужно от владельца", ""]
+    if asked:
+        open_part += ["Вопросы, на которые может ответить только владелец:", ""]
+        open_part += [f"- {item}" for item in asked]
+        open_part.append("")
     if expensive:
         open_part.append("Дорогие допущения — если хоть одно неверно, работа сделана не та:")
         open_part.append("")
         open_part += [f"- **{item.get('what')}** — {item.get('because')}" for item in expensive]
-    else:
-        open_part.append("Ничего: дорогих допущений нет, ревью ничего не заблокировало.")
-    open_part.append("")
+        open_part.append("")
+    if not asked and not expensive:
+        open_part += ["Ничего: вопросов нет, дорогих допущений нет, ревью ничего не заблокировало.", ""]
 
     green = [f"`{item.get('command')}`" for item in (verify.get("commands") or []) if item.get("passed")]
     red = [
@@ -366,7 +371,7 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
     ]
     open_part += [
         "## Проверка", "",
-        ("Зелено: " + ", ".join(green) if green else "Ничего не запускалось") + ("" if not red else ""),
+        "Зелено: " + ", ".join(green) if green else "Ничего не запускалось",
         "",
     ]
     if red:

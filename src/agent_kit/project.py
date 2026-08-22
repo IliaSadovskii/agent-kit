@@ -95,13 +95,31 @@ def require_project(root: Path | str) -> Project:
 
 
 def discover(root: Path) -> tuple[Project, list[str]]:
-    """Read the repository. What cannot be found is named, never invented."""
+    """Read the repository, and keep whatever the project already said.
+
+    What is already declared wins: somebody wrote it on purpose, and the point
+    of reading the repository is to fill gaps, not to overrule a person. This
+    matters because `init --force` is the very fix the kit suggests when a
+    project declares no commands, and it used to answer by deleting the rest.
+    """
+    found = _from_makefile(root) or _from_pyproject(root)
+    standing = read_project(root)
+
+    declared = {command.name: command for command in (standing.commands if standing else ())}
+    commands = list(declared.values())
+    commands += [command for command in found if command.name not in declared]
+
     missing: list[str] = []
-    commands = _from_makefile(root) or _from_pyproject(root)
     if not any(command.name == "test" for command in commands):
         missing.append("test — no `test` target in a Makefile and no pytest in pyproject.toml")
+
     return (
-        Project(root=root, default_branch=_default_branch(root), commands=tuple(commands)),
+        Project(
+            root=root,
+            default_branch=standing.default_branch if standing else _default_branch(root),
+            commands=tuple(commands),
+            roles=dict(standing.roles) if standing else {},
+        ),
         missing,
     )
 
@@ -120,6 +138,17 @@ def render(project: Project) -> str:
     lines += [f'{command.name} = "{command.command}"' for command in project.commands]
     if not project.commands:
         lines.append("# nothing was found; `verify` refuses a project that cannot say how it is tested")
+
+    for name, role in sorted(project.roles.items()):
+        # Read back by the driver, so it has to survive being written out. It
+        # was not, and `init --force` deleted the table every time.
+        lines += ["", f"[roles.{name}]", f'provider = "{role.provider}"']
+        if role.fallback:
+            lines.append("fallback = [" + ", ".join(f'"{spare}"' for spare in role.fallback) + "]")
+        for key in ("model", "effort"):
+            value = getattr(role, key)
+            if value is not None:
+                lines.append(f'{key} = "{value}"')
     return "\n".join(lines) + "\n"
 
 
@@ -134,8 +163,21 @@ def write_project(project: Project, force: bool = False) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     from .state.store import write_whole
 
+    _unhide(path.parent)
     write_whole(path, render(project))
     return path
+
+
+def _unhide(kit_dir: Path) -> None:
+    """S0-S3 wrote the ignore here, where it covers this file too.
+
+    A project set up by an older kit would commit no declaration and nobody
+    would see why. The ignore belongs one level down, over `runs/`, and the
+    store writes it there; this only clears the older one out of the way.
+    """
+    stale = kit_dir / ".gitignore"
+    if stale.is_file() and stale.read_text(encoding="utf-8", errors="replace").strip().endswith("*"):
+        stale.unlink()
 
 
 #: Targets worth declaring, in the order `verify` should run them.

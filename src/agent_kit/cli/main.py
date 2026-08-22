@@ -372,10 +372,6 @@ def _where(run) -> str:
     return f"next: {run.steps[index].name}" if index is not None else run.status.value
 
 
-if __name__ == "__main__":  # pragma: no cover
-    raise SystemExit(main())
-
-
 # --- step ------------------------------------------------------------------
 
 
@@ -578,3 +574,7 @@ def _what_the_step_cost(store: RunStore, slug: str, index: int, name: str) -> li
     if meta.get("limited_until"):
         said.append(f"limited until {meta['limited_until']}")
     return [", ".join(said)] if said else []
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())
