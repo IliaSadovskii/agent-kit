@@ -288,3 +288,103 @@ def test_a_program_does_not_pretend_to_be_a_model(repo):
 
     assert "model" not in meta
     assert meta["pull_request"].startswith("http")
+
+
+# --- what the review found: the outside world is not friendly ---------------
+
+
+def commit_on(repo, branch, name):
+    git(repo, "checkout", "-q", "-b", branch)
+    (repo / name).write_text("someone else was here\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-m", f"{name} by somebody else")
+    tip = git(repo, "rev-parse", "HEAD").stdout.strip()
+    git(repo, "checkout", "-q", "main")
+    return tip
+
+
+def test_a_branch_that_already_exists_is_refused_before_anything_is_touched(repo):
+    tip = commit_on(repo, "kit/add-vat", "other.py")
+    worked_on(repo)
+
+    with pytest.raises(ExecutorFailed) as refused:
+        deliver(repo)
+
+    assert refused.value.code == "branch-exists"
+    assert refused.value.retryable is False
+    assert git(repo, "rev-parse", "kit/add-vat").stdout.strip() == tip  # not overwritten
+    assert git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
+    assert (repo / "other.py").exists() is False  # we never left main
+
+
+def test_only_what_the_build_says_it_changed_is_committed(repo):
+    worked_on(repo)
+    (repo / ".env").write_text("TOKEN=hunter2\n")
+    (repo / "scratch.log").write_text("noise\n")
+
+    deliver(repo)
+
+    committed = git(repo, "show", "--name-only", "--format=", "HEAD").stdout.split()
+    assert committed == ["money.py"]
+    assert (repo / ".env").read_text() == "TOKEN=hunter2\n"  # left where it was
+
+
+def test_a_build_that_names_a_file_it_never_wrote_is_refused(repo):
+    worked_on(repo)
+
+    with pytest.raises(ExecutorFailed) as refused:
+        deliver(repo, {"build": {**BUILD, "files": ["money.py", "nowhere/at/all.py"]}})
+
+    assert refused.value.code == "no-such-file"
+    assert "nowhere/at/all.py" in refused.value.detail
+    assert git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
+
+
+def test_a_delivery_that_died_after_its_commit_is_carried_on_not_started_again(repo, tmp_path, monkeypatch):
+    """gh was not authenticated. The work is committed and pushed; running it again finishes."""
+    worked_on(repo)
+    broken = tmp_path / "bin/gh"
+    broken.write_text("#!/bin/sh\necho 'gh: not logged in' >&2\nexit 4\n")
+    broken.chmod(0o755)
+
+    with pytest.raises(ExecutorFailed) as first:
+        deliver(repo)
+    assert first.value.code == "gh-failed"
+
+    broken.write_text("#!/bin/sh\necho https://github.com/owner/project/pull/9\n")
+    broken.chmod(0o755)
+    said = json.loads(deliver(repo).raw)
+
+    assert said["pull_request"].endswith("/9")
+    assert git(repo, "log", "--oneline", "main..kit/add-vat").stdout.strip().count("\n") == 0  # one commit, not two
+
+
+def test_a_pull_request_that_is_already_open_is_not_opened_twice(repo, tmp_path):
+    worked_on(repo)
+    deliver(repo)
+    first = json.loads(deliver.__globals__["build_program"]("program:deliver", repo)
+                       .execute(request(repo, whole())).raw)
+
+    assert first["pull_request"].startswith("http")
+
+
+def test_a_command_that_hangs_takes_its_children_with_it(repo, tmp_path):
+    """A tool that outlives the session it belongs to keeps editing and keeps spending."""
+    from agent_kit.programs.deliver import Deliver
+
+    mark = tmp_path / "still-alive"
+    slow = tmp_path / "bin/git"
+    slow.write_text(
+        "#!/bin/sh\n"
+        f'(while true; do echo x >> "{mark}"; sleep 0.2; done) &\n'
+        "sleep 30\n"
+    )
+    slow.chmod(0o755)
+
+    with pytest.raises(ExecutorFailed) as stopped:
+        Deliver(repo, timeout=2).execute(request(repo, whole()))
+    assert "said nothing" in stopped.value.detail
+
+    grew = mark.stat().st_size if mark.exists() else 0
+    __import__("time").sleep(1.5)
+    assert (mark.stat().st_size if mark.exists() else 0) == grew
