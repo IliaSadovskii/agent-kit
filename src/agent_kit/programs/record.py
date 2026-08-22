@@ -73,6 +73,15 @@ class Record:
 
         touched: list[Path] = []
         try:
+            # Every address resolves before anything is written. A run that
+            # half-wrote the owner's knowledge and then failed leaves a working
+            # copy nobody will look at again, and that is worse than a run that
+            # wrote nothing at all.
+            for id in closing:
+                knowledge.find(id)
+            for item in owing:
+                knowledge.resolve(str(item["at"]))
+
             closed = [_closed(knowledge, id, touched) for id in closing]
             blocks = [self._write(knowledge, request, item, touched) for item in owing]
         except KnowledgeError as refused:

@@ -58,7 +58,17 @@ class Knowledge:
         return sorted(self.root.glob("*.md")) if self.exists else []
 
     def _lines(self, path: Path) -> list[str]:
-        return path.read_text(encoding="utf-8").splitlines()
+        """A file that cannot be read is a named refusal, not a stack trace.
+
+        The knowledge is the owner's, written by hand as often as by a program,
+        and every other failure in the kit names a code.
+        """
+        try:
+            return path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeDecodeError) as unreadable:
+            raise KnowledgeError(
+                "unreadable-knowledge", f"{path.name} could not be read: {unreadable}"
+            ) from unreadable
 
     def anchors(self) -> list[Anchor]:
         return [anchor for path in self.files() for anchor in read_anchors(path.name, self._lines(path))]
@@ -79,7 +89,7 @@ class Knowledge:
         path = self.root / name
         if not wanted:
             raise KnowledgeError("bad-address", f"{at!r} names a file and no record in it")
-        if "/" in name or not path.is_file():
+        if "/" in name or name in ("", ".", "..") or not path.is_file():
             raise KnowledgeError(
                 "no-such-file",
                 f"{name} is not a file of this project's knowledge: {', '.join(p.name for p in self.files()) or 'none'}",

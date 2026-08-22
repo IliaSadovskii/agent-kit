@@ -38,6 +38,7 @@ ASSUMED = "assumed"
 _HEADER = re.compile(r"^>\s*\*\*\[(?P<kind>[a-z]+) (?P<date>\d{4}-\d{2}-\d{2})(?P<rest>[^\]]*)\]\*\*")
 _PAIR = re.compile(r"^(?P<key>[a-z_]+):\s*(?P<value>.+)$")
 _HEADING = re.compile(r"^(?P<hashes>#{1,6}) (?P<text>.+?)\s*$")
+_FENCE = re.compile(r"^\s*(```|~~~)")
 _KEY_LINE = re.compile(r"^`key:\s*(?P<key>[A-Za-z0-9_.-]+)`")
 
 SEPARATOR = " · "
@@ -100,12 +101,31 @@ def render(kind: str, date: str, run: str, id: str, body: str) -> list[str]:
     return [f"{QUOTE}{line}" for line in wrapped or [header(kind, date, run, id)]]
 
 
+def outside_fences(lines: list[str]) -> list[bool]:
+    """Which lines are prose rather than a code sample.
+
+    A `### Пример` inside a fenced block is not a record, and a quoted block
+    inside one is an illustration of a block rather than a block. The real
+    knowledge has neither today, which is exactly how this waits.
+    """
+    outside: list[bool] = []
+    inside = False
+    for line in lines:
+        if _FENCE.match(line):
+            inside = not inside
+            outside.append(False)
+            continue
+        outside.append(not inside)
+    return outside
+
+
 def read_blocks(file: str, lines: list[str]) -> list[Block]:
     """Every block in one file, in the order they stand."""
     found: list[Block] = []
+    prose = outside_fences(lines)
     index = 0
     while index < len(lines):
-        matched = _HEADER.match(lines[index])
+        matched = _HEADER.match(lines[index]) if prose[index] else None
         if matched is None:
             index += 1
             continue
@@ -153,8 +173,9 @@ def read_anchors(file: str, lines: list[str]) -> list[Anchor]:
     one does the address is refused rather than guessed.
     """
     found: list[Anchor] = []
+    prose = outside_fences(lines)
     for index, line in enumerate(lines):
-        heading = _HEADING.match(line)
+        heading = _HEADING.match(line) if prose[index] else None
         if heading is None:
             continue
         if len(heading.group("hashes")) == 1:
@@ -186,8 +207,9 @@ def _key_below(lines: list[str], index: int) -> str:
 
 def section_end(lines: list[str], anchor: Anchor) -> int:
     """Where the anchor's section stops: the next heading of its level or higher."""
+    prose = outside_fences(lines)
     for index in range(anchor.line + 1, len(lines)):
-        heading = _HEADING.match(lines[index])
+        heading = _HEADING.match(lines[index]) if prose[index] else None
         if heading is not None and len(heading.group("hashes")) <= anchor.level:
             return index
     return len(lines)
