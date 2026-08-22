@@ -47,9 +47,11 @@ def build_program(name: str, root: Path | str) -> Executor:
 
 
 def _register() -> None:
+    from .deliver import Deliver
     from .verify import Verify
 
     _BUILDERS[Verify.name] = Verify
+    _BUILDERS[Deliver.name] = Deliver
 
 
 _register()

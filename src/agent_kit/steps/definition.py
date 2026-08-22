@@ -54,6 +54,13 @@ class StepDefinition:
     envelope: str = "rules/output.md"
     #: `AGENT`, or the name of a program the kit ships.
     executor: str = AGENT
+    #: A step that cannot be composed without knowing what is being built.
+    #: `create_run` refuses a run of such steps with no brief.
+    needs_brief: bool = False
+    #: Open question 5, the ceiling inside a step. A step that may be split is
+    #: continued in a fresh session with what the previous one produced. A step
+    #: that may not and outgrows its window is a design error, not a survival.
+    splittable: bool = False
 
     @property
     def by_agent(self) -> bool:

@@ -59,6 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     new = run_what.add_parser("new", help="create a run")
     new.add_argument("slug")
+    new.add_argument("--brief", help="what this run is for, in your own words; every step's input encloses it")
     new.add_argument("--steps", help="comma-separated step names (default: what `step list` calls the default)")
 
     run_what.add_parser("list", help="the runs this project holds")
@@ -273,7 +274,7 @@ def _run(args: argparse.Namespace) -> int:
 
     if what == "new":
         steps = [name.strip() for name in args.steps.split(",")] if args.steps else None
-        run = create_run(store, registry, args.slug, steps=steps)
+        run = create_run(store, registry, args.slug, steps=steps, brief=args.brief)
         print(f"{run.slug}: created on {run.branch} with {len(run.steps)} steps")
         return int(ExitCode.OK)
 
@@ -292,6 +293,8 @@ def _run(args: argparse.Namespace) -> int:
             print(json.dumps(run.to_dict(), indent=2, ensure_ascii=False))
         else:
             print(f"{run.slug}  {run.status.value}  {run.branch}")
+            if run.brief:
+                print(f"  for: {run.brief}")
             for index, step in enumerate(run.steps):
                 mark = ">" if index == run.current_step else " "
                 reason = f"  {step.reason}" if step.reason else ""

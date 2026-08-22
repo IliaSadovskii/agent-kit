@@ -17,7 +17,7 @@ from typing import Any, Mapping
 from ..config import RoleConfig
 from ..errors import ProviderError, StateError
 from ..logs import get_logger
-from ..state import Run, RunStore
+from ..state import DEFAULT_STEPS, Run, RunStore
 from ..steps import Registry, StepDefinition
 from ..steps.contract import ContractRefusal, parse_output
 from .compose import compose_input
@@ -303,17 +303,27 @@ def create_run(
     slug: str,
     steps: list[str] | None = None,
     project: str | None = None,
+    brief: str | None = None,
 ) -> Run:
     """A run may only be created from steps that exist.
 
     The check lives here rather than in the state, so the arrow keeps pointing
     one way: state, then the step contract, then the driver.
     """
-    for name in steps or ():
-        registry.get(name)
+    wanted = list(steps or DEFAULT_STEPS)
+    for name in wanted:
+        definition = registry.get(name)
+        if definition.needs_brief and not (brief or "").strip():
+            raise StateError(
+                "no-brief",
+                f"{name} decides what to do about a feature, and this run does not say which",
+                hint="agent-kit run new <slug> --brief '<what to build>'",
+            )
     # A run always knows where it is. A session that does not is run wherever
     # the driver happened to keep its paperwork, which is nowhere useful.
-    return store.create(slug, steps=steps, project=project or str(store.paths.root.resolve()))
+    return store.create(
+        slug, steps=steps, project=project or str(store.paths.root.resolve()), brief=brief
+    )
 
 
 def _named(error: BaseException) -> str:

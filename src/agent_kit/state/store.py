@@ -83,7 +83,7 @@ class RunStore:
 
         directory = self.paths.run_dir(run.slug)
         directory.mkdir(parents=True, exist_ok=True)
-        _keep_out_of_git(self.paths.runs_dir)
+        keep_runs_out_of_git(self.paths.runs_dir)
         write_whole(directory / RUN_FILE, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
         return run
 
@@ -115,7 +115,7 @@ class RunStore:
         return self.update(slug, lambda run: run.stop(reason))
 
 
-def _keep_out_of_git(runs_dir: Path) -> None:
+def keep_runs_out_of_git(runs_dir: Path) -> None:
     """A run's state is not repository content, and the project should not have to say so.
 
     It covers `runs/` and not the whole of `.agent-kit/v3/`, because what the
@@ -148,4 +148,4 @@ def write_whole(path: Path, text: str) -> None:
         raise
 
 
-__all__ = ["RunStore", "Run", "Step", "RUN_FILE", "write_whole"]
+__all__ = ["RunStore", "Run", "Step", "RUN_FILE", "keep_runs_out_of_git", "write_whole"]

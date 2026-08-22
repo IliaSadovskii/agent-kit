@@ -18,10 +18,8 @@ from ..errors import StateError
 SCHEMA_VERSION = 2
 BRANCH_PREFIX = "kit/"
 
-#: What a run does when nobody says otherwise. The feature steps replace this
-#: once they exist; changing it before then would leave every run pointing at
-#: names the registry does not know.
-DEFAULT_STEPS = ("probe",)
+#: What a run does when nobody says otherwise: one feature, end to end.
+DEFAULT_STEPS = ("design", "build", "verify", "review", "deliver")
 
 _SLUG = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 
