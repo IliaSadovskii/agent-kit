@@ -119,7 +119,7 @@ def read_blocks(file: str, lines: list[str]) -> list[Block]:
                 date=matched.group("date"),
                 run=run,
                 id=pairs.get("id", ""),
-                first_line=lines[index][len(QUOTE):].strip(),
+                first_line=_HEADER.sub("", lines[index]).strip(),
                 file=file,
                 start=index,
                 end=end,
@@ -156,6 +156,10 @@ def read_anchors(file: str, lines: list[str]) -> list[Anchor]:
     for index, line in enumerate(lines):
         heading = _HEADING.match(line)
         if heading is None:
+            continue
+        if len(heading.group("hashes")) == 1:
+            # The file's own title. A block "under `# Сущности`" is a block
+            # anywhere in the file, which is not an address anybody wants.
             continue
         text = heading.group("text")
         found.append(

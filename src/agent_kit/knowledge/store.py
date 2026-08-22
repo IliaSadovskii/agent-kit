@@ -192,10 +192,14 @@ class Knowledge:
                 lines.append(f"   {address:<{width}}   {anchor.heading}")
 
         lines += ["", "## the blocks standing now"]
+        # The run is a column and not part of the glimpse: it is the only thing
+        # that identifies a block the second version wrote, which has no
+        # identifier of its own.
+        run = max((len(block.run) for block in blocks), default=0)
         for block in blocks:
             lines.append(
-                f"   {block.id or '—':<6}  {block.kind:<8} {block.date}  {block.file}  "
-                f"{block.first_line[:GLIMPSE]}"
+                f"   {block.id or '—':<6}  {block.kind:<8} {block.date}  {block.run:<{run}}  "
+                f"{block.file}  {block.first_line[:GLIMPSE]}"
             )
         if any(not block.id for block in blocks):
             lines.append(

@@ -511,3 +511,65 @@ def test_a_reply_that_acts_reaches_the_working_copy_through_the_bench(cases, cap
 
     assert "fired" in printed.out, printed.out
     assert code == int(ExitCode.OK)
+
+
+# --- S6: the four knowledge cases, and their judges ---------------------------
+
+
+def test_a_knowledge_case_whose_project_keeps_none_does_not_fire(tmp_path, capsys):
+    """Take the knowledge away and every mechanism about it must go quiet.
+
+    The join binds a project that keeps knowledge. A case that still reported
+    `fired` against a project keeping none would be measuring the run, not the
+    join — the S5 shape, in the step that most invites it.
+    """
+    import shutil
+
+    from agent_kit.bench import cases_root
+
+    names = (
+        "an-expensive-assumption-with-no-block",
+        "an-address-that-names-no-record",
+        "closing-a-block-that-is-not-there",
+        "a-block-that-reaches-the-knowledge",
+    )
+    for name in names:
+        room = tmp_path / name / "cases"
+        room.mkdir(parents=True)
+        shutil.copytree(cases_root() / name, room / name)
+        shutil.rmtree(room / name / "repo" / "docs")  # the trap is not laid
+
+        main(["bench", "run", "--cases", str(room), "--case", name])
+        said = next(line for line in capsys.readouterr().out.splitlines() if line.startswith(name))
+
+        assert "did not fire" in said, f"{name} fires against a project that keeps no knowledge: {said}"
+
+
+def test_the_judge_of_the_green_case_proves_its_own_trap_was_laid(tmp_path, capsys):
+    """The declaration alone would pass here: a run with nothing to record goes green.
+
+    So this disarms the trap *and* keeps the run green, which is the only way to
+    ask the judge whether it is armed rather than asking the case.
+    """
+    import json
+    import shutil
+
+    from agent_kit.bench import cases_root
+
+    name = "a-block-that-reaches-the-knowledge"
+    room = tmp_path / "cases"
+    room.mkdir()
+    shutil.copytree(cases_root() / name, room / name)
+    shutil.rmtree(room / name / "repo" / "docs")
+
+    design = room / name / "replies" / "01-reply.json"
+    written = json.loads(design.read_text(encoding="utf-8"))
+    written["closes"] = []
+    written["assumptions"][0]["expensive"] = False  # nothing is owed, so the run goes green
+    design.write_text(json.dumps(written, ensure_ascii=False), encoding="utf-8")
+
+    main(["bench", "run", "--cases", str(room), "--case", name])
+    said = next(line for line in capsys.readouterr().out.splitlines() if line.startswith(name))
+
+    assert "did not fire" in said, said
+    assert "no knowledge was planted at all" in said, said

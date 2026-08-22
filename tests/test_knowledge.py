@@ -303,3 +303,25 @@ def test_a_project_that_keeps_no_knowledge_says_so_rather_than_breaking(tmp_path
     assert none.exists is False
     assert none.blocks() == []
     assert "keeps no knowledge" in none.index()
+
+
+# --- what the index costs ----------------------------------------------------
+
+
+def test_the_file_s_own_title_is_not_an_address(knowledge):
+    # A block "under `# Сущности`" is a block anywhere in the file.
+    assert "entities.md#Сущности" not in knowledge.index()
+
+    with pytest.raises(KnowledgeError) as refused:
+        knowledge.resolve("entities.md#Сущности")
+
+    assert refused.value.code == "no-such-record"
+
+
+def test_a_block_reaches_the_index_by_what_it_says_not_by_its_header(knowledge):
+    # The kind, the date and the run are columns of the index already. Printing
+    # the header again inside the glimpse spends the enclosure on itself.
+    line = next(l for l in knowledge.index().splitlines() if "own-key-01" in l)
+
+    assert "«Берётся список моделей этим" in line
+    assert "**[assumed" not in line
