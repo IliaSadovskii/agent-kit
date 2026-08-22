@@ -514,3 +514,18 @@ def test_a_gate_that_closed_names_a_code_as_well_as_a_sentence(machine, capsys, 
     state = json.loads(run(["run", "show", "add-vat", "--json"], capsys)[1])
     assert state["reason"].startswith("gate-closed:")
     assert "verify" in state["reason"] and "passed" in state["reason"]
+
+
+def test_a_step_a_program_executes_does_not_claim_to_have_prose(capsys):
+    """`step show verify` printed a path to the method directory itself.
+
+    Nobody reads instructions to a program, so a program's step has no prose —
+    and a screen that names a file which is not there is the kind of small lie
+    that costs somebody an afternoon.
+    """
+    main(["step", "show", "record"])
+
+    printed = capsys.readouterr().out
+    assert "prose" in printed
+    assert "method\n" not in printed
+    assert "a program" in printed

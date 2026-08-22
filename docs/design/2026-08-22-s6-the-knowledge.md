@@ -264,3 +264,119 @@ assumption no block cannot pass its step in a project that keeps knowledge; a bl
 by the kit is in the owner's file, under the record it named, carrying an identifier that
 the same run would produce again; and breaking any one of the four new mechanisms by hand
 makes exactly one case say it did not.
+
+---
+
+# What was built, 22 August 2026
+
+Six steps to a run now — `design`, `build`, `verify`, `review`, `record`, `deliver` —
+nineteen bench cases all firing, and 434 tests. Everything decided above was built as
+decided; what changed on the way is in the last section, and so is what was not built.
+
+## The identifier, in the file
+
+```
+> **[assumed 2026-08-22 · kit/add-vat · id: k7f3q2]** Ничего не говорит, что ставка целая.
+> Взял целую: дробная округлялась бы молча, а на эту ставку опирается расчёт цены.
+```
+
+Derived from the run's slug and the assumption's own words, over digits and consonants.
+`identifier('add-vat', 'the rate is a whole percent')` is the same six characters on every
+machine and in every attempt, which is what lets a bench judge ask the kit what the block's
+name must be instead of accepting whatever it produced — the judge for
+`a-block-that-reaches-the-knowledge` does exactly that.
+
+An identifier that is already in the knowledge under a *different* run is stepped over
+rather than overwritten. One under the same run is ours: the block is replaced, so an
+attempt that died after editing the file writes the same block again instead of a second
+one beside it.
+
+## What the enclosure costs, measured
+
+Over the real knowledge of `beeplish`, read and not written:
+
+| | |
+|---|---|
+| the knowledge | 8 files, 7 380 lines, 868 KB |
+| the index the driver encloses | 377 lines, **47 KB** |
+| addressable records | 155 |
+| blocks listed, of which addressable | 193, of which 0 |
+
+Five and a half per cent of the knowledge, and it does not grow when a record's body does:
+a record reaches the index by its address and its heading, a block by its first 120
+characters. Two things were cut after the first measurement, which was 50 KB: a block's
+glimpse repeated the header the index already prints as columns, and a file's own `#`
+title was an address — a block "under `# Сущности`" is a block anywhere in the file.
+
+`0 of 193` addressable is the honest number and it is not a defect: every block standing in
+`beeplish` today was written by the second version, and the identifier is additive. The
+index says so in its own last line rather than leaving it to be discovered.
+
+## Three things the code had to learn, and each is a defect found by reading it
+
+1. **Fenced code is not prose.** A `### Пример` inside a ```` ``` ```` block became an
+   address, and a quoted block inside one became a block. The real knowledge has neither
+   today — which is exactly how this class of defect waits. Both readers and the section
+   boundary ask `outside_fences` before believing a line.
+2. **A file that cannot be read is a named refusal.** `unreadable-knowledge`, not a stack
+   trace and an exit code of 70. The knowledge is the owner's and is edited by hand.
+3. **Every address resolves before anything is written.** Two expensive assumptions with a
+   bad address on the second used to leave the first block on disk under a run that failed.
+   A half-written knowledge is worse than an unwritten one, and the same is true of closing.
+
+## Breaking it by hand, as the rule says
+
+Four mechanisms, one at a time, each reverted before the next:
+
+| What was broken | What said so |
+|---|---|
+| the project no longer makes the design's contract stricter | `an-expensive-assumption-with-no-block` |
+| an address that resolves to nothing lands on the first record instead | `an-address-that-names-no-record` |
+| closing an identifier nobody holds passes quietly | `closing-a-block-that-is-not-there` |
+| the knowledge is written and left out of the commit | `a-block-that-reaches-the-knowledge` |
+
+Each pointed at one case and no others. And, as the S5 review taught, the judges were asked
+whether they are armed rather than merely green: take the planted knowledge away and all
+four must go quiet, and the green case's judge is asked while the run still goes green —
+it answers *"no knowledge was planted at all"* rather than passing.
+
+The bench was also run from `git archive HEAD` unpacked elsewhere, which is the check
+nobody thinks to do and the one that caught S5's blocker. Nineteen of nineteen there too.
+
+## What changed on the way, against the note above
+
+**`closes` is required by the project, not by the kit.** The note said required with an
+empty list as a real answer. It is — in a project that keeps knowledge. Making it
+unconditional would have asked fifteen standing bench cases to answer a question about a
+knowledge their projects do not have, which is a field with no reader wearing a convention's
+clothes.
+
+**Only one standing case changed owner, not three.** The deliverable question moving in
+front of the knowledge touches `a-review-that-disagrees-with-itself`, whose `deliver`
+becomes `record`. `a-blocking-finding`, `a-red-test-command` and `a-command-that-hangs`
+declare no step, because a run that *stops* parks its step back to pending — so they were
+already written in the only way that survives this.
+
+**A design that omits both `block` and `at` is refused for the address.** The fields are
+checked in the order the contract declares them, and the address is declared first. The
+case that proves the join therefore supplies `at` and withholds `block`, which is the
+sharper trap anyway: it isolates the field the rule is named for.
+
+## What is still open
+
+**The knowledge a failed run wrote stays in the working copy.** `record` writes, and a
+later `deliver` refusal — a branch that is somebody else's, a file the build named and
+never wrote — leaves those edits uncommitted beside the code the build wrote. It is no
+worse than what the kit already does with code, and it is the same shape: there is no
+rollback in the kit, and inventing one for the knowledge alone would be inventing it in the
+wrong place.
+
+**The sandbox baseline has not moved.** Section 9 decided it should, once and deliberately,
+and it has not been done: `kit-sandbox` is another repository and moving its `main` is the
+kind of act that is the owner's to approve rather than a side effect of this step. S6 is
+proved on the bench, which is what its done-condition names. The move is the first thing to
+do before the next live run.
+
+**No `full` case, still.** Every one of the nineteen answers from `providers/fake/`. A case
+that drives a real provider needs the runner to stop passing `--provider fake`
+unconditionally, which S5 already wrote down and S9 still owns.

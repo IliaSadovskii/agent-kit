@@ -413,7 +413,12 @@ def _step(args: argparse.Namespace, paths: Paths) -> int:
         definition = registry.get(args.name)
         print(f"{definition.name} — {definition.title}")
         print(f"  role      {definition.role}")
-        print(f"  prose     {method_root() / definition.method}")
+        prose = (
+            str(method_root() / definition.method)
+            if definition.method
+            else f"none — {definition.executor} is a program, and nobody reads instructions to one"
+        )
+        print(f"  prose     {prose}")
         print()
         print("returns:")
         print(definition.contract.describe())
