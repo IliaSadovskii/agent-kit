@@ -121,6 +121,7 @@ class ProcessExecutor:
         flags = self.declared.flags
         argv = [self.binary, *flags.get("headless", [])]
         argv += flags.get("full_access", [])
+        argv += flags.get("instructions", [])
         if self.model and flags.get("model"):
             argv += [*flags["model"], self.model]
         if self.effort and flags.get("effort"):

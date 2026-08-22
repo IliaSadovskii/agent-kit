@@ -110,6 +110,17 @@ def test_the_flags_come_from_the_provider_s_own_declaration(tmp_path):
     assert value_after(tmp_path, "--permission-mode") == "bypassPermissions"
 
 
+def test_the_session_reads_the_project_s_instructions_and_not_the_operator_s(tmp_path):
+    """The driver composes a step's input. A personal file on the machine is not part of it.
+
+    Measured on the real CLI: with no flag a session obeys both the project's
+    CLAUDE.md and the operator's own; with this one, only the project's.
+    """
+    executor(tmp_path).execute(request(tmp_path))
+
+    assert value_after(tmp_path, "--setting-sources") == "project"
+
+
 def test_the_kit_names_the_session_rather_than_hunting_for_it(tmp_path):
     result = executor(tmp_path).execute(request(tmp_path))
 

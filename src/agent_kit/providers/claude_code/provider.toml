@@ -9,7 +9,8 @@ binary = "claude"
 notes  = """
 Driven headless: one composed input on stdin, one JSON answer on stdout. The
 session is named by the kit with --session-id and the name is confirmed from the
-answer, so nothing is guessed. The subscription is the CLI's own login; the kit
+answer, so nothing is guessed. It reads the project's own instruction file and
+nothing else from the machine it runs on. The subscription is the CLI's own login; the kit
 never sees a key and never talks to a model API.
 """
 
@@ -17,6 +18,10 @@ never sees a key and never talks to a model API.
 # The shape: a flag that carries a value is [flag], and the value follows it.
 headless    = ["-p", "--output-format", "json"]
 full_access = ["--permission-mode", "bypassPermissions"]
+# The project's own CLAUDE.md is knowledge a step wants; the operator's personal
+# one is instructions the driver did not compose. Measured: with no flag a
+# session obeys both, with this one only the project's.
+instructions = ["--setting-sources", "project"]
 model       = ["--model"]
 effort      = ["--effort"]
 session     = ["--session-id"]
