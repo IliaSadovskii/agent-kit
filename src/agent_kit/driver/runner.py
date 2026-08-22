@@ -155,8 +155,8 @@ class StepRunner:
                     # the run stops rather than fails: `failed` is for a kit that
                     # could not do its work, and this one did.
                     outcome.reason = (
-                        f"{definition.name} passed and recorded {definition.gate} as false; "
-                        "the run does not go past that"
+                        f"gate-closed: {definition.name} passed and recorded {definition.gate} as "
+                        "false; the run does not go past that"
                     )
                     self.store.halt(slug, outcome.reason)
                     log.info("%s: %s stopped the run: %s is false", slug, definition.name, definition.gate)
@@ -195,8 +195,8 @@ class StepRunner:
         left = ", ".join(parts[-1].get("remaining") or []) or "it did not say what is left"
         if len(parts) > self.continuations:
             outcome.reason = (
-                f"{definition.name} outgrew the room a step is allowed: {len(parts)} sessions and it is "
-                f"still not finished — {left}"
+                f"step-outgrew-its-room: {definition.name} had {len(parts)} sessions and is still not "
+                f"finished — {left}"
             )
             self.store.fail_run(slug, outcome.reason)
             log.info("%s: %s outgrew its room after %s parts", slug, definition.name, len(parts))

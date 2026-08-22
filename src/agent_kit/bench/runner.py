@@ -20,8 +20,9 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..errors import KitError
+from ..errors import ExitCode, KitError
 from ..logs import get_logger
+from ..shell import kill_group
 from .cases import Case, read_case
 from .world import World, make_world
 
@@ -32,6 +33,12 @@ TIMEOUT = 300
 #: What a judge's exit code means. Anything else is the judge itself breaking.
 JUDGE_FIRED = 0
 JUDGE_DID_NOT = 1
+
+#: Codes the kit leaves when the fault is the kit's or the case's, not a
+#: mechanism regressing: a defect in the kit, a command typed wrong, a
+#: configuration that is missing something. A case that expected one of these
+#: is asking about something the bench cannot tell it.
+BROKEN = (int(ExitCode.INTERNAL), int(ExitCode.USAGE), int(ExitCode.CONFIG))
 
 log = get_logger("bench")
 
@@ -115,15 +122,30 @@ def _kit(world: World, argv: list[str]) -> subprocess.CompletedProcess:
 
     Not an import: a case is a run of the command, so the exit code a judge
     reads is the one a script would have read.
+
+    It gets its own process group, like every other place in the kit that starts
+    somebody else's process. A run that has to be timed out has, by then, a
+    child of its own started the same way — killing only the kit would leave it
+    running against a world this function is about to delete.
     """
-    return subprocess.run(
-        [sys.executable, "-m", "agent_kit", "-C", str(world.repo), *argv],
-        cwd=world.repo,
-        env=world.env,
-        capture_output=True,
-        text=True,
-        timeout=TIMEOUT,
+    return _group(
+        [sys.executable, "-m", "agent_kit", "-C", str(world.repo), *argv], world.repo, world.env
     )
+
+
+def _group(argv: list[str], cwd: Path, env: dict[str, str]) -> subprocess.CompletedProcess:
+    """One command, and everything it started dies with it."""
+    child = subprocess.Popen(
+        argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = child.communicate(timeout=TIMEOUT)
+    except subprocess.TimeoutExpired:
+        kill_group(child)
+        raise
+    return subprocess.CompletedProcess(argv, child.returncode, stdout=stdout, stderr=stderr)
 
 
 def _replies(case: Case) -> list[str]:
@@ -139,6 +161,11 @@ def _replies(case: Case) -> list[str]:
 def _judge(case: Case, world: World, went: subprocess.CompletedProcess) -> Verdict:
     """What the case declared, and then the script it brought."""
     expect = case.expect
+    if went.returncode in BROKEN and went.returncode != expect.exit_code:
+        # A kit that crashed or was told something it could not read has not
+        # measured the mechanism at all. Printing that in the column where a
+        # regression is printed points at the wrong thing.
+        return unjudgeable(f"the kit exited {went.returncode}: {_said(went)}")
     if went.returncode != expect.exit_code:
         return did_not(f"it exited {went.returncode} and the case wants {expect.exit_code}: {_said(went)}")
 
@@ -185,9 +212,7 @@ def _judge_script(case: Case, world: World, exit_code: int) -> Verdict:
         EXIT_CODE=str(exit_code),
     )
     try:
-        done = subprocess.run(
-            ["sh", str(script)], cwd=world.repo, env=env, capture_output=True, text=True, timeout=TIMEOUT
-        )
+        done = _group(["sh", str(script)], world.repo, env)
     except subprocess.SubprocessError as broken:
         return unjudgeable(f"judge.sh did not come back: {broken}")
 

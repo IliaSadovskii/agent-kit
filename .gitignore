@@ -13,5 +13,7 @@ __pycache__/
 .pytest_cache/
 dist/
 
-# Run state — never repository content
-.agent-kit/
+# Run state — never repository content. Only the state: what a project
+# *declares* about itself belongs in the history beside the code, and the
+# bench's cases declare projects of their own.
+.agent-kit/*/runs/

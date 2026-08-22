@@ -485,30 +485,36 @@ def _provider(args: argparse.Namespace, paths: Paths) -> int:
 def _bench(args: argparse.Namespace) -> int:
     """One line per case: fired, did not fire, or could not be judged.
 
-    Non-zero when anything did not fire, because a bench whose answer no script
-    can read is one that gets run once and then trusted.
+    Two non-zero codes, because they call for different things. A mechanism that
+    stopped firing is a regression in the kit and somebody has to fix it. A case,
+    a world or a judge that broke is the instrument being wrong, and nothing was
+    measured at all — reading that as a regression points at the wrong thing.
     """
     from tempfile import TemporaryDirectory
 
-    from ..bench import case_names, cases_root, read_case, run_named
+    from ..bench import CaseError, case_names, cases_root, read_case, run_named
 
-    root = Path(args.cases).resolve() if args.cases else cases_root()
+    # A bare `agent-kit bench` means `bench run`, so the options belong to a
+    # subcommand that was not typed and are read as absent rather than crashed on.
+    where = getattr(args, "cases", None)
+    only = getattr(args, "case", None)
+    keeping = getattr(args, "keep", None)
+
+    root = Path(where).resolve() if where else cases_root()
     what = args.what or "run"
     names = case_names(root)
 
     if what == "list":
-        for name in names:
-            print(f"{name:38}  {read_case(root, name).fires}")
-        return int(ExitCode.OK)
+        return _bench_list(root, names, read_case, CaseError)
     if what != "run":
         raise UsageError("unknown-command", f"bench {what}")
 
-    if args.case is not None:
-        if args.case not in names:
-            raise UsageError("unknown-case", f"{args.case!r} is not a case: {', '.join(names) or 'there are none'}")
-        names = [args.case]
+    if only is not None:
+        if only not in names:
+            raise UsageError("unknown-case", f"{only!r} is not a case: {', '.join(names) or 'there are none'}")
+        names = [only]
 
-    keep = Path(args.keep).resolve() if args.keep else None
+    keep = Path(keeping).resolve() if keeping else None
     if keep is not None:
         keep.mkdir(parents=True, exist_ok=True)
 
@@ -523,9 +529,28 @@ def _bench(args: argparse.Namespace) -> int:
                 print(f"{'':38}  left in {result.where}")
 
     fired = [result for result in results if result.verdict.fired]
+    broken = [result for result in results if not result.verdict.judged]
     print()
     print(f"{len(fired)} of {len(results)} mechanisms fired")
+    if broken:
+        print(f"{len(broken)} could not be judged, so the bench answered for {len(results) - len(broken)}")
+        return int(ExitCode.BROKEN_BENCH)
     return int(ExitCode.OK if len(fired) == len(results) else ExitCode.BENCH)
+
+
+def _bench_list(root: Path, names: list[str], read_case, CaseError) -> int:
+    """Every case and the mechanism it plants. One unreadable case hides none of the others."""
+    broken = []
+    for name in names:
+        try:
+            case = read_case(root, name)
+        except CaseError as unreadable:
+            broken.append(name)
+            print(f"{name:38}  unreadable — {unreadable.code}: {unreadable.detail}")
+            continue
+        print(f"{name:38}  {case.title}")
+        print(f"{'':38}  fires: {case.fires}")
+    return int(ExitCode.BROKEN_BENCH if broken else ExitCode.OK)
 
 
 def _runner(store: RunStore, registry, provider: str | None, options: list[str]) -> StepRunner:

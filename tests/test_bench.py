@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from agent_kit.bench import cases_root, read_cases
+from agent_kit.bench import case_names, cases_root, read_case
 from agent_kit.cli.main import main
 from agent_kit.errors import ExitCode
 
@@ -176,7 +176,7 @@ def test_a_judge_that_could_not_judge_is_not_counted_as_fired(cases, capsys):
 
     assert "could not be judged" in printed.out
     assert "did not fire" not in printed.out
-    assert code == int(ExitCode.BENCH)
+    assert code == int(ExitCode.BROKEN_BENCH)
 
 
 def test_a_case_that_cannot_be_set_up_is_could_not_be_judged_rather_than_a_failure(cases, capsys):
@@ -186,7 +186,7 @@ def test_a_case_that_cannot_be_set_up_is_could_not_be_judged_rather_than_a_failu
     code, printed = bench(cases, capsys=capsys)
 
     assert "could not be judged" in printed.out
-    assert code == int(ExitCode.BENCH)
+    assert code == int(ExitCode.BROKEN_BENCH)
 
 
 def test_one_case_can_be_asked_for_by_name(cases, capsys):
@@ -268,7 +268,8 @@ def test_the_case_runs_against_a_gh_that_is_a_script_and_a_remote_that_is_a_dire
 
 
 def test_every_shipped_case_is_readable_and_says_what_must_fire(capsys):
-    shipped = read_cases(cases_root())
+    root = cases_root()
+    shipped = [read_case(root, name) for name in case_names(root)]
 
     assert len(shipped) >= 15
     for case in shipped:
@@ -299,12 +300,13 @@ def test_every_file_a_case_needs_is_in_the_repository():
     import subprocess
 
     root = Path(__file__).resolve().parents[1]
-    ignored = subprocess.run(
+    printed = subprocess.run(
         ["git", "status", "--ignored", "--short", "--", "bench/cases"],
         cwd=root, capture_output=True, text=True,
-    ).stdout.strip()
+    ).stdout
+    ignored = [line for line in printed.splitlines() if line.startswith("!!")]
 
-    assert ignored == "", f"the bench needs files git is not keeping:\n{ignored}"
+    assert ignored == [], "the bench needs files git is not keeping:\n" + "\n".join(ignored)
 
 
 def test_a_case_whose_trap_was_never_planted_does_not_fire(tmp_path, capsys):
@@ -329,8 +331,9 @@ def test_a_case_whose_trap_was_never_planted_does_not_fire(tmp_path, capsys):
 
         main(["bench", "run", "--cases", str(tmp_path / "cases"), "--case", name])
         printed = capsys.readouterr().out
+        said = next(line for line in printed.splitlines() if line.startswith(name))
 
-        assert "fired" not in printed.replace("did not fire", ""), f"{name} fires with no trap in place:\n{printed}"
+        assert "did not fire" in said, f"{name} fires with no trap in place: {said}"
 
 
 def test_a_judge_reads_the_reason_the_run_recorded(cases, capsys):
@@ -387,16 +390,16 @@ def test_a_kit_that_crashed_is_not_reported_as_a_mechanism_that_did_not_fire(cas
 
     from agent_kit.bench import runner
 
-    real = runner.subprocess.run
+    real = runner._group
 
-    def crashing(argv, **kwargs):
+    def crashing(argv, cwd, env):
         if "go" in argv:
             return subprocess.CompletedProcess(
                 argv, 70, stdout="", stderr="agent-kit: internal-error: TypeError: nope"
             )
-        return real(argv, **kwargs)
+        return real(argv, cwd, env)
 
-    monkeypatch.setattr(runner.subprocess, "run", crashing)
+    monkeypatch.setattr(runner, "_group", crashing)
 
     code, printed = bench(cases, capsys=capsys)
 

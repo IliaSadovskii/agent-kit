@@ -10,7 +10,7 @@ version of the kit be compared against the next. Nothing here reaches the
 network and nothing costs a token: every case answers from `providers/fake/`.
 """
 
-from .cases import Case, CaseError, Expect, case_names, cases_root, read_case, read_cases
+from .cases import Case, CaseError, Expect, case_names, cases_root, read_case
 from .runner import Result, Verdict, run_case, run_named
 
 __all__ = [
@@ -22,7 +22,6 @@ __all__ = [
     "case_names",
     "cases_root",
     "read_case",
-    "read_cases",
     "run_case",
     "run_named",
 ]

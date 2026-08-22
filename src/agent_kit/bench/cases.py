@@ -23,7 +23,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from ..errors import StateError, UsageError
+from ..errors import StateError
 
 CASE_FILE = "case.toml"
 
@@ -145,18 +145,6 @@ def read_case(root: Path, name: str) -> Case:
             },
         ),
     )
-
-
-def read_cases(root: Path, only: str | None = None) -> list[Case]:
-    """Every case, or the one that was asked for by name."""
-    names = case_names(root)
-    if only is not None:
-        if only not in names:
-            raise UsageError(
-                "unknown-case", f"{only!r} is not a case: {', '.join(names) or 'there are none'}"
-            )
-        names = [only]
-    return [read_case(root, name) for name in names]
 
 
 # --- field checks, each naming what it refused ------------------------------

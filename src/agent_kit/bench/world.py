@@ -38,6 +38,11 @@ BASELINE = {
 
 #: A `gh` that answers the two things delivery asks it, and writes down every
 #: call so a judge can read what it was asked.
+#: Who a case's commits are by. Written into the environment as well as the
+#: repository's config, because git prefers the environment and would
+#: otherwise sign the commit with the name of whoever ran the bench.
+IDENTITY = ("the bench", "bench@example.com")
+
 GH = """#!/bin/sh
 printf '%s\\n' "$@" >> "$BENCH/gh-argv"
 if [ "$2" = "view" ]; then [ -f "$BENCH/gh-opened" ] || exit 1; fi
@@ -54,10 +59,8 @@ class WorldError(StateError):
 class World:
     """Where a case lives while it runs."""
 
-    bench: Path
     repo: Path
     origin: Path
-    home: Path
     env: dict[str, str]
 
     @property
@@ -80,12 +83,32 @@ def make_world(case: Case, into: Path) -> World:
     _make_repository(repo, origin, env)
     _plant(case, repo, origin, env)
 
-    return World(bench=into, repo=repo, origin=origin, home=home, env=env)
+    return World(repo=repo, origin=origin, env=env)
+
+
+#: What a case may inherit from the machine, and nothing else.
+#:
+#: An allow-list, not a deny-list, and the difference is the whole point. A
+#: deny-list was written first and it let `GIT_AUTHOR_NAME` through, so every
+#: commit a case made was signed by whatever the surrounding machine carried —
+#: and `GIT_DIR` a variable away, which would have pointed a case's git at the
+#: repository the bench was run from. A variable nobody thought of is the
+#: normal case, so the answer cannot be a list of the ones somebody did.
+INHERITED = (
+    "PATH",  # replaced below, but its value is the machine's
+    "LANG",
+    "LC_ALL",
+    "TERM",
+    "TZ",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "SYSTEMROOT",
+)
 
 
 def _environment(bench: Path, home: Path, binaries: Path) -> dict[str, str]:
     """A machine of its own. Nothing here reads the one the bench is running on."""
-    env = dict(os.environ)
+    env = {name: os.environ[name] for name in INHERITED if name in os.environ}
     env.update(
         {
             "HOME": str(home),
@@ -95,13 +118,19 @@ def _environment(bench: Path, home: Path, binaries: Path) -> dict[str, str]:
             "GIT_CONFIG_GLOBAL": str(home / ".gitconfig"),
             "GIT_CONFIG_SYSTEM": str(home / ".gitconfig-system"),
             "GIT_TERMINAL_PROMPT": "0",
+            "GIT_AUTHOR_NAME": IDENTITY[0],
+            "GIT_AUTHOR_EMAIL": IDENTITY[1],
+            "GIT_COMMITTER_NAME": IDENTITY[0],
+            "GIT_COMMITTER_EMAIL": IDENTITY[1],
             "PATH": f"{binaries}{os.pathsep}{os.environ.get('PATH', '')}",
+            # The case must run the kit that is running the bench, not one
+            # that happens to be installed on this machine — otherwise the
+            # bench measures a version nobody asked it about.
+            "PYTHONPATH": str(Path(__file__).resolve().parents[2]),
             # Read by the scripts a case plants, and by the `gh` above.
             "BENCH": str(bench),
         }
     )
-    for name in ("XDG_DATA_HOME", "XDG_CACHE_HOME"):
-        env.pop(name, None)
     return env
 
 
@@ -121,8 +150,8 @@ def _lay_out(repo: Path, case: Case) -> None:
 
 def _make_repository(repo: Path, origin: Path, env: dict[str, str]) -> None:
     _git(repo, env, "init", "-b", "main")
-    _git(repo, env, "config", "user.email", "bench@example.com")
-    _git(repo, env, "config", "user.name", "the bench")
+    _git(repo, env, "config", "user.email", IDENTITY[1])
+    _git(repo, env, "config", "user.name", IDENTITY[0])
     _run(["git", "init", "--bare", "-b", "main", str(origin)], repo.parent, env)
     _git(repo, env, "remote", "add", "origin", str(origin))
     _git(repo, env, "add", "-A")

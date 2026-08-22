@@ -7,5 +7,5 @@ fires = "the step is refused and the reason names the field"
 [expect]
 exit_code = 3
 status = "failed"
-refusal = "expensive"
+refusal = "output-missing-field: assumptions[0].expensive"
 steps = { design = "failed" }

@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Callable, Sequence
 
 from ...errors import UsageError
+from ...shell import kill_group
 from ..base import ExecutorFailed, ExecutorResult, StepRequest
 
 #: A reply's script has the reply's name and this ending.
@@ -61,20 +62,28 @@ class FakeExecutor:
     def _act(self, script: Path, request: StepRequest) -> None:
         """What the session did before it answered, run where it would have run."""
         where = Path(request.project) if request.project else Path(request.workdir)
+        # Its own process group, like every other place in the kit that starts
+        # somebody else's process: a script that backgrounds something and then
+        # hangs must not leave it behind.
         try:
-            done = subprocess.run(
-                ["sh", str(script)], cwd=where, capture_output=True, text=True, timeout=ACTS_TIMEOUT
+            child = subprocess.Popen(
+                ["sh", str(script)], cwd=where, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, text=True, start_new_session=True,
             )
         except OSError as error:
             raise ExecutorFailed("reply-script-failed", f"{script} could not be run: {error}") from error
+
+        try:
+            stdout, stderr = child.communicate(timeout=ACTS_TIMEOUT)
         except subprocess.TimeoutExpired:
+            kill_group(child)
             raise ExecutorFailed(
                 "reply-script-failed", f"{script} said nothing for {ACTS_TIMEOUT} seconds"
             ) from None
-        if done.returncode != 0:
+        if child.returncode != 0:
             raise ExecutorFailed(
                 "reply-script-failed",
-                f"{script} exited with {done.returncode}: {(done.stderr or done.stdout).strip()[:400]}",
+                f"{script} exited with {child.returncode}: {(stderr or stdout).strip()[:400]}",
             )
 
     @classmethod

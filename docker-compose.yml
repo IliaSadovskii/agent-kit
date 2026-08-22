@@ -7,6 +7,9 @@ services:
         UID: "${UID:-1000}"
         GID: "${GID:-1000}"
     container_name: agent-kit
+    # PID 1 here never reaps, and the bench orphans a couple of git helpers
+    # per case. Without this they pile up as zombies for as long as it runs.
+    init: true
     restart: unless-stopped
     volumes:
       - .:/app

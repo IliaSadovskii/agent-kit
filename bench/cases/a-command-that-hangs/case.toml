@@ -7,5 +7,5 @@ fires = "the child dies with it"
 [expect]
 exit_code = 5
 status = "stopped"
-refusal = "passed as false"
+refusal = "gate-closed:"
 steps = { verify = "passed" }

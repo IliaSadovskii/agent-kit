@@ -7,5 +7,5 @@ fires = "the gate closes, the step still records passed"
 [expect]
 exit_code = 5
 status = "stopped"
-refusal = "passed as false"
+refusal = "gate-closed:"
 steps = { verify = "passed" }

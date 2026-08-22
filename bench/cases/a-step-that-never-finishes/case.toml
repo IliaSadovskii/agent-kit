@@ -7,5 +7,5 @@ fires = "the run stops after the declared number of continuations"
 [expect]
 exit_code = 3
 status = "failed"
-refusal = "outgrew the room"
+refusal = "step-outgrew-its-room:"
 steps = { build = "failed" }

@@ -1,0 +1,9 @@
+# the pull request an earlier attempt already opened
+
+[case]
+title = "an earlier attempt opened the pull request and died before it could say so"
+fires = "delivery reads the one that is open rather than opening a second"
+
+[expect]
+exit_code = 0
+status = "done"
