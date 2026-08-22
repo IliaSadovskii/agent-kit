@@ -440,3 +440,33 @@ def test_a_project_may_say_which_provider_runs_a_role_here(machine, capsys, tmp_
 
     assert code == ExitCode.OK
     assert "design passed" in out
+
+
+def test_a_run_the_method_refused_is_stopped_and_not_failed(machine, capsys, tmp_path):
+    """A red suite is what the method is for, not a sign the kit broke."""
+    declare(tmp_path, '[commands]\ntest = "exit 1"\n')
+    run(["run", "new", "add-vat", "--brief", "VAT", "--steps", "design,build,verify"], capsys)
+
+    code, _, err = run(
+        ["run", "go", "add-vat", "--provider", "fake", *scripted(tmp_path, DESIGN_REPLY, BUILD_REPLY)],
+        capsys,
+    )
+
+    assert code == ExitCode.REFUSED
+    assert "verify" in err
+    state = json.loads(run(["run", "show", "add-vat", "--json"], capsys)[1])
+    assert state["status"] == "stopped"
+    assert state["steps"][2]["status"] == "passed"  # verify did its work: it recorded the truth
+    assert "passed" in state["reason"]
+
+
+def test_a_provider_that_will_not_answer_still_fails_the_run(machine, capsys, tmp_path):
+    """The other half of the same distinction: this one really is a breakage."""
+    run(["run", "new", "add-vat", "--brief", "VAT", "--steps", "design"], capsys)
+
+    code, _, err = run(
+        ["run", "go", "add-vat", "--provider", "fake", *scripted(tmp_path, "not json at all")], capsys
+    )
+
+    assert code == ExitCode.STATE
+    assert json.loads(run(["run", "show", "add-vat", "--json"], capsys)[1])["status"] == "failed"

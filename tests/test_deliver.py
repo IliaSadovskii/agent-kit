@@ -391,3 +391,42 @@ def test_a_command_that_hangs_takes_its_children_with_it(repo, tmp_path):
     grew = mark.stat().st_size if mark.exists() else 0
     __import__("time").sleep(1.5)
     assert (mark.stat().st_size if mark.exists() else 0) == grew
+
+
+# --- the verdict, which nothing read ----------------------------------------
+
+
+def test_a_blocked_verdict_refuses_even_when_no_finding_says_blocking(repo):
+    worked_on(repo)
+    said_no = {"verdict": "blocked", "findings": [{"severity": "note", "what": "something is off"}]}
+
+    with pytest.raises(ExecutorFailed) as refused:
+        deliver(repo, {"review": said_no})
+
+    assert refused.value.code == "blocked-by-review"
+    assert refused.value.expected is True
+
+
+def test_a_blocking_finding_under_a_passing_verdict_is_refused_as_a_disagreement(repo):
+    worked_on(repo)
+    disagreed = {"verdict": "pass", "findings": [{"severity": "blocking", "what": "a negative rate is not refused"}]}
+
+    with pytest.raises(ExecutorFailed) as refused:
+        deliver(repo, {"review": disagreed})
+
+    assert refused.value.code == "review-disagrees-with-itself"
+
+
+def test_a_refusal_of_the_method_is_not_a_breakage_of_the_kit(repo):
+    """A blocked review, a red suite and an unfinished build are outcomes, not faults."""
+    worked_on(repo)
+
+    for prior, code in (
+        ({"review": REVIEW_BLOCKED}, "blocked-by-review"),
+        ({"build": {**BUILD, "complete": False, "remaining": ["the rest"]}}, "build-unfinished"),
+    ):
+        with pytest.raises(ExecutorFailed) as refused:
+            deliver(repo, prior)
+        assert refused.value.code == code
+        assert refused.value.expected is True
+        assert refused.value.retryable is False
