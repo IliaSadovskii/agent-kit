@@ -582,7 +582,7 @@ def test_owner_check_names_the_rung_it_stopped_on(machine, capsys):
 
     code, out, err = run(["owner", "check"], capsys)
 
-    assert code == ExitCode.PROVIDER
+    assert code == ExitCode.CHANNEL
     assert "канал настроен" in out
     assert "сообщение ушло" not in out
     assert "channel-failed" in (out + err)
@@ -632,7 +632,7 @@ def test_a_channel_that_cannot_be_reached_says_so_by_name(machine, capsys):
 
     code, out, err = run(["owner", "say", "hello"], capsys)
 
-    assert code == ExitCode.PROVIDER
+    assert code == ExitCode.CHANNEL
     assert "channel-failed" in err
 
 
