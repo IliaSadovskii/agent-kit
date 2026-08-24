@@ -47,6 +47,24 @@ def is_alive(pid: int) -> bool:
     return True
 
 
+def is_ours(pid: int) -> bool:
+    """Is the process under this number one of ours?
+
+    A pid file outlives the process it names, and pids come round again. Without
+    this, `daemon stop` sends SIGTERM to whatever inherited the number — which,
+    while this was being written, was the container's own init, and the whole
+    container went down with it.
+    """
+    if not is_alive(pid):
+        return False
+    try:
+        said = Path(f"/proc/{pid}/cmdline").read_bytes().decode("utf-8", "replace")
+    except OSError:
+        # No /proc, or a process somebody else owns: unknowable, so not ours.
+        return False
+    return "agent_kit" in said or "agent-kit" in said
+
+
 UNIT = """\
 [Unit]
 Description=agent-kit — the machine's slots, limits and queue

@@ -502,3 +502,27 @@ def test_the_limit_says_what_the_provider_said_when_the_hour_was_guessed(machine
 
     assert "guessed" in out
     assert "5pm (America/Los_Angeles)" in out
+
+
+def test_a_slot_may_name_the_account_it_spends(machine, ledger, capsys):
+    """Two providers on one subscription: the pool is what the ceiling counts."""
+    code, _, _ = run(
+        ["slot", "take", "--provider", "fake", "--slug", "by-hand", "--account", "anthropic"], capsys
+    )
+
+    assert code == ExitCode.OK
+    assert [row.account for row in ledger.held()] == ["anthropic"]
+
+
+def test_stopping_a_daemon_whose_pid_belongs_to_somebody_else_is_refused_by_name(machine, capsys):
+    """A pid file outlives its process, and pids come round again."""
+    from agent_kit.paths import Paths
+
+    paths = Paths.from_env()
+    paths.ensure()
+    (paths.state_dir / "daemon.pid").write_text("1", encoding="utf-8")
+
+    code, _, err = run(["daemon", "stop"], capsys)
+
+    assert code == ExitCode.STATE
+    assert "not-ours" in err

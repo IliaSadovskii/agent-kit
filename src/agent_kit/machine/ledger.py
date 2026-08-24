@@ -248,6 +248,10 @@ class Ledger:
             self._mine.db = None
 
     def _open(self) -> sqlite3.Connection:
+        with self._saying_why():
+            return self._opened()
+
+    def _opened(self) -> sqlite3.Connection:
         db = sqlite3.connect(str(self.path), timeout=15, isolation_level=None)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA journal_mode=WAL")
@@ -270,6 +274,23 @@ class Ledger:
         db.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
         return db
 
+    @staticmethod
+    @contextmanager
+    def _saying_why() -> Iterator[None]:
+        """sqlite's own failures, named.
+
+        A file that is not a database, a state directory nobody may write, a
+        ledger still locked after the timeout: none of those is a defect in the
+        kit, and exit 70 says they are.
+        """
+        try:
+            yield
+        except sqlite3.Error as broken:
+            raise ProviderError(
+                "unreadable-ledger",
+                f"the machine's ledger could not be read or written: {broken}",
+            ) from broken
+
     @contextmanager
     def _writing(self) -> Iterator[sqlite3.Connection]:
         """One act, one transaction.
@@ -278,13 +299,15 @@ class Ledger:
         and then refused. Taking a slot removes the waiter row in the same
         transaction that writes the lease, or neither happens.
         """
-        self._db.execute("BEGIN IMMEDIATE")
+        with self._saying_why():
+            self._db.execute("BEGIN IMMEDIATE")
         try:
             yield self._db
         except BaseException:
             self._db.execute("ROLLBACK")
             raise
-        self._db.execute("COMMIT")
+        with self._saying_why():
+            self._db.execute("COMMIT")
 
     # --- slots ------------------------------------------------------------
 

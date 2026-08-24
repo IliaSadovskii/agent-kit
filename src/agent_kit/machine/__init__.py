@@ -22,7 +22,7 @@ from .ledger import (
     Waiting,
     Want,
 )
-from .linux import is_alive, unit_file, unit_path
+from .linux import is_alive, is_ours, unit_file, unit_path
 
 __all__ = [
     "Busy",
@@ -37,6 +37,7 @@ __all__ = [
     "Waiting",
     "Want",
     "is_alive",
+    "is_ours",
     "ledger_path",
     "unit_file",
     "unit_path",

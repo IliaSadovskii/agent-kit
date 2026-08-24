@@ -484,3 +484,21 @@ def test_a_sweep_on_another_thread_really_swept(ledger):
 
     rows = sqlite3.connect(str(ledger.path)).execute("SELECT slug FROM leases").fetchall()
     assert rows == []
+
+
+def test_a_ledger_that_cannot_be_read_is_a_named_refusal(tmp_path):
+    """The one failure here that is not the kit's fault must still have a name.
+
+    A locked database, a state directory that is not writable: exit 70 says
+    "a defect in the kit", and a busy machine is not a defect.
+    """
+    from agent_kit.errors import ExitCode, KitError
+
+    path = tmp_path / "daemon.sqlite"
+    path.write_text("this is not a database, and nobody promised it was", encoding="utf-8")
+
+    with pytest.raises(KitError) as refused:
+        Ledger(path).take(want(), one())
+
+    assert refused.value.code == "unreadable-ledger"
+    assert refused.value.exit_code is not ExitCode.INTERNAL

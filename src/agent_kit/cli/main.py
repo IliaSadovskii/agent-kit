@@ -942,19 +942,22 @@ def _daemon(args: argparse.Namespace, paths: Paths) -> int:
     import sys as _sys
 
     from ..daemon import run_forever
-    from ..machine import is_alive, unit_file, unit_path
+    from ..machine import is_alive, is_ours, unit_file, unit_path
 
     what = args.what or "status"
     config = load_config(paths.config_file)
     where = f"http://{config.daemon.host}:{config.daemon.port}"
     pid_file = paths.state_dir / "daemon.pid"
 
-    def running() -> int | None:
+    def named() -> int | None:
         try:
-            held = int(pid_file.read_text(encoding="utf-8").strip())
+            return int(pid_file.read_text(encoding="utf-8").strip())
         except (OSError, ValueError):
             return None
-        return held if is_alive(held) else None
+
+    def running() -> int | None:
+        held = named()
+        return held if held is not None and is_ours(held) else None
 
     if what == "status":
         held = running()
@@ -978,8 +981,20 @@ def _daemon(args: argparse.Namespace, paths: Paths) -> int:
     if what == "stop":
         held = running()
         if held is None:
+            written = named()
+            if written is not None and is_alive(written):
+                # The number is taken, and not by us. Sending a signal to it is
+                # how a pid file that outlived its process takes a stranger down.
+                raise StateError(
+                    "not-ours",
+                    f"{pid_file} names process {written}, which is not an agent-kit daemon",
+                    hint=f"delete {pid_file} if you are sure the daemon is gone",
+                )
             raise StateError("no-daemon", "nothing is running here; the ledger is unchanged either way")
-        os.kill(held, signal.SIGTERM)
+        try:
+            os.kill(held, signal.SIGTERM)
+        except (ProcessLookupError, PermissionError) as refused:
+            raise StateError("not-ours", f"process {held} would not take the signal: {refused}") from refused
         print(f"asked the daemon (pid {held}) to go away")
         return int(ExitCode.OK)
 
