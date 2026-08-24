@@ -1,0 +1,326 @@
+"""A question with a default, the twenty minutes it waits, and what it becomes.
+
+The shape S7a settles: a step's contract may declare `asks`, the driver reads
+the field, sends the questions and waits. An answer sends the step back to be
+run again with what the owner said enclosed. A question nobody answered folds
+into the step's own output as an expensive assumption — which is a thing this
+kit already knows what to do with, so `record` writes it into the knowledge and
+`deliver` prints it in the open half of the pull request, and neither of them
+learns anything new.
+
+Every path ends with the run going on. That is what `default` being required
+buys: a question with no default is not a question, it is a step refusing to
+finish, and the contract refuses it by name.
+"""
+
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass
+from typing import Any, Callable
+
+from ..knowledge.format import identifier
+from ..logs import get_logger
+from ..machine import Ask, Ledger
+from .channel import Channel, ChannelFailed
+
+#: How often the channel is polled while a step is asking. Not once a second:
+#: a person is not a ledger, and every poll is somebody else's service.
+POLL = 5.0
+
+#: How a question ended, as a code rather than a sentence. Prose is reworded and
+#: a judge that reads one measures the sentence; these four are what a bench
+#: case, `run show` and a person reading a record in the morning all compare.
+ANSWERED = "answered"
+NOBODY = "nobody-answered"
+BROKEN = "channel-failed"
+NO_CHANNEL = "no-channel"
+
+log = get_logger("owner")
+
+
+@dataclass(frozen=True)
+class Question:
+    """One thing only the owner can settle, and what is taken if they do not.
+
+    `at` and `block` are what a project that keeps knowledge asks for, through
+    the same mechanism that makes an expensive assumption owe a block: the
+    default, once taken, is exactly such an assumption.
+    """
+
+    id: str
+    question: str
+    default: str
+    because: str = ""
+    at: str = ""
+    block: str = ""
+
+
+@dataclass(frozen=True)
+class Settled:
+    """What became of one question. Four endings, and they must look different."""
+
+    question: Question
+    how: str
+    answer: str = ""
+    detail: str = ""
+
+    @property
+    def taken(self) -> str:
+        """What the run goes on with."""
+        return self.answer or self.question.default
+
+
+def questions_of(output: dict[str, Any] | None, slug: str) -> list[Question]:
+    """The questions a step's output carries, each with the name it will be asked under.
+
+    The name is derived from the run and the question's own words rather than
+    drawn, for the same three reasons the knowledge's identifiers are: a bench
+    case can say it before the run exists, a driver that died after asking finds
+    its own question instead of planting a second, and it is short enough to
+    retype from a phone.
+    """
+    asked: list[Question] = []
+    taken: set[str] = set()
+    for item in (output or {}).get("asks") or []:
+        if not isinstance(item, dict):
+            continue
+        what = str(item.get("question") or "").strip()
+        if not what:
+            continue
+        # Two questions worded the same are two questions, and the second may
+        # not be handed the name the first is already using.
+        salt = 0
+        id = identifier(slug, what)
+        while id in taken:
+            salt += 1
+            id = identifier(slug, what, salt=salt)
+        taken.add(id)
+        asked.append(
+            Question(
+                id=id,
+                question=what,
+                default=str(item.get("default") or "").strip(),
+                because=str(item.get("because") or "").strip(),
+                at=str(item.get("at") or "").strip(),
+                block=str(item.get("block") or "").strip(),
+            )
+        )
+    return asked
+
+
+class Owner:
+    """The person this machine works for, and the twenty minutes they get.
+
+    No session is involved: nothing here decides whether an answer arrived, what
+    it means, or when the waiting is over. It is a program, which is the first
+    of the four questions every mechanism of the third version answers.
+    """
+
+    def __init__(
+        self,
+        channel: Channel | None,
+        ledger: Ledger,
+        wait: int,
+        pause: Callable[[float], None] | None = None,
+        clock: Callable[[], float] | None = None,
+        say: Callable[[str], None] | None = None,
+    ) -> None:
+        self.channel = channel
+        self.ledger = ledger
+        self.wait = wait
+        self.pause = pause or time.sleep
+        # The deadline is this kit's own clock and nothing else. S7's blocker was
+        # an hour somebody else's tool printed, believed as if it were a time.
+        self.clock = clock or time.monotonic
+        self.say = say or log.info
+
+    # --- the one thing it does --------------------------------------------
+
+    def ask(
+        self,
+        project: str,
+        slug: str,
+        step: str,
+        questions: list[Question],
+        stop: Callable[[], bool] | None = None,
+    ) -> list[Settled]:
+        if not questions:
+            return []
+        if self.channel is None:
+            # A kit with no channel behaves exactly as it did before this step,
+            # except that the default is now written down instead of invisible.
+            return [Settled(question=asked, how=NO_CHANNEL) for asked in questions]
+
+        try:
+            standing = self._send(project, slug, step, questions)
+        except ChannelFailed as unreachable:
+            self.say(f"{slug}: {step} asked the owner and {unreachable.detail}")
+            self.ledger.forget([asked.id for asked in questions])
+            return [Settled(question=asked, how=BROKEN, detail=unreachable.detail) for asked in questions]
+
+        try:
+            return self._wait(slug, step, questions, standing, stop)
+        finally:
+            self.ledger.forget([asked.id for asked in questions])
+
+    def news(self, text: str) -> None:
+        """Something the owner would want to know, and nothing waits on it."""
+        if self.channel is None:
+            return
+        try:
+            self.channel.send(text)
+        except ChannelFailed as unreachable:
+            # News is not worth a night. It is worth a line in the log.
+            log.info("the owner's channel is not answering: %s", unreachable.detail)
+
+    # --- sending ----------------------------------------------------------
+
+    def _send(self, project: str, slug: str, step: str, questions: list[Question]) -> list[Ask]:
+        from ..machine.ledger import after
+
+        until = after(self.wait)
+        standing = []
+        for asked in questions:
+            message = self.channel.send(worded(slug, step, asked, self.wait))
+            standing.append(
+                self.ledger.asked(
+                    Ask(
+                        id=asked.id, project=project, slug=slug, step=step,
+                        question=asked.question, default=asked.default,
+                        until=until, message=message,
+                    )
+                )
+            )
+        self.say(f"{slug}: {step} is asking the owner {_questions(len(questions))}, {_minutes(self.wait)}")
+        return standing
+
+    # --- waiting ----------------------------------------------------------
+
+    def _wait(
+        self,
+        slug: str,
+        step: str,
+        questions: list[Question],
+        standing: list[Ask],
+        stop: Callable[[], bool] | None,
+    ) -> list[Settled]:
+        wanted = [asked.id for asked in questions]
+        deadline = self.clock() + self.wait
+        broken = ""
+        while True:
+            try:
+                self._poll()
+            except ChannelFailed as unreachable:
+                # It answered once, and now it does not. The default is taken and
+                # the record says which silence this was.
+                broken = unreachable.detail
+                break
+            if all(self._answer_to(id) is not None for id in wanted):
+                break
+            if stop is not None and stop():
+                break
+            if self.clock() >= deadline:
+                break
+            self.pause(POLL)
+
+        settled = []
+        for asked in questions:
+            answer = self._answer_to(asked.id)
+            if answer is not None:
+                settled.append(Settled(question=asked, how=ANSWERED, answer=answer))
+            elif broken:
+                settled.append(Settled(question=asked, how=BROKEN, detail=broken))
+            else:
+                settled.append(Settled(question=asked, how=NOBODY, detail=_minutes(self.wait)))
+        for one in settled:
+            log.info("%s: %s — %s: %s", slug, step, one.question.id, one.how)
+        return settled
+
+    def _answer_to(self, id: str) -> str | None:
+        held = self.ledger.ask_of(id)
+        return None if held is None or held.answer is None else held.answer
+
+    def _poll(self) -> None:
+        """One read of the channel, by whoever holds the right to read it.
+
+        `getUpdates` is single-consumer, so the reader is a lease. Whoever holds
+        it writes down every answer it sees, including answers to somebody
+        else's question — which is how the other driver hears without ever
+        calling the channel itself.
+        """
+        held = self.ledger.read_channel()
+        if not held.granted:
+            return
+        try:
+            heard, offset = self.channel.read(self.ledger.offset())
+            for one in heard:
+                id = one.names or self._sent_as(one.answers)
+                if not id:
+                    # An answer to no question. The offset still moves past it:
+                    # what was read once is never read onto a later question.
+                    log.info("the owner said something that answers nothing: %r", one.text[:80])
+                    continue
+                if not self.ledger.answered(id, one.text):
+                    log.info("%s was already answered, or is not a question here", id)
+            self.ledger.remember_offset(offset)
+        finally:
+            self.ledger.release(held)
+
+    def _sent_as(self, message: str) -> str:
+        found = self.ledger.ask_sent_as(message)
+        return found.id if found is not None else ""
+
+
+# --- what goes to the phone, and what a default becomes ---------------------
+
+
+def worded(slug: str, step: str, asked: Question, wait: int) -> str:
+    """The message a person reads on a phone, and everything they need to answer it."""
+    lines = [f"{slug} · {step}", asked.question]
+    if wait > 0:
+        lines.append(f"Через {_minutes(wait)} возьму: {asked.default}")
+    else:
+        lines.append(f"Беру: {asked.default}")
+    if asked.because:
+        lines.append(f"Почему: {asked.because}")
+    lines.append(f"Ответить на это сообщение, или: /a {asked.id} <ответ>")
+    return "\n".join(lines)
+
+
+def as_assumption(settled: Settled) -> dict[str, Any]:
+    """A default nobody answered, in the shape the rest of the kit already reads.
+
+    Expensive by construction: only the owner could have settled it, and nobody
+    did. So `record` writes it into the knowledge and `deliver` prints it in the
+    open half of the pull request, and neither of them needed a new field.
+    """
+    return {
+        "what": f"{settled.question.question} — взято: {settled.question.default}",
+        "expensive": True,
+        "because": _because(settled),
+        "at": settled.question.at,
+        "block": settled.question.block,
+    }
+
+
+def _because(settled: Settled) -> str:
+    reasons = {
+        NOBODY: f"спросили владельца, ответа не было {settled.detail}",
+        BROKEN: f"спросить владельца не вышло: {settled.detail}",
+        NO_CHANNEL: "на этой машине нет канала к владельцу, спросить было нечем",
+    }
+    said = reasons.get(settled.how, settled.how)
+    return f"{said}; {settled.question.because}" if settled.question.because else said
+
+
+def _minutes(seconds: int) -> str:
+    if seconds <= 0:
+        return "не ждём"
+    if seconds % 60 == 0:
+        return f"{seconds // 60} мин"
+    return f"{seconds} с"
+
+
+def _questions(count: int) -> str:
+    return "об одном" if count == 1 else f"о {count}"
