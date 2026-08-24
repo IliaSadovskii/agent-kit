@@ -159,6 +159,14 @@ def build_parser() -> argparse.ArgumentParser:
     limit_clear = limit_what.add_parser("clear", help="the account is answering again")
     limit_clear.add_argument("account")
 
+    owner = commands.add_parser("owner", help="the channel to the person this machine works for")
+    owner_what = owner.add_subparsers(dest="what", metavar="WHAT")
+    owner_what.add_parser("check", help="the ladder, and the rung it stopped on")
+    owner_say = owner_what.add_parser("say", help="send a line to the owner, and wait for nothing")
+    owner_say.add_argument("text")
+    owner_token = owner_what.add_parser("set-token", help="read a bot token from stdin and write it 600")
+    owner_token.add_argument("--name", default="telegram_token", help="which secret this is")
+
     daemon = commands.add_parser("daemon", help="the process that serves the page and sweeps up")
     daemon_what = daemon.add_subparsers(dest="what", metavar="WHAT")
     daemon_start = daemon_what.add_parser("start", help="raise it")
@@ -224,6 +232,8 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace, paths: 
         return _slot(args, paths)
     if args.command == "limit":
         return _limit(args, paths)
+    if args.command == "owner":
+        return _owner(args, paths)
     if args.command == "daemon":
         return _daemon(args, paths)
 
@@ -262,6 +272,7 @@ def _doctor(paths: Paths, project: Path) -> int:
     print(f"  max sessions {config.machine.max_sessions}")
     print(f"  waits up to  {config.machine.wait}s for a slot or a limit to reset")
     print(f"  page         http://{config.daemon.host}:{config.daemon.port}")
+    print(f"  owner        {_channel_line(config, paths)}")
     print(f"  providers    {', '.join(sorted(config.providers)) or 'none — nothing can run yet'}")
     print(f"  roles        {', '.join(sorted(config.roles)) or 'none — every role falls back to the default'}")
     return int(ExitCode.OK)
@@ -675,12 +686,14 @@ def _runner(store: RunStore, registry, provider: str | None, options: list[str],
     config = load_config(paths.config_file)
     typed = _options(options)
     root = store.paths.root
+    ledger = _ledger(paths)
     machine = dict(
-        ledger=_ledger(paths),
+        ledger=ledger,
         ceilings=_ceilings(config),
         accounts=_accounts(config),
         wait=config.machine.wait if wait is None else wait,
         say=print,
+        owner=_owner_of(config, paths, ledger),
     )
 
     # The programs are not providers: nobody chooses them, nobody configures
@@ -711,6 +724,23 @@ def _runner(store: RunStore, registry, provider: str | None, options: list[str],
         {name: providers.build_executor(name, _settings(config, name, typed)) for name in sorted(named)}
     )
     return StepRunner(store=store, registry=registry, executors=executors, roles=roles, **machine)
+
+
+def _owner_of(config: Config, paths: Paths, ledger) -> object:
+    """The person this run can ask, or nobody — which is a run like any other.
+
+    A channel that is configured and unusable is not a night's problem: the
+    question takes its default and the record says the channel could not be
+    reached, which is a different sentence from nobody answering.
+    """
+    from ..owner import Owner, open_channel
+
+    try:
+        channel = open_channel(config.owner, paths.secrets_file)
+    except KitError as unusable:
+        print(f"{PROGRAM}: {unusable.code}: {unusable.detail}", file=sys.stderr)
+        channel = None
+    return Owner(channel=channel, ledger=ledger, wait=config.owner.wait, say=print)
 
 
 def _settings(config: Config, provider: str, typed: dict[str, list[str]]) -> dict[str, list[str]]:
@@ -850,6 +880,15 @@ def _machine(paths: Paths) -> int:
         print("  no account is limited")
 
     print()
+    print("waiting for the owner")
+    for row in ledger.waiting_on_the_owner():
+        print(f"  {row.id:8} {row.slug:16} {row.step:10} until {row.until}")
+        print(f"           {row.question}")
+        print(f"           taking without an answer: {row.default}")
+    if not ledger.waiting_on_the_owner():
+        print("  no question is waiting")
+
+    print()
     print("runs with a driver on them")
     for row in runs:
         print(f"  {row.slug:20} {row.project}  since {row.taken_at}")
@@ -937,6 +976,69 @@ def _a_time(value: str | None) -> str | None:
             "bad-time", f"{value!r} is not a time: give it as 2026-08-24T17:00:00+00:00"
         ) from error
     return value
+
+
+def _channel_line(config: Config, paths: Paths) -> str:
+    if not config.owner.channel:
+        return "no channel — every question takes its default at once and is written down"
+    said = f"{config.owner.channel}, waits {config.owner.wait}s"
+    if config.owner.channel == "telegram":
+        from ..owner import TELEGRAM_TOKEN, read_secret
+
+        token = "a token is set" if read_secret(paths.secrets_file, TELEGRAM_TOKEN) else "no token"
+        return f"{said}, chat {config.owner.chat or 'unsaid'}, {token}"
+    return f"{said}, {config.owner.file or 'no file'}"
+
+
+def _owner(args: argparse.Namespace, paths: Paths) -> int:
+    """The channel to a person, and it is measured rather than declared.
+
+    `provider check` walks a ladder and names the rung it stopped on; a channel
+    is somebody else's service too, and a level nobody measured is the same
+    class of claim as a rule nobody tested.
+    """
+    from ..owner import TELEGRAM_TOKEN, open_channel, write_secret
+
+    what = args.what
+    if what is None:
+        raise UsageError("missing-command", "owner needs one of: check, say, set-token")
+
+    if what == "set-token":
+        # From stdin and never from an argument: an argument lands in a shell
+        # history, and this is the kit's first secret.
+        token = sys.stdin.readline().strip()
+        if not token:
+            raise UsageError("no-token", "nothing was typed; the token is read from stdin")
+        path = write_secret(paths.secrets_file, args.name, token)
+        print(f"wrote {args.name} to {path}")
+        return int(ExitCode.OK)
+
+    config = load_config(paths.config_file)
+    if not config.owner.channel:
+        print(f"{PROGRAM}: no-channel: this machine has no channel to its owner", file=sys.stderr)
+        print("  every question takes its default at once, and the default is written down", file=sys.stderr)
+        print(f"  set one in {paths.config_file}: [owner] channel = \"telegram\"", file=sys.stderr)
+        return int(ExitCode.CONFIG)
+
+    channel = open_channel(config.owner, paths.secrets_file)
+    if what == "say":
+        channel.send(args.text)
+        print(f"said it on {channel.name}")
+        return int(ExitCode.OK)
+
+    if what == "check":
+        print(f"channel      {channel.name}")
+        print(f"waits        {config.owner.wait}s before taking a default")
+        message = channel.send(
+            f"{PROGRAM} owner check — this machine can reach you. Nothing is waiting on this."
+        )
+        print(f"sent         message {message or 'unnumbered'}")
+        heard, offset = channel.read("")
+        print(f"read         {len(heard)} waiting, offset {offset or 'none'}")
+        print("the ladder holds: a token, a chat that accepts a message, and updates that can be read")
+        return int(ExitCode.OK)
+
+    raise UsageError("unknown-command", f"owner {what}")
 
 
 def _daemon(args: argparse.Namespace, paths: Paths) -> int:

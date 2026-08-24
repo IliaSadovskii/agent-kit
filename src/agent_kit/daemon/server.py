@@ -60,6 +60,13 @@ def as_dict(ledger: Ledger) -> dict:
             }
             for row in picture.limits
         ],
+        "asks": [
+            {
+                "id": row.id, "slug": row.slug, "step": row.step, "question": row.question,
+                "default": row.default, "until": row.until, "project": row.project,
+            }
+            for row in ledger.waiting_on_the_owner()
+        ],
         "runs": [{"slug": row.slug, "project": row.project, "since": row.taken_at} for row in ledger.runs()],
     }
 
@@ -77,7 +84,7 @@ def page(ledger: Ledger) -> str:
         f"<title>agent-kit</title><style>{STYLE}</style>"
         "<meta http-equiv='refresh' content='10'></head><body>"
         "<h1>agent-kit — this machine</h1>"
-        f"{_running(picture)}{_queued(picture)}{_limited(picture)}"
+        f"{_running(picture)}{_queued(picture)}{_limited(picture)}{_asking(ledger)}"
         "<p class='quiet'>This page shows and does not act.</p>"
         "</body></html>"
     )
@@ -120,6 +127,29 @@ def _limited(picture: Picture) -> str:
         for row in picture.limits
     )
     return f"<h2>limited</h2><table><tr><th>account</th><th>until</th><th>who found out</th></tr>{rows}</table>"
+
+
+def _asking(ledger: Ledger) -> str:
+    """What a person is being waited on for, and until when.
+
+    The reason this is on the page at all: the question is on their phone, and
+    what is *standing* is on the machine. Somebody who missed the message can
+    still see what is about to be taken without them.
+    """
+    waiting = ledger.waiting_on_the_owner()
+    if not waiting:
+        return "<h2>waiting for the owner</h2><p class='quiet'>no question is waiting</p>"
+    rows = "".join(
+        f"<tr><td>{escape(row.id)}</td><td>{escape(row.slug)}</td><td>{escape(row.step)}</td>"
+        f"<td>{escape(row.question)}</td><td class='quiet'>{escape(row.default)}</td>"
+        f"<td class='quiet'>{escape(row.until)}</td></tr>"
+        for row in waiting
+    )
+    head = (
+        "<tr><th>id</th><th>run</th><th>step</th><th>question</th>"
+        "<th>taken without an answer</th><th>until</th></tr>"
+    )
+    return f"<h2>waiting for the owner</h2><table>{head}{rows}</table>"
 
 
 class Page(BaseHTTPRequestHandler):
