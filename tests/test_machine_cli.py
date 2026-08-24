@@ -6,6 +6,8 @@ driver, and they post a stop where the run's own driver reads it.
 """
 
 import json
+import os
+from pathlib import Path
 
 import pytest
 
@@ -253,3 +255,102 @@ def _four():
     from agent_kit.machine import Ceilings
 
     return Ceilings(max_sessions=4)
+
+
+# --- the process actually going away ----------------------------------------
+
+
+def test_the_daemon_goes_away_when_it_is_asked_to(tmp_path, machine_home):
+    """A shutdown asked for from the signal handler on the thread that is serving
+
+    deadlocks: `serve_forever` cannot come back while the handler that is
+    stopping it is standing on its stack. The daemon then ignores every stop
+    and the port stays held until somebody kills it.
+    """
+    import signal
+    import socket
+    import subprocess
+    import sys
+    import time
+
+    home = tmp_path / "home"
+    (home / ".config/agent-kit").mkdir(parents=True)
+    port = _a_free_port()
+    (home / ".config/agent-kit/config.toml").write_text(
+        f'[daemon]\nport = {port}\n', encoding="utf-8"
+    )
+    env = {
+        "HOME": str(home), "PATH": os.environ.get("PATH", ""),
+        "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
+    }
+    child = subprocess.Popen(
+        [sys.executable, "-m", "agent_kit", "daemon", "start", "--foreground"],
+        env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    )
+    try:
+        _wait_for(port)
+        child.send_signal(signal.SIGTERM)
+        child.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        child.kill()
+        raise AssertionError("the daemon was asked to stop and did not")
+    finally:
+        if child.poll() is None:
+            child.kill()
+
+    assert child.returncode == 0
+    assert not (home / ".local/state/agent-kit/daemon.pid").exists()
+
+
+def test_the_page_answers_while_the_daemon_is_up(tmp_path, machine_home):
+    import socket
+    import subprocess
+    import sys
+    import urllib.request
+
+    home = tmp_path / "home"
+    (home / ".config/agent-kit").mkdir(parents=True)
+    port = _a_free_port()
+    (home / ".config/agent-kit/config.toml").write_text(f'[daemon]\nport = {port}\n', encoding="utf-8")
+    env = {
+        "HOME": str(home), "PATH": os.environ.get("PATH", ""),
+        "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
+    }
+    child = subprocess.Popen(
+        [sys.executable, "-m", "agent_kit", "daemon", "start", "--foreground"],
+        env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    )
+    try:
+        _wait_for(port)
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/") as answer:
+            html = answer.read().decode("utf-8")
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/json") as answer:
+            said = json.loads(answer.read().decode("utf-8"))
+    finally:
+        child.kill()
+        child.wait(timeout=10)
+
+    assert "agent-kit" in html
+    assert said["held"] == []
+
+
+def _a_free_port() -> int:
+    import socket
+
+    with socket.socket() as held:
+        held.bind(("127.0.0.1", 0))
+        return held.getsockname()[1]
+
+
+def _wait_for(port: int, seconds: float = 10.0) -> None:
+    import socket
+    import time
+
+    until = time.monotonic() + seconds
+    while time.monotonic() < until:
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+                return
+        except OSError:
+            time.sleep(0.1)
+    raise AssertionError(f"nothing ever answered on {port}")

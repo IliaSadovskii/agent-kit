@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import threading
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -185,26 +186,47 @@ class Picture:
 
 
 class Ledger:
+    """One ledger object, one connection per thread that uses it.
+
+    sqlite refuses a connection outside the thread that opened it, and the
+    daemon has several: one sweeping, one per request the page answers. Sharing
+    one would make the page an empty reply and the sweep a stack trace in a log
+    nobody is reading — which is exactly what the first live run did.
+    """
+
     def __init__(self, path: Path | str) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._db = sqlite3.connect(str(self.path), timeout=15, isolation_level=None)
-        self._db.row_factory = sqlite3.Row
-        self._prepare()
+        self._mine = threading.local()
+        self._db  # opening it here is what creates the schema
+
+    @property
+    def _db(self) -> sqlite3.Connection:
+        held = getattr(self._mine, "db", None)
+        if held is None:
+            held = self._mine.db = self._open()
+        return held
 
     def close(self) -> None:
-        self._db.close()
+        """Close this thread's connection. The others close with their threads."""
+        held = getattr(self._mine, "db", None)
+        if held is not None:
+            held.close()
+            self._mine.db = None
 
-    def _prepare(self) -> None:
-        db = self._db
+    def _open(self) -> sqlite3.Connection:
+        db = sqlite3.connect(str(self.path), timeout=15, isolation_level=None)
+        db.row_factory = sqlite3.Row
         db.execute("PRAGMA journal_mode=WAL")
         db.execute("PRAGMA busy_timeout=15000")
         db.execute("PRAGMA foreign_keys=ON")
         # `executescript` commits whatever is open before it runs, so the schema
         # is not wrapped in one of this file's transactions. `CREATE TABLE IF
-        # NOT EXISTS` is what makes two processes opening it at once harmless.
+        # NOT EXISTS` is what makes two threads and two processes opening it at
+        # once harmless.
         db.executescript(_SCHEMA)
         db.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
+        return db
 
     @contextmanager
     def _writing(self) -> Iterator[sqlite3.Connection]:
