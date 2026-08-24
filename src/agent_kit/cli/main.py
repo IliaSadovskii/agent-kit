@@ -319,6 +319,12 @@ def _config_as_data(config: Config) -> dict:
         "source": str(config.source) if config.source else None,
         "machine": {"max_sessions": config.machine.max_sessions, "wait": config.machine.wait},
         "daemon": {"host": config.daemon.host, "port": config.daemon.port},
+        "owner": {
+            "channel": config.owner.channel,
+            "chat": config.owner.chat,
+            "wait": config.owner.wait,
+            "file": config.owner.file,
+        },
         "providers": {
             name: {
                 "enabled": p.enabled,

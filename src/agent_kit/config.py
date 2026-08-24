@@ -26,11 +26,18 @@ DEFAULT_WAIT = 2 * 60 * 60
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8080
 
+#: How long a question waits against a person's phone before the default is
+#: taken. Twenty minutes: the second version measured it and it worked. It is
+#: not `machine.wait`, which is how long a run waits for the machine — the two
+#: answer the same question about different things, and the table says which.
+DEFAULT_ANSWER_WAIT = 20 * 60
+
 _MACHINE_KEYS = {"max_sessions", "wait"}
 _DAEMON_KEYS = {"host", "port"}
 _PROVIDER_KEYS = {"enabled", "model", "effort", "max_sessions", "account"}
 _ROLE_KEYS = {"provider", "fallback", "model", "effort"}
-_TOP_KEYS = {"machine", "daemon", "providers", "roles"}
+_OWNER_KEYS = {"channel", "chat", "wait", "file"}
+_TOP_KEYS = {"machine", "daemon", "owner", "providers", "roles"}
 
 
 @dataclass(frozen=True)
@@ -45,6 +52,23 @@ class DaemonConfig:
 
     host: str = DEFAULT_HOST
     port: int = DEFAULT_PORT
+
+
+@dataclass(frozen=True)
+class OwnerConfig:
+    """The person this machine works for, and how to reach them.
+
+    No token: that is a secret and lives in `~/.local/state/agent-kit/secrets`.
+    An empty `channel` is a machine with no channel at all, which is what every
+    machine was before S7a and what every machine may stay — a question there
+    takes its default at once and says so.
+    """
+
+    channel: str = ""
+    chat: str = ""
+    wait: int = DEFAULT_ANSWER_WAIT
+    #: Where the file channel keeps its two files. Read by nothing else.
+    file: str = ""
 
 
 @dataclass(frozen=True)
@@ -70,6 +94,7 @@ class RoleConfig:
 class Config:
     machine: MachineConfig = field(default_factory=MachineConfig)
     daemon: DaemonConfig = field(default_factory=DaemonConfig)
+    owner: OwnerConfig = field(default_factory=OwnerConfig)
     providers: dict[str, ProviderConfig] = field(default_factory=dict)
     roles: dict[str, RoleConfig] = field(default_factory=dict)
     source: Path | None = None
@@ -92,6 +117,7 @@ def load_config(path: Path | str) -> Config:
     return Config(
         machine=_machine(_table(raw.get("machine", {}), "machine")),
         daemon=_daemon(_table(raw.get("daemon", {}), "daemon")),
+        owner=_owner(_table(raw.get("owner", {}), "owner")),
         providers=_providers(_table(raw.get("providers", {}), "providers")),
         roles=roles_from_table(_table(raw.get("roles", {}), "roles")),
         source=path,
@@ -131,6 +157,17 @@ def _daemon(table: dict[str, Any]) -> DaemonConfig:
     return DaemonConfig(
         host=_str(table.get("host", DEFAULT_HOST), "daemon.host"),
         port=_positive_int(table.get("port", DEFAULT_PORT), "daemon.port"),
+    )
+
+
+def _owner(table: dict[str, Any]) -> OwnerConfig:
+    _refuse_unknown(table, _OWNER_KEYS, "owner.")
+    return OwnerConfig(
+        channel=table.get("channel") and _str(table["channel"], "owner.channel") or "",
+        chat=table.get("chat") and _str(str(table["chat"]), "owner.chat") or "",
+        # Zero is a real answer: take the default at once, and still say so.
+        wait=_whole(table.get("wait", DEFAULT_ANSWER_WAIT), "owner.wait"),
+        file=table.get("file") and _str(table["file"], "owner.file") or "",
     )
 
 
