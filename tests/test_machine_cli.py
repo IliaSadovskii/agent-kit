@@ -631,3 +631,25 @@ def test_the_page_still_has_nothing_to_press(machine, ledger):
     from agent_kit.daemon.server import page
 
     assert "<button" not in page(ledger) and "<form" not in page(ledger)
+
+
+def test_run_show_names_what_is_being_waited_for_and_until_when(machine, ledger, capsys):
+    from agent_kit.machine import Ask
+    from agent_kit.state import RunStore
+
+    store = RunStore(Path.cwd())
+    store.create("add-vat", steps=["design"], project=str(Path.cwd()), brief="VAT")
+    store.start_step("add-vat", provider="fake")
+    store.ask_step("add-vat", "design is asking the owner one thing")
+    ledger.asked(
+        Ask(id="k7f3q2", project=str(Path.cwd()), slug="add-vat", step="design",
+            question="one rate, or one per country?", default="one rate",
+            until="2099-01-01T00:00:00+00:00")
+    )
+
+    code, out, _ = run(["run", "show", "add-vat"], capsys)
+
+    assert code == ExitCode.OK
+    assert "asking" in out
+    assert "one rate, or one per country?" in out
+    assert "2099" in out
