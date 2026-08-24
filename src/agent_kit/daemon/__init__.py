@@ -10,6 +10,6 @@ Read-only. Every button is a way to break a night from a bus, and *showing* is
 what was missing.
 """
 
-from .server import as_json, page, reap_forever, serve
+from .server import as_json, page, reap_forever, run_forever, serve
 
-__all__ = ["as_json", "page", "reap_forever", "serve"]
+__all__ = ["as_json", "page", "reap_forever", "run_forever", "serve"]

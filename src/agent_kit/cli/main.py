@@ -915,9 +915,8 @@ def _daemon(args: argparse.Namespace, paths: Paths) -> int:
     import signal
     import subprocess
     import sys as _sys
-    import threading
 
-    from ..daemon import reap_forever, serve
+    from ..daemon import run_forever
     from ..machine import is_alive, unit_file, unit_path
 
     what = args.what or "status"
@@ -976,25 +975,8 @@ def _daemon(args: argparse.Namespace, paths: Paths) -> int:
         return int(ExitCode.OK)
 
     paths.ensure()
-    pid_file.write_text(str(os.getpid()), encoding="utf-8")
-    ledger = _ledger(paths)
-    stop = threading.Event()
-    sweeper = threading.Thread(target=reap_forever, args=(ledger,), kwargs={"stop": stop}, daemon=True)
-    sweeper.start()
-    server = serve(ledger, config.daemon.host, config.daemon.port)
-
-    def down(*_ignored):
-        stop.set()
-        server.shutdown()
-
-    signal.signal(signal.SIGTERM, down)
-    signal.signal(signal.SIGINT, down)
-    print(f"the page is at {where}")
-    try:
-        server.serve_forever()
-    finally:
-        stop.set()
-        pid_file.unlink(missing_ok=True)
+    print(f"the page is at {where}", flush=True)
+    run_forever(_ledger(paths), config.daemon.host, config.daemon.port, pid_file)
     return int(ExitCode.OK)
 
 

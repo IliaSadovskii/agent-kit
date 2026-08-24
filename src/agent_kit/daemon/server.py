@@ -8,9 +8,13 @@ nothing on it to press.
 from __future__ import annotations
 
 import json
+import os
+import signal
 import threading
 from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+from pathlib import Path
 
 from ..logs import get_logger
 from ..machine import Ledger, Picture
@@ -158,3 +162,35 @@ def reap_forever(ledger: Ledger, every: int = SWEEP, stop: threading.Event | Non
             if gone:
                 log.info("swept up %s rows whose driver is gone", gone)
         stop.wait(every)
+
+
+def run_forever(ledger: Ledger, host: str, port: int, pid_file: Path | None = None) -> None:
+    """The whole of the process: the page, the sweep, and going away when asked.
+
+    The shutdown is asked for from another thread on purpose. `shutdown()` waits
+    for `serve_forever()` to come back, and a signal handler runs on the very
+    thread that is standing inside it — so calling it there is a daemon that
+    ignores every stop and holds the port until somebody kills it.
+    """
+    if pid_file is not None:
+        pid_file.parent.mkdir(parents=True, exist_ok=True)
+        pid_file.write_text(str(os.getpid()), encoding="utf-8")
+
+    server = serve(ledger, host, port)
+    stop = threading.Event()
+    sweeper = threading.Thread(target=reap_forever, args=(ledger,), kwargs={"stop": stop}, daemon=True)
+    sweeper.start()
+
+    def down(*_ignored) -> None:
+        stop.set()
+        threading.Thread(target=server.shutdown, daemon=True).start()
+
+    signal.signal(signal.SIGTERM, down)
+    signal.signal(signal.SIGINT, down)
+    try:
+        server.serve_forever()
+    finally:
+        stop.set()
+        server.server_close()
+        if pid_file is not None:
+            pid_file.unlink(missing_ok=True)
