@@ -528,13 +528,21 @@ def test_a_run_file_from_schema_2_is_read(store, tmp_path):
     assert run.schema == SCHEMA_VERSION
 
 
-def test_a_kit_that_does_not_know_asking_refuses_the_file(store, tmp_path):
-    """An older kit meeting `asking` must say so rather than guess what it means."""
+def test_a_kit_that_does_not_know_asking_refuses_the_file(store, tmp_path, monkeypatch):
+    """Кит, не знающий `asking`, обязан сказать это, а не гадать.
+
+    Прежняя версия ставила номер схемы на единицу больше и слова `asking` в
+    файл не писала вовсе — то есть была дословным дублем соседнего случая и
+    была бы зелёной ещё до S7a.
+    """
     store.create("add-vat", steps=["design"])
+    store.start_step("add-vat")
+    store.ask_step("add-vat", "design is asking the owner one thing")
     path = tmp_path / ".agent-kit/v3/runs/add-vat/run.json"
-    data = json.loads(path.read_text())
-    data["schema"] = SCHEMA_VERSION + 1
-    path.write_text(json.dumps(data))
+    assert '"asking"' in path.read_text()
+
+    # Тот самый кит: он знает схему на единицу меньше и статуса ещё не видел.
+    monkeypatch.setattr("agent_kit.state.migrations.SCHEMA_VERSION", SCHEMA_VERSION - 1)
 
     with pytest.raises(StateError) as refused:
         store.load("add-vat")

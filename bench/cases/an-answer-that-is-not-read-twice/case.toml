@@ -1,0 +1,10 @@
+# смещение канала переживает опрос
+
+[case]
+title = "an answer already read does not come back for the next question"
+fires = "the offset is remembered, so what was read once is never read onto a later question"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { design = "passed", deliver = "passed" }

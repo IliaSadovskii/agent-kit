@@ -1,0 +1,10 @@
+# ответ реплаем на сообщение, а не набранной командой
+
+[case]
+title = "the owner replies to the message instead of typing an identifier"
+fires = "the reply is matched to its question through the message it went out as"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { design = "passed", deliver = "passed" }

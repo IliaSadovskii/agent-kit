@@ -382,10 +382,22 @@ def test_an_hour_that_reads_as_a_time_but_sorts_wrong_is_still_read(ledger):
 
 
 def test_an_hour_in_another_offset_is_held_as_the_moment_it_names(ledger):
-    """+03:00 compared against a UTC string is three hours of quota thrown away."""
-    held = ledger.limit(ACCOUNT, until="2026-08-24T18:00:00+03:00", said_by="add-vat/build")
+    """+03:00, сравниваемое со строкой в UTC, — три часа выброшенной квоты.
 
-    assert held.until == "2026-08-24T15:00:00+00:00"
+    Час считается вперёд от прогона, а не записан в код: прежняя версия держала
+    момент, а не форму, — тот же класс дефекта, из-за которого восемь случаев
+    краснели каждый день после своего часа. И проверяется, что лимит стоит: без
+    этого тест мерил бы одно лишь переписывание строки.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    theirs = timezone(timedelta(hours=3))
+    when = (datetime.now(theirs) + timedelta(hours=3)).replace(microsecond=0)
+
+    held = ledger.limit(ACCOUNT, until=when.isoformat(), said_by="add-vat/build")
+
+    assert held.until == when.astimezone(timezone.utc).isoformat()
+    assert ledger.take(want(), one()).code == "provider-limited"
 
 
 def test_an_hour_that_has_already_passed_in_any_wording_does_not_stand(ledger):
@@ -543,15 +555,13 @@ def test_asking_the_same_question_twice_is_asking_it_once(ledger):
     assert ledger.ask_of("k7f3q2").answer == "one per country"
 
 
-def test_an_answer_is_stamped_by_this_kits_clock(ledger):
-    """Never by the clock of whoever sent it: their stamp is theirs, the deadline is ours."""
+def test_an_answer_is_written_where_its_own_driver_will_find_it(ledger):
+    """Час, когда ответили, живёт в `asks.json` шага: здесь у него читателя нет."""
     ledger.asked(an_ask())
 
     assert ledger.answered("k7f3q2", "one per country") is True
 
-    held = ledger.ask_of("k7f3q2")
-    assert held.answer == "one per country"
-    assert held.answered_at >= held.asked_at
+    assert ledger.ask_of("k7f3q2").answer == "one per country"
 
 
 def test_an_answer_to_a_question_nobody_asked_is_not_written(ledger):

@@ -134,7 +134,12 @@ def test_the_whole_road_from_a_token_to_a_working_channel(tmp_path, monkeypatch)
     assert load_config(paths.config_file).owner.chat == "55"
     # И человеку сказали, куда писать, его же словами.
     assert any("vat_night_bot" in line for line in lines)
-    assert ("sendMessage", ) != tuple(bot.asked[-1][:1]) or "Илья" in bot.asked[-1][1]
+    # Подтверждение действительно ушло. Прежнее утверждение было истинным
+    # всегда: если `send` не звали, последним в списке лежала строка "listen",
+    # и сравнение кортежей проходило впустую.
+    (last,) = [one for one in bot.asked if isinstance(one, tuple)]
+    assert last[0] == "sendMessage"
+    assert "Илья" in last[1]
 
 
 def test_the_secret_is_written_where_only_its_owner_reads_it(tmp_path, monkeypatch):
@@ -185,3 +190,20 @@ def test_nothing_is_typed_and_the_command_says_so(tmp_path, monkeypatch):
         setup(ask=typed(""), say=said_by([]), bot=Bot([]), wait=0, pause=lambda _: None)
 
     assert refused.value.code == "no-token"
+
+
+def test_a_config_that_cannot_be_written_takes_the_token_back(tmp_path, monkeypatch):
+    """Либо всё, либо ничего: токен без канала — это живой бот, о котором машина не знает."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr(
+        "agent_kit.owner.setup.write_owner_block",
+        lambda *a, **k: (_ for _ in ()).throw(OSError("диск только для чтения")),
+    )
+    bot = Bot(["vat_night_bot", ("55", "Илья", "510")])
+
+    with pytest.raises(OSError):
+        setup(ask=typed(TOKEN), say=said_by([]), bot=bot, wait=10, pause=lambda _: None)
+
+    from agent_kit.paths import Paths
+
+    assert read_secret(Paths.from_env().secrets_file, TELEGRAM_TOKEN) == ""
