@@ -1,0 +1,324 @@
+"""S7 — the ledger. What is true on this machine right now, in one file.
+
+Every question here is asked with no daemon running, which is the point: a
+ceiling that only holds while a process is alive is a ceiling that is off at
+02:00, when it is the only thing standing between a night and the machine.
+"""
+
+from datetime import datetime, timedelta, timezone
+
+import pytest
+
+from agent_kit.machine import Ceilings, Ledger, Want
+
+ACCOUNT = "anthropic"
+
+
+@pytest.fixture
+def ledger(tmp_path):
+    return Ledger(tmp_path / "daemon.sqlite")
+
+
+def one(machine: int = 1, provider: dict | None = None) -> Ceilings:
+    return Ceilings(max_sessions=machine, per_provider=provider or {})
+
+
+def want(slug: str = "add-vat", provider: str = "claude_code", step: str = "design", **rest) -> Want:
+    return Want(
+        account=rest.pop("account", ACCOUNT),
+        provider=provider,
+        project=rest.pop("project", "/projects/thing"),
+        slug=slug,
+        step=step,
+        **rest,
+    )
+
+
+def in_an_hour() -> str:
+    return (datetime.now(timezone.utc) + timedelta(hours=1)).replace(microsecond=0).isoformat()
+
+
+def an_hour_ago() -> str:
+    return (datetime.now(timezone.utc) - timedelta(hours=1)).replace(microsecond=0).isoformat()
+
+
+# --- the file itself --------------------------------------------------------
+
+
+def test_the_ledger_makes_itself_and_opening_it_twice_is_the_same_ledger(tmp_path):
+    path = tmp_path / "state" / "daemon.sqlite"
+    first = Ledger(path)
+    first.take(want(), one())
+
+    assert path.is_file()
+    assert len(Ledger(path).held()) == 1
+
+
+# --- slots ------------------------------------------------------------------
+
+
+def test_a_slot_is_granted_and_is_visible_to_anybody_who_asks(ledger):
+    lease = ledger.take(want(step="build"), one())
+
+    assert lease.granted
+    held = ledger.held()
+    assert [(row.slug, row.step, row.account) for row in held] == [("add-vat", "build", ACCOUNT)]
+
+
+def test_the_machine_ceiling_refuses_the_second_session_and_names_what_holds_it(ledger):
+    ledger.take(want(slug="first"), one(machine=1))
+
+    busy = ledger.take(want(slug="second"), one(machine=1))
+
+    assert not busy.granted
+    assert busy.code == "no-slot"
+    assert "first" in busy.detail
+
+
+def test_a_provider_ceiling_binds_before_the_machine_one(ledger):
+    ledger.take(want(slug="first", provider="codex"), one(machine=4, provider={"codex": 1}))
+
+    busy = ledger.take(want(slug="second", provider="codex"), one(machine=4, provider={"codex": 1}))
+
+    assert busy.code == "no-slot"
+    assert "codex" in busy.detail
+
+
+def test_a_provider_ceiling_does_not_bind_another_provider(ledger):
+    ledger.take(want(slug="first", provider="codex"), one(machine=4, provider={"codex": 1}))
+
+    lease = ledger.take(want(slug="second", provider="claude_code"), one(machine=4, provider={"codex": 1}))
+
+    assert lease.granted
+
+
+def test_releasing_a_slot_frees_it(ledger):
+    lease = ledger.take(want(slug="first"), one(machine=1))
+
+    ledger.release(lease)
+
+    assert ledger.held() == []
+    assert ledger.take(want(slug="second"), one(machine=1)).granted
+
+
+def test_releasing_twice_is_the_same_as_releasing_once(ledger):
+    """S6's lesson, in another shape: an act asked for twice must not half-happen."""
+    lease = ledger.take(want(slug="first"), one(machine=1))
+    ledger.release(lease)
+    ledger.release(lease)
+
+    assert ledger.take(want(slug="second"), one(machine=1)).granted
+
+
+# --- a lease whose driver is gone -------------------------------------------
+
+
+def test_a_lease_whose_driver_is_not_alive_is_reclaimed(ledger):
+    ledger.take(want(slug="dead", pid=_a_pid_that_is_gone()), one(machine=1))
+
+    lease = ledger.take(want(slug="live"), one(machine=1))
+
+    assert lease.granted
+    assert [row.slug for row in ledger.held()] == ["live"]
+
+
+def test_a_lease_from_before_the_last_reboot_is_reclaimed(ledger):
+    ledger.take(want(slug="before", boot="a-boot-that-has-ended"), one(machine=1))
+
+    assert ledger.take(want(slug="after"), one(machine=1)).granted
+
+
+def test_a_lease_that_outlived_its_own_ttl_is_reclaimed(ledger):
+    """The backstop for a pid that was reused, which is the one case liveness cannot see."""
+    ledger.take(want(slug="stale", ttl=-1), one(machine=1))
+
+    assert ledger.take(want(slug="fresh"), one(machine=1)).granted
+
+
+# --- limits -----------------------------------------------------------------
+
+
+def test_a_limited_account_refuses_a_slot_and_says_until_when(ledger):
+    reset = in_an_hour()
+    ledger.limit(ACCOUNT, until=reset, said_by="add-vat/build")
+
+    busy = ledger.take(want(), one())
+
+    assert busy.code == "provider-limited"
+    assert busy.until == reset
+    assert "add-vat/build" in busy.detail
+
+
+def test_a_limit_binds_the_account_and_not_the_provider(ledger):
+    ledger.limit(ACCOUNT, until=in_an_hour(), said_by="add-vat/build")
+
+    assert ledger.take(want(provider="claude_code"), one()).code == "provider-limited"
+    assert ledger.take(want(provider="fake", account="another"), one()).granted
+
+
+def test_a_limit_whose_hour_has_passed_is_gone(ledger):
+    ledger.limit(ACCOUNT, until=an_hour_ago(), said_by="add-vat/build")
+
+    assert ledger.take(want(), one()).granted
+    assert ledger.limits() == []
+
+
+def test_a_limit_with_no_hour_is_held_for_one_and_says_it_was_guessed(ledger):
+    ledger.limit(ACCOUNT, until=None, said_by="add-vat/build")
+
+    (held,) = ledger.limits()
+    assert held.guessed
+    assert held.until > datetime.now(timezone.utc).isoformat()
+    assert ledger.take(want(), one()).code == "provider-limited"
+
+
+def test_the_same_account_limited_twice_holds_the_hour_it_was_told_last(ledger):
+    ledger.limit(ACCOUNT, until=in_an_hour(), said_by="first")
+    later = (datetime.now(timezone.utc) + timedelta(hours=3)).replace(microsecond=0).isoformat()
+    ledger.limit(ACCOUNT, until=later, said_by="second")
+
+    (held,) = ledger.limits()
+    assert held.until == later
+    assert held.said_by == "second"
+
+
+# --- the queue --------------------------------------------------------------
+
+
+def test_the_slot_goes_to_whoever_asked_first(ledger):
+    ledger.take(want(slug="holder"), one(machine=1))
+    ledger.wants_one(want(slug="patient"))
+    ledger.wants_one(want(slug="hasty"))
+    ledger.release(ledger.held()[0])
+
+    assert ledger.take(want(slug="hasty"), one(machine=1)).code == "no-slot"
+    assert ledger.take(want(slug="patient"), one(machine=1)).granted
+
+
+def test_a_waiter_that_is_given_its_slot_stops_being_a_waiter(ledger):
+    ledger.wants_one(want(slug="patient"))
+
+    ledger.take(want(slug="patient"), one(machine=1))
+
+    assert ledger.queue() == []
+
+
+def test_a_waiter_whose_driver_died_does_not_hold_the_queue_up(ledger):
+    ledger.wants_one(want(slug="dead", pid=_a_pid_that_is_gone()))
+
+    assert ledger.take(want(slug="live"), one(machine=1)).granted
+
+
+def test_the_queue_says_what_each_waiter_is_waiting_for(ledger):
+    ledger.wants_one(want(slug="patient"))
+
+    (waiting,) = ledger.queue()
+    assert (waiting.slug, waiting.provider, waiting.account) == ("patient", "claude_code", ACCOUNT)
+
+
+def test_giving_up_removes_the_waiter(ledger):
+    asked = want(slug="patient")
+    ledger.wants_one(asked)
+
+    ledger.gives_up(asked)
+
+    assert ledger.queue() == []
+
+
+# --- one driver per run -----------------------------------------------------
+
+
+def test_a_run_is_held_by_one_driver(ledger):
+    ledger.hold_run("/projects/thing", "add-vat", pid=_a_pid_that_is_alive())
+
+    busy = ledger.hold_run("/projects/thing", "add-vat", pid=_another_pid_that_is_alive())
+
+    assert busy.code == "run-held-elsewhere"
+    assert "add-vat" in busy.detail
+
+
+def test_the_same_driver_asking_twice_holds_the_run_it_already_holds(ledger):
+    first = ledger.hold_run("/projects/thing", "add-vat")
+
+    again = ledger.hold_run("/projects/thing", "add-vat")
+
+    assert again.granted
+    assert again.id == first.id
+
+
+def test_a_run_held_by_a_driver_that_died_is_free(ledger):
+    ledger.hold_run("/projects/thing", "add-vat", pid=_a_pid_that_is_gone())
+
+    assert ledger.hold_run("/projects/thing", "add-vat").granted
+
+
+def test_the_same_slug_in_another_project_is_another_run(ledger):
+    ledger.hold_run("/projects/one", "add-vat", pid=_a_pid_that_is_alive())
+
+    assert ledger.hold_run("/projects/two", "add-vat", pid=_another_pid_that_is_alive()).granted
+
+
+def test_a_run_lease_is_not_a_session_and_does_not_fill_the_machine(ledger):
+    ledger.hold_run("/projects/thing", "add-vat")
+
+    assert ledger.take(want(), one(machine=1)).granted
+
+
+# --- stop -------------------------------------------------------------------
+
+
+def test_a_stop_is_read_by_the_driver_and_read_once(ledger):
+    ledger.ask_stop("/projects/thing", "add-vat", reason="the owner said so")
+
+    asked = ledger.stop_asked("/projects/thing", "add-vat")
+    assert asked == "the owner said so"
+    assert ledger.stop_asked("/projects/thing", "add-vat") is None
+
+
+def test_a_stop_asked_for_twice_stops_the_run_once(ledger):
+    ledger.ask_stop("/projects/thing", "add-vat", reason="first")
+    ledger.ask_stop("/projects/thing", "add-vat", reason="second")
+
+    assert ledger.stop_asked("/projects/thing", "add-vat") is not None
+    assert ledger.stop_asked("/projects/thing", "add-vat") is None
+
+
+def test_a_stop_is_addressed_to_one_run(ledger):
+    ledger.ask_stop("/projects/thing", "add-vat", reason="stop")
+
+    assert ledger.stop_asked("/projects/thing", "another") is None
+    assert ledger.stop_asked("/projects/elsewhere", "add-vat") is None
+
+
+# --- what the page and `machine` read --------------------------------------
+
+
+def test_everything_the_page_shows_comes_from_one_read(ledger):
+    ledger.take(want(slug="running"), one(machine=4))
+    ledger.wants_one(want(slug="queued"))
+    ledger.limit("another", until=in_an_hour(), said_by="somebody/build")
+
+    picture = ledger.picture()
+
+    assert [row.slug for row in picture.held] == ["running"]
+    assert [row.slug for row in picture.queue] == ["queued"]
+    assert [row.account for row in picture.limits] == ["another"]
+
+
+# --- helpers ----------------------------------------------------------------
+
+
+def _a_pid_that_is_gone() -> int:
+    """A pid nothing can be running under: pid 2**22 is above every Linux maximum."""
+    return 4_194_305
+
+
+def _a_pid_that_is_alive() -> int:
+    import os
+
+    return os.getpid()
+
+
+def _another_pid_that_is_alive() -> int:
+    """Pid 1 is always there, and it is never this test."""
+    return 1
