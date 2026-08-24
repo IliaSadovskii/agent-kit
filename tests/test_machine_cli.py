@@ -610,3 +610,24 @@ def test_doctor_says_whether_there_is_a_channel_at_all(machine, capsys):
 
     assert code == ExitCode.OK
     assert "owner" in out.lower()
+
+
+def test_the_page_shows_what_is_waiting_for_the_owner(machine, ledger):
+    """A phone cannot read a config file over ssh, and it cannot read run.json either."""
+    from agent_kit.daemon.server import as_dict, page
+    from agent_kit.machine import Ask
+
+    ledger.asked(
+        Ask(id="k7f3q2", project="/p", slug="add-vat", step="design",
+            question="one rate, or one per country?", default="one rate",
+            until="2099-01-01T00:00:00+00:00")
+    )
+
+    assert "one rate, or one per country?" in page(ledger)
+    assert as_dict(ledger)["asks"][0]["id"] == "k7f3q2"
+
+
+def test_the_page_still_has_nothing_to_press(machine, ledger):
+    from agent_kit.daemon.server import page
+
+    assert "<button" not in page(ledger) and "<form" not in page(ledger)
