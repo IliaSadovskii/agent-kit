@@ -482,6 +482,20 @@ is refused with `asked-with-no-block` and the next attempt is told exactly that.
 reason says it is asking; what was asked and when the default is taken lives in the ledger,
 and somebody looking at a stuck run wants both.
 
+## What building this found in what already stood
+
+**Eight of S7's own cases go red every day after 17:00 UTC**, and today they did. The review
+round that fixed the limit blocker replaced `2027-01-01T00:00:00+00:00` — *the one shape no
+provider will ever say* — with `2026-08-24T17:00:00+00:00`, which was a real hour on the day
+it was written. Past that hour the limit is swept, correctly, by the very sweep those eight
+cases measure. The shape was the point and the shape is kept; the hour is computed ahead of
+the run now.
+
+It is worth naming what class of defect this is, because it is the same one twice: **a fixture
+that encodes a moment rather than a shape.** The first time it cost an account limited for
+good; this time it cost a suite that is honest only before teatime. Both were found by
+something outside the suite — a review, and a day passing.
+
 ## What the review round has not seen
 
 This is the record of what was *not* done, so the next session starts from it rather than
