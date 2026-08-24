@@ -20,7 +20,7 @@ from ..config import DEFAULT_ANSWER_WAIT, OwnerConfig, write_owner_block
 from ..errors import ConfigError
 from ..logs import get_logger
 from ..paths import Paths
-from .secrets import TELEGRAM_TOKEN, write_secret
+from .secrets import TELEGRAM_TOKEN, read_secret, write_secret
 from .telegram import Telegram
 
 #: Сколько ждём сообщения от человека боту. Дольше, чем нужно, чтобы открыть
@@ -69,10 +69,17 @@ def setup(
             hint="agent-kit owner setup — и отправь боту сообщение, пока он ждёт",
         )
 
-    # Только теперь, когда всё известно и всё проверено, что-то пишется.
+    # Только теперь, когда всё известно и всё проверено, что-то пишется. И либо
+    # пишется всё: токен без канала — это машина, которая думает, что канала у
+    # неё нет, при живом боте, и человек об этом не узнает никак.
+    had = read_secret(paths.secrets_file, TELEGRAM_TOKEN)
     write_secret(paths.secrets_file, TELEGRAM_TOKEN, token)
     written = OwnerConfig(channel="telegram", chat=chat, wait=DEFAULT_ANSWER_WAIT)
-    where = write_owner_block(paths.config_file, written)
+    try:
+        where = write_owner_block(paths.config_file, written)
+    except BaseException:
+        write_secret(paths.secrets_file, TELEGRAM_TOKEN, had)
+        raise
 
     talking.chat = chat
     talking.send(

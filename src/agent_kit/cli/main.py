@@ -1027,9 +1027,11 @@ def _owner(args: argparse.Namespace, paths: Paths) -> int:
         raise UsageError("missing-command", "owner needs one of: setup, check, say, set-token")
 
     if what == "setup":
-        from .. import owner as channel_of
+        # Из модуля, а не из пакета: `owner.setup` — это модуль, и одноимённое
+        # имя в пакете затирало бы его собой.
+        from ..owner.setup import setup as set_the_channel_up
 
-        channel_of.setup(ask=_typed, say=print, paths=paths)
+        set_the_channel_up(ask=_typed, say=print, paths=paths)
         return int(ExitCode.OK)
 
     if what == "set-token":

@@ -24,7 +24,7 @@ from typing import Iterator
 from ..errors import ProviderError
 from .linux import boot_id, is_alive
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 #: How long a lease outlives the moment it was taken, when nobody says
 #: otherwise. Only ever a backstop for a pid that was reused: what really says
@@ -96,8 +96,7 @@ CREATE TABLE IF NOT EXISTS asks (
     message     TEXT NOT NULL DEFAULT '',
     asked_at    TEXT NOT NULL,
     until       TEXT NOT NULL,
-    answer      TEXT,
-    answered_at TEXT
+    answer      TEXT
 );
 CREATE TABLE IF NOT EXISTS channel (
     what  TEXT PRIMARY KEY,
@@ -257,7 +256,6 @@ class Ask:
     message: str = ""
     asked_at: str = field(default_factory=now)
     answer: str | None = None
-    answered_at: str | None = None
 
 
 @dataclass(frozen=True)
@@ -621,7 +619,7 @@ class Ledger:
         with self._writing() as db:
             db.execute(
                 "INSERT INTO asks (id, project, slug, step, question, \"default\", message, asked_at, until,"
-                " answer, answered_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)"
+                " answer) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)"
                 " ON CONFLICT(id) DO NOTHING",
                 (ask.id, ask.project, ask.slug, ask.step, ask.question, ask.default,
                  ask.message, ask.asked_at, ask.until),
@@ -632,15 +630,14 @@ class Ledger:
     def answered(self, id: str, text: str) -> bool:
         """A person answered. True when this was the answer, false when it was not.
 
-        Stamped by this kit's clock and never by the sender's: what decides
-        whether an answer arrived in time is the moment this kit read it. The
-        first answer stands — a second one arriving while the step is already
-        being run again would change the record under it.
+        Первый ответ стоит: второй, пришедший, пока шаг уже перезапускают,
+        менял бы запись под ним. Час, когда ответили, живёт в `asks.json` шага
+        — здесь он не нужен никому, а поле без читателя не пишется.
         """
         with self._writing() as db:
             changed = db.execute(
-                "UPDATE asks SET answer = ?, answered_at = ? WHERE id = ? AND answer IS NULL",
-                (text, now(), id),
+                "UPDATE asks SET answer = ? WHERE id = ? AND answer IS NULL",
+                (text, id),
             ).rowcount
         return bool(changed)
 
@@ -778,7 +775,6 @@ def _ask(row: sqlite3.Row) -> Ask:
         id=row["id"], project=row["project"], slug=row["slug"], step=row["step"],
         question=row["question"], default=row["default"], message=row["message"],
         asked_at=row["asked_at"], until=row["until"], answer=row["answer"],
-        answered_at=row["answered_at"],
     )
 
 

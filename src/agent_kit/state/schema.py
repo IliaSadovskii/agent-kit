@@ -150,10 +150,6 @@ class Run:
         """
         return None if self.current_step is None else self.steps[self.current_step]
 
-    @property
-    def asking(self) -> Step | None:
-        step = self.current
-        return step if step is not None and step.status is StepStatus.ASKING else None
 
     @property
     def finished(self) -> bool:

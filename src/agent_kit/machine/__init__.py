@@ -10,7 +10,6 @@ errors and on nothing else in the kit. The arrow keeps pointing one way.
 from pathlib import Path
 
 from .ledger import (
-    CHANNEL,
     RUN,
     SCHEMA_VERSION,
     SESSION,
@@ -29,7 +28,6 @@ from .linux import is_alive, is_ours, unit_file, unit_path
 __all__ = [
     "Ask",
     "Busy",
-    "CHANNEL",
     "Ceilings",
     "Lease",
     "Ledger",
