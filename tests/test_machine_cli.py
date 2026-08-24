@@ -18,6 +18,8 @@ from agent_kit.errors import ExitCode
 from agent_kit.machine import Ledger, Want, ledger_path
 from agent_kit.paths import Paths
 
+from conftest import reset_at
+
 
 @pytest.fixture
 def machine(tmp_path, monkeypatch, machine_home):
@@ -76,13 +78,14 @@ def test_machine_prints_what_is_held_queued_and_limited(machine, ledger, capsys)
     ledger.take(Want(account="anthropic", provider="claude_code", project="/p", slug="one", step="build"),
                 _four())
     ledger.wants_one(Want(account="anthropic", provider="claude_code", project="/p", slug="two", step="build"))
-    ledger.limit("openai", until="2026-08-24T17:00:00+00:00", said_by="three/build")
+    resets = reset_at()
+    ledger.limit("openai", until=resets, said_by="three/build")
 
     code, out, _ = run(["machine"], capsys)
 
     assert code == ExitCode.OK
     assert "one" in out and "two" in out
-    assert "openai" in out and "17:00" in out
+    assert "openai" in out and resets[11:16] in out
 
 
 def test_machine_says_so_plainly_when_nothing_is_happening(machine, ledger, capsys):
@@ -156,7 +159,7 @@ def test_a_run_held_by_hand_does_not_fill_the_machine(machine, ledger, capsys):
 
 
 def test_a_limit_can_be_set_and_cleared_by_hand(machine, ledger, capsys):
-    code, _, _ = run(["limit", "set", "anthropic", "--until", "2026-08-24T17:00:00+00:00"], capsys)
+    code, _, _ = run(["limit", "set", "anthropic", "--until", reset_at()], capsys)
 
     assert code == ExitCode.OK
     assert [row.account for row in ledger.limits()] == ["anthropic"]

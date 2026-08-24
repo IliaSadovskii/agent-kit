@@ -376,12 +376,15 @@ starts, and names the identifier because it is derived rather than drawn.
 
 ## 13 · What S7a is done when
 
-`agent-kit bench run` reports forty-two cases as fired; a question raised at design time reaches
+`agent-kit bench run` reports every case as fired; a question raised at design time reaches
 a phone and an answer typed into it changes what gets built; a question nobody answers costs the
 night twenty minutes and leaves a block in the owner's knowledge saying what was taken and why;
 a run that ends says so without anybody opening a terminal; `run show` and the page both name
 what is being waited for and until when; and breaking any one of the eight new mechanisms by
 hand makes exactly one case say it did not fire.
+
+*(Nine, in the end, and seven of the nine light exactly one case. What the ninth is and why
+it had to exist is at the foot of this note.)*
 
 **Deliberately not built:** any command in the chat that acts — a stop, a skip, a retry; news
 about a machine that is merely busy; an answer that arrives after the wait has ended being kept
@@ -389,3 +392,133 @@ for a later run of the same project (a mechanism with no reader today, and it wo
 a second question in the same step, because a second round is a conversation and this kit's
 handovers are files; and any channel that is not Telegram, because one was settled and a second
 is a config block nobody asked for.
+
+---
+
+# What was built, 24 August 2026
+
+Everything above was built as decided, with one thing added that the note did not
+foresee — a ninth trap, and the reason it exists is the most useful paragraph here.
+Forty-three bench cases all firing, 619 tests, and a question that reaches a phone
+and changes what gets built.
+
+## The sentence the step is done by
+
+A question raised at design time, sent, waited on, and settled — four ways, and each
+looks different in the morning:
+
+```
+add-vat · design
+one VAT rate for everything, or one per country?
+Через 2 мин возьму: one rate for everything
+Почему: nothing in this project has a second country in it yet
+Ответить на это сообщение, или: /a 2xdhdn <ответ>
+```
+
+Answered, the design runs again with the answer enclosed and what lands on the branch
+follows the answer. Unanswered, the run goes on and the owner's knowledge gains a block
+saying what was taken and why nobody settled it — written by `record`, which learned
+nothing new, because a default nobody answered is an expensive assumption and this kit
+already knew what one of those owes.
+
+## The ninth trap, and why it is the useful one
+
+The note listed eight. Breaking each by hand found that one of the eight measured a
+different line than the one it was written for.
+
+`the-same-question-asked-twice` is about the rule that the owner gets one round. Breaking
+the round guard — `if round > 1 or not fresh` — left **the whole bench green**. What
+actually holds that case up is a different line: a question already answered is filtered
+out before anything is sent. So the guard that stops a *new* question in a second round
+had no trap at all, and would have shipped exactly as S6's two mechanisms did.
+
+`a-second-round-the-owner-never-saw` is the case for it: the owner answers the first
+question, the second design raises something they were never asked, and it is taken at
+its default without being sent — and still written down. Breaking either line now lights
+exactly one case, and they are different cases.
+
+This is the S7 lesson in a new costume: *a judge that was nearly green for nothing.* The
+difference is that S7 found its by reading, and this one was found by breaking, which is
+why the rule is that every new mechanism is broken by hand rather than reasoned about.
+
+## Breaking the nine
+
+| What was broken | What said so |
+|---|---|
+| the default nobody answered is never written down | `a-question-nobody-answers`, `no-channel-to-the-owner`, `a-channel-that-is-not-answering` |
+| an answer does not run the step again | `an-answer-from-the-owner`, `the-same-question-asked-twice` |
+| an answer is not matched to the question it names | `an-answer-to-another-question` |
+| a machine with no channel says nothing happened | `no-channel-to-the-owner` |
+| a channel that could not be reached looks like silence | `a-channel-that-is-not-answering` |
+| a stop is not read while waiting on a person | `a-stop-while-the-owner-is-asked` |
+| a run that ends says nothing | `news-when-a-run-ends` |
+| a question already answered is asked again | `the-same-question-asked-twice` |
+| the owner gets a second round in one run | `a-second-round-the-owner-never-saw` |
+
+Seven of the nine light exactly one case. The two that light more are one mechanism seen
+from several sides, which is the pair being right rather than a case measuring the wrong
+thing: **the fold** has three endings — nobody answered, no channel, the channel failed —
+and a case covering all three could not say which ending broke; **the re-run** is what the
+same-question case is built on top of, so breaking it takes that case with it.
+
+## What changed on the way, against the note above
+
+**A question the owner answered leaves the output.** The note said an unanswered question
+folds into the assumptions and said nothing about an answered one. Leaving it in `asks`
+made the pull request ask for something the owner had already settled, which is the exact
+defect the second version's report had. Answered is neither taken nor open: it is settled,
+and it stops standing anywhere.
+
+**The poll never sleeps longer than what is left.** Five seconds between polls is right for
+twenty minutes and absurd for two, and two is what a bench case waits. Named here because
+it is the difference between a case that costs two seconds and one that costs five.
+
+**`_fold` writes absent rather than empty.** An optional field with an empty string is
+refused by the contract — rightly — so a question with no `at` writes no `at` at all. The
+guard behind it stands: if a fold makes an output no longer satisfy its contract, the step
+is refused with `asked-with-no-block` and the next attempt is told exactly that.
+
+**`run show` reads the ledger.** The note only promised the page and `machine`. A step's own
+reason says it is asking; what was asked and when the default is taken lives in the ledger,
+and somebody looking at a stuck run wants both.
+
+## What the review round has not seen
+
+This is the record of what was *not* done, so the next session starts from it rather than
+from an assumption:
+
+**No review round yet.** S7's found twenty-two things, three of which would have taken a
+night down, and all three lived where two mechanisms meet. This step has at least three such
+places: a person's words and a composed input; a chain of attempts and a step that goes back
+to pending; a ledger row and a step status that must agree about the same wait.
+
+**Telegram's own HTTP is proved by nothing but its tests.** Every case answers through the
+file channel, deliberately — the bench does not reach the network. `sendMessage` and
+`getUpdates` are exercised through the one call they are given, and what has never happened
+is a real bot answering a real phone. `agent-kit owner check` is the command that finds out,
+and it is a person's to run.
+
+**A late answer is dropped.** One that arrives after the deadline moves the offset and is
+logged, and nothing reads it: the question it answers has already been taken at its default
+and the run has moved on. Keeping it for a later run of the same project would be a row with
+no reader, which is the rule this kit refuses both ways.
+
+**One question, one message.** Three questions are three messages and three rows, and nothing
+groups them. Nothing has measured that a step asks more than one at a time.
+
+## What is open, said out loud
+
+**The step status and the ledger row can disagree.** A driver killed between `ask_step` and
+the ledger write leaves a step saying `asking` with no question standing; the next driver
+refuses it back to pending and runs it again, which is correct, but `run show` in that window
+prints *the owner was asked, and the ledger no longer holds the question*. That sentence is
+the seam, written where it can be read rather than smoothed over.
+
+**Nothing stops a question the code could have answered.** The role's prose says not to ask
+what can be read, and prose is obeyed two times in three — which is the number this whole
+version is written against. What would measure it is a count of questions against a count of
+answers over real nights, and there have been none yet.
+
+**A stop from the chat is still not built.** It is the one thing a person on a phone would
+most want, and a chat identifier is not authentication. The day the page grows a button is
+the day both of these get answered together.

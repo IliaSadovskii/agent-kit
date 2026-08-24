@@ -18,7 +18,9 @@ from agent_kit.state import RunStatus, RunStore, StepStatus
 from agent_kit.steps import builtin_registry
 
 GOOD = '```json\n{"branch": "kit/add-login", "can_write": true, "notes": ["nothing odd"]}\n```'
-RESET = "2026-08-24T17:00:00+00:00"
+from conftest import reset_at
+
+RESET = reset_at()
 
 
 @pytest.fixture
