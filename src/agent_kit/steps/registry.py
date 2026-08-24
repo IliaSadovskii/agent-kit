@@ -78,6 +78,11 @@ DESIGN = StepDefinition(
     knowledge_requires=(
         ("assumptions.block", "expensive"),
         ("assumptions.at", "expensive"),
+        # A default taken is an expensive assumption, so a question owes the
+        # knowledge exactly what one does. Required outright rather than on a
+        # sibling's truth: every question can end with nobody answering.
+        ("asks.block", ""),
+        ("asks.at", ""),
         ("closes", ""),
     ),
     contract=Contract(
@@ -94,11 +99,33 @@ DESIGN = StepDefinition(
                 "verification",
                 help="what will prove it works — decided here, before the code, never after",
             ),
-            TextList(
-                "needs_owner",
-                help="anything only the owner can decide, one line each; empty when there is "
-                     "nothing. It is asked in the open half of the pull request, which is the "
-                     "only channel to them there is",
+            Records(
+                "asks",
+                help="anything only the owner can decide; empty when there is nothing. Each one "
+                     "goes to their phone and waits; what you return must already work if "
+                     "nobody answers",
+                shape=(
+                    Text("question", help="one line, answerable from a phone"),
+                    Text(
+                        "default",
+                        help="what is taken if nobody answers — and what the rest of this output "
+                             "was designed around. A question with no default is not a question, "
+                             "it is this step refusing to finish",
+                    ),
+                    Text("because", required=False, help="why that default is the safe one"),
+                    Text(
+                        "at",
+                        required=False,
+                        help="where in the project's knowledge the taken default belongs, as "
+                             "`file.md#anchor`, from the enclosed index",
+                    ),
+                    LongText(
+                        "block",
+                        required=False,
+                        help="what the knowledge should say if the default is taken: what nobody "
+                             "answered, what was taken, and what it costs to be wrong",
+                    ),
+                ),
             ),
             TextList(
                 "closes",

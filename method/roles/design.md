@@ -43,9 +43,20 @@ Do this, in this order:
    that a block the index shows with `—` was written before the kit could address one and
    cannot be closed.
 
-If the brief cannot be designed as written — it contradicts what is here, or it needs a
-decision only the owner can make — put the question in `needs_owner`, one line each. That
-field is printed in the open half of the pull request, and until the kit has a channel of
-its own it is the only way a question reaches the owner at all; `summary` is not, because
-it is folded away. Then design the smallest honest thing you can around the question. Do
-not invent a requirement to make the brief work.
+If the brief needs a decision only the owner can make — it contradicts what is here, or it
+turns on something nobody wrote down — ask them. `asks` is a list of records, and each one
+goes to the owner's phone and waits.
+
+A question carries three things. `question` is one line, answerable from a phone. `default`
+is what will be taken if nobody answers, and it is required: **what you return must already
+work if the answer never comes.** So design the smallest honest thing around the default,
+and say in `because` why that default is the safe one. Where the project keeps knowledge,
+`at` and `block` come too, for the same reason an expensive assumption carries them — a
+default nobody answered *is* an expensive assumption, and the program writes it into the
+knowledge as one.
+
+If an answer arrives, this step is run again with what they said enclosed, so what ends up
+on file is the design that was built. If it does not, the run goes on with your default and
+the owner reads what was taken in the pull request. Do not invent a requirement to make the
+brief work, and do not ask what you could read: a question the code answers is a session
+spent on a phone.

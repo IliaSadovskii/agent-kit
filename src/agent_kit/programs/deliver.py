@@ -345,6 +345,24 @@ def subject_line(design: dict, request: StepRequest) -> str:
     return (cut or first[:SUBJECT]) + "…"
 
 
+def _questions(design: dict) -> list[tuple[str, str]]:
+    """What was asked of the owner, and the line the fold would have written for it.
+
+    The second half is not printed: it is what lets the same fact be dropped
+    from the list of expensive assumptions, where the driver put it.
+    """
+    asked = []
+    for item in design.get("asks") or []:
+        if not isinstance(item, dict):
+            continue
+        question = str(item.get("question") or "").strip()
+        if not question:
+            continue
+        taken = str(item.get("default") or "").strip()
+        asked.append((f"{question} — взято: {taken}" if taken else question, f"{question} — взято: {taken}"))
+    return asked
+
+
 def _message(subject: str, build: dict) -> str:
     """The history reads English, and it reads what was built, not what was planned."""
     return f"{subject}\n\n{(build.get('summary') or '').strip()}\n"
@@ -375,11 +393,16 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
         open_part += [f"- {_where(item)}" for item in blocking]
         open_part.append("")
 
-    asked = [item for item in (design.get("needs_owner") or []) if str(item).strip()]
+    # A question that was asked and not answered is folded into the assumptions
+    # by the driver, word for word. Printing both would say the same thing
+    # twice, so what the fold wrote is dropped and the question itself stands.
+    asked = _questions(design)
+    expensive = [item for item in expensive if str(item.get("what")) not in {taken for _, taken in asked}]
+
     open_part += ["## Что нужно от владельца", ""]
     if asked:
         open_part += ["Вопросы, на которые может ответить только владелец:", ""]
-        open_part += [f"- {item}" for item in asked]
+        open_part += [f"- {said}" for said, _ in asked]
         open_part.append("")
     if expensive:
         open_part.append("Дорогие допущения — если хоть одно неверно, работа сделана не та:")

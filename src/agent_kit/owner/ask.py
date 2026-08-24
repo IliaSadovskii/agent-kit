@@ -295,13 +295,19 @@ def as_assumption(settled: Settled) -> dict[str, Any]:
     did. So `record` writes it into the knowledge and `deliver` prints it in the
     open half of the pull request, and neither of them needed a new field.
     """
-    return {
+    assumed = {
         "what": f"{settled.question.question} — взято: {settled.question.default}",
         "expensive": True,
         "because": _because(settled),
-        "at": settled.question.at,
-        "block": settled.question.block,
     }
+    # Absent, not empty: a field this kit does not have an answer for is left
+    # out, and one it has is filled in. An empty string is neither, and the
+    # contract refuses it — which is right, and is why it never gets written.
+    if settled.question.at:
+        assumed["at"] = settled.question.at
+    if settled.question.block:
+        assumed["block"] = settled.question.block
+    return assumed
 
 
 def _because(settled: Settled) -> str:
