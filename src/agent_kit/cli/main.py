@@ -143,7 +143,11 @@ def build_parser() -> argparse.ArgumentParser:
     take.add_argument("--step", default="by-hand")
     take.add_argument("--ttl", type=int, help="how many seconds it lives if nobody gives it back")
     take.add_argument("--machine-max", type=int, help="the ceiling to judge it against; the configured one when left out")
-    give_back = slot_what.add_parser("release", help="give back a slot taken by hand")
+    take.add_argument("--pid", type=int, help="the process this lease belongs to; this one when left out")
+    hold = slot_what.add_parser("hold", help="hold a run, as its driver does")
+    hold.add_argument("--slug", required=True)
+    hold.add_argument("--pid", type=int, help="the process holding it; this one when left out")
+    give_back = slot_what.add_parser("release", help="give back what was taken by hand, slot and run alike")
     give_back.add_argument("--slug", required=True)
 
     limit = commands.add_parser("limit", help="an account that is out of quota, and until when")
@@ -827,7 +831,7 @@ def _slot(args: argparse.Namespace, paths: Paths) -> int:
 
     what = args.what
     if what is None:
-        raise UsageError("missing-command", "slot needs one of: take, release")
+        raise UsageError("missing-command", "slot needs one of: take, hold, release")
 
     ledger = _ledger(paths)
     project = str(Path(args.project).resolve())
@@ -840,6 +844,7 @@ def _slot(args: argparse.Namespace, paths: Paths) -> int:
             slug=args.slug,
             step=args.step,
             **({"ttl": args.ttl} if args.ttl is not None else {}),
+            **({"pid": args.pid} if args.pid is not None else {}),
         )
         got = ledger.take(want, _ceilings(load_config(paths.config_file), args.machine_max))
         if not got.granted:
@@ -847,13 +852,20 @@ def _slot(args: argparse.Namespace, paths: Paths) -> int:
         print(f"{args.slug}: holding a slot on {args.provider} until {got.expires_at}")
         return int(ExitCode.OK)
 
+    if what == "hold":
+        held = ledger.hold_run(project, args.slug, pid=args.pid)
+        if not held.granted:
+            raise StateError(held.code, held.detail)
+        print(f"{args.slug}: held by process {held.pid}")
+        return int(ExitCode.OK)
+
     if what == "release":
-        for lease in ledger.held():
+        for lease in ledger.held() + ledger.runs():
             if lease.slug == args.slug and lease.project == project:
                 ledger.release(lease)
-                print(f"{args.slug}: the slot is given back")
+                print(f"{args.slug}: the {lease.kind} is given back")
                 return int(ExitCode.OK)
-        raise StateError("no-such-slot", f"nothing here holds a slot for {args.slug!r}")
+        raise StateError("no-such-slot", f"nothing here holds a slot or a run for {args.slug!r}")
 
     raise UsageError("unknown-command", f"slot {what}")
 

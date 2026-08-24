@@ -32,7 +32,7 @@ DEFAULT_SLUG = "add-vat"
 DEFAULT_BRIEF = "Money should be able to quote a price with VAT on it"
 
 _TOP_KEYS = {"case", "expect"}
-_CASE_KEYS = {"title", "fires", "slug", "brief"}
+_CASE_KEYS = {"title", "fires", "slug", "brief", "wait"}
 _EXPECT_KEYS = {"exit_code", "status", "refusal", "steps"}
 
 _STATUSES = ("created", "running", "done", "failed", "stopped")
@@ -64,6 +64,9 @@ class Case:
     expect: Expect
     slug: str = DEFAULT_SLUG
     brief: str = DEFAULT_BRIEF
+    #: How long this case's run waits for the machine. `None` leaves it to the
+    #: configuration, which is what every case about something else wants.
+    wait: int | None = None
 
     @property
     def branch(self) -> str:
@@ -135,6 +138,7 @@ def read_case(root: Path, name: str) -> Case:
         fires=_text(block.get("fires"), "case.fires"),
         slug=_text(block.get("slug", DEFAULT_SLUG), "case.slug"),
         brief=_text(block.get("brief", DEFAULT_BRIEF), "case.brief"),
+        wait=None if "wait" not in block else _number(block["wait"], "case.wait"),
         expect=Expect(
             exit_code=_number(wanted.get("exit_code"), "expect.exit_code"),
             status=_one_of(wanted.get("status"), _STATUSES, "expect.status"),

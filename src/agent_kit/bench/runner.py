@@ -107,7 +107,8 @@ def _run_and_judge(case: Case, where: Path) -> Verdict:
         created = _kit(world, ["run", "new", case.slug, "--brief", case.brief])
         if created.returncode != 0:
             return unjudgeable(f"the run could not be created: {_said(created)}")
-        went = _kit(world, ["run", "go", case.slug, "--provider", "fake", *_replies(case)])
+        waiting = [] if case.wait is None else ["--wait", str(case.wait)]
+        went = _kit(world, ["run", "go", case.slug, "--provider", "fake", *waiting, *_replies(case)])
     except subprocess.SubprocessError as broken:
         return unjudgeable(f"the kit did not come back: {broken}")
 

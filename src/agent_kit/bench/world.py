@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -129,6 +130,9 @@ def _environment(bench: Path, home: Path, binaries: Path) -> dict[str, str]:
             "PYTHONPATH": str(Path(__file__).resolve().parents[2]),
             # Read by the scripts a case plants, and by the `gh` above.
             "BENCH": str(bench),
+            # How a plant or a judge runs the kit it is measuring. The same
+            # interpreter, so a case never reaches a version nobody asked about.
+            "KIT": f"{sys.executable} -m agent_kit",
         }
     )
     return env
