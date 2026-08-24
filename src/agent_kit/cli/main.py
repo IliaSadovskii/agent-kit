@@ -390,6 +390,8 @@ def _run(args: argparse.Namespace) -> int:
                 mark = ">" if index == run.current_step else " "
                 reason = f"  {step.reason}" if step.reason else ""
                 print(f" {mark} {step.name:12} {step.status.value:8} attempts {step.attempts}{reason}")
+                for line in _what_the_step_is_waiting_for(run, step):
+                    print(f"     {line}")
                 for line in _what_the_step_cost(store, run.slug, index, step.name):
                     print(f"     {line}")
         return int(ExitCode.OK)
@@ -431,6 +433,26 @@ def _run(args: argparse.Namespace) -> int:
         return int(ExitCode.OK)
 
     raise UsageError("unknown-command", f"run {what}")
+
+
+def _what_the_step_is_waiting_for(run, step) -> list[str]:
+    """The question a step is standing on, read from where it lives while it stands.
+
+    The step's own reason says it is asking; the ledger is what says *what*, and
+    when the default is taken without an answer.
+    """
+    from ..state import StepStatus
+
+    if step.status is not StepStatus.ASKING:
+        return []
+    where = run.project or str(Path.cwd().resolve())
+    said = []
+    for ask in _ledger(Paths.from_env()).waiting_on_the_owner():
+        if ask.slug != run.slug or ask.project != where:
+            continue
+        said.append(f"{ask.id}  {ask.question}")
+        said.append(f"        taking without an answer at {ask.until}: {ask.default}")
+    return said or ["the owner was asked, and the ledger no longer holds the question"]
 
 
 def _driving(store: RunStore, slug: str) -> list:
