@@ -20,8 +20,9 @@ from ..errors import KitError, ProviderError, StateError
 from ..knowledge import DEFAULT_DIR as KNOWLEDGE_DIR, Knowledge
 from ..logs import get_logger
 from ..machine import Busy, Ceilings, Lease, Ledger, Want, ledger_path
+from ..owner import ANSWERED, NOBODY, Owner, Settled, as_assumption, questions_of
 from ..paths import Paths
-from ..state import DEFAULT_STEPS, Run, RunStore
+from ..state import DEFAULT_STEPS, Run, RunStore, StepStatus
 from ..steps import Registry, StepDefinition
 from ..steps.contract import ContractRefusal, parse_output
 from .compose import compose_input
@@ -64,6 +65,16 @@ class AttemptRecord:
 
 
 @dataclass
+class Asked:
+    """What one round of asking the owner came to."""
+
+    settled: list[Settled]
+    answers: bool
+    stopped: bool
+    note: str
+
+
+@dataclass
 class StepOutcome:
     slug: str
     step: str
@@ -93,6 +104,7 @@ class StepRunner:
         wait: int = DEFAULT_WAIT,
         pause: Any = None,
         say: Any = None,
+        owner: Owner | None = None,
     ) -> None:
         self.store = store
         self.registry = registry
@@ -110,6 +122,10 @@ class StepRunner:
         self.wait = wait
         self.pause = pause or time.sleep
         self.say = say or log.info
+        # There is no driver without an owner either. A machine that configured
+        # no channel gets one that has none: the question still takes its
+        # default, and the default is still written down as an assumption.
+        self.owner = owner or Owner(channel=None, ledger=self.ledger, wait=0, say=self.say)
 
     # --- the one thing it does -------------------------------------------
 
@@ -117,8 +133,32 @@ class StepRunner:
         outcome = self._advance(slug)
         run = self.store.load(slug)
         if run.finished:
+            self.owner.news(self._how_it_ended(run))
             self.let_go(slug)
         return outcome
+
+    def _how_it_ended(self, run: Run) -> str:
+        """What the owner is told, in the one place that already knows a run is over.
+
+        Here rather than in the command, so `run go` and `step run` say the same
+        thing — and so a night that ends at 03:00 says so without anybody
+        opening a terminal.
+        """
+        lines = [f"{run.slug} — {run.status.value}"]
+        if run.reason:
+            lines.append(run.reason)
+        where = self._delivered(run)
+        if where:
+            lines.append(where)
+        return "\n".join(lines)
+
+    def _delivered(self, run: Run) -> str:
+        for index, step in enumerate(run.steps):
+            if step.name != "deliver" or step.status is not StepStatus.PASSED:
+                continue
+            output = StepWorkspace(self.store.run_root(run.slug), index, step.name).read_output() or {}
+            return str(output.get("pull_request") or "")
+        return ""
 
     def let_go(self, slug: str) -> None:
         """Stop holding the run. What the process dies with is reclaimed anyway.
@@ -246,6 +286,7 @@ class StepRunner:
         enclosures, prior = self._enclosures(run, index, definition)
 
         outcome = StepOutcome(slug=slug, step=definition.name, passed=False)
+        settled: list[Settled] = []
         refusal: str | None = None
         seen: dict[str, int] = {}
         parts = workspace.read_parts() if definition.splittable else []
@@ -285,7 +326,8 @@ class StepRunner:
                 run = self.store.start_step(slug, provider=provider)
                 record = self._attempt(
                     run, index, definition, workspace, provider, seen[provider], refusal,
-                    enclosures + _parts_enclosure(parts), prior, len(parts), contract,
+                    enclosures + _parts_enclosure(parts) + _answers_enclosure(settled),
+                    prior, len(parts), contract,
                 )
             except BaseException as escaped:
                 # Whatever broke, the state must not be left holding a step
@@ -317,6 +359,41 @@ class StepRunner:
                     # its own part. What the next step reads must be all of it.
                     output = contract.merge(parts)
                     workspace.accept(record.attempt, output, record.meta)
+
+                # The step named something only the owner can settle. The slot
+                # is already given back — a run waiting for a person holds no
+                # session — and the run is still held, so a stop can reach it.
+                asked = self._ask_the_owner(run, workspace, definition, output, settled)
+                if asked is not None:
+                    if asked.stopped:
+                        stopped = self._stop_asked(self.store.load(slug))
+                        if stopped is not None:
+                            return stopped
+                    if asked.answers:
+                        # Somebody answered, so the design on file must be the
+                        # design that was built: the step is run again with what
+                        # they said enclosed. Not a refusal and not a part.
+                        settled.extend(asked.settled)
+                        self.store.answered(slug, asked.note)
+                        log.info("%s: %s is run again — %s", slug, definition.name, asked.note)
+                        remaining, refusal, seen = list(providers), None, {}
+                        continue
+                    settled.extend(asked.settled)
+                    output = self._fold(output, asked.settled)
+                    try:
+                        contract.check(output)
+                    except ContractRefusal as refused:
+                        # The kit folded a default in and the result no longer
+                        # satisfies the contract — which for a project that
+                        # keeps knowledge means the question owed a block and
+                        # brought none. The next attempt is told exactly that.
+                        record.refusal = f"asked-with-no-block: {refused.detail}"
+                        workspace.write_refusal(record.attempt, record.refusal)
+                        refusal = record.refusal
+                        self.store.refuse_step(slug, f"{definition.name} on {provider}: {refusal}")
+                        continue
+                    workspace.accept(record.attempt, output, record.meta)
+
                 self.store.pass_step(slug)
                 outcome.passed = True
                 outcome.output = output
@@ -368,6 +445,86 @@ class StepRunner:
         )
         self.store.fail_run(slug, outcome.reason)
         return outcome
+
+    def _ask_the_owner(
+        self,
+        run: Run,
+        workspace: StepWorkspace,
+        definition: StepDefinition,
+        output: dict[str, Any],
+        already: list[Settled],
+    ) -> "Asked | None":
+        """A step named what only the owner can settle. Send it, wait, and settle.
+
+        One round per step, and that is the rule rather than a limit: a second
+        round is a conversation, and every handover in this kit is a file. A
+        question the second attempt asks again is taken at its default without
+        being sent, because the owner has already answered once.
+        """
+        questions = questions_of(output, run.slug)
+        if not questions:
+            return None
+
+        held = workspace.read_asks()
+        round = int(held.get("round") or 0) + 1
+        answered_before = {one.question.id for one in already}
+        fresh = [asked for asked in questions if asked.id not in answered_before]
+
+        if round > 1 or not fresh:
+            # The owner has had their round. What is still open is taken at its
+            # default and written down, and nothing goes out a second time.
+            settled = [Settled(question=asked, how=NOBODY, detail="уже спрашивали в этом прогоне")
+                       for asked in fresh]
+            self._write_asks(workspace, round, already + settled)
+            return Asked(settled=settled, answers=False, stopped=False, note="")
+
+        where = self._where(run)
+        self.store.ask_step(run.slug, f"{definition.name} is asking the owner {_about(len(fresh))}")
+        settled = self.owner.ask(
+            where, run.slug, definition.name, fresh,
+            stop=lambda: self.ledger.stop_pending(where, run.slug) is not None,
+        )
+        stopped = self.ledger.stop_pending(where, run.slug) is not None
+        self._write_asks(workspace, round, already + settled)
+
+        answers = [one for one in settled if one.how == ANSWERED]
+        note = (
+            f"{definition.name}: the owner answered {_about(len(answers))}"
+            if answers
+            else f"{definition.name}: nobody answered, and the defaults were taken"
+        )
+        return Asked(settled=settled, answers=bool(answers), stopped=stopped, note=note)
+
+    @staticmethod
+    def _write_asks(workspace: StepWorkspace, round: int, settled: list[Settled]) -> None:
+        workspace.write_asks(
+            round,
+            [
+                {
+                    "id": one.question.id,
+                    "question": one.question.question,
+                    "default": one.question.default,
+                    "how": one.how,
+                    "answer": one.answer,
+                    "detail": one.detail,
+                }
+                for one in settled
+            ],
+        )
+
+    @staticmethod
+    def _fold(output: dict[str, Any], settled: list[Settled]) -> dict[str, Any]:
+        """A default nobody answered is an expensive assumption, and nothing more.
+
+        The driver writes into the step's output here, which it does nowhere
+        else. What keeps that honest is the file that was already there for
+        exactly this: `raw.txt` holds what the model said, unchanged.
+        """
+        folded = dict(output)
+        assumptions = list(folded.get("assumptions") or [])
+        assumptions.extend(as_assumption(one) for one in settled if one.how != ANSWERED)
+        folded["assumptions"] = assumptions
+        return folded
 
     def _carry_on(
         self, slug: str, definition: StepDefinition, parts: list[dict[str, Any]], outcome: StepOutcome
@@ -625,6 +782,24 @@ def create_run(
     return store.create(
         slug, steps=steps, project=project or str(store.paths.root.resolve()), brief=brief
     )
+
+
+def _answers_enclosure(settled: list[Settled]) -> list[tuple[str, str]]:
+    """What the owner said, enclosed like everything else a step must read.
+
+    A person's words are content and never an instruction: they arrive as a
+    quoted enclosure, the same way an earlier step's output does, and nothing
+    in them names a file, a command or a step.
+    """
+    answered = [one for one in settled if one.how == ANSWERED]
+    if not answered:
+        return []
+    body = "\n\n".join(f"{one.question.question}\n{one.answer}" for one in answered)
+    return [("the owner answered", body)]
+
+
+def _about(count: int) -> str:
+    return "one thing" if count == 1 else f"{count} things"
 
 
 def _parts_enclosure(parts: list[dict[str, Any]]) -> list[tuple[str, str]]:
