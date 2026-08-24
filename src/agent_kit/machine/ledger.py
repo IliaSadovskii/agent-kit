@@ -24,7 +24,7 @@ from typing import Iterator
 from ..errors import ProviderError
 from .linux import boot_id, is_alive
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 #: How long a lease outlives the moment it was taken, when nobody says
 #: otherwise. Only ever a backstop for a pid that was reused: what really says
@@ -40,6 +40,18 @@ GUESSED_LIMIT = 60 * 60
 
 SESSION = "session"
 RUN = "run"
+#: Whoever is reading the owner's channel right now. `getUpdates` is
+#: single-consumer: two processes reading at once steal each other's answers.
+CHANNEL = "channel"
+
+#: How long the reader holds the channel. Short, because it is one poll: a
+#: driver that dies mid-poll must not keep everybody else out for three hours.
+READER_TTL = 60
+
+#: How long a question outlives its own deadline before it is swept. The driver
+#: reads once more after the deadline before it takes the default, and sweeping
+#: in that gap is how an answer that did arrive is thrown away.
+ASK_GRACE = 60 * 60
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS leases (
@@ -73,6 +85,23 @@ CREATE TABLE IF NOT EXISTS limits (
     said_at TEXT NOT NULL,
     said_by TEXT NOT NULL,
     guessed INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS asks (
+    id          TEXT PRIMARY KEY,
+    project     TEXT NOT NULL,
+    slug        TEXT NOT NULL,
+    step        TEXT NOT NULL,
+    question    TEXT NOT NULL,
+    "default"   TEXT NOT NULL,
+    message     TEXT NOT NULL DEFAULT '',
+    asked_at    TEXT NOT NULL,
+    until       TEXT NOT NULL,
+    answer      TEXT,
+    answered_at TEXT
+);
+CREATE TABLE IF NOT EXISTS channel (
+    what  TEXT PRIMARY KEY,
+    value TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS requests (
     id       INTEGER PRIMARY KEY,
@@ -202,6 +231,33 @@ class Limited:
     #: guessed hour is only honest if the phrase it was guessed from is there
     #: to read: `machine` and the page both print it.
     said: str = ""
+
+
+@dataclass(frozen=True)
+class Ask:
+    """A question standing against a person's phone, and the hour it gives up.
+
+    It lives here rather than in the run file because it is live truth and it
+    crosses projects: the page shows it, and whoever is polling the channel has
+    to be able to address an answer that belongs to somebody else's run. What
+    the run file keeps is the other fact — that its step asked, and what came
+    of it.
+    """
+
+    id: str
+    project: str
+    slug: str
+    step: str
+    question: str
+    default: str
+    until: str
+    #: What the channel called the message this went out as, where it says. A
+    #: person on a phone replies to the message rather than typing an
+    #: identifier, and this is what turns that reply back into a question.
+    message: str = ""
+    asked_at: str = field(default_factory=now)
+    answer: str | None = None
+    answered_at: str | None = None
 
 
 @dataclass(frozen=True)
@@ -553,6 +609,106 @@ class Ledger:
             )
         return str(rows[0]["reason"])
 
+    # --- questions waiting on a person ---------------------------------------
+
+    def asked(self, ask: Ask) -> Ask:
+        """Write the question down before it goes out, and asking it twice is asking it once.
+
+        A driver that died between asking and hearing back is run again from
+        the top, and it must find the question it already asked — with whatever
+        answer arrived while it was gone — rather than plant a second one.
+        """
+        with self._writing() as db:
+            db.execute(
+                "INSERT INTO asks (id, project, slug, step, question, \"default\", message, asked_at, until,"
+                " answer, answered_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)"
+                " ON CONFLICT(id) DO NOTHING",
+                (ask.id, ask.project, ask.slug, ask.step, ask.question, ask.default,
+                 ask.message, ask.asked_at, ask.until),
+            )
+            row = db.execute("SELECT * FROM asks WHERE id = ?", (ask.id,)).fetchone()
+        return _ask(row)
+
+    def answered(self, id: str, text: str) -> bool:
+        """A person answered. True when this was the answer, false when it was not.
+
+        Stamped by this kit's clock and never by the sender's: what decides
+        whether an answer arrived in time is the moment this kit read it. The
+        first answer stands — a second one arriving while the step is already
+        being run again would change the record under it.
+        """
+        with self._writing() as db:
+            changed = db.execute(
+                "UPDATE asks SET answer = ?, answered_at = ? WHERE id = ? AND answer IS NULL",
+                (text, now(), id),
+            ).rowcount
+        return bool(changed)
+
+    def ask_of(self, id: str) -> Ask | None:
+        with self._writing() as db:
+            row = db.execute("SELECT * FROM asks WHERE id = ?", (id,)).fetchone()
+        return _ask(row) if row else None
+
+    def ask_sent_as(self, message: str) -> Ask | None:
+        """The question a person is replying to, found by the message they replied to."""
+        if not message:
+            return None
+        with self._writing() as db:
+            row = db.execute(
+                "SELECT * FROM asks WHERE message = ? ORDER BY asked_at DESC LIMIT 1", (message,)
+            ).fetchone()
+        return _ask(row) if row else None
+
+    def waiting_on_the_owner(self) -> list[Ask]:
+        """What the page shows under *waiting for the owner*, and `machine` prints."""
+        with self._writing() as db:
+            self._reap(db)
+            rows = db.execute(
+                "SELECT * FROM asks WHERE answer IS NULL ORDER BY asked_at, id"
+            ).fetchall()
+        return [_ask(row) for row in rows]
+
+    def forget(self, ids: list[str]) -> None:
+        """The run is done with these, whether they were answered or defaulted."""
+        with self._writing() as db:
+            for id in ids:
+                db.execute("DELETE FROM asks WHERE id = ?", (id,))
+
+    # --- the channel: one reader, and an offset that outlives it -------------
+
+    def read_channel(self, pid: int | None = None, boot: str | None = None) -> Lease | Busy:
+        """The right to poll the channel, held by one process at a time."""
+        want = Want(
+            account="", provider="", project="", slug=CHANNEL, step="", ttl=READER_TTL,
+            **({"pid": pid} if pid is not None else {}), **({"boot": boot} if boot is not None else {}),
+        )
+        with self._writing() as db:
+            self._reap(db)
+            row = db.execute("SELECT * FROM leases WHERE kind = ?", (CHANNEL,)).fetchone()
+            if row is not None:
+                if row["pid"] == want.pid and row["boot"] == want.boot:
+                    return _lease(row)
+                return Busy(
+                    "channel-held-elsewhere",
+                    f"process {row['pid']} has been reading the owner's channel since {row['taken_at']};"
+                    " two readers of one channel steal each other's answers",
+                )
+            return self._write_lease(db, want, CHANNEL, READER_TTL)
+
+    def offset(self) -> str:
+        """Where the last reader got to. In the file, because a process is not a place."""
+        with self._writing() as db:
+            row = db.execute("SELECT value FROM channel WHERE what = 'offset'").fetchone()
+        return "" if row is None else str(row["value"])
+
+    def remember_offset(self, value: str) -> None:
+        with self._writing() as db:
+            db.execute(
+                "INSERT INTO channel (what, value) VALUES ('offset', ?)"
+                " ON CONFLICT(what) DO UPDATE SET value = excluded.value",
+                (value,),
+            )
+
     # --- what died ----------------------------------------------------------
 
     def reap(self) -> int:
@@ -576,6 +732,12 @@ class Ledger:
         # A stop is addressed to the driver that was holding the run when it was
         # asked for. If that driver never came back, nobody is going to read it,
         # and a request left standing stops whatever run next carries that name.
+        # A question outlives its deadline by an hour before it is swept: the
+        # driver reads once more after the deadline, and sweeping in that gap
+        # throws away an answer that did arrive.
+        gone += db.execute(
+            "DELETE FROM asks WHERE until <= ?", (after(-ASK_GRACE),)
+        ).rowcount
         gone += db.execute(
             "DELETE FROM requests WHERE NOT EXISTS ("
             "  SELECT 1 FROM leases WHERE leases.kind = ? AND leases.project = requests.project"
@@ -608,6 +770,15 @@ def _lease(row: sqlite3.Row) -> Lease:
         id=int(row["id"]), kind=row["kind"], account=row["account"], provider=row["provider"],
         project=row["project"], slug=row["slug"], step=row["step"], pid=int(row["pid"]),
         boot=row["boot"], taken_at=row["taken_at"], expires_at=row["expires_at"],
+    )
+
+
+def _ask(row: sqlite3.Row) -> Ask:
+    return Ask(
+        id=row["id"], project=row["project"], slug=row["slug"], step=row["step"],
+        question=row["question"], default=row["default"], message=row["message"],
+        asked_at=row["asked_at"], until=row["until"], answer=row["answer"],
+        answered_at=row["answered_at"],
     )
 
 
