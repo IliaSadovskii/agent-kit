@@ -1,0 +1,10 @@
+# a second round with a question the owner never saw
+
+[case]
+title = "the second design asks something the owner was never asked"
+fires = "it is taken at its default without being sent: the owner had their round, and a second is a conversation"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { design = "passed", deliver = "passed" }
