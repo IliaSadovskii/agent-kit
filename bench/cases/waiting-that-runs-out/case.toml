@@ -1,0 +1,11 @@
+# the wait runs out and the run says so
+
+[case]
+title = "the slot never comes free and the run has waited as long as it may"
+fires = "the run gives up by name rather than waiting all night, and the state is untouched"
+wait = 5
+
+[expect]
+exit_code = 4
+status = "created"
+steps = { design = "pending" }

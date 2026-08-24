@@ -112,7 +112,20 @@ def _run_and_judge(case: Case, where: Path) -> Verdict:
     except subprocess.SubprocessError as broken:
         return unjudgeable(f"the kit did not come back: {broken}")
 
+    _write_down(world, went)
     return _judge(case, world, went)
+
+
+def _write_down(world: World, went: subprocess.CompletedProcess) -> None:
+    """What the kit printed, where a judge can read it.
+
+    A refusal that never reaches `run.json` — a machine that was full, a run
+    somebody else holds — leaves a judge nothing to compare but an exit code,
+    and two different refusals share one. The rule is that a case reads a code;
+    this is what makes it possible for those.
+    """
+    said = f"{went.stdout or ''}\n{went.stderr or ''}"
+    (Path(world.env["BENCH"]) / "kit-said").write_text(said, encoding="utf-8")
 
 
 # --- running the kit, as a command and not as an import ---------------------

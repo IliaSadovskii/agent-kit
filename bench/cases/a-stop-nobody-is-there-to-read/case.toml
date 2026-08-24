@@ -1,0 +1,10 @@
+# a stop whose driver never came back
+
+[case]
+title = "a stop was posted for a driver that then died"
+fires = "it is swept rather than obeyed by whatever run next carries that name"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { design = "passed", deliver = "passed" }

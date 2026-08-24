@@ -119,9 +119,7 @@ def _refusal(text: str) -> ExecutorFailed | None:
     words = first[len(REFUSE):].split()
     if not words:
         raise UsageError("bad-reply", f"{REFUSE} needs a code: the kit refuses by name, never by sentence")
-    said = dict(
-        word.split("=", 1) for word in words[1:] if "=" in word
-    )
+    said = _pairs(words[1:])
     code = words[0]
     # An exhausted account asked again is guaranteed waste, which is what the
     # real adapters already know. A fixture that answered otherwise would let a
@@ -134,6 +132,24 @@ def _refusal(text: str) -> ExecutorFailed | None:
         expected=said.get("expected") == "true",
         until=said.get("until"),
     )
+
+
+def _pairs(words: list[str]) -> dict[str, str]:
+    """`key=value`, where a value runs until the next key.
+
+    What a real CLI says an hour is — `5pm (America/Los_Angeles)` — has spaces
+    in it, and a fixture that keeps only the first word plants a trap about a
+    phrase nobody would ever see.
+    """
+    said: dict[str, str] = {}
+    key = None
+    for word in words:
+        head, separator, tail = word.partition("=")
+        if separator and head.replace("_", "").isalpha():
+            key, said[head] = head, tail
+        elif key is not None:
+            said[key] = f"{said[key]} {word}".strip()
+    return said
 
 
 def _refuse_if_asked(text: str) -> None:

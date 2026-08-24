@@ -1,0 +1,11 @@
+# an hour the provider worded its own way
+
+[case]
+title = "the session names the reset the way a CLI prints it, not as a timestamp"
+fires = "the hour is read before it is believed, and a phrase that cannot be read is called a guess"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "provider-limited"
+steps = { design = "failed" }

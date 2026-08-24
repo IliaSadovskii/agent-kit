@@ -1,0 +1,11 @@
+# the machine has room and this provider does not
+
+[case]
+title = "the machine has room, and the provider's own ceiling is reached"
+fires = "the run refuses naming the provider, not the machine"
+wait = 0
+
+[expect]
+exit_code = 4
+status = "created"
+steps = { design = "pending" }
