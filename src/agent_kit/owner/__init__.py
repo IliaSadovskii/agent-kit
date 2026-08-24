@@ -14,15 +14,13 @@ from .ask import (
     BROKEN,
     NO_CHANNEL,
     NOBODY,
-    POLL,
     Owner,
     Question,
     Settled,
     as_assumption,
     questions_of,
-    worded,
 )
-from .channel import Channel, ChannelFailed, Heard, understand
+from .channel import Channel, ChannelFailed, understand
 from .file import FileChannel
 from .secrets import TELEGRAM_TOKEN, read_secret, write_secret
 from .telegram import Telegram
@@ -33,11 +31,9 @@ __all__ = [
     "Channel",
     "ChannelFailed",
     "FileChannel",
-    "Heard",
     "NOBODY",
     "NO_CHANNEL",
     "Owner",
-    "POLL",
     "Question",
     "Settled",
     "TELEGRAM_TOKEN",
@@ -48,7 +44,6 @@ __all__ = [
     "write_secret",
     "questions_of",
     "understand",
-    "worded",
 ]
 
 

@@ -65,11 +65,6 @@ class Settled:
     answer: str = ""
     detail: str = ""
 
-    @property
-    def taken(self) -> str:
-        """What the run goes on with."""
-        return self.answer or self.question.default
-
 
 def questions_of(output: dict[str, Any] | None, slug: str) -> list[Question]:
     """The questions a step's output carries, each with the name it will be asked under.
