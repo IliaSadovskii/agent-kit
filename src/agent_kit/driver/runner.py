@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
-from ..config import RoleConfig
+from ..config import DEFAULT_WAIT, RoleConfig
 from ..errors import KitError, ProviderError, StateError
 from ..knowledge import DEFAULT_DIR as KNOWLEDGE_DIR, Knowledge
 from ..logs import get_logger
@@ -29,10 +29,6 @@ from .executor import Executor, ExecutorFailed, ExecutorResult, StepRequest
 from .workspace import StepWorkspace
 
 ATTEMPTS_PER_PROVIDER = 3
-
-#: How long the driver waits for a slot or for a limit to reset before it gives
-#: up and says so. Longer than a limit's reset, shorter than a night.
-DEFAULT_WAIT = 2 * 60 * 60
 
 #: How often a waiting driver asks the ledger again. There is no signal and no
 #: socket: a poll of a local file is cheaper than a protocol to get wrong.

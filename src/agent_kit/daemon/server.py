@@ -1,8 +1,7 @@
 """The page: what is running, what is queued, which account is limited until when.
 
-One read of the ledger, rendered twice — as a page for a person and as JSON for
-the page to poll itself with. Nothing here decides anything, and there is
-nothing on it to press.
+What the ledger holds, rendered for a person and for whatever polls it.
+Nothing here decides anything, and there is nothing on it to press.
 """
 
 from __future__ import annotations

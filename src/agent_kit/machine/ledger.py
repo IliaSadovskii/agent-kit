@@ -133,10 +133,6 @@ class Want:
     pid: int = field(default_factory=os.getpid)
     boot: str = field(default_factory=boot_id)
 
-    @property
-    def who(self) -> str:
-        return f"{self.slug}/{self.step}" if self.step else self.slug
-
 
 @dataclass(frozen=True)
 class Ceilings:
@@ -165,14 +161,16 @@ class Lease:
 
     granted = True
 
-    @property
-    def who(self) -> str:
-        return f"{self.slug}/{self.step}" if self.step else self.slug
-
 
 @dataclass(frozen=True)
 class Busy:
-    """The machine said no, by name. Every code here is one an exit code maps onto."""
+    """The machine said no, by name.
+
+    What the code becomes at the surface is the caller's: `_slot` raises it as a
+    provider failure (4, an agent cannot be run right now), `_hold` as a state
+    one (3, a run's state refuses what was asked). The name is the same either
+    way, which is what a script and a bench judge read.
+    """
 
     code: str
     detail: str
@@ -208,7 +206,12 @@ class Limited:
 
 @dataclass(frozen=True)
 class Picture:
-    """Everything the page and `agent-kit machine` show, from one read."""
+    """The three the page and `agent-kit machine` both show, from one read.
+
+    Which runs have a driver on them is a fourth, and it is asked for
+    separately: it is a different question — who is writing — and only two
+    readers want it.
+    """
 
     held: list[Lease]
     queue: list[Waiting]

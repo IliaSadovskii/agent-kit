@@ -14,7 +14,7 @@ class ExitCode(IntEnum):
     USAGE = 1  # the command was typed wrong
     CONFIG = 2  # the machine's configuration is missing something or is wrong
     STATE = 3  # a run's state refuses what was asked of it
-    PROVIDER = 4  # an agent CLI is missing, unauthenticated or limited
+    PROVIDER = 4  # an agent cannot be run right now: missing, unauthenticated, limited, or no slot
     REFUSED = 5  # the method said no: a blocking finding, a red suite, an unfinished build
     BENCH = 6  # a mechanism the bench planted did not fire
     BROKEN_BENCH = 7  # the bench itself could not answer: a case, a world or a judge broke

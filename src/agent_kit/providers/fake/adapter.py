@@ -60,7 +60,9 @@ class FakeExecutor:
             if reply.acts is not None:
                 self._act(reply.acts, request)
             raw = reply.text
-            _refuse_if_asked(raw)
+            refusal = _refusal(raw)
+            if refusal is not None:
+                raise refusal
         else:
             raw = reply(request) if callable(reply) else reply
         return ExecutorResult(raw=raw, meta={"model": f"{self.name}-script", "cost": 0.0})
@@ -150,12 +152,6 @@ def _pairs(words: list[str]) -> dict[str, str]:
         elif key is not None:
             said[key] = f"{said[key]} {word}".strip()
     return said
-
-
-def _refuse_if_asked(text: str) -> None:
-    refusal = _refusal(text)
-    if refusal is not None:
-        raise refusal
 
 
 def build_executor(options: dict[str, list[str]]) -> FakeExecutor:
