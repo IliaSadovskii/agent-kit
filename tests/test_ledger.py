@@ -322,3 +322,43 @@ def _a_pid_that_is_alive() -> int:
 def _another_pid_that_is_alive() -> int:
     """Pid 1 is always there, and it is never this test."""
     return 1
+
+
+# --- more than one thread ----------------------------------------------------
+
+
+def test_the_ledger_answers_from_any_thread(ledger):
+    """The daemon sweeps on one thread and serves the page on others.
+
+    A connection that belongs to the thread that opened it makes the page an
+    empty reply and the sweep a stack trace in a log nobody is reading.
+    """
+    import threading
+
+    said = []
+
+    def ask():
+        try:
+            said.append(len(ledger.picture().held))
+        except Exception as broken:  # the failure this test exists for
+            said.append(broken)
+
+    ledger.take(want(), one())
+    threads = [threading.Thread(target=ask) for _ in range(4)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert said == [1, 1, 1, 1]
+
+
+def test_reaping_from_another_thread_is_reaping(ledger):
+    import threading
+
+    ledger.take(want(slug="dead", pid=_a_pid_that_is_gone()), one())
+    thread = threading.Thread(target=ledger.reap)
+    thread.start()
+    thread.join()
+
+    assert ledger.held() == []
