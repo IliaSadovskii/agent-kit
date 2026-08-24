@@ -1,0 +1,11 @@
+# an account another run already found to be limited
+
+[case]
+title = "the account is limited, and the ledger already knows until when"
+fires = "the run refuses by name without paying a session to be told the same thing"
+wait = 0
+
+[expect]
+exit_code = 4
+status = "created"
+steps = { design = "pending" }

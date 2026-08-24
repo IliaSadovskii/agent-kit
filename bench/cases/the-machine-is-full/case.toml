@@ -1,0 +1,12 @@
+# the machine is already running everything it may
+
+[case]
+title = "the machine is already running as many sessions as it allows"
+fires = "the run refuses by name and no session is started at all"
+# Nothing to wait for here: the lease belongs to a process that will not let go.
+wait = 0
+
+[expect]
+exit_code = 4
+status = "created"
+steps = { design = "pending" }

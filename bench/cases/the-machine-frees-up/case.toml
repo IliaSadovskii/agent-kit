@@ -1,0 +1,11 @@
+# the machine frees up while the run waits for it
+
+[case]
+title = "the only slot is taken, and it comes free a few seconds later"
+fires = "the run waits for the slot rather than refusing, and lands green"
+wait = 60
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { design = "passed", deliver = "passed" }

@@ -1,0 +1,11 @@
+# two drivers on one run
+
+[case]
+title = "a run somebody else's driver is already holding"
+fires = "the second driver is refused by name, instead of two writers on one run.json"
+wait = 0
+
+[expect]
+exit_code = 3
+status = "created"
+steps = { design = "pending" }

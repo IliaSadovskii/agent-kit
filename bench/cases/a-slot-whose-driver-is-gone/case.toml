@@ -1,0 +1,12 @@
+# a slot held by a driver that is not there any more
+
+[case]
+title = "the only slot is held by a lease whose driver died"
+fires = "the lease is reclaimed and the run goes on, instead of a machine deadlocked until somebody notices"
+# Zero on purpose: a reclaimed lease must be free at once, not after a wait.
+wait = 0
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { design = "passed", deliver = "passed" }

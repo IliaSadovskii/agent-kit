@@ -1,0 +1,11 @@
+# a person stops the run while it is running
+
+[case]
+title = "a stop is asked for while a driver is holding the run"
+fires = "the run stops at the next step boundary, and the state is not written under the driver"
+
+[expect]
+exit_code = 130
+status = "stopped"
+refusal = "stopped-by-request"
+steps = { build = "passed", verify = "pending", deliver = "pending" }

@@ -1,0 +1,11 @@
+# a session that comes back saying the account is out of quota
+
+[case]
+title = "the session says the account is limited and names the hour it resets"
+fires = "the ledger holds the limit afterwards, so the next run pays nothing to learn it"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "provider-limited"
+steps = { design = "failed" }
