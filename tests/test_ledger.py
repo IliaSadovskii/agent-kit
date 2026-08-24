@@ -9,7 +9,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from agent_kit.machine import Ceilings, Ledger, Want
+from agent_kit.machine import SCHEMA_VERSION, Ceilings, Ledger, Want
+from agent_kit.machine.ledger import now
 
 ACCOUNT = "anthropic"
 
@@ -353,7 +354,127 @@ def test_the_ledger_answers_from_any_thread(ledger):
     assert said == [1, 1, 1, 1]
 
 
-def test_reaping_from_another_thread_is_reaping(ledger):
+
+
+# --- the review round: what a provider actually says the hour is -------------
+
+
+def test_an_hour_the_provider_worded_its_own_way_is_read_as_a_time(ledger):
+    """What a CLI says is a phrase, not an ISO timestamp.
+
+    It was stored as it came and compared with `<=` against a timestamp, so
+    `"5pm (America/Los_Angeles)"` sorted above every date there will ever be
+    and the account was limited for good.
+    """
+    held = ledger.limit(ACCOUNT, until="5pm (America/Los_Angeles)", said_by="add-vat/build")
+
+    assert held.guessed, "an hour that could not be read must not pass as one that was"
+    assert held.until < (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
+    assert held.said == "5pm (America/Los_Angeles)", "what the provider said is lost"
+
+
+def test_an_hour_that_reads_as_a_time_but_sorts_wrong_is_still_read(ledger):
+    """`"17:00"` sorts below every date, so the limit vanished at the first sweep."""
+    held = ledger.limit(ACCOUNT, until="17:00", said_by="add-vat/build")
+
+    assert held.until > now()
+    assert ledger.take(want(), one()).code == "provider-limited"
+
+
+def test_an_hour_in_another_offset_is_held_as_the_moment_it_names(ledger):
+    """+03:00 compared against a UTC string is three hours of quota thrown away."""
+    held = ledger.limit(ACCOUNT, until="2026-08-24T18:00:00+03:00", said_by="add-vat/build")
+
+    assert held.until == "2026-08-24T15:00:00+00:00"
+
+
+def test_an_hour_that_has_already_passed_in_any_wording_does_not_stand(ledger):
+    ledger.limit(ACCOUNT, until="2020-01-01T00:00:00+00:00", said_by="add-vat/build")
+
+    assert ledger.limits() == []
+
+
+# --- the review round: a lease is given back by the driver that took it ------
+
+
+def test_giving_back_a_lease_twice_does_not_take_somebody_else_s(ledger):
+    """sqlite hands out the same rowid again once a row is gone.
+
+    So a driver whose lease was swept for being stale, releasing it afterwards,
+    deleted whatever had since been given that number — and the ceiling was
+    quietly one session wider than the machine allows.
+    """
+    mine = ledger.take(want(slug="mine"), one(machine=2))
+    ledger.release(mine)
+    theirs = ledger.take(want(slug="theirs", pid=1), one(machine=2))
+    assert theirs.id == mine.id, "this test only means something while rowids are reused"
+
+    ledger.release(mine)
+
+    assert [row.slug for row in ledger.held()] == ["theirs"]
+
+
+# --- the review round: a stop nobody is there to read ------------------------
+
+
+def test_a_stop_whose_driver_never_came_back_does_not_stop_the_next_run(ledger):
+    ledger.hold_run("/projects/thing", "add-vat", pid=_a_pid_that_is_gone())
+    ledger.ask_stop("/projects/thing", "add-vat", reason="the owner said so")
+
+    ledger.reap()
+
+    assert ledger.stop_asked("/projects/thing", "add-vat") is None
+
+
+def test_a_stop_for_a_run_a_driver_still_holds_survives_a_sweep(ledger):
+    ledger.hold_run("/projects/thing", "add-vat")
+    ledger.ask_stop("/projects/thing", "add-vat", reason="the owner said so")
+
+    ledger.reap()
+
+    assert ledger.stop_asked("/projects/thing", "add-vat") == "the owner said so"
+
+
+# --- the review round: the schema says which version wrote it ----------------
+
+
+def test_a_ledger_from_a_newer_kit_is_refused_by_name(tmp_path):
+    import sqlite3
+
+    from agent_kit.errors import KitError
+
+    path = tmp_path / "daemon.sqlite"
+    Ledger(path).close()
+    db = sqlite3.connect(str(path))
+    db.execute(f"PRAGMA user_version={SCHEMA_VERSION + 1}")
+    db.close()
+
+    with pytest.raises(KitError) as refused:
+        Ledger(path)
+
+    assert refused.value.code == "ledger-too-new"
+
+
+def test_a_ledger_this_kit_wrote_says_which_version_wrote_it(tmp_path):
+    import sqlite3
+
+    path = tmp_path / "daemon.sqlite"
+    Ledger(path)
+
+    (held,) = sqlite3.connect(str(path)).execute("PRAGMA user_version").fetchone()
+    assert held == SCHEMA_VERSION
+
+
+# --- the review round: a sweep from another thread is a sweep ----------------
+
+
+def test_a_sweep_on_another_thread_really_swept(ledger):
+    """The first version of this asked `held()`, which sweeps on the asking thread.
+
+    So it was green against a sweeper thread that had crashed — which is the
+    defect the thread it was written for actually had.
+    """
+    import sqlite3
     import threading
 
     ledger.take(want(slug="dead", pid=_a_pid_that_is_gone()), one())
@@ -361,4 +482,5 @@ def test_reaping_from_another_thread_is_reaping(ledger):
     thread.start()
     thread.join()
 
-    assert ledger.held() == []
+    rows = sqlite3.connect(str(ledger.path)).execute("SELECT slug FROM leases").fetchall()
+    assert rows == []
