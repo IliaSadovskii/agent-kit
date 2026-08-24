@@ -128,6 +128,27 @@ def test_a_slot_taken_by_hand_lives_as_long_as_it_was_asked_for(machine, ledger,
     assert ledger.held() == [], "a lease with no life left outlived itself"
 
 
+def test_a_slot_can_be_held_for_a_process_that_is_not_this_one(machine, ledger, capsys):
+    """What the bench needs: a lease held by a driver that is alive and is not the run."""
+    code, _, _ = run(["slot", "take", "--provider", "fake", "--slug", "somebody", "--pid", "1"], capsys)
+
+    assert code == ExitCode.OK
+    assert [row.pid for row in ledger.held()] == [1]
+
+
+def test_a_run_can_be_held_by_hand_so_a_second_driver_meets_the_first(machine, ledger, capsys):
+    code, _, _ = run(["slot", "hold", "--slug", "add-vat", "--pid", "1"], capsys)
+
+    assert code == ExitCode.OK
+    assert [row.slug for row in ledger.runs()] == ["add-vat"]
+
+
+def test_a_run_held_by_hand_does_not_fill_the_machine(machine, ledger, capsys):
+    run(["slot", "hold", "--slug", "add-vat", "--pid", "1"], capsys)
+
+    assert ledger.held() == []
+
+
 # --- a limit by hand ---------------------------------------------------------
 
 

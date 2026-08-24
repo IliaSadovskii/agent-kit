@@ -197,3 +197,61 @@ def with_short_patience(adapter, seconds, executor, where):
         )
     finally:
         adapter.ACTS_TIMEOUT = was
+
+
+# --- S7: a reply that is a refusal rather than an answer --------------------
+
+
+def test_a_reply_file_may_be_a_refusal(tmp_path):
+    """The bench needs a provider that can play a limited account, a dead session,
+
+    a CLI that crashed. One line in a reply file, and its reader is the bench.
+    """
+    from agent_kit.providers.base import ExecutorFailed
+    from agent_kit.providers.fake import FakeExecutor
+    from agent_kit.providers.fake.adapter import build_executor
+
+    reply = tmp_path / "01-reply.json"
+    reply.write_text("!refuse provider-limited until=2026-08-24T17:00:00+00:00\n", encoding="utf-8")
+
+    executor = build_executor({"reply": [str(reply)]})
+    with pytest.raises(ExecutorFailed) as refused:
+        executor.execute(_a_request(tmp_path))
+
+    assert refused.value.code == "provider-limited"
+    assert refused.value.until == "2026-08-24T17:00:00+00:00"
+    assert refused.value.retryable is False
+
+
+def test_a_refusal_with_nothing_after_the_code_is_still_a_refusal(tmp_path):
+    from agent_kit.providers.base import ExecutorFailed
+    from agent_kit.providers.fake.adapter import build_executor
+
+    reply = tmp_path / "01-reply.json"
+    reply.write_text("!refuse session-timeout\n", encoding="utf-8")
+
+    with pytest.raises(ExecutorFailed) as refused:
+        build_executor({"reply": [str(reply)]}).execute(_a_request(tmp_path))
+
+    assert refused.value.code == "session-timeout"
+    assert refused.value.until is None
+
+
+def test_an_answer_that_merely_mentions_a_refusal_is_an_answer(tmp_path):
+    from agent_kit.providers.fake.adapter import build_executor
+
+    reply = tmp_path / "01-reply.json"
+    reply.write_text('{"note": "it said !refuse somewhere in the middle"}', encoding="utf-8")
+
+    answered = build_executor({"reply": [str(reply)]}).execute(_a_request(tmp_path))
+
+    assert "!refuse" in answered.raw
+
+
+def _a_request(tmp_path):
+    from agent_kit.providers.base import StepRequest
+
+    return StepRequest(
+        slug="add-vat", step_name="design", attempt=1, provider="fake",
+        input_text="", workdir=tmp_path, project=tmp_path,
+    )

@@ -573,3 +573,31 @@ def test_the_judge_of_the_green_case_proves_its_own_trap_was_laid(tmp_path, caps
 
     assert "did not fire" in said, said
     assert "no knowledge was planted at all" in said, said
+
+
+def test_a_case_may_say_how_long_its_run_waits_for_the_machine(tmp_path):
+    """The traps about slots need a run that refuses at once, and one that waits."""
+    from agent_kit.bench.cases import read_case
+
+    root = tmp_path / "cases"
+    (root / "waits").mkdir(parents=True)
+    (root / "waits" / "case.toml").write_text(
+        '[case]\ntitle = "waits"\nfires = "it waits"\nwait = 30\n'
+        '[expect]\nexit_code = 0\nstatus = "done"\n',
+        encoding="utf-8",
+    )
+
+    assert read_case(root, "waits").wait == 30
+
+
+def test_a_case_that_says_nothing_about_waiting_waits_as_the_machine_says(tmp_path):
+    from agent_kit.bench.cases import read_case
+
+    root = tmp_path / "cases"
+    (root / "plain").mkdir(parents=True)
+    (root / "plain" / "case.toml").write_text(
+        '[case]\ntitle = "plain"\nfires = "something"\n[expect]\nexit_code = 0\nstatus = "done"\n',
+        encoding="utf-8",
+    )
+
+    assert read_case(root, "plain").wait is None
