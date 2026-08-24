@@ -35,6 +35,10 @@ ANSWERED = "answered"
 NOBODY = "nobody-answered"
 BROKEN = "channel-failed"
 NO_CHANNEL = "no-channel"
+#: Спросить было можно, но не стали: у владельца уже был круг в этом прогоне.
+#: Пятый исход, и у него свой код, потому что запись «никто не ответил» про
+#: сообщение, которое не отправляли, — это неправда в знании владельца.
+HAD_ROUND = "had-their-round"
 
 log = get_logger("owner")
 
@@ -309,10 +313,18 @@ def as_assumption(settled: Settled) -> dict[str, Any]:
 
 
 def _because(settled: Settled) -> str:
+    """Одно предложение, и оно правда.
+
+    Пять исходов — пять фраз. Раньше их было четыре, и пятый склеивался из
+    четвёртого со своей деталью: получалось «спросили владельца, ответа не было
+    у владельца уже был круг», где и предложение не собрано, и утверждение
+    ложно — сообщение не отправляли.
+    """
     reasons = {
-        NOBODY: f"спросили владельца, ответа не было {settled.detail}",
+        NOBODY: f"спросили владельца, ответа не было {settled.detail}".strip(),
         BROKEN: f"спросить владельца не вышло: {settled.detail}",
         NO_CHANNEL: "на этой машине нет канала к владельцу, спросить было нечем",
+        HAD_ROUND: "владельца об этом не спрашивали: круг вопросов в этом прогоне уже был",
     }
     said = reasons.get(settled.how, settled.how)
     return f"{said}; {settled.question.because}" if settled.question.because else said

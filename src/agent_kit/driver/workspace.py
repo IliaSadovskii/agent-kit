@@ -58,14 +58,18 @@ class StepWorkspace:
         parts = held.get("parts")
         return [part for part in parts if isinstance(part, dict)] if isinstance(parts, list) else []
 
-    def write_asks(self, round: int, settled: list[dict]) -> Path:
-        """What was asked of the owner here, and what became of each question.
+    def write_asks(self, rounds: int, settled: list[dict]) -> Path:
+        """Что здесь спрашивали у владельца и чем кончился каждый вопрос.
 
-        Beside `input.md` and `output.json`, because that is where this kit puts
-        a handover: replayable, diffable, and answerable after the fact. It is
-        also what a second driver reads to know the round already happened.
+        Рядом с `input.md` и `output.json`, потому что здесь кит так и передаёт
+        работу: файл, который можно перечитать, сравнить и предъявить потом.
+
+        Это запись, а не счётчик. Драйвер, поднявший шаг заново, читает отсюда
+        и ответы, и уже взятые умолчания: ревью нашло, что раньше он брал
+        только номер круга, и ответ владельца, переживший смерть драйвера,
+        выбрасывался, а в знание уезжало «ответа не было».
         """
-        return self._write(self.dir / "asks.json", _json({"round": round, "settled": settled}))
+        return self._write(self.dir / "asks.json", _json({"rounds": rounds, "settled": settled}))
 
     def read_asks(self) -> dict:
         return _read(self.dir / "asks.json") or {}

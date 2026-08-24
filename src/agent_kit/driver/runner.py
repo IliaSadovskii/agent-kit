@@ -20,7 +20,7 @@ from ..errors import KitError, ProviderError, StateError
 from ..knowledge import DEFAULT_DIR as KNOWLEDGE_DIR, Knowledge
 from ..logs import get_logger
 from ..machine import Busy, Ceilings, Lease, Ledger, Want, ledger_path
-from ..owner import ANSWERED, NOBODY, Owner, Settled, as_assumption, questions_of
+from ..owner import ANSWERED, HAD_ROUND, NOBODY, Owner, Question, Settled, as_assumption, questions_of
 from ..paths import Paths
 from ..state import DEFAULT_STEPS, Run, RunStore, StepStatus
 from ..steps import Registry, StepDefinition
@@ -286,7 +286,9 @@ class StepRunner:
         enclosures, prior = self._enclosures(run, index, definition)
 
         outcome = StepOutcome(slug=slug, step=definition.name, passed=False)
-        settled: list[Settled] = []
+        # Из файла шага, а не с нуля: драйвер мог умереть после того, как
+        # владелец ответил, и тогда ответ лежит здесь и обязан быть вложен.
+        settled: list[Settled] = _asked_before(workspace)
         refusal: str | None = None
         seen: dict[str, int] = {}
         parts = workspace.read_parts() if definition.splittable else []
@@ -369,29 +371,21 @@ class StepRunner:
                         stopped = self._stop_asked(self.store.load(slug))
                         if stopped is not None:
                             return stopped
+                    settled.extend(asked.settled)
                     if asked.answers:
                         # Somebody answered, so the design on file must be the
                         # design that was built: the step is run again with what
                         # they said enclosed. Not a refusal and not a part.
-                        settled.extend(asked.settled)
                         self.store.answered(slug, asked.note)
                         log.info("%s: %s is run again — %s", slug, definition.name, asked.note)
                         remaining, refusal, seen = list(providers), None, {}
                         continue
-                    settled.extend(asked.settled)
-                    output = self._fold(output, asked.settled, settled)
-                    try:
-                        contract.check(output)
-                    except ContractRefusal as refused:
-                        # The kit folded a default in and the result no longer
-                        # satisfies the contract — which for a project that
-                        # keeps knowledge means the question owed a block and
-                        # brought none. The next attempt is told exactly that.
-                        record.refusal = f"asked-with-no-block: {refused.detail}"
-                        workspace.write_refusal(record.attempt, record.refusal)
-                        refusal = record.refusal
-                        self.store.refuse_step(slug, f"{definition.name} on {provider}: {refusal}")
-                        continue
+
+                if settled:
+                    # Здесь, а не внутри ветки выше: обычный случай — на часть
+                    # вопросов ответили, и вторая попытка про остальные молчит.
+                    # Тогда спрашивать больше нечего, а записать умолчания надо.
+                    output = self._fold(output, settled)
                     workspace.accept(record.attempt, output, record.meta)
 
                 self.store.pass_step(slug)
@@ -465,19 +459,20 @@ class StepRunner:
         if not questions:
             return None
 
-        held = workspace.read_asks()
-        round = int(held.get("round") or 0) + 1
-        answered_before = {one.question.id for one in already}
-        fresh = [asked for asked in questions if asked.id not in answered_before]
+        rounds = int(workspace.read_asks().get("rounds") or 0)
+        # Улаженное — это всё, чем вопрос уже кончился, а не только отвеченное.
+        # Иначе взятое умолчание первого круга во втором улаживается заново, и
+        # в свёртку не попадает ни разу.
+        done = {one.question.id for one in already}
+        fresh = [asked for asked in questions if asked.id not in done]
+        if not fresh:
+            return Asked(settled=[], answers=False, stopped=False, note="")
 
-        if round > 1 or not fresh:
-            # The owner has had their round. What is still open is taken at its
-            # default and written down, and nothing goes out a second time.
-            settled = [
-                Settled(question=asked, how=NOBODY, detail="у владельца уже был круг в этом прогоне")
-                for asked in fresh
-            ]
-            self._write_asks(workspace, round, already + settled)
+        if rounds:
+            # У владельца уже был круг. Новый вопрос берётся по умолчанию и
+            # записывается — но своим кодом: его никому не отправляли.
+            settled = [Settled(question=asked, how=HAD_ROUND) for asked in fresh]
+            self._write_asks(workspace, rounds, already + settled)
             return Asked(settled=settled, answers=False, stopped=False, note="")
 
         where = self._where(run)
@@ -487,7 +482,9 @@ class StepRunner:
             stop=lambda: self.ledger.stop_pending(where, run.slug) is not None,
         )
         stopped = self.ledger.stop_pending(where, run.slug) is not None
-        self._write_asks(workspace, round, already + settled)
+        # Круг, который оборвал человек, — не потраченный круг: он и остановил
+        # ночь затем, чтобы ответить. Ответы, успевшие прийти, при этом стоят.
+        self._write_asks(workspace, rounds if stopped else rounds + 1, already + settled)
 
         answers = [one for one in settled if one.how == ANSWERED]
         note = (
@@ -498,24 +495,34 @@ class StepRunner:
         return Asked(settled=settled, answers=bool(answers), stopped=stopped, note=note)
 
     @staticmethod
-    def _write_asks(workspace: StepWorkspace, round: int, settled: list[Settled]) -> None:
+    def _write_asks(workspace: StepWorkspace, rounds: int, settled: list[Settled]) -> None:
+        """Весь вопрос целиком, а не его тень.
+
+        `at` и `block` здесь потому, что из этого файла потом собирается
+        допущение для знания владельца, а `when` — потому что заметка обещала
+        «что пришло и когда», и «когда» не было.
+        """
         workspace.write_asks(
-            round,
+            rounds,
             [
                 {
                     "id": one.question.id,
                     "question": one.question.question,
                     "default": one.question.default,
+                    "because": one.question.because,
+                    "at": one.question.at,
+                    "block": one.question.block,
                     "how": one.how,
                     "answer": one.answer,
                     "detail": one.detail,
+                    "when": _now(),
                 }
                 for one in settled
             ],
         )
 
     @staticmethod
-    def _fold(output: dict[str, Any], taken: list[Settled], every: list[Settled]) -> dict[str, Any]:
+    def _fold(output: dict[str, Any], every: list[Settled]) -> dict[str, Any]:
         """A default nobody answered is an expensive assumption, and nothing more.
 
         A question the owner *did* answer is neither: it is settled, so it
@@ -528,7 +535,11 @@ class StepRunner:
         """
         folded = dict(output)
         assumptions = list(folded.get("assumptions") or [])
-        assumptions.extend(as_assumption(one) for one in taken if one.how != ANSWERED)
+        # Всё, чем шаг когда-либо кончил спрашивать, а не только последний круг.
+        # Ревью: вопрос, взятый по умолчанию в первом круге, во второй не
+        # попадал и не записывался никуда — ровно то, ради невозможности чего
+        # весь шаг и написан.
+        assumptions.extend(as_assumption(one) for one in every if one.how != ANSWERED)
         folded["assumptions"] = assumptions
 
         answered = {one.question.question for one in every if one.how == ANSWERED}
@@ -795,6 +806,42 @@ def create_run(
     return store.create(
         slug, steps=steps, project=project or str(store.paths.root.resolve()), brief=brief
     )
+
+
+def _asked_before(workspace: StepWorkspace) -> list[Settled]:
+    """Чем этот шаг уже кончил спрашивать, прочитанное из его собственного файла.
+
+    Драйвер, поднявший шаг заново, обязан знать и ответы, и взятые умолчания:
+    без этого ответ владельца, переживший смерть драйвера, выбрасывался, а в
+    знание уезжала запись, что ответа не было.
+    """
+    held = workspace.read_asks()
+    read: list[Settled] = []
+    for item in held.get("settled") or []:
+        if not isinstance(item, dict) or not item.get("id"):
+            continue
+        read.append(
+            Settled(
+                question=Question(
+                    id=str(item["id"]),
+                    question=str(item.get("question") or ""),
+                    default=str(item.get("default") or ""),
+                    because=str(item.get("because") or ""),
+                    at=str(item.get("at") or ""),
+                    block=str(item.get("block") or ""),
+                ),
+                how=str(item.get("how") or ""),
+                answer=str(item.get("answer") or ""),
+                detail=str(item.get("detail") or ""),
+            )
+        )
+    return read
+
+
+def _now() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
 def _answers_enclosure(settled: list[Settled]) -> list[tuple[str, str]]:

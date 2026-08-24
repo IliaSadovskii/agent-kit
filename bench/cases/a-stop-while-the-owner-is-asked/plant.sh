@@ -4,5 +4,5 @@ cat > "$XDG_CONFIG_HOME/agent-kit/config.toml" <<TOML
 [owner]
 channel = "file"
 file = "$BENCH/owner"
-wait = 600
+wait = 30
 TOML

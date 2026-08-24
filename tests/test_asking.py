@@ -143,7 +143,7 @@ def test_what_became_of_every_question_is_written_beside_the_step(tmp_path):
     run_step.run_next("add-vat")
 
     held = json.loads((step_dir(tmp_path) / "asks.json").read_text())
-    assert held["round"] == 1
+    assert held["rounds"] == 1
     assert held["settled"][0]["how"] == "nobody-answered"
     assert held["settled"][0]["id"] == identifier("add-vat", QUESTION)
 

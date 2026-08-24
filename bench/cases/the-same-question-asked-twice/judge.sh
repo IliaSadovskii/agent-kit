@@ -11,8 +11,8 @@ grep -q 'one VAT rate for everything' "$RUN_DIR/steps/0-design/attempt-2/raw.txt
 COUNT=$(grep -c '2xdhdn' "$BENCH/owner.out")
 test "$COUNT" = "1" || { echo "the question went out $COUNT times, and the owner had their round"; exit 1; }
 
-grep -q '"round": 2' "$RUN_DIR/steps/0-design/asks.json" ||
-  { echo "the second round was not recorded as one"; exit 1; }
+grep -q '"rounds": 1' "$RUN_DIR/steps/0-design/asks.json" ||
+  { echo "the round the owner had was not recorded as spent"; exit 1; }
 grep -q '"how": "answered"' "$RUN_DIR/steps/0-design/asks.json" ||
   { echo "the answer the owner gave did not stand"; exit 1; }
 

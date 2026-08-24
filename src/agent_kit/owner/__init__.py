@@ -12,6 +12,7 @@ driver depends on this.
 from .ask import (
     ANSWERED,
     BROKEN,
+    HAD_ROUND,
     NO_CHANNEL,
     NOBODY,
     Owner,
@@ -32,6 +33,7 @@ __all__ = [
     "Channel",
     "ChannelFailed",
     "FileChannel",
+    "HAD_ROUND",
     "NOBODY",
     "NO_CHANNEL",
     "Owner",
