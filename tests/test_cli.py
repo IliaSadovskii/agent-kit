@@ -360,7 +360,7 @@ DESIGN_REPLY = json.dumps(
         "changes": ["money.py — with_vat"],
         "seams": ["Money is frozen"],
         "verification": ["1000 at 20% is 1200"],
-        "needs_owner": [],
+        "asks": [],
         "assumptions": [],
     }
 )

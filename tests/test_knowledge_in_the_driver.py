@@ -30,7 +30,7 @@ DESIGN = {
     "changes": ["money.py — with_vat"],
     "seams": ["Money is frozen"],
     "verification": ["1000 at 20% is 1200"],
-    "needs_owner": [],
+    "asks": [],
     "closes": [],
     # It names where the block goes and not what it says: the join is about the
     # block, and a design missing both would be refused for the address first.

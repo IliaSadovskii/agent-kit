@@ -24,7 +24,7 @@ DESIGN = {
     "changes": ["src/kit_sandbox/money.py — a with_vat method"],
     "seams": ["Money is frozen, so with_vat returns a new one"],
     "verification": ["a test that 1000 at 20% is 1200", "a test that a negative rate is refused"],
-    "needs_owner": [],
+    "asks": [],
     "assumptions": [{"what": "VAT is a whole percent", "expensive": False, "because": "the sandbox has no fractions"}],
 }
 
@@ -178,7 +178,7 @@ def test_a_design_that_gives_no_subject_line_is_refused():
 def test_nothing_to_say_is_said_and_not_left_out():
     """An empty list is an answer. A missing field is a step that did not answer."""
     for step, field in (
-        ("design", "assumptions"), ("design", "needs_owner"),
+        ("design", "assumptions"), ("design", "asks"),
         ("build", "deviations"), ("review", "findings"),
     ):
         whole = {"design": DESIGN, "build": BUILD, "review": REVIEW}[step]
@@ -187,3 +187,48 @@ def test_nothing_to_say_is_said_and_not_left_out():
         assert refuse(step, {k: v for k, v in whole.items() if k != field}) == (
             f"output-missing-field: {field}"
         )
+
+
+# --- S7a: a question is a record, and its default is what makes it safe ------
+
+
+def test_a_question_with_no_default_is_not_a_question():
+    """A step refusing to finish, wearing a question's clothes. Every path must go on."""
+    asked = {**DESIGN, "asks": [{"question": "one rate, or one per country?"}]}
+
+    assert refuse("design", asked) == "output-missing-field: asks[0].default"
+
+
+def test_a_question_carries_what_it_is_and_what_is_taken_without_an_answer():
+    contract("design").check(
+        {
+            **DESIGN,
+            "asks": [
+                {
+                    "question": "one rate, or one per country?",
+                    "default": "one rate",
+                    "because": "nothing here has a second country yet",
+                }
+            ],
+        }
+    )
+
+
+def test_a_project_that_keeps_knowledge_makes_a_question_owe_a_block():
+    """A default taken is an expensive assumption, and an expensive assumption owes a block."""
+    strict = builtin_registry().get("design").contract_in(keeps_knowledge=True)
+    asked = {
+        **DESIGN,
+        "asks": [{"question": "one rate?", "default": "one rate", "because": "no second country"}],
+    }
+
+    with pytest.raises(ContractRefusal) as refused:
+        strict.check(asked)
+
+    assert refused.value.code.startswith("output-missing-field: asks[0].")
+
+
+def test_a_project_that_keeps_no_knowledge_is_not_made_to_invent_one():
+    builtin_registry().get("design").contract_in(keeps_knowledge=False).check(
+        {**DESIGN, "asks": [{"question": "one rate?", "default": "one rate", "because": "none"}]}
+    )

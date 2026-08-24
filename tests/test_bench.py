@@ -24,7 +24,7 @@ DESIGN = {
     "changes": ["money.py — a with_vat helper"],
     "seams": ["AMOUNT stays where it is"],
     "verification": ["a check that 1000 at 20% is 1200"],
-    "needs_owner": [],
+    "asks": [],
     "assumptions": [
         {"what": "the rate is a whole percent", "expensive": False, "because": "nothing here uses fractions"}
     ],
