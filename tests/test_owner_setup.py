@@ -8,9 +8,9 @@ import stat
 
 import pytest
 
-from agent_kit.config import load_config, write_owner_block
+from agent_kit.config import OwnerConfig, load_config, write_owner_block
 from agent_kit.errors import ConfigError
-from agent_kit.owner import OwnerConfig, TELEGRAM_TOKEN, read_secret
+from agent_kit.owner import TELEGRAM_TOKEN, read_secret
 from agent_kit.owner.setup import setup
 
 TOKEN = "8123456:AAF-not-a-real-token"

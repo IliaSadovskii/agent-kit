@@ -388,3 +388,52 @@ def test_an_answer_meant_for_somebody_else_is_written_down_not_dropped(channel, 
     an_owner(channel, ledger, wait=0).ask(PROJECT, "add-vat", "design", [mine])
 
     assert ledger.ask_of(yours.id).answer == "theirs"
+
+
+# --- то, чем живёт настройка: кто мы и кто нам написал ----------------------
+
+
+def test_telegram_says_its_own_name_so_a_person_can_be_sent_to_it():
+    bot, asked = a_telegram([{"ok": True, "result": {"username": "vat_night_bot"}}])
+
+    assert bot.me() == "vat_night_bot"
+    assert asked[0][0] == "getMe"
+
+
+def test_telegram_hears_who_wrote_first_when_no_chat_is_known_yet():
+    """Идентификатор чата негде посмотреть, кроме ответа этого же API."""
+    bot, asked = a_telegram([
+        {
+            "ok": True,
+            "result": [
+                {
+                    "update_id": 509,
+                    "message": {"chat": {"id": 55, "first_name": "Илья"}, "text": "привет"},
+                }
+            ],
+        }
+    ])
+    bot.chat = ""
+
+    chat, name, offset = bot.listen("")
+
+    assert (chat, name, offset) == ("55", "Илья", "510")
+
+
+def test_nobody_wrote_and_the_offset_still_moves():
+    bot, asked = a_telegram([{"ok": True, "result": []}])
+    bot.chat = ""
+
+    assert bot.listen("7") == ("", "", "7")
+
+
+def test_a_person_with_no_name_is_still_a_chat():
+    bot, asked = a_telegram([
+        {"ok": True, "result": [{"update_id": 1, "message": {"chat": {"id": -100500}}}]}
+    ])
+    bot.chat = ""
+
+    chat, name, _ = bot.listen("")
+
+    assert chat == "-100500"
+    assert name
