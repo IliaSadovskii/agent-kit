@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .. import __version__
 from ..config import Config, load_config
-from ..errors import ExitCode, KitError, ProviderError, StateError, UsageError
+from ..errors import ConfigError, ExitCode, KitError, ProviderError, StateError, UsageError
 from ..logs import get_logger, setup_logging
 from ..paths import Paths, project_paths
 from ..driver import StepRunner, create_run
@@ -165,8 +165,7 @@ def build_parser() -> argparse.ArgumentParser:
     owner_what.add_parser("check", help="the ladder, and the rung it stopped on")
     owner_say = owner_what.add_parser("say", help="send a line to the owner, and wait for nothing")
     owner_say.add_argument("text")
-    owner_token = owner_what.add_parser("set-token", help="read a bot token from stdin and write it 600")
-    owner_token.add_argument("--name", default="telegram_token", help="which secret this is")
+    owner_what.add_parser("set-token", help="прочитать токен бота с ввода и записать его 600")
 
     daemon = commands.add_parser("daemon", help="the process that serves the page and sweeps up")
     daemon_what = daemon.add_subparsers(dest="what", metavar="WHAT")
@@ -1008,15 +1007,10 @@ def _typed(prompt: str) -> str:
 
 
 def _channel_line(config: Config, paths: Paths) -> str:
-    if not config.owner.channel:
-        return "no channel — try `agent-kit owner setup` (every question takes its default at once)"
-    said = f"{config.owner.channel}, waits {config.owner.wait}s"
-    if config.owner.channel == "telegram":
-        from ..owner import TELEGRAM_TOKEN, read_secret
+    """Что за канал у этой машины. Имя канала знает только `owner/`."""
+    from ..owner import described
 
-        token = "a token is set" if read_secret(paths.secrets_file, TELEGRAM_TOKEN) else "no token"
-        return f"{said}, chat {config.owner.chat or 'unsaid'}, {token}"
-    return f"{said}, {config.owner.file or 'no file'}"
+    return described(config.owner, paths.secrets_file)
 
 
 def _owner(args: argparse.Namespace, paths: Paths) -> int:
@@ -1026,7 +1020,7 @@ def _owner(args: argparse.Namespace, paths: Paths) -> int:
     is somebody else's service too, and a level nobody measured is the same
     class of claim as a rule nobody tested.
     """
-    from ..owner import TELEGRAM_TOKEN, open_channel, write_secret
+    from ..owner import TELEGRAM_TOKEN, open_channel, walk, write_secret
 
     what = args.what
     if what is None:
@@ -1039,14 +1033,14 @@ def _owner(args: argparse.Namespace, paths: Paths) -> int:
         return int(ExitCode.OK)
 
     if what == "set-token":
-        # Тем же путём, что и настройка: с потока ввода, а не аргументом.
-        # From stdin and never from an argument: an argument lands in a shell
-        # history, and this is the kit's first secret.
+        # С потока ввода, а не аргументом: аргумент оседает в истории оболочки.
         token = sys.stdin.readline().strip()
         if not token:
-            raise UsageError("no-token", "nothing was typed; the token is read from stdin")
-        path = write_secret(paths.secrets_file, args.name, token)
-        print(f"wrote {args.name} to {path}")
+            # Тот же код, что и у настройки, и тот же выход: одна и та же вещь
+            # называется одинаково — ревью нашло здесь два кода на один отказ.
+            raise ConfigError("no-token", "ничего не введено; токен читается с потока ввода")
+        path = write_secret(paths.secrets_file, TELEGRAM_TOKEN, token)
+        print(f"токен записан в {path}")
         return int(ExitCode.OK)
 
     config = load_config(paths.config_file)
@@ -1063,16 +1057,18 @@ def _owner(args: argparse.Namespace, paths: Paths) -> int:
         return int(ExitCode.OK)
 
     if what == "check":
-        print(f"channel      {channel.name}")
-        print(f"waits        {config.owner.wait}s before taking a default")
-        message = channel.send(
-            f"{PROGRAM} owner check — this machine can reach you. Nothing is waiting on this."
+        # Лестница, а не одна строка про лестницу: уровень меряется, как у
+        # провайдера, и команда называет ступень, на которой споткнулась.
+        held = walk(
+            channel,
+            f"{PROGRAM} owner check — эта машина до тебя достаёт. Отвечать ни на что не нужно.",
+            say=print,
         )
-        print(f"sent         message {message or 'unnumbered'}")
-        heard, offset = channel.read("")
-        print(f"read         {len(heard)} waiting, offset {offset or 'none'}")
-        print("the ladder holds: a token, a chat that accepts a message, and updates that can be read")
-        return int(ExitCode.OK)
+        if held.held:
+            print(f"ждёт ответа на вопрос {config.owner.wait} с, потом берёт умолчание")
+            return int(ExitCode.OK)
+        print(f"{PROGRAM}: {held.why}", file=sys.stderr)
+        return int(ExitCode.CHANNEL)
 
     raise UsageError("unknown-command", f"owner {what}")
 

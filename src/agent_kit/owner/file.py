@@ -31,6 +31,15 @@ class FileChannel:
         #: that is a mechanism like any other, so it gets a trap like any other.
         self.broken = path.with_name(path.name + ".fail")
 
+    def me(self) -> str:
+        """Кто отвечает на том конце. У файлов это сами файлы.
+
+        Ступень лестницы, а не украшение: `owner check` спрашивает канал, кто
+        он, прежде чем что-то ему отправлять, и делает это одинаково для обоих.
+        """
+        self._refuse_if_broken()
+        return str(self.out.parent / self.out.name.removesuffix(".out"))
+
     def send(self, text: str) -> str:
         self._refuse_if_broken()
         self.out.parent.mkdir(parents=True, exist_ok=True)

@@ -12,7 +12,7 @@ import re
 from dataclasses import dataclass
 from typing import Protocol
 
-from ..errors import ProviderError
+from ..errors import ChannelError
 from ..knowledge.format import ALPHABET, ID_LENGTH
 
 #: What a person types when they are not replying to the message. The identifier
@@ -23,14 +23,14 @@ COMMAND = "/a"
 _NAMED = re.compile(rf"^[{ALPHABET}]{{{ID_LENGTH}}}$")
 
 
-class ChannelFailed(ProviderError):
+class ChannelFailed(ChannelError):
     """The channel could not be reached, and a night must not end because of it.
 
-    It is somebody else's service, so it carries the code that already means
-    *this cannot be reached right now* — but the driver never lets it out: a
-    question whose channel is broken takes its default, and the record says
-    which of the two silences it was. It reaches a person through
-    `agent-kit owner check`, which is where they go to find out on purpose.
+    Свой код выхода, а не общий с провайдером: «агента не запустить» и «до
+    владельца не достучаться» — разные события, и ответ на них разный. Драйвер
+    это наружу не выпускает вовсе: вопрос со сломанным каналом берёт умолчание,
+    а запись говорит, какая из двух тишин это была. До человека оно доходит
+    через `agent-kit owner check`, куда он приходит выяснять нарочно.
     """
 
 

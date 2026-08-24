@@ -22,6 +22,7 @@ from .ask import (
     questions_of,
 )
 from .channel import Channel, ChannelFailed, understand
+from .check import RUNGS, Report, walk
 from .file import FileChannel
 from .secrets import TELEGRAM_TOKEN, read_secret, write_secret
 from .setup import setup
@@ -38,6 +39,8 @@ __all__ = [
     "NO_CHANNEL",
     "Owner",
     "Question",
+    "RUNGS",
+    "Report",
     "Settled",
     "TELEGRAM_TOKEN",
     "Telegram",
@@ -47,7 +50,9 @@ __all__ = [
     "setup",
     "write_secret",
     "questions_of",
+    "described",
     "understand",
+    "walk",
 ]
 
 
@@ -89,3 +94,20 @@ def open_channel(owner, secrets) -> Channel | None:
     raise ConfigError(
         "unknown-channel", f"{owner.channel!r} is not a channel this kit has: {', '.join(CHANNELS)}"
     )
+
+
+def described(owner, secrets) -> str:
+    """Одной строкой: что за канал у этой машины и всё ли у него есть.
+
+    Здесь, а не в `doctor`: имя канала не называет никто вне этого пакета — то
+    же правило, по которому имя провайдера живёт только в `providers/`.
+    """
+    from pathlib import Path
+
+    if not owner.channel:
+        return "канала нет — `agent-kit owner setup` заводит его целиком"
+    said = f"{owner.channel}, ждёт ответа {owner.wait} с"
+    if owner.channel == "telegram":
+        token = "токен есть" if read_secret(secrets, TELEGRAM_TOKEN) else "токена нет"
+        return f"{said}, чат {owner.chat or 'не назван'}, {token}"
+    return f"{said}, {owner.file or Path()}"

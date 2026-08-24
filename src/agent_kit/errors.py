@@ -15,6 +15,7 @@ class ExitCode(IntEnum):
     CONFIG = 2  # the machine's configuration is missing something or is wrong
     STATE = 3  # a run's state refuses what was asked of it
     PROVIDER = 4  # an agent cannot be run right now: missing, unauthenticated, limited, or no slot
+    CHANNEL = 8  # the owner cannot be reached: no channel, a bad token, a service that is down
     REFUSED = 5  # the method said no: a blocking finding, a red suite, an unfinished build
     BENCH = 6  # a mechanism the bench planted did not fire
     BROKEN_BENCH = 7  # the bench itself could not answer: a case, a world or a judge broke
@@ -48,3 +49,14 @@ class StateError(KitError):
 
 class ProviderError(KitError):
     exit_code = ExitCode.PROVIDER
+
+
+class ChannelError(KitError):
+    """Владельца не дозваться.
+
+    Свой код, потому что 4 означает «агента сейчас не запустить», а это другое
+    событие с другим ответом: ночь при нём идёт дальше и берёт умолчания. Код,
+    означающий две вещи, — это то, что план измерил как неавтоматизируемое.
+    """
+
+    exit_code = ExitCode.CHANNEL
