@@ -104,9 +104,12 @@ one project are two sessions like any other.
 **A lease is dead when its driver is.** Three things say so, in this order: the machine's boot
 id differs from the one written with the lease (a reboot kills every lease, and state that does
 not survive a reboot *should not*); the pid is not alive on this boot; or `expires_at` has
-passed — the step's own timeout plus five minutes, which is the backstop for a pid that was
-reused. Whoever asks for a slot reaps what is dead first, so the ceiling is correct with no
+passed. Whoever asks for a slot reaps what is dead first, so the ceiling is correct with no
 daemon running.
+
+*(Written first as "the step's own timeout plus five minutes", which is not what was built: the
+driver does not know an adapter's timeout, and a lease is three hours. A reviewer caught it. The
+deadline is only ever the backstop — what really says a lease is dead is that its driver is.)*
 
 **A run has one driver, and the ledger is what says so.** A lease names its project and slug,
 so a second `run go` on a run somebody already holds is refused by name — `run-held-elsewhere` —
@@ -231,8 +234,8 @@ daemon/             the process
   server.py         the page and its json
 ```
 
-The driver depends on `machine/`, which depends on nothing but `paths` and `errors`. The daemon
-depends on `machine/`. The arrow keeps pointing one way and the plan's sentence is honoured
+The driver depends on `machine/`, which depends on `errors` and on nothing else in the kit. The
+daemon depends on `machine/`. The arrow keeps pointing one way and the plan's sentence is honoured
 where it means something.
 
 ---
@@ -432,3 +435,142 @@ whether it is still limited — is a session, which is the thing being saved.
 
 **Still no `full` case.** Every one of the thirty answers from `providers/fake/`. S9 owns it, as
 S5 and S6 both wrote down.
+
+---
+
+# The review round, and what it cost
+
+Three reviewers over `a640b8e..HEAD`, one lens each: the new code against the question *what
+happens when two of these run at once*, the traps and tests against *can this fail*, and the
+whole of it against the project's own rules and its own claims. Twenty-two findings. Three of
+them are the kind that would have taken a night down, and none of the three could have been
+found by running the thing once and watching it work.
+
+## The blocker: the first real usage limit would have closed an account for good
+
+`ExecutorFailed.until` is whatever the CLI printed, pulled out by a regular expression in
+`provider.toml`. What Claude Code prints is a phrase a person reads — `5pm
+(America/Los_Angeles)`. That went into the ledger as it came, and the ledger compares times as
+strings.
+
+`"5pm …"` sorts above every date there will ever be. So the sweep would never clear it, every
+run afterwards would be refused `provider-limited` without a session being started, and the only
+way out would be `agent-kit limit clear` typed by somebody who knew to type it. **The mechanism
+built to save a session would have stopped every session on that account, silently, from the
+first time it ever fired.**
+
+The mirror is as bad and quieter: `"17:00"` sorts *below* every date, so the limit would vanish
+at the first sweep and the mechanism would simply not exist. An offset — `+03:00` — would be
+believed as if it were UTC and throw away three hours of quota.
+
+An hour is read into UTC now, or it is not an hour: the row says `guessed`, stands for one hour,
+and keeps the phrase so a person can see what it was guessed from. `machine` and the page print
+it. Every test and every trap had used `2027-01-01T00:00:00+00:00`, which is the one shape no
+provider will ever say.
+
+## The second: a busy machine could end a run for good
+
+The rule was *no session ran at all, so nothing failed*. A provider chain is three attempts plus
+a fallback, and one honest refusal followed by a machine that filled up in between made that
+rule false — so the run went to `failed`, which is final and does not resume, blaming the
+earlier refusal for a machine that was merely busy.
+
+The last word decides now. A machine that is busy leaves the step pending and says so with an
+exit code, whatever happened before it.
+
+## The third: a lease given back twice took somebody else's
+
+`INTEGER PRIMARY KEY` without `AUTOINCREMENT` is `max(rowid) + 1`, so a row that is gone gives
+its number to the next one. A driver whose lease was swept for being stale — a session longer
+than three hours, a reboot — and which then finished and released it would delete whoever now
+held that number. The ceiling would be one session wider than the machine allows, and nothing
+would say so. A lease is released by identity now: number, pid, boot and the moment it was taken.
+
+## The rest, and what each cost
+
+| What | Why it mattered |
+|---|---|
+| a run waiting for a slot never read a stop | the run somebody is most likely to want stopped is the stuck one, and it was the one run `agent-kit run stop` could not reach for up to two hours |
+| a limited account was waited out while a free provider stood by | the fallback exists because another account may be answering; it was asked two hours late |
+| `run start`, `run pass`, `run fail` still wrote a run a driver holds | `run stop` was fixed and its three neighbours were not — one writer per run means one writer |
+| a stop whose driver died was never swept | it would stop whatever run next carried that name, whenever that was |
+| a daemon that could not bind unlinked the pid file of the one that could | after that `daemon status` says nothing is running and the port is held by a daemon nobody can address |
+| `daemon stop` signalled whatever inherited the number | while the test for it was being written it took the container's own init down, and the container went with it. A pid is ours only if `/proc` says so |
+| `start_step` stood outside the `finally` that frees the slot | a state that will not move leaked a slot until the process died |
+| sqlite's own failures exited 70 | which means *a defect in the kit*, and a locked ledger is not one |
+| `--machine-max 0` was read as nothing said | a ceiling of zero is a ceiling |
+| `config show` was silent about three of its own settings | a command called *show the configuration* |
+| `PRAGMA user_version` was written and read by nobody | and §2 of this note claimed it was checked. It is now: a ledger from a newer kit is refused by name |
+
+Deleted rather than documented, as rule 5 says: two `who` properties, five re-exports, a
+one-line wrapper. Three docstrings described something other than the code beside them.
+
+## Four traps that did not exist, and two judges that were nearly green for nothing
+
+The bench is thirty-four cases now.
+
+| Trap | The mechanism it must fire |
+|---|---|
+| the machine has room and the provider does not | the refusal names the provider's own ceiling, not the machine's |
+| the slot never comes free | the wait ends by name rather than lasting all night, and the state is untouched |
+| the session names the hour the way a CLI prints it | the hour is read before it is believed, and what cannot be read is called a guess |
+| a stop whose driver never came back | it is swept rather than obeyed by the next run to carry that name |
+
+**`the-machine-frees-up` was green against a kit with no ceiling at all.** It asked that the
+first session start at least two seconds after the slot was planted — and two seconds is exactly
+what a kit that ignores the ceiling took to get going, because two runs of `python -m agent_kit`
+cost about that. Zero margin, and the judge printed *"started 2s … so it never waited"* while
+passing. It measures against the planted lease's own life now, and the same break makes it say
+so.
+
+**Three cases could not read a refusal by name at all.** A machine that is full writes nothing
+to `run.json` — that is the point — so a judge had only the exit code, and 4 stands for both
+`no-slot` and `provider-limited`. Renaming one to the other left the bench entirely green. What
+the kit printed is now written where a judge can read it, and those three compare the code.
+
+**One judge line measured nothing.** `a-slot-whose-driver-is-gone` asked `agent-kit machine`
+whether the ghost lease was gone — and any read of the ledger sweeps it, so the answer was yes
+whatever the kit did. The line is gone; what discriminates is that the run got a slot at all.
+
+## What is still true after all that
+
+Each new mechanism was broken by hand again:
+
+| What was broken | What said so |
+|---|---|
+| a provider's own ceiling never binds | `a-provider-that-is-full` |
+| an hour is stored as the provider worded it | `a-limit-in-the-providers-own-words` |
+| a stop nobody came back for is never swept | `a-stop-nobody-is-there-to-read` |
+| a run never waits at all | `the-machine-frees-up`, `waiting-that-runs-out` |
+| the machine ceiling never binds | `the-machine-is-full`, `the-machine-frees-up`, `waiting-that-runs-out` |
+
+The last two light more than one case each, and both are one mechanism seen from its several
+sides — refusing, waiting, and giving up on waiting. A case that covered all three would be a
+case that cannot say which one broke.
+
+**One mechanism is proved by tests only, and no trap was found for it:** a lease released by
+identity rather than by its number. Reaching it on the bench needs a lease swept as stale while
+its own driver is still alive and still going to release it, which no single run does. Breaking
+it leaves all thirty-four green, and this paragraph is the record of that rather than a claim it
+is covered.
+
+## What the review cost that is not a defect
+
+**Two commits in this range put source and tests together, and one has no test commit before it
+at all.** `fc6cd07` changed three behaviours — how a run lease is addressed, which binary the
+unit names, a plural — with no test; `80bfb86` carries new failing tests beside the source that
+answers a *different* pair of tests. The rule is that tests go in their own commit before the one
+that makes them pass, and rewriting the history to show a trace that did not happen would be
+worse than the violation. It stands, and it is written down here instead — which is the second
+time this project has had to write that sentence.
+
+**A break script that reverted uncommitted work.** `git checkout -- src/` between breaks threw
+away edits that had not been committed yet, and three of the five break reports in one round
+measured a tree missing two of its own fixes. Nothing was lost — the edits were redone — but the
+reports were noise, and the lesson is one line: **commit before you break things on purpose.**
+
+**Twenty-two findings, and the suite was green throughout.** 531 tests and thirty-four cases, all
+passing, before any of this was found. That is not an argument against tests; it is the argument
+for the review round having a lens of its own. Every one of the three blockers lives in a place
+where two things meet — a provider's words and a comparison, a chain of attempts and a ceiling,
+a row's number and its identity — and a test written beside one of them looks at one side.
