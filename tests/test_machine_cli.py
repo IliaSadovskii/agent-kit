@@ -656,3 +656,29 @@ def test_run_show_names_what_is_being_waited_for_and_until_when(machine, ledger,
     assert "asking" in out
     assert "one rate, or one per country?" in out
     assert "2099" in out
+
+
+def test_owner_setup_is_the_door_that_owner_check_points_at(machine, capsys):
+    """Девять дверей — это дефект второй версии. Отказ называет ту, что нужна."""
+    code, out, err = run(["owner", "check"], capsys)
+
+    assert code == ExitCode.CONFIG
+    assert "owner setup" in (out + err)
+
+
+def test_doctor_points_at_the_same_door(machine, capsys):
+    code, out, _ = run(["doctor"], capsys)
+
+    assert "owner setup" in out
+
+
+def test_owner_setup_refuses_when_nobody_is_there_to_type(machine, capsys, monkeypatch):
+    """Настройка — разговор с человеком. Без терминала ей не с кем разговаривать."""
+    import io
+
+    monkeypatch.setattr("sys.stdin", io.StringIO(""))
+
+    code, out, err = run(["owner", "setup"], capsys)
+
+    assert code == ExitCode.CONFIG
+    assert "no-token" in err
