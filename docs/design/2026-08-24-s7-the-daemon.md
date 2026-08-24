@@ -313,3 +313,122 @@ is about a person's phone rather than a machine's slots — folding them togethe
 the second version's control surface a live session; buttons on the page; a tail of a live
 session, which needs the adapter contract to change; and any queue that reorders by anything
 but the hour it was asked, because nothing has measured that a priority is needed.
+
+---
+
+# What was built, 24 August 2026
+
+Everything above was built as decided. Thirty bench cases all firing, 506 tests, and the page
+answering on 8080. What changed on the way is at the foot of this section, and so is what the
+live run found that nothing else could have.
+
+## The sentence the step is done by, measured
+
+Two runs, two projects, one machine allowed one session, both on the account `fake`. The second
+one's own output:
+
+```
+add-vat: waiting — no-slot: this machine runs 1 session at once and add-vat/design holds it
+  attempt 1 on fake: passed
+add-vat: design passed
+```
+
+And the page, read from another terminal while it was happening:
+
+```json
+{
+  "held":  [{"slug": "add-vat", "step": "design", "account": "fake", "project": ".../live/one",
+             "since": "2026-08-24T12:19:30+00:00"}],
+  "queue": [{"slug": "add-vat", "step": "design", "account": "fake", "project": ".../live/two",
+             "since": "2026-08-24T12:19:32+00:00"}],
+  "limits": [], "runs": [{"slug": "add-vat", ...}, {"slug": "add-vat", ...}]
+}
+```
+
+Waited for, not slept through: the second run said what it was waiting for, once, and took the
+slot the moment the first gave it back. Both landed.
+
+## Two defects the live run found, and nothing else would have
+
+**One sqlite connection, several threads.** The daemon sweeps on one thread and answers the page
+on another, and sqlite refuses a connection outside the thread that opened it. The first `curl`
+got an empty reply and the log got a stack trace nobody was reading. Every test passed
+throughout: they are all one thread. A connection per thread now, and two tests that ask the
+ledger from four at once.
+
+**A daemon that could not be stopped.** `shutdown()` waits for `serve_forever()` to come back,
+and a signal handler runs on the very thread standing inside it. So `daemon stop` said it had
+asked, and the process stayed up holding the port until it was killed. The shutdown is asked for
+from another thread now. The test is a real subprocess, a real signal, and a deadline.
+
+Both are the same shape and it is worth naming: **the daemon is the first thing in this kit with
+more than one thread in it**, and the whole suite was written for a program that has one.
+
+## Breaking the seven by hand
+
+| What was broken | What said so |
+|---|---|
+| the machine ceiling never binds | `the-machine-is-full` **and** `the-machine-frees-up` |
+| a run never waits for a slot | `the-machine-frees-up` |
+| a standing limit is not consulted before a session | `an-account-that-is-already-limited` |
+| a limit a session found is not written down | `a-session-that-says-it-is-limited` |
+| every pid looks alive, so a dead driver keeps its lease | `a-slot-whose-driver-is-gone` |
+| a stop is never read | `a-stop-while-the-run-is-going` |
+| a second driver is let onto a run somebody holds | `a-second-driver-on-one-run` |
+
+Six of the seven light exactly one case. The ceiling lights two, and that is the pair being
+right rather than a case measuring the wrong thing: the ceiling has two sides — refusing when
+there is no time to wait, and being waited for when there is — and a case that covered both
+would be a case that cannot say which one broke.
+
+Two of the breaks also tripped a second guard on the way past. The three cases about a run that
+never gets as far as a session carry one reply file, and it is `!refuse
+a-session-nobody-should-have-started`. When the mechanism was broken the run *did* start a
+session, and that reply is what it met. A trap that costs one line and answers the question
+*"and what if it does?"* is worth more than a judge that only reads the end state.
+
+The bench was also run from `git archive HEAD` unpacked elsewhere — the check that caught S5's
+blocker. Thirty of thirty there too.
+
+## What changed on the way, against the note above
+
+**`run stop` grew a second half rather than a second command.** As decided. What was not decided
+is how it tells them apart: it asks the ledger whether a run lease stands for that project and
+slug. A run nobody is driving is written directly, exactly as before.
+
+**`slot hold` and `slot take --pid`**, which the note did not name. A case has to stand where a
+driver would: hold a slot as a process that is alive and is not the run, hold a run as somebody
+else, and hold a slot as a driver that has died. All three are one flag and one subcommand, and
+their reader is the bench and a person untangling a machine that will not start anything.
+
+**A case may declare `wait`.** Three of the traps need a run that refuses at once and one needs a
+run that waits, and the alternative was a case that could pass arbitrary arguments to the kit,
+which is a wide door for a narrow need.
+
+**The green case about a dead lease reads the ledger with sqlite rather than through `machine`.**
+Its first version asked `agent-kit machine` to prove the ghost lease was planted — and `machine`
+reaps before it prints, so the proof killed what it was proving. The judge now reads the row out
+of the file. A judge that cannot see what it is judging is the S5 lesson in a new costume.
+
+## What is open, said out loud
+
+**The queue is per account; the machine's own ceiling is not queued.** Two runs waiting on
+*different* accounts, both held back by `machine.max_sessions`, are ordered by whoever polls
+first rather than by who asked first. Nothing has measured that this matters — with one provider
+configured there is one account — and the fix is a second ordering rule with its own trap. Named
+here rather than built on a guess.
+
+**Autostart is written and not proven.** `daemon install` writes the unit; this machine's kit
+runs in a container with no systemd, so nothing here has watched it come up on boot. What is
+proven is the process it starts: it serves, it sweeps, and it goes away when it is asked to.
+
+**No authentication, deliberately.** The page binds loopback and reaches a phone through the
+server's own proxy, which is inside Tailscale. That holds exactly as long as the page has nothing
+to press. The day it grows a button, this sentence is what has to be revisited first.
+
+**The limit is believed, not checked.** If a provider says it resets at 17:00 and it does not,
+the ledger says 17:00 and a run wakes to be refused again. The alternative — asking the provider
+whether it is still limited — is a session, which is the thing being saved.
+
+**Still no `full` case.** Every one of the thirty answers from `providers/fake/`. S9 owns it, as
+S5 and S6 both wrote down.
