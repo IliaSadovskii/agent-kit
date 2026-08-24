@@ -2,7 +2,7 @@
 
 import pytest
 
-from agent_kit.config import DEFAULT_MAX_SESSIONS, load_config
+from agent_kit.config import DEFAULT_ANSWER_WAIT, DEFAULT_MAX_SESSIONS, load_config
 from agent_kit.errors import ConfigError
 
 
@@ -76,3 +76,55 @@ def test_a_refusal_names_what_it_refused(tmp_path, text, reason):
         load_config(path)
 
     assert reason in str(caught.value)
+
+
+# --- S7a: the owner's channel ----------------------------------------------
+
+
+def test_a_machine_with_no_owner_block_has_no_channel(tmp_path):
+    config = load_config(write(tmp_path / "config.toml", "[machine]\nmax_sessions = 1\n"))
+
+    assert config.owner.channel == ""
+    assert config.owner.wait == DEFAULT_ANSWER_WAIT
+
+
+def test_the_owner_block_says_which_channel_and_how_long_it_waits(tmp_path):
+    config = load_config(
+        write(
+            tmp_path / "config.toml",
+            """
+[owner]
+channel = "telegram"
+chat = "55"
+wait = 600
+""",
+        )
+    )
+
+    assert config.owner.channel == "telegram"
+    assert config.owner.chat == "55"
+    assert config.owner.wait == 600
+
+
+def test_waiting_no_time_at_all_is_a_real_answer(tmp_path):
+    """Zero means take the default at once, the way `machine.wait = 0` refuses at once."""
+    config = load_config(write(tmp_path / "config.toml", '[owner]\nchannel = "file"\nwait = 0\n'))
+
+    assert config.owner.wait == 0
+
+
+def test_the_owner_block_refuses_what_it_does_not_read(tmp_path):
+    with pytest.raises(ConfigError) as refused:
+        load_config(write(tmp_path / "config.toml", '[owner]\ntoken = "secret"\n'))
+
+    assert refused.value.code == "unknown-key"
+    assert "owner.token" in refused.value.detail
+
+
+def test_config_show_says_everything_it_reads(tmp_path):
+    """A command called *show the configuration* that is silent about a setting is a defect."""
+    from agent_kit.cli.main import _config_as_data
+
+    shown = _config_as_data(load_config(write(tmp_path / "config.toml", '[owner]\nchannel = "file"\n')))
+
+    assert set(shown["owner"]) == {"channel", "chat", "wait", "file"}
