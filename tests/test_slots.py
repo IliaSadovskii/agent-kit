@@ -5,6 +5,7 @@ instead of sleeping blind. Everything here is that sentence, taken apart.
 """
 
 import json
+import time
 
 import pytest
 
@@ -311,3 +312,107 @@ def _a_program_that_answers():
             )
 
     return Program()
+
+
+# --- the review round --------------------------------------------------------
+
+
+def test_a_machine_that_fills_up_after_a_real_refusal_does_not_fail_the_run(tmp_path, ledger):
+    """A busy machine must never be the reason a run is over.
+
+    The rule was "no session ran at all", and a chain is three attempts plus a
+    fallback: one honest refusal followed by a full machine made that rule
+    false, and the run went to `failed` — which is final, and names the wrong
+    cause into the bargain.
+    """
+    taken = []
+
+    def fills_up(request):
+        taken.append(somebody_else(ledger, Ceilings(max_sessions=1), slug="latecomer"))
+        return "this is not json, so the attempt is honestly refused"
+
+    runner, store, _ = build(tmp_path, ledger, [fills_up, GOOD, GOOD])
+
+    with pytest.raises(ProviderError) as refused:
+        runner.run_next("add-login")
+
+    assert refused.value.code == "no-slot"
+    run = store.load("add-login")
+    assert run.status is not RunStatus.FAILED, "a busy machine ended the run for good"
+    assert run.steps[0].status is StepStatus.PENDING
+
+
+def test_a_run_waiting_for_a_slot_still_hears_a_stop(tmp_path, ledger):
+    """The one run somebody is most likely to want stopped is the one that is stuck."""
+    somebody_else(ledger, Ceilings(max_sessions=1))
+
+    def pause(seconds):
+        time.sleep(0.05)
+        ledger.ask_stop(str(tmp_path), "add-login", reason="the owner said so")
+
+    # Short, because a run that does not hear the stop must end this test rather
+    # than spin for as long as a real night would.
+    runner, store, fake = build(tmp_path, ledger, [GOOD], wait=3, pause=pause)
+
+    outcome = runner.run_next("add-login")
+
+    assert outcome.interrupted
+    assert "stopped-by-request" in outcome.reason
+    assert store.load("add-login").status is RunStatus.STOPPED
+    assert fake.requests == []
+
+
+def test_a_limited_account_does_not_hold_the_fallback_up_for_hours(tmp_path, ledger):
+    """Waiting for a reset while another account is free is two hours of nothing."""
+    from agent_kit.config import RoleConfig
+
+    ledger.limit("fake", until=RESET, said_by="another/build")
+    spare = FakeExecutor(name="spare", replies=[GOOD])
+    waited = []
+    runner, store, fake = build(
+        tmp_path, ledger, [GOOD], wait=3, pause=lambda seconds: (waited.append(seconds), time.sleep(0.05)),
+        executors={"spare": spare},
+        roles={"probe": RoleConfig(name="probe", provider="fake", fallback=["spare"])},
+    )
+    runner.default_provider = None
+
+    outcome = runner.run_next("add-login")
+
+    assert outcome.passed
+    assert waited == [], "it waited for a reset while a provider that answers was standing by"
+    assert len(spare.requests) == 1
+
+
+def test_a_limited_account_with_nobody_else_to_ask_is_waited_for(tmp_path, ledger):
+    """And when there is no fallback, waiting is the whole point of waiting."""
+    ledger.limit("fake", until=RESET, said_by="another/build")
+    waited = []
+
+    def pause(seconds):
+        waited.append(seconds)
+        ledger.unlimit("fake")
+
+    runner, store, fake = build(tmp_path, ledger, [GOOD], wait=3, pause=pause)
+
+    outcome = runner.run_next("add-login")
+
+    assert outcome.passed
+    assert waited, "it gave up on a limit it had time to wait out"
+
+
+def test_a_slot_is_given_back_when_the_state_will_not_move(tmp_path, ledger):
+    """`start_step` is somebody else's failure mode, and it stood outside the finally."""
+    runner, store, _ = build(tmp_path, ledger, [GOOD])
+    broken = store.start_step
+
+    def refuses(*args, **rest):
+        raise StateError("bad-field: status", "the state would not move")
+
+    store.start_step = refuses
+    try:
+        with pytest.raises(StateError):
+            runner.run_next("add-login")
+    finally:
+        store.start_step = broken
+
+    assert ledger.held() == [], "the slot outlived the attempt that never began"
