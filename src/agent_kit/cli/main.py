@@ -401,6 +401,8 @@ def _run(args: argparse.Namespace) -> int:
         paths = Paths.from_env()
         ledger = _ledger(paths)
         where = str(store.paths.root.resolve())
+        held = store.load(args.slug)
+        where = held.project or where
         driving = [lease for lease in ledger.runs() if lease.slug == args.slug and lease.project == where]
         if driving:
             ledger.ask_stop(where, args.slug, reason=args.reason)
@@ -909,6 +911,7 @@ def _a_time(value: str | None) -> str | None:
 def _daemon(args: argparse.Namespace, paths: Paths) -> int:
     """The process: the page and the sweep. It holds nothing the ledger does not."""
     import os
+    import shutil
     import signal
     import subprocess
     import sys as _sys
@@ -939,7 +942,10 @@ def _daemon(args: argparse.Namespace, paths: Paths) -> int:
     if what == "install":
         path = unit_path(Path.home())
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(unit_file(_sys.argv[0] or PROGRAM), encoding="utf-8")
+        # The command this machine actually has, so the unit does not point at
+        # whatever happened to be argv[0] the day it was written.
+        binary = shutil.which(PROGRAM) or _sys.argv[0] or PROGRAM
+        path.write_text(unit_file(binary), encoding="utf-8")
         print(f"wrote {path}")
         print("  systemctl --user daemon-reload")
         print("  systemctl --user enable --now agent-kit")

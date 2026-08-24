@@ -274,13 +274,13 @@ class Ledger:
             if len(same) >= ceiling:
                 return Busy(
                     "no-slot",
-                    f"{want.provider} runs {ceiling} at once here and {_names(same)} holds them",
+                    f"{want.provider} runs {_sessions(ceiling)} at once here and {_names(same)} holds them",
                 )
 
         if len(sessions) >= ceilings.max_sessions:
             return Busy(
                 "no-slot",
-                f"this machine runs {ceilings.max_sessions} sessions at once and {_names(sessions)} holds them",
+                f"this machine runs {_sessions(ceilings.max_sessions)} at once and {_names(sessions)} holds them",
             )
         return None
 
@@ -498,6 +498,10 @@ def _limited(row: sqlite3.Row) -> Limited:
         account=row["account"], until=row["until"], said_at=row["said_at"],
         said_by=row["said_by"], guessed=bool(row["guessed"]),
     )
+
+
+def _sessions(count: int) -> str:
+    return "1 session" if count == 1 else f"{count} sessions"
 
 
 def _names(rows: list[sqlite3.Row]) -> str:

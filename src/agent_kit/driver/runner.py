@@ -125,10 +125,15 @@ class StepRunner:
         return outcome
 
     def let_go(self, slug: str) -> None:
-        """Stop holding the run. What the process dies with is reclaimed anyway."""
-        run_root = self.store.paths.root.resolve()
+        """Stop holding the run. What the process dies with is reclaimed anyway.
+
+        Addressed the way it was taken — by the run's own project, not by where
+        the store happens to stand. The two are the same path today and a
+        symlink is all it would take for them not to be.
+        """
+        where = self._where(self.store.load(slug))
         for lease in self.ledger.runs():
-            if lease.slug == slug and lease.project == str(run_root):
+            if lease.slug == slug and lease.project == where:
                 self.ledger.release(lease)
 
     # --- the machine, asked before anything is spent ----------------------
