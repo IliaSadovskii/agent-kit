@@ -379,7 +379,7 @@ class StepRunner:
                         remaining, refusal, seen = list(providers), None, {}
                         continue
                     settled.extend(asked.settled)
-                    output = self._fold(output, asked.settled)
+                    output = self._fold(output, asked.settled, settled)
                     try:
                         contract.check(output)
                     except ContractRefusal as refused:
@@ -473,8 +473,10 @@ class StepRunner:
         if round > 1 or not fresh:
             # The owner has had their round. What is still open is taken at its
             # default and written down, and nothing goes out a second time.
-            settled = [Settled(question=asked, how=NOBODY, detail="уже спрашивали в этом прогоне")
-                       for asked in fresh]
+            settled = [
+                Settled(question=asked, how=NOBODY, detail="у владельца уже был круг в этом прогоне")
+                for asked in fresh
+            ]
             self._write_asks(workspace, round, already + settled)
             return Asked(settled=settled, answers=False, stopped=False, note="")
 
@@ -513,8 +515,12 @@ class StepRunner:
         )
 
     @staticmethod
-    def _fold(output: dict[str, Any], settled: list[Settled]) -> dict[str, Any]:
+    def _fold(output: dict[str, Any], taken: list[Settled], every: list[Settled]) -> dict[str, Any]:
         """A default nobody answered is an expensive assumption, and nothing more.
+
+        A question the owner *did* answer is neither: it is settled, so it
+        leaves the output altogether rather than standing in the pull request
+        as something still wanted of them.
 
         The driver writes into the step's output here, which it does nowhere
         else. What keeps that honest is the file that was already there for
@@ -522,8 +528,15 @@ class StepRunner:
         """
         folded = dict(output)
         assumptions = list(folded.get("assumptions") or [])
-        assumptions.extend(as_assumption(one) for one in settled if one.how != ANSWERED)
+        assumptions.extend(as_assumption(one) for one in taken if one.how != ANSWERED)
         folded["assumptions"] = assumptions
+
+        answered = {one.question.question for one in every if one.how == ANSWERED}
+        folded["asks"] = [
+            item
+            for item in (folded.get("asks") or [])
+            if not (isinstance(item, dict) and str(item.get("question") or "").strip() in answered)
+        ]
         return folded
 
     def _carry_on(

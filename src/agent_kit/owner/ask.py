@@ -220,9 +220,12 @@ class Owner:
                 break
             if stop is not None and stop():
                 break
-            if self.clock() >= deadline:
+            left = deadline - self.clock()
+            if left <= 0:
                 break
-            self.pause(POLL)
+            # Never longer than what is left: a machine told to wait two seconds
+            # must not sleep five, and the bench's cases are exactly that machine.
+            self.pause(min(POLL, left))
 
         settled = []
         for asked in questions:
