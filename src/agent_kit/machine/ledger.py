@@ -502,6 +502,17 @@ class Ledger:
                 (project, slug, reason, now()),
             )
 
+    def stop_pending(self, project: str, slug: str) -> str | None:
+        """Is a stop standing? Read without taking it: whoever acts on it takes it."""
+        with self._writing() as db:
+            self._reap(db)
+            row = db.execute(
+                "SELECT reason FROM requests WHERE project = ? AND slug = ? AND what = 'stop'"
+                " ORDER BY id LIMIT 1",
+                (project, slug),
+            ).fetchone()
+        return None if row is None else str(row["reason"])
+
     def stop_asked(self, project: str, slug: str) -> str | None:
         """Read once. Asked for twice, a run still stops once."""
         with self._writing() as db:

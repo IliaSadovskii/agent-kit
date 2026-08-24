@@ -166,8 +166,10 @@ class StepRunner:
             interrupted=True,
         )
 
-    def _slot(self, run: Run, definition: StepDefinition, provider: str) -> Lease | Busy:
-        """One live session's worth of machine, waited for if there is time to wait."""
+    def _slot(
+        self, run: Run, definition: StepDefinition, provider: str, others_left: bool = False
+    ) -> Lease | Busy:
+        """One live session's worth of machine, waited for if waiting is the best there is."""
         want = Want(
             account=self._account(provider),
             provider=provider,
@@ -176,7 +178,7 @@ class StepRunner:
             step=definition.name,
         )
         got = self.ledger.take(want, self.ceilings)
-        if got.granted or self.wait <= 0:
+        if got.granted or self.wait <= 0 or self._ask_somebody_else(got, others_left):
             return got
 
         deadline = time.monotonic() + self.wait
@@ -189,6 +191,11 @@ class StepRunner:
                     # a line a second is a night's log nobody reads.
                     said = got.detail
                     self.say(f"{run.slug}: waiting — {got.code}: {got.detail}")
+                # A run that is stuck is the run somebody is most likely to want
+                # stopped, so the stop is read here as well as at the step
+                # boundary. Left standing for `_advance` to consume and act on.
+                if self.ledger.stop_pending(want.project, run.slug) is not None:
+                    return Busy("stopped-by-request", "the run was asked to stop while it waited")
                 if time.monotonic() >= deadline:
                     return got
                 self.pause(POLL)
@@ -196,6 +203,16 @@ class StepRunner:
         finally:
             self.ledger.gives_up(want)
         return got
+
+    @staticmethod
+    def _ask_somebody_else(got: Busy, others_left: bool) -> bool:
+        """Waiting hours for a reset while a free account stands by is not waiting, it is idling.
+
+        A full machine binds every provider, so waiting for a slot is right
+        whoever is next in the chain. A limit binds one account, and the chain
+        exists precisely because another one may be answering.
+        """
+        return others_left and got.code == "provider-limited"
 
     def _account(self, provider: str) -> str:
         """The quota pool. Where a machine names none, a provider is its own."""
@@ -246,7 +263,12 @@ class StepRunner:
                 # The machine is asked before the state moves. A run that cannot
                 # have a session has not attempted anything, and its step must
                 # look exactly as it did — pending, with the attempts it had.
-                got = self._slot(run, definition, provider)
+                others = [name for name in remaining if name != provider]
+                got = self._slot(run, definition, provider, others_left=bool(others))
+                if not got.granted and got.code == "stopped-by-request":
+                    stopped = self._stop_asked(run)
+                    if stopped is not None:
+                        return stopped
                 if not got.granted:
                     outcome.attempts.append(
                         AttemptRecord(
@@ -263,8 +285,8 @@ class StepRunner:
                 lease = got
 
             seen[provider] = seen.get(provider, 0) + 1
-            run = self.store.start_step(slug, provider=provider)
             try:
+                run = self.store.start_step(slug, provider=provider)
                 record = self._attempt(
                     run, index, definition, workspace, provider, seen[provider], refusal,
                     enclosures + _parts_enclosure(parts), prior, len(parts), contract,
@@ -328,11 +350,12 @@ class StepRunner:
                 remaining = [name for name in remaining if name != provider]
 
         last = outcome.attempts[-1]
-        if all(attempt.busy is not None for attempt in outcome.attempts):
-            # No session was ever started: the machine was full, or every
-            # account this step could use is limited. Nothing failed and nothing
-            # was refused — the step is still pending and the run is still a run,
-            # so this leaves the state alone and says so with an exit code.
+        if last.busy is not None:
+            # The last word was the machine's: it is full, or every account this
+            # step could use is limited. Nothing failed and nothing was refused
+            # by anybody, so the state is left exactly as it was — the step is
+            # still pending and the run is still a run — and the exit code says
+            # what happened. A busy machine must never be why a run is over.
             raise ProviderError(last.busy.code, last.busy.detail)
 
         if last.expected:

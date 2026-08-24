@@ -328,7 +328,9 @@ def test_a_machine_that_fills_up_after_a_real_refusal_does_not_fail_the_run(tmp_
     taken = []
 
     def fills_up(request):
-        taken.append(somebody_else(ledger, Ceilings(max_sessions=1), slug="latecomer"))
+        # Beside this run's own slot, so that it is still held once this
+        # attempt gives its own back — the machine fills up mid-chain.
+        taken.append(somebody_else(ledger, Ceilings(max_sessions=2), slug="latecomer"))
         return "this is not json, so the attempt is honestly refused"
 
     runner, store, _ = build(tmp_path, ledger, [fills_up, GOOD, GOOD])
