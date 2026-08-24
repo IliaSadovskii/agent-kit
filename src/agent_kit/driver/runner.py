@@ -228,10 +228,10 @@ class StepRunner:
         if stopped is not None:
             return stopped
 
-        if run.running is not None:
+        if run.current is not None:
             # A driver was killed between starting a step and hearing back. The
             # step is nobody's now; it goes back to pending and is tried again.
-            left = run.running.name
+            left = run.current.name
             run = self.store.refuse_step(slug, f"{left}: the driver that started this step never came back")
             log.info("%s: %s was left running by a driver that vanished; trying again", slug, left)
 

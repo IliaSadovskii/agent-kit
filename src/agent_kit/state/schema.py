@@ -15,7 +15,7 @@ from typing import Any
 from .. import __version__
 from ..errors import StateError
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 BRANCH_PREFIX = "kit/"
 
 #: What a run does when nobody says otherwise: one feature, end to end.
@@ -35,6 +35,10 @@ class RunStatus(str, Enum):
 class StepStatus(str, Enum):
     PENDING = "pending"
     RUNNING = "running"
+    #: The session answered and the driver is waiting for a person. The step is
+    #: nobody's work at this moment: it holds no slot, because a slot is one
+    #: live session and this one is closed. It still holds its run.
+    ASKING = "asking"
     PASSED = "passed"
     FAILED = "failed"
 
@@ -137,8 +141,19 @@ class Run:
     # --- reading ----------------------------------------------------------
 
     @property
-    def running(self) -> Step | None:
+    def current(self) -> Step | None:
+        """The step the run is on, whatever it is doing: running, or asking.
+
+        Named for the pointer rather than for one of the two, because a run
+        waiting twenty minutes on a person is as much *where the run is* as one
+        with a session open.
+        """
         return None if self.current_step is None else self.steps[self.current_step]
+
+    @property
+    def asking(self) -> Step | None:
+        step = self.current
+        return step if step is not None and step.status is StepStatus.ASKING else None
 
     @property
     def finished(self) -> bool:
@@ -163,7 +178,7 @@ class Run:
         if self.finished:
             raise StateError("run-finished", f"{self.slug} is {self.status.value}; it does not start again")
         if self.current_step is not None:
-            raise StateError("step-already-running", f"{self.slug}: step {self.running.name!r} is still running")
+            raise StateError("step-already-running", f"{self.slug}: step {self.current.name!r} is still running")
         index = self.next_pending()
         if index is None:
             raise StateError("no-step-pending", f"{self.slug}: every step is done")
@@ -181,7 +196,8 @@ class Run:
         return self._touch(step)
 
     def pass_step(self) -> Step:
-        step = self._require_running()
+        """The step is done — by its session, or by a default nobody answered."""
+        step = self._require_current()
         step.status = StepStatus.PASSED
         step.ended_at = now()
         self.current_step = None
@@ -189,6 +205,29 @@ class Run:
             self.status = RunStatus.DONE
             self.finished_at = now()
         return self._touch(step)
+
+    def ask_step(self, note: str) -> Step:
+        """The session answered, and what it returned is a question for a person.
+
+        A fourth thing that can happen to a running step, and it has its own
+        word because it is neither a refusal nor a failure nor running out of
+        room: the step did its work and named what only the owner can settle.
+        """
+        step = self._require_running()
+        step.status = StepStatus.ASKING
+        step.reason = _reason(note)
+        return self._touch(step)
+
+    def answered(self, note: str) -> Step:
+        """A person answered, so the step is done again with what they said.
+
+        Its own word beside `refuse_step` and `continue_step`: nothing was
+        refused and nothing ran out of room. What comes next is a fresh session
+        with the answer enclosed, which is the only way the design on file is
+        the design that was built.
+        """
+        self._require_asking()
+        return self._park(note)
 
     def refuse_step(self, reason: str) -> Step:
         """One attempt was not accepted. The step waits for the next one.
@@ -208,7 +247,7 @@ class Run:
         return self._park(note)
 
     def _park(self, reason: str) -> Step:
-        step = self._require_running()
+        step = self._require_current()
         step.status = StepStatus.PENDING
         step.ended_at = now()
         step.reason = _reason(reason)
@@ -217,7 +256,7 @@ class Run:
 
     def fail_step(self, reason: str) -> Step:
         """No attempt will be accepted. The step and the run both stop here."""
-        step = self._require_running()
+        step = self._require_current()
         step.status = StepStatus.FAILED
         step.ended_at = now()
         step.reason = _reason(reason)
@@ -229,7 +268,7 @@ class Run:
 
     def fail(self, reason: str) -> "Run":
         """The run stops because a step could not be made to pass. It says which and why."""
-        step = self.running or self._last_touched()
+        step = self.current or self._last_touched()
         if step is not None and step.status is not StepStatus.PASSED:
             step.status = StepStatus.FAILED
             step.ended_at = step.ended_at or now()
@@ -262,7 +301,7 @@ class Run:
     def stop(self, reason: str) -> "Run":
         if self.finished:
             raise StateError("run-finished", f"{self.slug} is already {self.status.value}")
-        step = self.running
+        step = self.current
         if step is not None:
             step.status = StepStatus.PENDING
             step.ended_at = now()
@@ -278,10 +317,23 @@ class Run:
         reached = [step for step in self.steps if step.attempts and step.status is not StepStatus.PASSED]
         return reached[-1] if reached else None
 
-    def _require_running(self) -> Step:
-        step = self.running
+    def _require_current(self) -> Step:
+        """A step the run is on: running, or waiting for a person."""
+        step = self.current
         if step is None:
             raise StateError("no-step-running", f"{self.slug}: no step is running")
+        return step
+
+    def _require_running(self) -> Step:
+        step = self._require_current()
+        if step.status is not StepStatus.RUNNING:
+            raise StateError("no-step-running", f"{self.slug}: {step.name} is {step.status.value}, not running")
+        return step
+
+    def _require_asking(self) -> Step:
+        step = self.current
+        if step is None or step.status is not StepStatus.ASKING:
+            raise StateError("no-step-asking", f"{self.slug}: no step is waiting for an answer")
         return step
 
     def _touch(self, step: Step) -> Step:
@@ -333,8 +385,13 @@ class Run:
             schema=_count(data.get("schema", SCHEMA_VERSION), "schema"),
             kit=_text(data.get("kit", __version__), "kit"),
         )
-        if run.current_step is not None and run.steps[run.current_step].status is not StepStatus.RUNNING:
-            raise StateError("bad-field: current_step", "current_step points at a step that is not running")
+        if run.current_step is not None and run.steps[run.current_step].status not in (
+            StepStatus.RUNNING,
+            StepStatus.ASKING,
+        ):
+            raise StateError(
+                "bad-field: current_step", "current_step points at a step that is neither running nor asking"
+            )
         return run
 
 

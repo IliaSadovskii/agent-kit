@@ -104,6 +104,14 @@ class RunStore:
     def fail_step(self, slug: str, reason: str) -> Run:
         return self.update(slug, lambda run: run.fail_step(reason))
 
+    def ask_step(self, slug: str, note: str) -> Run:
+        """The step returned a question, and the driver is waiting for an answer."""
+        return self.update(slug, lambda run: run.ask_step(note))
+
+    def answered(self, slug: str, note: str) -> Run:
+        """A person answered; the step is run again with what they said."""
+        return self.update(slug, lambda run: run.answered(note))
+
     def refuse_step(self, slug: str, reason: str) -> Run:
         """One attempt was refused; the step waits for the next."""
         return self.update(slug, lambda run: run.refuse_step(reason))

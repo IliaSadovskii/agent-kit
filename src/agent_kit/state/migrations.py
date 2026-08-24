@@ -30,6 +30,20 @@ def _brief_arrives(data: dict[str, Any]) -> dict[str, Any]:
 MIGRATIONS[1] = _brief_arrives
 
 
+def _a_step_may_be_asking(data: dict[str, Any]) -> dict[str, Any]:
+    """Schema 3 — a step may be waiting for a person.
+
+    Nothing in a schema 2 file changes: no run written before this could have
+    held `asking`. What the number buys is the refusal in the other direction —
+    a kit that does not know the status must say `schema-too-new` rather than
+    read a waiting step as a broken one.
+    """
+    return data
+
+
+MIGRATIONS[2] = _a_step_may_be_asking
+
+
 def oldest_schema() -> int:
     """The oldest file this kit can read: whatever the migrations reach back to.
 

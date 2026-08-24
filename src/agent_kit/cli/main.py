@@ -383,7 +383,7 @@ def _run(args: argparse.Namespace) -> int:
     if what == "start":
         _refuse_if_a_driver_holds_it(store, args.slug)
         run = store.start_step(args.slug, provider=args.provider)
-        print(f"{run.slug}: {run.running.name} running (attempt {run.running.attempts})")
+        print(f"{run.slug}: {run.current.name} running (attempt {run.current.attempts})")
         return int(ExitCode.OK)
 
     if what == "pass":
