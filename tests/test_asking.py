@@ -277,3 +277,129 @@ def test_a_question_the_owner_answered_stops_standing_in_the_design(tmp_path):
     run_step.run_next("add-vat")
 
     assert json.loads((step_dir(tmp_path) / "output.json").read_text())["asks"] == []
+
+
+# --- ревью: умолчание, взятое и забытое ------------------------------------
+
+
+TWO_QUESTIONS = [
+    {"question": QUESTION, "default": "one rate", "because": "нет второй страны"},
+    {"question": "round the tax up or down?", "default": "down", "because": "так считает касса"},
+]
+
+
+def answers_in(tmp_path, *pairs):
+    (tmp_path / "owner.in").write_text(
+        "".join(f"/a {identifier('add-vat', question)} {answer}\n" for question, answer in pairs)
+    )
+
+
+def assumptions(tmp_path):
+    return json.loads((step_dir(tmp_path) / "output.json").read_text())["assumptions"]
+
+
+def settled(tmp_path):
+    return {item["id"]: item for item in json.loads((step_dir(tmp_path) / "asks.json").read_text())["settled"]}
+
+
+def test_two_questions_one_answered_and_the_other_default_is_still_written_down(tmp_path):
+    """Ради этого весь шаг и написан: умолчание, взятое и забытое, невозможно."""
+    answers_in(tmp_path, (QUESTION, "one per country"))
+    run_step, store, owner = runner(
+        tmp_path, [design(asks=TWO_QUESTIONS), design(asks=TWO_QUESTIONS)]
+    )
+
+    run_step.run_next("add-vat")
+
+    taken = [item for item in assumptions(tmp_path) if "round the tax up" in item["what"]]
+    assert taken, "умолчание неотвеченного вопроса не попало в допущения"
+    assert taken[0]["expensive"] is True
+
+
+def test_a_question_the_second_design_forgot_is_still_written_down(tmp_path):
+    """Обычный случай: на часть ответили, и вторая попытка про остальное молчит."""
+    answers_in(tmp_path, (QUESTION, "one per country"))
+    run_step, store, owner = runner(tmp_path, [design(asks=TWO_QUESTIONS), design(asks=[])])
+
+    run_step.run_next("add-vat")
+
+    assert [item for item in assumptions(tmp_path) if "round the tax up" in item["what"]]
+
+
+def test_an_answer_survives_a_driver_that_died_before_it_could_be_used(tmp_path):
+    """Ответ лежит в asks.json, и следующий драйвер читает оттуда не только номер круга."""
+    answers_in(tmp_path, (QUESTION, "one per country"))
+    run_step, store, owner = runner(
+        tmp_path, [design(asks=ONE_QUESTION), design(asks=ONE_QUESTION), design()]
+    )
+    # Первый круг целиком, потом драйвер «умирает»: шаг возвращается в pending.
+    run_step.owner.channel = None
+    store.start_step("add-vat", provider="fake")
+    store.ask_step("add-vat", "design is asking the owner one thing")
+    run_step.store.answered("add-vat", "the owner answered one thing")
+    workspace = step_dir(tmp_path)
+    workspace.mkdir(parents=True, exist_ok=True)
+    (workspace / "asks.json").write_text(json.dumps({
+        "rounds": 1,
+        "settled": [{
+            "id": identifier("add-vat", QUESTION), "question": QUESTION, "default": "one rate",
+            "because": "нет второй страны", "at": "", "block": "",
+            "how": "answered", "answer": "one per country", "detail": "", "when": "2026-08-24T12:00:00+00:00",
+        }],
+    }))
+
+    run_step.run_next("add-vat")
+
+    said = (step_dir(tmp_path) / f"attempt-{store.load('add-vat').steps[0].attempts}" / "input.md").read_text()
+    assert "one per country" in said, "ответ владельца не вложили в новую сессию"
+    assert not [item for item in assumptions(tmp_path) if "ответа не было" in item.get("because", "")]
+
+
+def test_a_stop_while_waiting_does_not_spend_the_owners_round(tmp_path):
+    """Человек остановил ночь, чтобы ответить. Утром его обязаны спросить снова."""
+    run_step, store, owner = runner(tmp_path, [design(asks=ONE_QUESTION)], wait=600)
+
+    class Interrupted(FileChannel):
+        def read(self, offset):
+            run_step.ledger.ask_stop(str(tmp_path), "add-vat", "сейчас отвечу")
+            return super().read(offset)
+
+    owner.channel = Interrupted(tmp_path / "owner")
+    run_step.run_next("add-vat")
+
+    held = json.loads((step_dir(tmp_path) / "asks.json").read_text()) if (step_dir(tmp_path) / "asks.json").exists() else {"rounds": 0}
+    assert held["rounds"] == 0, "прерванный круг засчитали как потраченный"
+
+
+def test_a_question_nobody_was_asked_says_so_and_not_that_nobody_answered(tmp_path):
+    """Пятая концовка, и у неё свой код: сообщение не уходило вовсе."""
+    answers_in(tmp_path, (QUESTION, "one per country"))
+    later = [{"question": "and negative rates?", "default": "refuse", "because": "остальное так же"}]
+    run_step, store, owner = runner(tmp_path, [design(asks=ONE_QUESTION), design(asks=later)])
+
+    run_step.run_next("add-vat")
+
+    fresh = settled(tmp_path)[identifier("add-vat", "and negative rates?")]
+    assert fresh["how"] == "had-their-round"
+    (taken,) = [item for item in assumptions(tmp_path) if "negative rates" in item["what"]]
+    assert "не спрашивали" in taken["because"]
+    assert "ответа не было" not in taken["because"]
+
+
+def test_every_reason_is_one_sentence_and_not_two_glued_together(tmp_path):
+    run_step, store, owner = runner(tmp_path, [design(asks=ONE_QUESTION)], wait=0)
+
+    run_step.run_next("add-vat")
+
+    (taken,) = assumptions(tmp_path)
+    assert "ответа не было у владельца" not in taken["because"]
+    assert taken["because"].count(";") <= 1
+
+
+def test_asks_json_says_when_each_question_was_settled(tmp_path):
+    run_step, store, owner = runner(tmp_path, [design(asks=ONE_QUESTION)], wait=0)
+
+    run_step.run_next("add-vat")
+
+    (one,) = settled(tmp_path).values()
+    assert one["when"].startswith("20")
