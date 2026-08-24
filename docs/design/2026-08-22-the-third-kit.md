@@ -340,8 +340,16 @@ impossible state rather than an oversight.
 a trap proving it.
 
 **S7 · The daemon.** Slots on the machine, limits per account, the queue, autostart under systemd.
+Stop and skip (open question 9) belong to it. Its page shows and does not act, until somebody asks
+for more: showing is what was missing, and every button is a way to break a night from a bus.
 *Done when* two runs on one provider account wait for each other correctly instead of sleeping blind.
 *Why not earlier:* until S4 there is only ever one run.
+
+**S7a · The owner's channel.** Telegram, both directions, as settled at the foot of this note. Its
+own step and not a half of S7: the daemon is about a machine's slots and the channel is about a
+person's phone, and folding them together is what made the second version's control surface a live
+session. *Done when* a question waits its measured twenty minutes against a phone, and an
+unanswered one takes the default and records it as an assumption.
 
 **S8 · Parallelism.** A worktree per child, waves from the `needs` graph, several branches merged in
 an order the program decides.
@@ -539,6 +547,11 @@ break a night from a bus.
 Written before building rather than discovered during it. Each says which step forces the answer,
 and carries a proposal where one is obvious.
 
+**Questions 1, 2, 3, 4, 5, 6, 10, 11 and 12 are answered** — S0–S6 built them, each as its
+proposal said, and the notes for those steps carry the arguments. What is left open is 7, 8
+and 9, and 9 is S7's to build. The proposals below stand as written; where a step departed
+from one, its own note says so.
+
 ## Needed by S1 — the state
 
 **1 · Two kits on one project.** Version 2 is frozen but its nightly run on beeplish writes
@@ -593,8 +606,8 @@ recorded as an assumption. It was measured and it worked.
 *Proposal:* keep exactly that, and make the waiting a state of the step rather than prose.
 
 **9 · Stop and skip, while a night runs.** The second version read a `control` file between features.
-*Proposal:* the daemon owns it — `agent-kit stop <run>`, `agent-kit skip <slug>` — and the driver
-reads it at a step boundary. Same mechanism, an address instead of a file.
+*Settled, and S7 builds it:* the daemon owns it — `agent-kit stop <run>`, `agent-kit skip <slug>` —
+and the driver reads it at a step boundary. Same mechanism, an address instead of a file.
 
 **10 · Onboarding a project.** `agent-kit init` in a repository: write `project.toml`, read what the
 second version left in `docs/knowledge/`, migrate the format, say what is missing.
