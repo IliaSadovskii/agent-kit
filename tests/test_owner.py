@@ -230,12 +230,12 @@ def test_the_file_channel_says_what_message_a_line_went_out_as(channel):
 
 
 def test_the_file_channel_reads_only_what_is_new(channel):
-    channel.inbox.write_text("a one\nb two\n")
+    channel.inbox.write_text("#1 one\n#1 two\n")
 
     heard, offset = channel.read("")
     assert [item.text for item in heard] == ["one", "two"]
 
-    channel.inbox.write_text("a one\nb two\nc three\n")
+    channel.inbox.write_text("#1 one\n#1 two\n#1 three\n")
     heard, offset = channel.read(offset)
     assert [item.text for item in heard] == ["three"]
 
@@ -361,7 +361,8 @@ def test_two_drivers_do_not_read_the_channel_at_once(channel, ledger, tmp_path):
     yours = a_question("yours?", slug="add-tax")
     channel.inbox.write_text(f"/a {yours.id} theirs\n/a {mine.id} ours\n")
 
-    held = ledger.read_channel(pid=1, boot="another-boot")
+    # A process that is alive and is not this one: the reader is somebody else's.
+    held = ledger.read_channel(pid=1)
     assert held.granted
 
     # The other driver cannot read while that lease stands, so it hears nothing.
@@ -369,7 +370,7 @@ def test_two_drivers_do_not_read_the_channel_at_once(channel, ledger, tmp_path):
     assert settled.answer == ""
 
     ledger.release(held)
-    (settled,) = an_owner(channel, ledger).ask(PROJECT, "add-vat", "design", [mine])
+    (settled,) = an_owner(channel, ledger, wait=0).ask(PROJECT, "add-vat", "design", [mine])
     assert settled.answer == "ours"
 
 
