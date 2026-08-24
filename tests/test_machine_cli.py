@@ -7,6 +7,7 @@ driver, and they post a stop where the run's own driver reads it.
 
 import json
 import os
+import time
 from pathlib import Path
 
 import pytest
@@ -308,10 +309,18 @@ def test_the_page_answers_while_the_daemon_is_up(tmp_path, machine_home):
     import sys
     import urllib.request
 
+    from agent_kit.machine import Ceilings, Ledger, Want
+
     home = tmp_path / "home"
     (home / ".config/agent-kit").mkdir(parents=True)
     port = _a_free_port()
     (home / ".config/agent-kit/config.toml").write_text(f'[daemon]\nport = {port}\n', encoding="utf-8")
+    # A page asked what it holds while it holds nothing answers the same as a
+    # page that cannot read the ledger at all.
+    Ledger(home / ".local/state/agent-kit/daemon.sqlite").take(
+        Want(account="fake", provider="fake", project="/p", slug="running", step="build", pid=1),
+        Ceilings(max_sessions=4),
+    )
     env = {
         "HOME": str(home), "PATH": os.environ.get("PATH", ""),
         "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
@@ -330,8 +339,8 @@ def test_the_page_answers_while_the_daemon_is_up(tmp_path, machine_home):
         child.kill()
         child.wait(timeout=10)
 
-    assert "agent-kit" in html
-    assert said["held"] == []
+    assert "agent-kit" in html and "running" in html
+    assert [row["slug"] for row in said["held"]] == ["running"]
 
 
 def _a_free_port() -> int:
@@ -354,3 +363,142 @@ def _wait_for(port: int, seconds: float = 10.0) -> None:
         except OSError:
             time.sleep(0.1)
     raise AssertionError(f"nothing ever answered on {port}")
+
+
+# --- the review round --------------------------------------------------------
+
+
+def test_a_daemon_that_cannot_bind_leaves_the_standing_one_addressable(tmp_path, machine_home):
+    """It wrote its pid, failed to bind, and its `finally` unlinked the pid file.
+
+    After that `daemon status` says nothing is running and `daemon stop` says
+    there is nothing to stop, while the port stays held by a daemon nobody can
+    address any more.
+    """
+    import socket
+
+    from agent_kit.daemon import run_forever
+    from agent_kit.machine import Ledger
+
+    held = socket.socket()
+    held.bind(("127.0.0.1", 0))
+    held.listen(1)
+    port = held.getsockname()[1]
+
+    pid_file = tmp_path / "daemon.pid"
+    pid_file.write_text("4242", encoding="utf-8")
+    try:
+        with pytest.raises(OSError):
+            run_forever(Ledger(tmp_path / "daemon.sqlite"), "127.0.0.1", port, pid_file)
+    finally:
+        held.close()
+
+    assert pid_file.read_text().strip() == "4242", "it took the standing daemon's record with it"
+
+
+def test_the_daemon_is_stopped_by_the_door_a_person_uses(tmp_path, machine_home, capsys):
+    """The signal is proven; `agent-kit daemon stop` is the thing anybody types."""
+    import subprocess
+    import sys
+    import time
+
+    home = tmp_path / "home"
+    (home / ".config/agent-kit").mkdir(parents=True)
+    port = _a_free_port()
+    (home / ".config/agent-kit/config.toml").write_text(f"[daemon]\nport = {port}\n", encoding="utf-8")
+    env = {
+        "HOME": str(home), "PATH": os.environ.get("PATH", ""),
+        "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
+    }
+    child = subprocess.Popen(
+        [sys.executable, "-m", "agent_kit", "daemon", "start", "--foreground"],
+        env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    )
+    try:
+        _wait_for(port)
+        stopped = subprocess.run(
+            [sys.executable, "-m", "agent_kit", "daemon", "stop"],
+            env=env, capture_output=True, text=True, timeout=30,
+        )
+        assert stopped.returncode == 0, stopped.stderr
+        child.wait(timeout=15)
+    finally:
+        if child.poll() is None:
+            child.kill()
+            child.wait(timeout=10)
+
+    assert child.returncode == 0
+
+
+def test_stopping_a_daemon_that_is_not_there_is_refused_by_name(machine, capsys):
+    code, _, err = run(["daemon", "stop"], capsys)
+
+    assert code == ExitCode.STATE
+    assert "no-daemon" in err
+
+
+def test_the_sweeper_sweeps_on_its_own(machine, ledger):
+    """The other half of the process: a quiet machine still tells the truth."""
+    import sqlite3
+    import threading
+
+    from agent_kit.daemon import reap_forever
+    from agent_kit.machine import Ceilings, Want
+
+    ledger.take(Want(account="fake", provider="fake", project="/p", slug="a-ghost", step="build",
+                     pid=4_194_305), Ceilings(max_sessions=4))
+    stop = threading.Event()
+    sweeper = threading.Thread(target=reap_forever, args=(ledger,), kwargs={"every": 0, "stop": stop})
+    sweeper.start()
+    for _ in range(100):
+        rows = sqlite3.connect(str(ledger.path)).execute("SELECT slug FROM leases").fetchall()
+        if not rows:
+            break
+        time.sleep(0.05)
+    stop.set()
+    sweeper.join(timeout=5)
+
+    assert rows == [], "nothing swept the dead lease up"
+
+
+def test_a_run_a_driver_holds_is_not_advanced_by_hand(machine, ledger, capsys, tmp_path):
+    """`run stop` was fixed and its three neighbours were not.
+
+    One writer per run means one writer, and a person with a keyboard is a
+    writer like any other.
+    """
+    run(["run", "new", "add-vat", "--steps", "probe"], capsys)
+    ledger.hold_run(str((tmp_path / "project").resolve()), "add-vat", pid=1)
+
+    code, _, err = run(["run", "start", "add-vat"], capsys)
+
+    assert code == ExitCode.STATE
+    assert "run-held-elsewhere" in err
+
+
+def test_the_configuration_shows_the_settings_this_step_added(machine, capsys):
+    code, out, _ = run(["config", "show"], capsys)
+
+    assert code == ExitCode.OK
+    said = json.loads(out)
+    assert said["machine"]["wait"] == DEFAULT_WAIT
+    assert said["daemon"] == {"host": "127.0.0.1", "port": 8080}
+
+
+def test_a_machine_that_may_run_nothing_is_a_machine_that_may_run_nothing(machine, ledger, capsys):
+    """`--machine-max 0` was read as "nothing was said" and the configured ceiling used."""
+    code, _, err = run(
+        ["slot", "take", "--provider", "fake", "--slug", "first", "--machine-max", "0"], capsys
+    )
+
+    assert code == ExitCode.PROVIDER
+    assert "no-slot" in err
+
+
+def test_the_limit_says_what_the_provider_said_when_the_hour_was_guessed(machine, ledger, capsys):
+    ledger.limit("fake", until="5pm (America/Los_Angeles)", said_by="add-vat/build")
+
+    code, out, _ = run(["machine"], capsys)
+
+    assert "guessed" in out
+    assert "5pm (America/Los_Angeles)" in out
