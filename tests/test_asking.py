@@ -212,8 +212,15 @@ def test_a_step_that_is_waiting_says_so_in_the_run(tmp_path):
 def test_a_stop_reaches_a_run_that_is_waiting_for_a_person(tmp_path):
     """The run somebody most wants stopped is the one that is stuck."""
     run_step, store, owner = runner(tmp_path, [design(asks=ONE_QUESTION)], wait=600)
-    run_step.ledger.ask_stop(str(tmp_path), "add-vat", "the owner said so")
 
+    class Interrupted(FileChannel):
+        """A person typing `run stop` from another terminal while the run waits."""
+
+        def read(self, offset):
+            run_step.ledger.ask_stop(str(tmp_path), "add-vat", "the owner said so")
+            return super().read(offset)
+
+    owner.channel = Interrupted(tmp_path / "owner")
     outcome = run_step.run_next("add-vat")
 
     assert outcome.interrupted

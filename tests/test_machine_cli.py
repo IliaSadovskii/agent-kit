@@ -526,3 +526,87 @@ def test_stopping_a_daemon_whose_pid_belongs_to_somebody_else_is_refused_by_name
 
     assert code == ExitCode.STATE
     assert "not-ours" in err
+
+
+# --- S7a: what a person types at the owner's channel ------------------------
+
+
+def a_config(machine, text):
+    path = Paths.from_env().config_file
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+def test_a_token_is_typed_rather_than_passed_as_an_argument(machine, capsys, monkeypatch):
+    """An argument lands in a shell history; a secret must not."""
+    import io
+    import stat
+
+    monkeypatch.setattr("sys.stdin", io.StringIO("12345:abcdef\n"))
+
+    code, out, _ = run(["owner", "set-token"], capsys)
+
+    secrets = Paths.from_env().secrets_file
+    assert code == ExitCode.OK
+    assert "12345:abcdef" not in out
+    assert stat.S_IMODE(secrets.stat().st_mode) == 0o600
+
+
+def test_owner_check_on_a_machine_with_no_channel_says_which_rung(machine, capsys):
+    code, out, err = run(["owner", "check"], capsys)
+
+    assert code == ExitCode.CONFIG
+    assert "channel" in (out + err)
+
+
+def test_owner_check_walks_the_ladder_and_says_where_it_stopped(machine, capsys):
+    a_config(machine, f'[owner]\nchannel = "file"\nfile = "{machine}/owner"\n')
+
+    code, out, _ = run(["owner", "check"], capsys)
+
+    assert code == ExitCode.OK
+    assert "file" in out
+    assert (machine / "owner.out").exists()
+
+
+def test_owner_say_reaches_the_channel(machine, capsys):
+    a_config(machine, f'[owner]\nchannel = "file"\nfile = "{machine}/owner"\n')
+
+    code, out, _ = run(["owner", "say", "the night is over"], capsys)
+
+    assert code == ExitCode.OK
+    assert "the night is over" in (machine / "owner.out").read_text()
+
+
+def test_a_channel_that_cannot_be_reached_says_so_by_name(machine, capsys):
+    a_config(machine, f'[owner]\nchannel = "file"\nfile = "{machine}/owner"\n')
+    (machine / "owner.fail").write_text("no\n")
+
+    code, out, err = run(["owner", "say", "hello"], capsys)
+
+    assert code == ExitCode.PROVIDER
+    assert "channel-failed" in err
+
+
+def test_machine_prints_what_is_waiting_on_the_owner(machine, ledger, capsys):
+    from agent_kit.machine import Ask
+
+    ledger.asked(
+        Ask(id="k7f3q2", project="/p", slug="add-vat", step="design",
+            question="one rate, or one per country?", default="one rate",
+            until="2099-01-01T00:00:00+00:00")
+    )
+
+    code, out, _ = run(["machine"], capsys)
+
+    assert code == ExitCode.OK
+    assert "k7f3q2" in out
+    assert "one rate, or one per country?" in out
+
+
+def test_doctor_says_whether_there_is_a_channel_at_all(machine, capsys):
+    code, out, _ = run(["doctor"], capsys)
+
+    assert code == ExitCode.OK
+    assert "owner" in out.lower()
