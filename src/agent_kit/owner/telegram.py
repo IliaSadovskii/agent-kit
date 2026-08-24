@@ -42,6 +42,32 @@ class Telegram:
         answer = self._ask("sendMessage", {"chat_id": self.chat, "text": text})
         return str((answer.get("result") or {}).get("message_id") or "")
 
+    def me(self) -> str:
+        """Имя самого бота. Единственный читатель — настройка: человеку надо,
+        куда написать, а «куда» — это `t.me/<имя>`, и знает его только API."""
+        return str((self._ask("getMe", {}).get("result") or {}).get("username") or "")
+
+    def listen(self, offset: str) -> tuple[str, str, str]:
+        """Кто написал первым: чат, как его зовут, и откуда спрашивать дальше.
+
+        Это не `read`: у `read` есть чат, по которому он фильтрует, а здесь чат
+        и есть то, что выясняется. Читатель один — `owner setup`.
+        """
+        asked: dict[str, Any] = {"timeout": 0}
+        if offset.isdigit():
+            asked["offset"] = int(offset)
+        answer = self._ask("getUpdates", asked)
+
+        seen = int(offset) if offset.isdigit() else 0
+        for update in answer.get("result") or []:
+            seen = max(seen, int(update.get("update_id", 0)) + 1)
+            chat = (update.get("message") or {}).get("chat") or {}
+            if chat.get("id") is None:
+                continue
+            named = chat.get("first_name") or chat.get("title") or chat.get("username") or "владелец"
+            return str(chat["id"]), str(named), str(seen)
+        return "", "", str(seen)
+
     def read(self, offset: str) -> tuple[list[Heard], str]:
         asked: dict[str, Any] = {"timeout": 0}
         if offset.isdigit():

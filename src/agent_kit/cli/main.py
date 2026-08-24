@@ -161,6 +161,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     owner = commands.add_parser("owner", help="the channel to the person this machine works for")
     owner_what = owner.add_subparsers(dest="what", metavar="WHAT")
+    owner_what.add_parser("setup", help="завести канал: бот, токен, чат — одной командой")
     owner_what.add_parser("check", help="the ladder, and the rung it stopped on")
     owner_say = owner_what.add_parser("say", help="send a line to the owner, and wait for nothing")
     owner_say.add_argument("text")
@@ -1000,9 +1001,15 @@ def _a_time(value: str | None) -> str | None:
     return value
 
 
+def _typed(prompt: str) -> str:
+    """Строка от человека. Печатается в stderr, чтобы вывод команды остался выводом."""
+    print(prompt, end="", file=sys.stderr, flush=True)
+    return sys.stdin.readline()
+
+
 def _channel_line(config: Config, paths: Paths) -> str:
     if not config.owner.channel:
-        return "no channel — every question takes its default at once and is written down"
+        return "no channel — try `agent-kit owner setup` (every question takes its default at once)"
     said = f"{config.owner.channel}, waits {config.owner.wait}s"
     if config.owner.channel == "telegram":
         from ..owner import TELEGRAM_TOKEN, read_secret
@@ -1023,9 +1030,16 @@ def _owner(args: argparse.Namespace, paths: Paths) -> int:
 
     what = args.what
     if what is None:
-        raise UsageError("missing-command", "owner needs one of: check, say, set-token")
+        raise UsageError("missing-command", "owner needs one of: setup, check, say, set-token")
+
+    if what == "setup":
+        from .. import owner as channel_of
+
+        channel_of.setup(ask=_typed, say=print, paths=paths)
+        return int(ExitCode.OK)
 
     if what == "set-token":
+        # Тем же путём, что и настройка: с потока ввода, а не аргументом.
         # From stdin and never from an argument: an argument lands in a shell
         # history, and this is the kit's first secret.
         token = sys.stdin.readline().strip()
@@ -1039,7 +1053,7 @@ def _owner(args: argparse.Namespace, paths: Paths) -> int:
     if not config.owner.channel:
         print(f"{PROGRAM}: no-channel: this machine has no channel to its owner", file=sys.stderr)
         print("  every question takes its default at once, and the default is written down", file=sys.stderr)
-        print(f"  set one in {paths.config_file}: [owner] channel = \"telegram\"", file=sys.stderr)
+        print("  agent-kit owner setup заводит его целиком: бот, токен, чат", file=sys.stderr)
         return int(ExitCode.CONFIG)
 
     channel = open_channel(config.owner, paths.secrets_file)

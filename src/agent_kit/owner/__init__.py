@@ -23,6 +23,7 @@ from .ask import (
 from .channel import Channel, ChannelFailed, understand
 from .file import FileChannel
 from .secrets import TELEGRAM_TOKEN, read_secret, write_secret
+from .setup import setup
 from .telegram import Telegram
 
 __all__ = [
@@ -41,6 +42,7 @@ __all__ = [
     "as_assumption",
     "open_channel",
     "read_secret",
+    "setup",
     "write_secret",
     "questions_of",
     "understand",
