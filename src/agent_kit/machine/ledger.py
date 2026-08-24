@@ -21,6 +21,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterator
 
+from ..errors import ProviderError
 from .linux import boot_id, is_alive
 
 SCHEMA_VERSION = 1
@@ -68,6 +69,7 @@ CREATE TABLE IF NOT EXISTS waiters (
 CREATE TABLE IF NOT EXISTS limits (
     account TEXT PRIMARY KEY,
     until   TEXT NOT NULL,
+    said    TEXT NOT NULL DEFAULT '',
     said_at TEXT NOT NULL,
     said_by TEXT NOT NULL,
     guessed INTEGER NOT NULL DEFAULT 0
@@ -89,6 +91,30 @@ def now() -> str:
 
 def after(seconds: int) -> str:
     return (datetime.now(timezone.utc) + timedelta(seconds=seconds)).replace(microsecond=0).isoformat()
+
+
+def moment(said: str | None) -> str | None:
+    """A time this file can compare, out of whatever a provider called it.
+
+    Times here are compared as strings, which only works while every one of
+    them is the same shape and the same zone. What a CLI prints is a phrase a
+    person reads — `5pm (America/Los_Angeles)`, `17:00`, an offset three hours
+    from here — and storing that as it came made `5pm` sort above every date
+    there will ever be. That is an account limited for good.
+
+    So: read it, put it in UTC, or say plainly that it could not be read.
+    """
+    if not isinstance(said, str) or not said.strip():
+        return None
+    text = said.strip().replace("Z", "+00:00")
+    try:
+        when = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if when.tzinfo is None:
+        # No zone said is this machine's zone, which is where the run is.
+        when = when.astimezone()
+    return when.astimezone(timezone.utc).replace(microsecond=0).isoformat()
 
 
 # --- what is asked, and what comes back ------------------------------------
@@ -174,6 +200,10 @@ class Limited:
     said_at: str
     said_by: str
     guessed: bool
+    #: What the provider actually said, in its own words. Kept because a
+    #: guessed hour is only honest if the phrase it was guessed from is there
+    #: to read: `machine` and the page both print it.
+    said: str = ""
 
 
 @dataclass(frozen=True)
@@ -225,6 +255,15 @@ class Ledger:
         # NOT EXISTS` is what makes two threads and two processes opening it at
         # once harmless.
         db.executescript(_SCHEMA)
+        (held,) = db.execute("PRAGMA user_version").fetchone()
+        if held > SCHEMA_VERSION:
+            db.close()
+            raise ProviderError(
+                "ledger-too-new",
+                f"{self.path} was written by a kit that knows schema {held}; this one knows"
+                f" {SCHEMA_VERSION}",
+                hint="upgrade the kit, or move the ledger aside — it holds nothing that outlives a reboot",
+            )
         db.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
         return db
 
@@ -273,11 +312,22 @@ class Ledger:
             return self._write_lease(db, want, SESSION, want.ttl)
 
     def release(self, lease: Lease | None) -> None:
-        """Asked for twice is the same as asked for once."""
+        """Asked for twice is the same as asked for once.
+
+        By identity and not by the number alone: `INTEGER PRIMARY KEY` without
+        `AUTOINCREMENT` is `max(rowid) + 1`, so a row that is gone gives its
+        number to the next one. A driver whose lease was swept for being stale,
+        releasing it afterwards, would otherwise delete whoever now holds that
+        number — and the ceiling would be one session wider than the machine
+        allows, silently.
+        """
         if lease is None:
             return
         with self._writing() as db:
-            db.execute("DELETE FROM leases WHERE id = ?", (lease.id,))
+            db.execute(
+                "DELETE FROM leases WHERE id = ? AND pid = ? AND boot = ? AND taken_at = ?",
+                (lease.id, lease.pid, lease.boot, lease.taken_at),
+            )
 
     def held(self, kind: str = SESSION) -> list[Lease]:
         with self._writing() as db:
@@ -376,21 +426,28 @@ class Ledger:
     # --- limits ------------------------------------------------------------
 
     def limit(self, account: str, until: str | None, said_by: str) -> Limited:
-        """One session paid to learn this. It must cost the next one nothing."""
-        guessed = until is None
+        """One session paid to learn this. It must cost the next one nothing.
+
+        An hour that cannot be read is an hour that was not read: the row says
+        `guessed`, keeps the phrase, and stands for one hour rather than for
+        however long the phrase happens to sort above today's date.
+        """
+        read = moment(until)
         held = Limited(
             account=account,
-            until=until or after(GUESSED_LIMIT),
+            until=read or after(GUESSED_LIMIT),
             said_at=now(),
             said_by=said_by,
-            guessed=guessed,
+            guessed=read is None,
+            said=(until or "").strip(),
         )
         with self._writing() as db:
             db.execute(
-                "INSERT INTO limits (account, until, said_at, said_by, guessed) VALUES (?, ?, ?, ?, ?)"
-                " ON CONFLICT(account) DO UPDATE SET until = excluded.until, said_at = excluded.said_at,"
-                " said_by = excluded.said_by, guessed = excluded.guessed",
-                (held.account, held.until, held.said_at, held.said_by, int(held.guessed)),
+                "INSERT INTO limits (account, until, said, said_at, said_by, guessed)"
+                " VALUES (?, ?, ?, ?, ?, ?)"
+                " ON CONFLICT(account) DO UPDATE SET until = excluded.until, said = excluded.said,"
+                " said_at = excluded.said_at, said_by = excluded.said_by, guessed = excluded.guessed",
+                (held.account, held.until, held.said, held.said_at, held.said_by, int(held.guessed)),
             )
         return held
 
@@ -470,15 +527,24 @@ class Ledger:
         """Three ways a row is dead, in the order they are cheap to ask."""
         this_boot = boot_id()
         gone = 0
-        moment = now()
+        this_moment = now()
         for table in ("leases", "waiters"):
             for row in db.execute(f"SELECT id, pid, boot FROM {table}").fetchall():
                 if row["boot"] == this_boot and is_alive(row["pid"]):
                     continue
                 db.execute(f"DELETE FROM {table} WHERE id = ?", (row["id"],))
                 gone += 1
-        gone += db.execute("DELETE FROM leases WHERE expires_at <= ?", (moment,)).rowcount
-        gone += db.execute("DELETE FROM limits WHERE until <= ?", (moment,)).rowcount
+        gone += db.execute("DELETE FROM leases WHERE expires_at <= ?", (this_moment,)).rowcount
+        gone += db.execute("DELETE FROM limits WHERE until <= ?", (this_moment,)).rowcount
+        # A stop is addressed to the driver that was holding the run when it was
+        # asked for. If that driver never came back, nobody is going to read it,
+        # and a request left standing stops whatever run next carries that name.
+        gone += db.execute(
+            "DELETE FROM requests WHERE NOT EXISTS ("
+            "  SELECT 1 FROM leases WHERE leases.kind = ? AND leases.project = requests.project"
+            "   AND leases.slug = requests.slug)",
+            (RUN,),
+        ).rowcount
         return gone
 
     # --- what the page reads ------------------------------------------------
@@ -518,7 +584,7 @@ def _waiting(row: sqlite3.Row) -> Waiting:
 def _limited(row: sqlite3.Row) -> Limited:
     return Limited(
         account=row["account"], until=row["until"], said_at=row["said_at"],
-        said_by=row["said_by"], guessed=bool(row["guessed"]),
+        said_by=row["said_by"], guessed=bool(row["guessed"]), said=row["said"],
     )
 
 
