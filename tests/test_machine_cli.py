@@ -564,13 +564,57 @@ def test_owner_check_on_a_machine_with_no_channel_says_which_rung(machine, capsy
 
 
 def test_owner_check_walks_the_ladder_and_says_where_it_stopped(machine, capsys):
+    """Лестница, а не одна строка: у `provider check` она есть, и уровень канала
+    меряется так же — иначе это заявление вместо следа."""
     a_config(machine, f'[owner]\nchannel = "file"\nfile = "{machine}/owner"\n')
 
     code, out, _ = run(["owner", "check"], capsys)
 
     assert code == ExitCode.OK
-    assert "file" in out
+    for rung in ("канал настроен", "канал отвечает", "сообщение ушло", "ответы читаются"):
+        assert rung in out, f"ступень {rung!r} не названа"
     assert (machine / "owner.out").exists()
+
+
+def test_owner_check_names_the_rung_it_stopped_on(machine, capsys):
+    a_config(machine, f'[owner]\nchannel = "file"\nfile = "{machine}/owner"\n')
+    (machine / "owner.fail").write_text("бот не отвечает\n")
+
+    code, out, err = run(["owner", "check"], capsys)
+
+    assert code == ExitCode.PROVIDER
+    assert "канал настроен" in out
+    assert "сообщение ушло" not in out
+    assert "channel-failed" in (out + err)
+
+
+def test_owner_check_on_telegram_asks_telegram_who_it_is(machine, capsys, monkeypatch):
+    """Ступень «канал отвечает» — это getMe, а не догадка по конфигу."""
+    asked = []
+
+    class Bot:
+        name = "telegram"
+
+        def me(self):
+            asked.append("getMe")
+            return "vat_night_bot"
+
+        def send(self, text):
+            asked.append("sendMessage")
+            return "1"
+
+        def read(self, offset):
+            asked.append("getUpdates")
+            return [], "1"
+
+    monkeypatch.setattr("agent_kit.owner.open_channel", lambda *a, **k: Bot())
+    a_config(machine, '[owner]\nchannel = "telegram"\nchat = "55"\n')
+
+    code, out, _ = run(["owner", "check"], capsys)
+
+    assert code == ExitCode.OK
+    assert asked == ["getMe", "sendMessage", "getUpdates"]
+    assert "vat_night_bot" in out
 
 
 def test_owner_say_reaches_the_channel(machine, capsys):

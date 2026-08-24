@@ -437,3 +437,30 @@ def test_a_person_with_no_name_is_still_a_chat():
 
     assert chat == "-100500"
     assert name
+
+
+# --- ревью: имя канала не называет никто вне owner/ -------------------------
+
+
+def test_no_module_outside_owner_names_a_channel():
+    """То же правило, что у провайдеров: реестр читает, остальные не знают имён."""
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parents[1] / "src" / "agent_kit"
+    guilty = []
+    for path in root.rglob("*.py"):
+        if path.parent.name == "owner":
+            continue
+        text = path.read_text(encoding="utf-8")
+        for line in text.splitlines():
+            if re.search(r"\btelegram\b", line, re.IGNORECASE) and not line.lstrip().startswith("#"):
+                guilty.append(f"{path.relative_to(root)}: {line.strip()}")
+
+    assert guilty == []
+
+
+def test_the_package_says_which_channels_there_are_and_nobody_else_does():
+    from agent_kit.owner import CHANNELS
+
+    assert set(CHANNELS) == {"telegram", "file"}
