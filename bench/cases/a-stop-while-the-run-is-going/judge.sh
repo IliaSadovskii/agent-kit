@@ -2,7 +2,7 @@
 # The trap first: the stop was really asked for, and it went to the driver
 # rather than into the file the driver was writing.
 test -s "$BENCH/stop-said" || { echo "nothing ever asked this run to stop"; exit 1; }
-grep -q 'driver' "$BENCH/stop-said" ||
+grep -q '^stop-asked:' "$BENCH/stop-said" ||
   { echo "the stop was written into the state under a driver that holds it"; exit 1; }
 
 # The step that was running when it was asked finished; the ones after it did not.

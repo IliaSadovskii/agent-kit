@@ -317,7 +317,8 @@ def _config(args: argparse.Namespace, paths: Paths) -> int:
 def _config_as_data(config: Config) -> dict:
     return {
         "source": str(config.source) if config.source else None,
-        "machine": {"max_sessions": config.machine.max_sessions},
+        "machine": {"max_sessions": config.machine.max_sessions, "wait": config.machine.wait},
+        "daemon": {"host": config.daemon.host, "port": config.daemon.port},
         "providers": {
             name: {
                 "enabled": p.enabled,
@@ -380,16 +381,19 @@ def _run(args: argparse.Namespace) -> int:
         return _go(store, registry, args)
 
     if what == "start":
+        _refuse_if_a_driver_holds_it(store, args.slug)
         run = store.start_step(args.slug, provider=args.provider)
         print(f"{run.slug}: {run.running.name} running (attempt {run.running.attempts})")
         return int(ExitCode.OK)
 
     if what == "pass":
+        _refuse_if_a_driver_holds_it(store, args.slug)
         run = store.pass_step(args.slug)
         print(f"{run.slug}: {_where(run)}")
         return int(ExitCode.OK)
 
     if what == "fail":
+        _refuse_if_a_driver_holds_it(store, args.slug)
         run = store.fail_step(args.slug, args.reason)
         print(f"{run.slug}: failed — {run.reason}")
         return int(ExitCode.OK)
@@ -398,21 +402,42 @@ def _run(args: argparse.Namespace) -> int:
         # One writer per run. If a driver holds this one, the stop is posted
         # where that driver reads it — at its next step boundary — rather than
         # written into a file it is still writing.
-        paths = Paths.from_env()
-        ledger = _ledger(paths)
-        where = str(store.paths.root.resolve())
-        held = store.load(args.slug)
-        where = held.project or where
-        driving = [lease for lease in ledger.runs() if lease.slug == args.slug and lease.project == where]
+        driving = _driving(store, args.slug)
         if driving:
-            ledger.ask_stop(where, args.slug, reason=args.reason)
-            print(f"{args.slug}: asked the driver (pid {driving[0].pid}) to stop at the next step")
+            _ledger(Paths.from_env()).ask_stop(driving[0].project, args.slug, reason=args.reason)
+            # A code, not a sentence: what a script reads must not be prose
+            # somebody will reword.
+            print(f"stop-asked: {args.slug} — the driver (pid {driving[0].pid}) stops at the next step")
             return int(ExitCode.OK)
         run = store.stop(args.slug, args.reason)
         print(f"{run.slug}: stopped — {run.reason}")
         return int(ExitCode.OK)
 
     raise UsageError("unknown-command", f"run {what}")
+
+
+def _driving(store: RunStore, slug: str) -> list:
+    """The leases a driver holds on this run right now, if any."""
+    held = store.load(slug)
+    where = held.project or str(store.paths.root.resolve())
+    ledger = _ledger(Paths.from_env())
+    return [lease for lease in ledger.runs() if lease.slug == slug and lease.project == where]
+
+
+def _refuse_if_a_driver_holds_it(store: RunStore, slug: str) -> None:
+    """One writer per run, and a person with a keyboard is a writer like any other.
+
+    `run stop` has somewhere else to go — the driver reads it at a step
+    boundary. These three have not: advancing a run under the driver that is
+    advancing it is two writers on one file, which is open question 2.
+    """
+    driving = _driving(store, slug)
+    if driving:
+        raise StateError(
+            "run-held-elsewhere",
+            f"{slug} is being run by process {driving[0].pid} since {driving[0].taken_at}",
+            hint=f"agent-kit run stop {slug} '<why>' asks that driver to stop",
+        )
 
 
 def _go(store: RunStore, registry, args: argparse.Namespace) -> int:
@@ -777,7 +802,7 @@ def _ceilings(config: Config, machine_max: int | None = None):
     from ..machine import Ceilings
 
     return Ceilings(
-        max_sessions=machine_max or config.machine.max_sessions,
+        max_sessions=config.machine.max_sessions if machine_max is None else machine_max,
         per_provider={
             name: chosen.max_sessions
             for name, chosen in config.providers.items()
@@ -813,7 +838,7 @@ def _machine(paths: Paths) -> int:
     print()
     print("limited")
     for row in picture.limits:
-        guessed = "  (an hour, guessed)" if row.guessed else ""
+        guessed = f"  (an hour, guessed from {row.said!r})" if row.guessed else ""
         print(f"  {row.account:20} until {row.until}   {row.said_by} found out{guessed}")
     if not picture.limits:
         print("  no account is limited")

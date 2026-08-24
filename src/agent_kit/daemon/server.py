@@ -57,7 +57,7 @@ def as_dict(ledger: Ledger) -> dict:
         "limits": [
             {
                 "account": row.account, "until": row.until, "said_by": row.said_by,
-                "said_at": row.said_at, "guessed": row.guessed,
+                "said_at": row.said_at, "guessed": row.guessed, "said": row.said,
             }
             for row in picture.limits
         ],
@@ -116,7 +116,8 @@ def _limited(picture: Picture) -> str:
         return "<h2>limited</h2><p class='quiet'>no account is limited</p>"
     rows = "".join(
         f"<tr><td>{escape(row.account)}</td><td>{escape(row.until)}</td>"
-        f"<td class='quiet'>{escape(row.said_by)}{' (an hour, guessed)' if row.guessed else ''}</td></tr>"
+        f"<td class='quiet'>{escape(row.said_by)}"
+        f"{escape(f' (an hour, guessed from {row.said!r})') if row.guessed else ''}</td></tr>"
         for row in picture.limits
     )
     return f"<h2>limited</h2><table><tr><th>account</th><th>until</th><th>who found out</th></tr>{rows}</table>"
@@ -172,11 +173,13 @@ def run_forever(ledger: Ledger, host: str, port: int, pid_file: Path | None = No
     thread that is standing inside it — so calling it there is a daemon that
     ignores every stop and holds the port until somebody kills it.
     """
+    # The port first. A daemon that cannot bind must not have written its pid
+    # anywhere: whoever is holding that port is the daemon this machine has, and
+    # the pid file is how anybody addresses it.
+    server = serve(ledger, host, port)
     if pid_file is not None:
         pid_file.parent.mkdir(parents=True, exist_ok=True)
         pid_file.write_text(str(os.getpid()), encoding="utf-8")
-
-    server = serve(ledger, host, port)
     stop = threading.Event()
     sweeper = threading.Thread(target=reap_forever, args=(ledger,), kwargs={"stop": stop}, daemon=True)
     sweeper.start()
@@ -192,5 +195,16 @@ def run_forever(ledger: Ledger, host: str, port: int, pid_file: Path | None = No
     finally:
         stop.set()
         server.server_close()
-        if pid_file is not None:
-            pid_file.unlink(missing_ok=True)
+        _give_up_the_pid_file(pid_file)
+
+
+def _give_up_the_pid_file(pid_file: Path | None) -> None:
+    """Only if it still names us. Somebody else's record is not ours to erase."""
+    if pid_file is None:
+        return
+    try:
+        held = pid_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        return
+    if held == str(os.getpid()):
+        pid_file.unlink(missing_ok=True)
