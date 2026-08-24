@@ -1,0 +1,10 @@
+# a machine that has no channel to its owner
+
+[case]
+title = "a question on a machine with no channel configured"
+fires = "nothing waits, nothing is sent, and the default is still written down as an assumption"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { design = "passed", deliver = "passed" }

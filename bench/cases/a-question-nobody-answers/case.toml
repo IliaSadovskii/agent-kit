@@ -1,0 +1,10 @@
+# a question the owner never sees an answer for
+
+[case]
+title = "a question goes to the owner and nobody answers it"
+fires = "the default is taken, the run goes on, and the knowledge holds a block saying what was taken"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { design = "passed", record = "passed", deliver = "passed" }

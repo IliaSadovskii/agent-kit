@@ -1,0 +1,10 @@
+# an answer that names somebody else's question
+
+[case]
+title = "an answer arrives naming a question this run never asked"
+fires = "it is not mistaken for this one: the default is taken and the stray answer changes nothing"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { design = "passed", deliver = "passed" }

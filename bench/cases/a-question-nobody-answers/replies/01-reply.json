@@ -1,0 +1,24 @@
+{
+  "title": "Money learns a VAT rate",
+  "summary": "Money learns a VAT rate, so a price can be quoted with the tax on it.",
+  "changes": [
+    "money.py — a RATE beside the amount"
+  ],
+  "seams": [
+    "AMOUNT keeps its meaning: the price before tax"
+  ],
+  "verification": [
+    "the declared command comes back green with RATE in place"
+  ],
+  "asks": [
+    {
+      "question": "one VAT rate for everything, or one per country?",
+      "default": "one rate for everything",
+      "because": "nothing in this project has a second country in it yet",
+      "at": "entities.md#tax",
+      "block": "Никто не ответил, одна ставка или своя на страну. Взял одну на всё: вторая страна тут ещё не появлялась, а если появится — цена посчитается по чужой ставке молча."
+    }
+  ],
+  "assumptions": [],
+  "closes": []
+}

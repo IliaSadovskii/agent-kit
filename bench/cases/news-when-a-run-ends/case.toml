@@ -1,0 +1,10 @@
+# the night ends and says so
+
+[case]
+title = "a run that ends reaches the owner without anybody opening a terminal"
+fires = "the channel carries a line naming the run and the pull request it left"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { deliver = "passed" }

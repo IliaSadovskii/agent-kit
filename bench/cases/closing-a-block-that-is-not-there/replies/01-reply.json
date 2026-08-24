@@ -4,7 +4,7 @@
   "changes": ["money.py — a RATE beside the amount"],
   "seams": ["AMOUNT keeps its meaning: the price before tax"],
   "verification": ["the declared command comes back green with RATE in place"],
-  "needs_owner": [],
+  "asks": [],
   "closes": ["zzzzzz"],
   "assumptions": []
 }

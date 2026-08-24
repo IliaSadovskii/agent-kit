@@ -265,3 +265,15 @@ def test_a_run_that_ends_says_so_without_anybody_opening_a_terminal(tmp_path):
 
     said = (tmp_path / "owner.out").read_text()
     assert "add-vat" in said and "done" in said
+
+
+def test_a_question_the_owner_answered_stops_standing_in_the_design(tmp_path):
+    """It is settled, not defaulted: the pull request must not still want it."""
+    (tmp_path / "owner.in").write_text(f"/a {identifier('add-vat', QUESTION)} one per country\n")
+    run_step, store, owner = runner(
+        tmp_path, [design(asks=ONE_QUESTION), design(asks=ONE_QUESTION)]
+    )
+
+    run_step.run_next("add-vat")
+
+    assert json.loads((step_dir(tmp_path) / "output.json").read_text())["asks"] == []

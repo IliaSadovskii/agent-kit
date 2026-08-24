@@ -1,0 +1,10 @@
+# the owner answers, and the design is run again
+
+[case]
+title = "the owner answers a question while the run waits"
+fires = "the step is run again with the answer enclosed, so the design on file is the design that was built"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { design = "passed", deliver = "passed" }

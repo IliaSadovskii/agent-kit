@@ -7,7 +7,7 @@
   "seams": [
     "AMOUNT keeps its meaning: the price before tax"
   ],
-  "needs_owner": [],
+  "asks": [],
   "assumptions": [
     {
       "what": "the rate is a whole percent",

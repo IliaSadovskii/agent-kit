@@ -1,0 +1,10 @@
+# a second design that asks what was already answered
+
+[case]
+title = "the step asks the same question again after it was answered"
+fires = "it is not sent a second time: the owner had their round, and the default is taken instead"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { design = "passed", deliver = "passed" }

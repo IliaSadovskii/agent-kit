@@ -1,0 +1,10 @@
+# the channel is configured and does not answer
+
+[case]
+title = "the owner's channel cannot be reached at all"
+fires = "the default is taken, the night goes on, and the record says the channel failed rather than that nobody answered"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { design = "passed", deliver = "passed" }

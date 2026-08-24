@@ -1,0 +1,11 @@
+# a person stops the run while it waits on them
+
+[case]
+title = "a stop is asked for while the run is waiting for an answer"
+fires = "the run stops where it is waiting, instead of standing there until the deadline"
+
+[expect]
+exit_code = 130
+status = "stopped"
+refusal = "stopped-by-request"
+steps = { design = "pending", build = "pending", deliver = "pending" }
