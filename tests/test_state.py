@@ -428,3 +428,115 @@ def test_a_run_file_from_schema_1_gains_an_empty_brief(store, tmp_path):
 
     assert run.brief is None
     assert run.schema == SCHEMA_VERSION
+
+
+# --- S7a: a step that is waiting for a person ------------------------------
+
+
+def test_a_running_step_can_be_asking(store):
+    store.create("add-vat", steps=["design"])
+    store.start_step("add-vat")
+
+    run = store.ask_step("add-vat", "asking the owner about the rate")
+
+    assert run.steps[0].status is StepStatus.ASKING
+    assert run.status is RunStatus.RUNNING
+    assert run.current_step == 0
+    assert run.steps[0].reason == "asking the owner about the rate"
+
+
+def test_only_a_running_step_asks(store):
+    store.create("add-vat", steps=["design"])
+
+    with pytest.raises(StateError) as refused:
+        store.ask_step("add-vat", "asking about nothing")
+
+    assert refused.value.code == "no-step-running"
+
+
+def test_an_answer_sends_the_step_back_to_be_run_again(store):
+    """Not a refusal and not a part: the owner answered, so the step is done again."""
+    store.create("add-vat", steps=["design"])
+    store.start_step("add-vat")
+    store.ask_step("add-vat", "asking the owner about the rate")
+
+    run = store.answered("add-vat", "the owner answered: one rate")
+
+    assert run.steps[0].status is StepStatus.PENDING
+    assert run.steps[0].attempts == 1
+    assert run.steps[0].reason == "the owner answered: one rate"
+    assert run.current_step is None
+
+
+def test_a_step_that_never_asked_cannot_be_answered(store):
+    store.create("add-vat", steps=["design"])
+    store.start_step("add-vat")
+
+    with pytest.raises(StateError) as refused:
+        store.answered("add-vat", "an answer to nothing")
+
+    assert refused.value.code == "no-step-asking"
+
+
+def test_nobody_answered_and_the_step_passes_from_asking(store):
+    """The default was taken. The step did its work and the run goes on."""
+    store.create("add-vat", steps=["design"])
+    store.start_step("add-vat")
+    store.ask_step("add-vat", "asking the owner about the rate")
+
+    run = store.pass_step("add-vat")
+
+    assert run.steps[0].status is StepStatus.PASSED
+    assert run.status is RunStatus.DONE
+
+
+def test_an_asking_step_survives_being_written_and_read_back(store):
+    store.create("add-vat", steps=["design"])
+    store.start_step("add-vat")
+    store.ask_step("add-vat", "asking the owner about the rate")
+
+    run = store.load("add-vat")
+
+    assert run.steps[0].status is StepStatus.ASKING
+    assert run.current.name == "design"
+
+
+def test_current_step_must_point_at_a_step_that_is_doing_something(store, tmp_path):
+    store.create("add-vat", steps=["design"])
+    store.start_step("add-vat")
+    path = tmp_path / ".agent-kit/v3/runs/add-vat/run.json"
+    data = json.loads(path.read_text())
+    data["steps"][0]["status"] = "passed"
+    path.write_text(json.dumps(data))
+
+    with pytest.raises(StateError) as refused:
+        store.load("add-vat")
+
+    assert refused.value.code == "bad-field: current_step"
+
+
+def test_a_run_file_from_schema_2_is_read(store, tmp_path):
+    """Nothing in a schema 2 file changes. What the bump buys is the refusal below."""
+    store.create("add-vat", steps=["design"])
+    path = tmp_path / ".agent-kit/v3/runs/add-vat/run.json"
+    data = json.loads(path.read_text())
+    data["schema"] = 2
+    path.write_text(json.dumps(data))
+
+    run = store.load("add-vat")
+
+    assert run.schema == SCHEMA_VERSION
+
+
+def test_a_kit_that_does_not_know_asking_refuses_the_file(store, tmp_path):
+    """An older kit meeting `asking` must say so rather than guess what it means."""
+    store.create("add-vat", steps=["design"])
+    path = tmp_path / ".agent-kit/v3/runs/add-vat/run.json"
+    data = json.loads(path.read_text())
+    data["schema"] = SCHEMA_VERSION + 1
+    path.write_text(json.dumps(data))
+
+    with pytest.raises(StateError) as refused:
+        store.load("add-vat")
+
+    assert refused.value.code == "schema-too-new"
