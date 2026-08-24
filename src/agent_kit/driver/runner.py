@@ -10,6 +10,7 @@ typing "continue" at a stuck session is a guess wearing the clothes of a recover
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
@@ -18,6 +19,8 @@ from ..config import RoleConfig
 from ..errors import KitError, ProviderError, StateError
 from ..knowledge import DEFAULT_DIR as KNOWLEDGE_DIR, Knowledge
 from ..logs import get_logger
+from ..machine import Busy, Ceilings, Lease, Ledger, Want, ledger_path
+from ..paths import Paths
 from ..state import DEFAULT_STEPS, Run, RunStore
 from ..steps import Registry, StepDefinition
 from ..steps.contract import ContractRefusal, parse_output
@@ -26,6 +29,14 @@ from .executor import Executor, ExecutorFailed, ExecutorResult, StepRequest
 from .workspace import StepWorkspace
 
 ATTEMPTS_PER_PROVIDER = 3
+
+#: How long the driver waits for a slot or for a limit to reset before it gives
+#: up and says so. Longer than a limit's reset, shorter than a night.
+DEFAULT_WAIT = 2 * 60 * 60
+
+#: How often a waiting driver asks the ledger again. There is no signal and no
+#: socket: a poll of a local file is cheaper than a protocol to get wrong.
+POLL = 1.0
 
 #: How often a splittable step may stop short and be carried on. A step that
 #: needs more than this is not a step that ran out of room; it is a step that
@@ -45,6 +56,10 @@ class AttemptRecord:
     retryable: bool = True
     #: True when this was the method working rather than the kit breaking.
     expected: bool = False
+    #: Set when the machine said no before any session was started: the ceiling
+    #: was reached, or the account is known to be limited. Nothing was spent and
+    #: nothing about the run changed, so this is not a failed attempt at all.
+    busy: Busy | None = None
     meta: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -60,6 +75,10 @@ class StepOutcome:
     output: dict[str, Any] | None = None
     reason: str | None = None
     attempts: list[AttemptRecord] = field(default_factory=list)
+    #: True when a person stopped this run rather than the method refusing it.
+    #: The exit code that means *the operator stopped it* is 130, and reading a
+    #: person's decision as the method's would be a lie about who said no.
+    interrupted: bool = False
 
 
 class StepRunner:
@@ -72,6 +91,12 @@ class StepRunner:
         default_provider: str | None = None,
         attempts_per_provider: int = ATTEMPTS_PER_PROVIDER,
         continuations_allowed: int = CONTINUATIONS_ALLOWED,
+        ledger: Ledger | None = None,
+        ceilings: Ceilings | None = None,
+        accounts: Mapping[str, str] | None = None,
+        wait: int = DEFAULT_WAIT,
+        pause: Any = None,
+        say: Any = None,
     ) -> None:
         self.store = store
         self.registry = registry
@@ -80,13 +105,110 @@ class StepRunner:
         self.default_provider = default_provider
         self.attempts = attempts_per_provider
         self.continuations = continuations_allowed
+        # There is no driver without a ledger. A ceiling that can be left out is
+        # a ceiling that is off wherever somebody forgot it, which is the shape
+        # of every defect the plan's measurement found.
+        self.ledger = ledger or Ledger(ledger_path(Paths.from_env()))
+        self.ceilings = ceilings or Ceilings()
+        self.accounts = dict(accounts or {})
+        self.wait = wait
+        self.pause = pause or time.sleep
+        self.say = say or log.info
 
     # --- the one thing it does -------------------------------------------
 
     def run_next(self, slug: str) -> StepOutcome:
+        outcome = self._advance(slug)
+        run = self.store.load(slug)
+        if run.finished:
+            self.let_go(slug)
+        return outcome
+
+    def let_go(self, slug: str) -> None:
+        """Stop holding the run. What the process dies with is reclaimed anyway."""
+        run_root = self.store.paths.root.resolve()
+        for lease in self.ledger.runs():
+            if lease.slug == slug and lease.project == str(run_root):
+                self.ledger.release(lease)
+
+    # --- the machine, asked before anything is spent ----------------------
+
+    def _hold(self, run: Run) -> None:
+        """One driver per run — open question 2, enforced instead of merely settled."""
+        held = self.ledger.hold_run(self._where(run), run.slug)
+        if not held.granted:
+            raise StateError(held.code, held.detail)
+
+    def _stop_asked(self, run: Run) -> StepOutcome | None:
+        """A person's stop, read where the run's own driver can act on it.
+
+        At a step boundary and nowhere else: a session that is running is doing
+        work somebody will have to pay for again, and killing it mid-edit is how
+        a working copy is left half-written.
+        """
+        reason = self.ledger.stop_asked(self._where(run), run.slug)
+        if reason is None:
+            return None
+        said = f"stopped-by-request: {reason}"
+        self.store.stop(run.slug, said)
+        self.say(f"{run.slug}: {said}")
+        log.info("%s: %s", run.slug, said)
+        return StepOutcome(
+            slug=run.slug,
+            step=run.steps[run.next_pending() or 0].name,
+            passed=False,
+            reason=said,
+            interrupted=True,
+        )
+
+    def _slot(self, run: Run, definition: StepDefinition, provider: str) -> Lease | Busy:
+        """One live session's worth of machine, waited for if there is time to wait."""
+        want = Want(
+            account=self._account(provider),
+            provider=provider,
+            project=self._where(run),
+            slug=run.slug,
+            step=definition.name,
+        )
+        got = self.ledger.take(want, self.ceilings)
+        if got.granted or self.wait <= 0:
+            return got
+
+        deadline = time.monotonic() + self.wait
+        said = ""
+        self.ledger.wants_one(want)
+        try:
+            while not got.granted:
+                if got.detail != said:
+                    # Once, when the answer changes. A night's log that scrolls
+                    # a line a second is a night's log nobody reads.
+                    said = got.detail
+                    self.say(f"{run.slug}: waiting — {got.code}: {got.detail}")
+                if time.monotonic() >= deadline:
+                    return got
+                self.pause(POLL)
+                got = self.ledger.take(want, self.ceilings)
+        finally:
+            self.ledger.gives_up(want)
+        return got
+
+    def _account(self, provider: str) -> str:
+        """The quota pool. Where a machine names none, a provider is its own."""
+        return self.accounts.get(provider) or provider
+
+    def _where(self, run: Run) -> str:
+        return str(Path(run.project) if run.project else self.store.paths.root.resolve())
+
+    def _advance(self, slug: str) -> StepOutcome:
         run = self.store.load(slug)
         if run.finished:
             raise StateError("run-finished", f"{slug} is {run.status.value}; there is no next step")
+
+        self._hold(run)
+
+        stopped = self._stop_asked(run)
+        if stopped is not None:
+            return stopped
 
         if run.running is not None:
             # A driver was killed between starting a step and hearing back. The
@@ -113,6 +235,28 @@ class StepRunner:
         remaining = list(providers)
         while remaining:
             provider = remaining.pop(0)
+
+            lease = None
+            if definition.by_agent:
+                # The machine is asked before the state moves. A run that cannot
+                # have a session has not attempted anything, and its step must
+                # look exactly as it did — pending, with the attempts it had.
+                got = self._slot(run, definition, provider)
+                if not got.granted:
+                    outcome.attempts.append(
+                        AttemptRecord(
+                            attempt=run.steps[index].attempts,
+                            on_provider=seen.get(provider, 0),
+                            provider=provider,
+                            refusal=f"{got.code}: {got.detail}",
+                            retryable=False,
+                            busy=got,
+                        )
+                    )
+                    remaining = [name for name in remaining if name != provider]
+                    continue
+                lease = got
+
             seen[provider] = seen.get(provider, 0) + 1
             run = self.store.start_step(slug, provider=provider)
             try:
@@ -125,6 +269,10 @@ class StepRunner:
                 # nobody can move. The reason is written down before it is raised.
                 self.store.refuse_step(slug, f"{definition.name} on {provider}: {_named(escaped)}")
                 raise
+            finally:
+                # A slot that outlives its session is a slot nobody gets back
+                # until the driver dies, and the driver is what is still running.
+                self.ledger.release(lease)
             outcome.attempts.append(record)
 
             if record.passed:
@@ -175,6 +323,13 @@ class StepRunner:
                 remaining = [name for name in remaining if name != provider]
 
         last = outcome.attempts[-1]
+        if all(attempt.busy is not None for attempt in outcome.attempts):
+            # No session was ever started: the machine was full, or every
+            # account this step could use is limited. Nothing failed and nothing
+            # was refused — the step is still pending and the run is still a run,
+            # so this leaves the state alone and says so with an exit code.
+            raise ProviderError(last.busy.code, last.busy.detail)
+
         if last.expected:
             # The method said no. That is what it is for, and it is not a fault
             # of the kit, so the run is stopped and the reason is the answer.
@@ -261,6 +416,16 @@ class StepRunner:
         try:
             result = self.executors[provider].execute(request)
         except ExecutorFailed as failure:
+            if failure.code == "provider-limited":
+                # One session paid to learn this. Writing it down is what makes
+                # it cost the next one nothing — and the next one may be in
+                # another project, which is why it goes to the machine's ledger
+                # and not into this run's record.
+                self.ledger.limit(
+                    self._account(provider),
+                    failure.until,
+                    said_by=f"{run.slug}/{definition.name}",
+                )
             # What the attempt spent before it failed is recorded too: the spend
             # must be visible exactly when the kit is burning money on retries.
             return self._refused(
