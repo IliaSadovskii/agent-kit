@@ -376,11 +376,12 @@ worse than what the kit already does with code, and it is the same shape: there 
 rollback in the kit, and inventing one for the knowledge alone would be inventing it in the
 wrong place.
 
-**The sandbox baseline has not moved.** Section 9 decided it should, once and deliberately,
-and it has not been done: `kit-sandbox` is another repository and moving its `main` is the
-kind of act that is the owner's to approve rather than a side effect of this step. S6 is
-proved on the bench, which is what its done-condition names. The move is the first thing to
-do before the next live run.
+**The sandbox baseline has moved, once, with the owner's word for it** — 24 August,
+`kit-sandbox` commit `0e54eef`. Two files of the real shape: records with a `key:`, a prose
+file addressed by its headings, one block carrying an identifier and one written the way the
+second version wrote them — so a live run meets both the closable and the unclosable. `main`
+is frozen there from now on, and runs from either side of that commit are not comparable
+with each other. That is the price, and it is paid once.
 
 **No `full` case, still.** Every one of the nineteen answers from `providers/fake/`. A case
 that drives a real provider needs the runner to stop passing `--provider fake`
