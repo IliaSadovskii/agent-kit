@@ -502,3 +502,119 @@ def test_a_ledger_that_cannot_be_read_is_a_named_refusal(tmp_path):
 
     assert refused.value.code == "unreadable-ledger"
     assert refused.value.exit_code is not ExitCode.INTERNAL
+
+
+# --- S7a: questions waiting on a person ------------------------------------
+
+
+def an_ask(id: str = "k7f3q2", slug: str = "add-vat", **rest):
+    from agent_kit.machine import Ask
+
+    return Ask(
+        id=id,
+        project=rest.pop("project", "/projects/thing"),
+        slug=slug,
+        step=rest.pop("step", "design"),
+        question=rest.pop("question", "one rate, or one per country?"),
+        default=rest.pop("default", "one rate"),
+        until=rest.pop("until", in_an_hour()),
+        message=rest.pop("message", "17"),
+        **rest,
+    )
+
+
+def test_a_question_is_a_row_while_it_waits(ledger):
+    ledger.asked(an_ask())
+
+    (waiting,) = ledger.waiting_on_the_owner()
+    assert waiting.id == "k7f3q2"
+    assert waiting.slug == "add-vat"
+    assert waiting.answer is None
+
+
+def test_asking_the_same_question_twice_is_asking_it_once(ledger):
+    """A driver that died after asking must find its own question, not plant a second."""
+    ledger.asked(an_ask())
+    ledger.answered("k7f3q2", "one per country")
+
+    ledger.asked(an_ask())
+
+    assert len(ledger.waiting_on_the_owner()) == 0
+    assert ledger.ask_of("k7f3q2").answer == "one per country"
+
+
+def test_an_answer_is_stamped_by_this_kits_clock(ledger):
+    """Never by the clock of whoever sent it: their stamp is theirs, the deadline is ours."""
+    ledger.asked(an_ask())
+
+    assert ledger.answered("k7f3q2", "one per country") is True
+
+    held = ledger.ask_of("k7f3q2")
+    assert held.answer == "one per country"
+    assert held.answered_at >= held.asked_at
+
+
+def test_an_answer_to_a_question_nobody_asked_is_not_written(ledger):
+    assert ledger.answered("nobody", "hello") is False
+    assert ledger.ask_of("nobody") is None
+
+
+def test_the_first_answer_is_the_answer(ledger):
+    ledger.asked(an_ask())
+    ledger.answered("k7f3q2", "one per country")
+
+    assert ledger.answered("k7f3q2", "changed my mind") is False
+    assert ledger.ask_of("k7f3q2").answer == "one per country"
+
+
+def test_a_question_is_found_by_the_message_it_was_sent_as(ledger):
+    """What a person actually does on a phone is reply to the message."""
+    ledger.asked(an_ask(message="17"))
+
+    assert ledger.ask_sent_as("17").id == "k7f3q2"
+    assert ledger.ask_sent_as("999") is None
+
+
+def test_only_one_process_reads_the_channel_at_a_time(ledger):
+    """getUpdates is single-consumer: two readers steal each other's answers."""
+    first = ledger.read_channel()
+    assert first.granted
+
+    second = ledger.read_channel(pid=first.pid + 1, boot="another-boot")
+    assert not second.granted
+    assert second.code == "channel-held-elsewhere"
+
+    ledger.release(first)
+    assert ledger.read_channel(pid=first.pid + 1, boot="another-boot").granted
+
+
+def test_the_offset_outlives_the_process_that_read_it(ledger, tmp_path):
+    ledger.remember_offset("509")
+
+    assert Ledger(tmp_path / "daemon.sqlite").offset() == "509"
+
+
+def test_the_offset_starts_at_nothing(ledger):
+    assert ledger.offset() == ""
+
+
+def test_a_question_long_past_its_hour_is_swept(ledger):
+    from agent_kit.machine.ledger import after
+
+    ledger.asked(an_ask(id="old", until=after(-2 * 60 * 60)))
+    ledger.asked(an_ask(id="fresh"))
+
+    ledger.reap()
+
+    assert [row.id for row in ledger.waiting_on_the_owner()] == ["fresh"]
+
+
+def test_a_question_just_past_its_deadline_is_not_swept_from_under_its_driver(ledger):
+    """The driver reads one last time after the deadline. Sweeping there loses an answer."""
+    from agent_kit.machine.ledger import after
+
+    ledger.asked(an_ask(id="justnow", until=after(-5)))
+
+    ledger.reap()
+
+    assert [row.id for row in ledger.waiting_on_the_owner()] == ["justnow"]
