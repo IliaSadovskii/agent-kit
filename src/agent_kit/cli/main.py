@@ -69,6 +69,8 @@ def build_parser() -> argparse.ArgumentParser:
     go.add_argument("--provider", help="who executes the steps a session does; the role table decides when left out")
     go.add_argument("--option", action="append", default=[], metavar="KEY=VALUE",
                     help="an option for the provider, as its own block documents; repeat to give several")
+    go.add_argument("--wait", type=int, metavar="SECONDS",
+                    help="how long to wait for a slot or a limit to reset; 0 refuses instead of waiting")
 
     show = run_what.add_parser("show", help="a run, as it stands")
     show.add_argument("slug")
@@ -127,6 +129,39 @@ def build_parser() -> argparse.ArgumentParser:
     step_run.add_argument("--provider", help="who executes it; the role table decides when this is left out")
     step_run.add_argument("--option", action="append", default=[], metavar="KEY=VALUE",
                           help="an option for the provider, as its own block documents; repeat to give several")
+    step_run.add_argument("--wait", type=int, metavar="SECONDS",
+                          help="how long to wait for a slot or a limit to reset; 0 refuses instead of waiting")
+
+    commands.add_parser("machine", help="what is running here, what is queued, what is limited")
+
+    slot = commands.add_parser("slot", help="a slot by hand: what a script does where a driver would")
+    slot_what = slot.add_subparsers(dest="what", metavar="WHAT")
+    take = slot_what.add_parser("take", help="hold a slot until it is given back")
+    take.add_argument("--provider", required=True)
+    take.add_argument("--slug", required=True)
+    take.add_argument("--account", help="the quota pool; the provider's own name when left out")
+    take.add_argument("--step", default="by-hand")
+    take.add_argument("--ttl", type=int, help="how many seconds it lives if nobody gives it back")
+    take.add_argument("--machine-max", type=int, help="the ceiling to judge it against; the configured one when left out")
+    give_back = slot_what.add_parser("release", help="give back a slot taken by hand")
+    give_back.add_argument("--slug", required=True)
+
+    limit = commands.add_parser("limit", help="an account that is out of quota, and until when")
+    limit_what = limit.add_subparsers(dest="what", metavar="WHAT")
+    limit_set = limit_what.add_parser("set", help="write down that an account is limited")
+    limit_set.add_argument("account")
+    limit_set.add_argument("--until", help="when it resets, as a time; an hour is assumed when left out")
+    limit_set.add_argument("--said-by", default="by hand", help="who found out")
+    limit_clear = limit_what.add_parser("clear", help="the account is answering again")
+    limit_clear.add_argument("account")
+
+    daemon = commands.add_parser("daemon", help="the process that serves the page and sweeps up")
+    daemon_what = daemon.add_subparsers(dest="what", metavar="WHAT")
+    daemon_start = daemon_what.add_parser("start", help="raise it")
+    daemon_start.add_argument("--foreground", action="store_true", help="do not detach; what systemd starts")
+    daemon_what.add_parser("status", help="whether it is up, and where it answers")
+    daemon_what.add_parser("stop", help="ask it to go away")
+    daemon_what.add_parser("install", help="write the systemd user unit")
 
     return parser
 
@@ -179,6 +214,14 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace, paths: 
         return _provider(args, paths)
     if args.command == "bench":
         return _bench(args)
+    if args.command == "machine":
+        return _machine(paths)
+    if args.command == "slot":
+        return _slot(args, paths)
+    if args.command == "limit":
+        return _limit(args, paths)
+    if args.command == "daemon":
+        return _daemon(args, paths)
 
     raise UsageError("unknown-command", args.command)
 
@@ -195,6 +238,10 @@ def _doctor(paths: Paths, project: Path) -> int:
     print(f"  state       {paths.state_dir}  {_present(paths.state_dir)}")
     print(f"  logs        {paths.log_dir}  {_present(paths.log_dir)}")
     print(f"  secrets     {paths.secrets_file}  {_present(paths.secrets_file)}")
+    ledger = _ledger(paths)
+    print(f"  ledger      {ledger.path}  {_present(ledger.path)}")
+    picture = ledger.picture()
+    print(f"  right now   {len(picture.held)} running, {len(picture.queue)} queued, {len(picture.limits)} limited")
     print()
     print("the project")
     print(f"  root        {project.resolve()}")
@@ -209,6 +256,8 @@ def _doctor(paths: Paths, project: Path) -> int:
     print()
     print("what is configured")
     print(f"  max sessions {config.machine.max_sessions}")
+    print(f"  waits up to  {config.machine.wait}s for a slot or a limit to reset")
+    print(f"  page         http://{config.daemon.host}:{config.daemon.port}")
     print(f"  providers    {', '.join(sorted(config.providers)) or 'none — nothing can run yet'}")
     print(f"  roles        {', '.join(sorted(config.roles)) or 'none — every role falls back to the default'}")
     return int(ExitCode.OK)
@@ -342,6 +391,17 @@ def _run(args: argparse.Namespace) -> int:
         return int(ExitCode.OK)
 
     if what == "stop":
+        # One writer per run. If a driver holds this one, the stop is posted
+        # where that driver reads it — at its next step boundary — rather than
+        # written into a file it is still writing.
+        paths = Paths.from_env()
+        ledger = _ledger(paths)
+        where = str(store.paths.root.resolve())
+        driving = [lease for lease in ledger.runs() if lease.slug == args.slug and lease.project == where]
+        if driving:
+            ledger.ask_stop(where, args.slug, reason=args.reason)
+            print(f"{args.slug}: asked the driver (pid {driving[0].pid}) to stop at the next step")
+            return int(ExitCode.OK)
         run = store.stop(args.slug, args.reason)
         print(f"{run.slug}: stopped — {run.reason}")
         return int(ExitCode.OK)
@@ -359,7 +419,7 @@ def _go(store: RunStore, registry, args: argparse.Namespace) -> int:
     if run.finished:
         raise StateError("run-finished", f"{args.slug} is {run.status.value}; there is nothing left to run")
 
-    runner = _runner(store, registry, args.provider, args.option)
+    runner = _runner(store, registry, args.provider, args.option, wait=args.wait)
     while True:
         outcome = runner.run_next(args.slug)
         for attempt in outcome.attempts:
@@ -367,6 +427,10 @@ def _go(store: RunStore, registry, args: argparse.Namespace) -> int:
             print(f"  attempt {attempt.attempt} on {attempt.provider}: {mark}")
         if not outcome.passed:
             print(f"{outcome.slug}: {outcome.reason}", file=sys.stderr)
+            if outcome.interrupted:
+                # A person stopped this. Reading that as `refused` would say the
+                # method turned the work down, and the method said nothing.
+                return int(ExitCode.INTERRUPTED)
             # `stopped` means the method said no, whichever step said it. A gate
             # that closes already exited 5; a step refused for a reason the
             # method expects — a blocking finding, a build that never finished —
@@ -451,7 +515,7 @@ def _step(args: argparse.Namespace, paths: Paths) -> int:
         return int(ExitCode.OK)
 
     if what == "run":
-        runner = _runner(store, registry, args.provider, args.option)
+        runner = _runner(store, registry, args.provider, args.option, wait=args.wait)
         outcome = runner.run_next(args.slug)
         for attempt in outcome.attempts:
             mark = "passed" if attempt.passed else f"refused — {attempt.refusal}"
@@ -460,7 +524,7 @@ def _step(args: argparse.Namespace, paths: Paths) -> int:
             print(f"{outcome.slug}: {outcome.step} passed")
             return int(ExitCode.OK)
         print(f"{outcome.slug}: {outcome.reason}", file=sys.stderr)
-        return int(ExitCode.STATE)
+        return int(ExitCode.INTERRUPTED if outcome.interrupted else ExitCode.STATE)
 
     raise UsageError("unknown-command", f"step {what}")
 
@@ -564,8 +628,9 @@ def _bench_list(root: Path, names: list[str], read_case, CaseError) -> int:
     return int(ExitCode.BROKEN_BENCH if broken else ExitCode.OK)
 
 
-def _runner(store: RunStore, registry, provider: str | None, options: list[str]) -> StepRunner:
-    """Everything a run needs to advance: who executes, and which role names them."""
+def _runner(store: RunStore, registry, provider: str | None, options: list[str],
+            wait: int | None = None) -> StepRunner:
+    """Everything a run needs to advance: who executes, which role names them, and what the machine allows."""
     from ..programs import build_program, program_names
     from ..project import read_project
 
@@ -573,6 +638,13 @@ def _runner(store: RunStore, registry, provider: str | None, options: list[str])
     config = load_config(paths.config_file)
     typed = _options(options)
     root = store.paths.root
+    machine = dict(
+        ledger=_ledger(paths),
+        ceilings=_ceilings(config),
+        accounts=_accounts(config),
+        wait=config.machine.wait if wait is None else wait,
+        say=print,
+    )
 
     # The programs are not providers: nobody chooses them, nobody configures
     # them, and a step that names one names it in the kit's own registry. They
@@ -589,6 +661,7 @@ def _runner(store: RunStore, registry, provider: str | None, options: list[str])
             executors=executors,
             roles={},
             default_provider=provider,
+            **machine,
         )
 
     # Nobody named one, so the role table decides. A project's own table wins
@@ -600,7 +673,7 @@ def _runner(store: RunStore, registry, provider: str | None, options: list[str])
     executors.update(
         {name: providers.build_executor(name, _settings(config, name, typed)) for name in sorted(named)}
     )
-    return StepRunner(store=store, registry=registry, executors=executors, roles=roles)
+    return StepRunner(store=store, registry=registry, executors=executors, roles=roles, **machine)
 
 
 def _settings(config: Config, provider: str, typed: dict[str, list[str]]) -> dict[str, list[str]]:
@@ -682,6 +755,229 @@ def _what_the_step_cost(store: RunStore, slug: str, index: int, name: str) -> li
     if meta.get("limited_until"):
         said.append(f"limited until {meta['limited_until']}")
     return [", ".join(said)] if said else []
+
+
+# --- the machine ------------------------------------------------------------
+
+
+def _ledger(paths: Paths):
+    from ..machine import Ledger, ledger_path
+
+    return Ledger(ledger_path(paths))
+
+
+def _ceilings(config: Config, machine_max: int | None = None):
+    """What this installation chose, in the shape the ledger judges against."""
+    from ..machine import Ceilings
+
+    return Ceilings(
+        max_sessions=machine_max or config.machine.max_sessions,
+        per_provider={
+            name: chosen.max_sessions
+            for name, chosen in config.providers.items()
+            if chosen.max_sessions is not None
+        },
+    )
+
+
+def _accounts(config: Config) -> dict[str, str]:
+    """The quota pool per provider. Where none is named, a provider is its own."""
+    return {name: chosen.account or name for name, chosen in config.providers.items()}
+
+
+def _machine(paths: Paths) -> int:
+    """One screen: what is running, what is waiting, what is out of quota."""
+    ledger = _ledger(paths)
+    picture = ledger.picture()
+    runs = ledger.runs()
+
+    print("running")
+    for row in picture.held:
+        print(f"  {row.slug:20} {row.step:10} {row.provider:12} {row.account:12} since {row.taken_at}")
+    if not picture.held:
+        print("  nothing is running")
+
+    print()
+    print("queued")
+    for row in picture.queue:
+        print(f"  {row.slug:20} {row.step:10} {row.account:12} asked at {row.asked_at}")
+    if not picture.queue:
+        print("  nobody is waiting")
+
+    print()
+    print("limited")
+    for row in picture.limits:
+        guessed = "  (an hour, guessed)" if row.guessed else ""
+        print(f"  {row.account:20} until {row.until}   {row.said_by} found out{guessed}")
+    if not picture.limits:
+        print("  no account is limited")
+
+    print()
+    print("runs with a driver on them")
+    for row in runs:
+        print(f"  {row.slug:20} {row.project}  since {row.taken_at}")
+    if not runs:
+        print("  nothing is being driven")
+    return int(ExitCode.OK)
+
+
+def _slot(args: argparse.Namespace, paths: Paths) -> int:
+    """A slot by hand. Its readers are a person diagnosing a stuck machine and the bench."""
+    from ..machine import Want
+
+    what = args.what
+    if what is None:
+        raise UsageError("missing-command", "slot needs one of: take, release")
+
+    ledger = _ledger(paths)
+    project = str(Path(args.project).resolve())
+
+    if what == "take":
+        want = Want(
+            account=args.account or args.provider,
+            provider=args.provider,
+            project=project,
+            slug=args.slug,
+            step=args.step,
+            **({"ttl": args.ttl} if args.ttl is not None else {}),
+        )
+        got = ledger.take(want, _ceilings(load_config(paths.config_file), args.machine_max))
+        if not got.granted:
+            raise ProviderError(got.code, got.detail)
+        print(f"{args.slug}: holding a slot on {args.provider} until {got.expires_at}")
+        return int(ExitCode.OK)
+
+    if what == "release":
+        for lease in ledger.held():
+            if lease.slug == args.slug and lease.project == project:
+                ledger.release(lease)
+                print(f"{args.slug}: the slot is given back")
+                return int(ExitCode.OK)
+        raise StateError("no-such-slot", f"nothing here holds a slot for {args.slug!r}")
+
+    raise UsageError("unknown-command", f"slot {what}")
+
+
+def _limit(args: argparse.Namespace, paths: Paths) -> int:
+    what = args.what
+    if what is None:
+        raise UsageError("missing-command", "limit needs one of: set, clear")
+
+    ledger = _ledger(paths)
+    if what == "set":
+        until = _a_time(args.until)
+        held = ledger.limit(args.account, until=until, said_by=args.said_by)
+        guessed = " (an hour, guessed)" if held.guessed else ""
+        print(f"{held.account}: limited until {held.until}{guessed}")
+        return int(ExitCode.OK)
+
+    if what == "clear":
+        ledger.unlimit(args.account)
+        print(f"{args.account}: answering again")
+        return int(ExitCode.OK)
+
+    raise UsageError("unknown-command", f"limit {what}")
+
+
+def _a_time(value: str | None) -> str | None:
+    """A time the ledger can compare, or a refusal before anything is written."""
+    from datetime import datetime
+
+    if value is None:
+        return None
+    try:
+        datetime.fromisoformat(value)
+    except ValueError as error:
+        raise UsageError(
+            "bad-time", f"{value!r} is not a time: give it as 2026-08-24T17:00:00+00:00"
+        ) from error
+    return value
+
+
+def _daemon(args: argparse.Namespace, paths: Paths) -> int:
+    """The process: the page and the sweep. It holds nothing the ledger does not."""
+    import os
+    import signal
+    import subprocess
+    import sys as _sys
+    import threading
+
+    from ..daemon import reap_forever, serve
+    from ..machine import is_alive, unit_file, unit_path
+
+    what = args.what or "status"
+    config = load_config(paths.config_file)
+    where = f"http://{config.daemon.host}:{config.daemon.port}"
+    pid_file = paths.state_dir / "daemon.pid"
+
+    def running() -> int | None:
+        try:
+            held = int(pid_file.read_text(encoding="utf-8").strip())
+        except (OSError, ValueError):
+            return None
+        return held if is_alive(held) else None
+
+    if what == "status":
+        held = running()
+        print(f"page       {where}")
+        print(f"ledger     {_ledger(paths).path}")
+        print(f"process    {'up, pid ' + str(held) if held else 'not running'}")
+        return int(ExitCode.OK)
+
+    if what == "install":
+        path = unit_path(Path.home())
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(unit_file(_sys.argv[0] or PROGRAM), encoding="utf-8")
+        print(f"wrote {path}")
+        print("  systemctl --user daemon-reload")
+        print("  systemctl --user enable --now agent-kit")
+        return int(ExitCode.OK)
+
+    if what == "stop":
+        held = running()
+        if held is None:
+            raise StateError("no-daemon", "nothing is running here; the ledger is unchanged either way")
+        os.kill(held, signal.SIGTERM)
+        print(f"asked the daemon (pid {held}) to go away")
+        return int(ExitCode.OK)
+
+    if what != "start":
+        raise UsageError("unknown-command", f"daemon {what}")
+
+    held = running()
+    if held is not None:
+        raise StateError("already-running", f"the daemon is already up as pid {held}")
+
+    if not args.foreground:
+        child = subprocess.Popen(
+            [_sys.executable, "-m", "agent_kit", "daemon", "start", "--foreground"],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        print(f"the daemon is up as pid {child.pid}; the page is at {where}")
+        return int(ExitCode.OK)
+
+    paths.ensure()
+    pid_file.write_text(str(os.getpid()), encoding="utf-8")
+    ledger = _ledger(paths)
+    stop = threading.Event()
+    sweeper = threading.Thread(target=reap_forever, args=(ledger,), kwargs={"stop": stop}, daemon=True)
+    sweeper.start()
+    server = serve(ledger, config.daemon.host, config.daemon.port)
+
+    def down(*_ignored):
+        stop.set()
+        server.shutdown()
+
+    signal.signal(signal.SIGTERM, down)
+    signal.signal(signal.SIGINT, down)
+    print(f"the page is at {where}")
+    try:
+        server.serve_forever()
+    finally:
+        stop.set()
+        pid_file.unlink(missing_ok=True)
+    return int(ExitCode.OK)
 
 
 if __name__ == "__main__":  # pragma: no cover

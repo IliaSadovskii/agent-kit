@@ -16,15 +16,35 @@ from .errors import ConfigError
 
 DEFAULT_MAX_SESSIONS = 4
 
-_MACHINE_KEYS = {"max_sessions"}
+#: How long a run waits for a slot or for a limited account before it gives up
+#: and says so. Longer than a limit's reset, shorter than a night.
+DEFAULT_WAIT = 2 * 60 * 60
+
+#: Where the daemon's page answers. Loopback, because the server's own proxy is
+#: what puts it in the tailnet, and the tailnet is the only way in from outside.
+#: Port 8080 is this project's block in the machine's registry.
+DEFAULT_HOST = "127.0.0.1"
+DEFAULT_PORT = 8080
+
+_MACHINE_KEYS = {"max_sessions", "wait"}
+_DAEMON_KEYS = {"host", "port"}
 _PROVIDER_KEYS = {"enabled", "model", "effort", "max_sessions", "account"}
 _ROLE_KEYS = {"provider", "fallback", "model", "effort"}
-_TOP_KEYS = {"machine", "providers", "roles"}
+_TOP_KEYS = {"machine", "daemon", "providers", "roles"}
 
 
 @dataclass(frozen=True)
 class MachineConfig:
     max_sessions: int = DEFAULT_MAX_SESSIONS
+    wait: int = DEFAULT_WAIT
+
+
+@dataclass(frozen=True)
+class DaemonConfig:
+    """Where the page answers. It holds no truth; the ledger does."""
+
+    host: str = DEFAULT_HOST
+    port: int = DEFAULT_PORT
 
 
 @dataclass(frozen=True)
@@ -49,6 +69,7 @@ class RoleConfig:
 @dataclass(frozen=True)
 class Config:
     machine: MachineConfig = field(default_factory=MachineConfig)
+    daemon: DaemonConfig = field(default_factory=DaemonConfig)
     providers: dict[str, ProviderConfig] = field(default_factory=dict)
     roles: dict[str, RoleConfig] = field(default_factory=dict)
     source: Path | None = None
@@ -70,6 +91,7 @@ def load_config(path: Path | str) -> Config:
     _refuse_unknown(raw, _TOP_KEYS, "")
     return Config(
         machine=_machine(_table(raw.get("machine", {}), "machine")),
+        daemon=_daemon(_table(raw.get("daemon", {}), "daemon")),
         providers=_providers(_table(raw.get("providers", {}), "providers")),
         roles=roles_from_table(_table(raw.get("roles", {}), "roles")),
         source=path,
@@ -91,7 +113,25 @@ def _table(value: Any, where: str) -> dict[str, Any]:
 
 def _machine(table: dict[str, Any]) -> MachineConfig:
     _refuse_unknown(table, _MACHINE_KEYS, "machine.")
-    return MachineConfig(max_sessions=_positive_int(table.get("max_sessions", DEFAULT_MAX_SESSIONS), "machine.max_sessions"))
+    return MachineConfig(
+        max_sessions=_positive_int(table.get("max_sessions", DEFAULT_MAX_SESSIONS), "machine.max_sessions"),
+        # Zero is a real answer: it means refuse rather than wait.
+        wait=_whole(table.get("wait", DEFAULT_WAIT), "machine.wait"),
+    )
+
+
+def _whole(value: Any, where: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise ConfigError("bad-value", f"{where} must be a whole number of seconds, 0 or more")
+    return value
+
+
+def _daemon(table: dict[str, Any]) -> DaemonConfig:
+    _refuse_unknown(table, _DAEMON_KEYS, "daemon.")
+    return DaemonConfig(
+        host=_str(table.get("host", DEFAULT_HOST), "daemon.host"),
+        port=_positive_int(table.get("port", DEFAULT_PORT), "daemon.port"),
+    )
 
 
 def _providers(table: dict[str, Any]) -> dict[str, ProviderConfig]:
