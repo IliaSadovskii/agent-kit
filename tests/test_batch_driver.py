@@ -76,36 +76,65 @@ class Scripted:
     what their ending does to the rest of the batch.
     """
 
-    def __init__(self, runs, endings, ledger=None, project=None):
+    def __init__(self, runs, endings, ledger=None, project=None, batch="vat"):
         self.runs = runs
         self.endings = endings
         self.ledger = ledger
         self.project = project
+        self.batch = batch
         self.started = []
+        self.alive = set()
+        self.held = {}
+        #: The most children alive at one moment. What *at once* means, measured
+        #: rather than inferred from two timestamps a second apart.
+        self.most_alive = 0
 
     def __call__(self, run, argv):
         self.started.append((run.slug, list(argv)))
+        self.alive.add(run.slug)
+        self.most_alive = max(self.most_alive, len(self.alive))
+        # A real driver holds its run while it drives it, and a stop addressed
+        # to a run nobody holds is swept — so a child that does not hold one
+        # would make a stop test measure the sweep instead of the stop.
+        self.held[run.slug] = self.ledger.hold_run(str(self.project), run.slug)
         return _Child(self, run.slug)
 
 
 class _Child:
+    """Alive for a few polls, then it ends the way the case says."""
+
     def __init__(self, spawn, slug):
         self.spawn = spawn
         self.slug = slug
-        self.ended = False
+        self.polls = 0
 
     def poll(self):
+        self.polls += 1
         how = self.spawn.endings.get(self.slug, "done")
-        if how == "waits-to-be-stopped":
+        if how == "asks-the-batch-to-stop":
+            if self.polls == 1:
+                # A person, while the batch is running: the one moment a stop
+                # has to be read, and the only one worth measuring.
+                self.spawn.ledger.ask_stop(
+                    str(self.spawn.project), self.spawn.batch, reason="enough for tonight"
+                )
+                return None
             if self.spawn.ledger.stop_pending(str(self.spawn.project), self.slug) is None:
                 return None
-            self.spawn.runs.stop(self.slug, "stopped-by-request: as asked")
-            return 130
+            self.spawn.runs.stop(self.slug, "stopped-by-request: the batch was asked to stop")
+            return self._gone(130)
+        if self.polls < 2:
+            return None
         if how == "done":
             _land(self.spawn.runs, self.slug)
-            return 0
+            return self._gone(0)
         self.spawn.runs.fail_run(self.slug, f"{self.slug}: build was refused three times")
-        return 3
+        return self._gone(3)
+
+    def _gone(self, code):
+        self.spawn.alive.discard(self.slug)
+        self.spawn.ledger.release(self.spawn.held.pop(self.slug, None))
+        return code
 
 
 def _land(runs, slug):
@@ -151,33 +180,33 @@ def _declared(repo, text):
 
 
 def test_a_feature_that_needs_another_is_not_started_before_it_lands(repo):
-    drive, store, runs, spawn, _ = driver(repo, steps := THREE)
+    drive, store, runs, spawn, _ = driver(repo, THREE)
 
     drive.go("vat")
 
     assert [slug for slug, _ in spawn.started] == ["rates", "quote"]
+    assert spawn.most_alive == 1  # never both, whatever room the machine had
     assert store.load("vat").landed_everything
 
 
-def test_features_that_need_nothing_are_started_together(repo):
+def test_features_that_need_nothing_are_built_at_once(repo):
+    """*At once* is two children alive together, not two that both finished."""
     drive, store, runs, spawn, _ = driver(repo, APART)
 
     drive.go("vat")
 
     assert sorted(slug for slug, _ in spawn.started) == ["one", "two"]
+    assert spawn.most_alive == 2
 
 
 def test_no_more_children_than_the_machine_could_ever_have_sessions(repo):
     """A child that cannot possibly get a slot is a process idling in a poll loop."""
     drive, store, runs, spawn, _ = driver(repo, APART, machine=1)
 
-    started_at_once = []
-    original = spawn.__call__
-
     drive.go("vat")
 
-    # One at a time, in the order they were declared.
     assert [slug for slug, _ in spawn.started] == ["one", "two"]
+    assert spawn.most_alive == 1
 
 
 def test_a_feature_is_built_on_what_it_needs_and_in_its_own_tree(repo):
@@ -251,15 +280,17 @@ def test_a_skip_before_it_starts_takes_what_needed_it_and_starts_nothing(repo):
 
 
 def test_a_stop_stops_the_children_and_leaves_the_rest_pending(repo):
+    """Asked for while it runs, which is the only moment a stop means anything."""
     drive, store, runs, spawn, ledger = driver(
-        repo, endings={"rates": "waits-to-be-stopped"},
+        repo, endings={"rates": "asks-the-batch-to-stop"},
     )
-    ledger.hold_batch(str(repo), "vat")
-    ledger.ask_stop(str(repo), "vat", reason="enough for tonight")
 
     outcome = drive.go("vat")
 
     assert outcome.interrupted
+    assert [slug for slug, _ in spawn.started] == ["rates"]
+    assert runs.load("rates").status is RunStatus.STOPPED
+    assert outcome.batch.feature("rates").status is FeatureStatus.STOPPED
     assert outcome.batch.feature("quote").status is FeatureStatus.PENDING
 
 

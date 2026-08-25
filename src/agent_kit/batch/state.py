@@ -143,7 +143,13 @@ class Batch:
 
     @property
     def finished(self) -> bool:
-        return not self.running and not self.ready() and all(feature.over for feature in self.features)
+        """Nothing is running and nothing may start: this batch is over.
+
+        Not *every feature is over*: a batch a person stopped leaves features
+        pending whose needs will never land, and asking after all of them would
+        be a batch that can never be called finished.
+        """
+        return not self.running and not self.ready()
 
     @property
     def landed_everything(self) -> bool:
@@ -171,17 +177,22 @@ class Batch:
         return self._touch(feature)
 
     def ended(
-        self, slug: str, status: FeatureStatus, reason: str | None = None, pull_request: str | None = None
+        self, slug: str, status: FeatureStatus, reason: str | None = None,
+        pull_request: str | None = None, cascade: bool = True,
     ) -> FeatureState:
         feature = self.feature(slug)
         feature.status = status
         feature.ended_at = now()
         feature.reason = reason
         feature.pull_request = pull_request
-        if status is not FeatureStatus.DONE:
+        if status is not FeatureStatus.DONE and cascade:
             # Building on a feature that did not land is building on nothing.
             # It is `stopped` and not `failed`: the kit did not try and fail
             # here, it never started.
+            #
+            # A person stopping the whole batch is the one case that does not
+            # cascade, and `cascade` is the flag for it: what was never started
+            # stays pending, so `batch go` again carries on with it.
             self._take_the_dependants(slug, FeatureStatus.STOPPED)
         return self._touch(feature)
 
