@@ -1,0 +1,10 @@
+# канал лёг посреди списка вопросов
+
+[case]
+title = "the channel falls over after the first question has already gone out"
+fires = "the answer to the one that did go out is still taken, and only the rest default"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { design = "passed", deliver = "passed" }

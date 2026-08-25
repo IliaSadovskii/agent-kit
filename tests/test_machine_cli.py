@@ -726,3 +726,34 @@ def test_owner_setup_refuses_when_nobody_is_there_to_type(machine, capsys, monke
 
     assert code == ExitCode.CONFIG
     assert "no-token" in err
+
+
+# --- вопрос руками: там, где стоял бы драйвер --------------------------------
+
+
+def test_a_question_can_be_planted_by_hand_where_a_driver_would_stand(machine, ledger, capsys):
+    """Читатели те же, что у `slot hold`: стенд и человек, распутывающий машину."""
+    code, out, _ = run(
+        ["ask", "plant", "--slug", "add-vat", "--step", "design", "--id", "k7f3q2",
+         "--question", "одна ставка или своя на страну?", "--default", "одна",
+         "--message", "99", "--until", "2020-01-01T00:00:00+00:00"],
+        capsys,
+    )
+
+    assert code == ExitCode.OK
+    assert "message 99" in out
+    (waiting,) = ledger.waiting_on_the_owner()
+    assert waiting.id == "k7f3q2"
+    assert waiting.message == "99"
+
+
+def test_a_question_that_is_stuck_can_be_taken_away_by_hand(machine, ledger, capsys):
+    from agent_kit.machine import Ask
+
+    ledger.asked(Ask(id="k7f3q2", project=str(Path.cwd()), slug="add-vat", step="design",
+                     question="одна ставка?", default="одна", until="2099-01-01T00:00:00+00:00"))
+
+    code, out, _ = run(["ask", "clear", "k7f3q2"], capsys)
+
+    assert code == ExitCode.OK
+    assert ledger.waiting_on_the_owner() == []

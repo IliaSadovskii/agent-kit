@@ -1,0 +1,10 @@
+# драйвер умер, и вопрос ушёл заново
+
+[case]
+title = "a question is sent again after the driver that first sent it died"
+fires = "the row names the message that just went out, so a reply to it is found"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { design = "passed", deliver = "passed" }
