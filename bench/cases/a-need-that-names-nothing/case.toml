@@ -1,0 +1,14 @@
+# a batch that could never start
+
+[case]
+title = "a feature needs something the batch does not declare"
+fires = "the declaration is refused by name, and no batch, run or tree is made"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "quote", brief = "A price quoted with VAT on it", needs = ["rates"] },
+]
+
+[expect]
+exit_code = 2

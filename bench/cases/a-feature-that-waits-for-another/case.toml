@@ -1,0 +1,16 @@
+# a feature that needs another does not start before it lands
+
+[case]
+title = "quote needs rates, so it may not start until rates has landed"
+fires = "quote's first session runs after rates delivered, and it is shown what rates built"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+  { slug = "quote", brief = "A price quoted with VAT on it", needs = ["rates"] },
+]
+
+[expect]
+exit_code = 0
+features = { rates = "done", quote = "done" }

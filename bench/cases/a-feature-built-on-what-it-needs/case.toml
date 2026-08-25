@@ -1,0 +1,16 @@
+# a feature is based on the branch of what it needs
+
+[case]
+title = "quote is checked out from kit/rates and opens against it"
+fires = "the dependant's tree holds what rates wrote, and its pull request names kit/rates as the base"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+  { slug = "quote", brief = "A price quoted with VAT on it", needs = ["rates"] },
+]
+
+[expect]
+exit_code = 0
+features = { rates = "done", quote = "done" }
