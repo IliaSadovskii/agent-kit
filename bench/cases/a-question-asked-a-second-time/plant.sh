@@ -7,7 +7,7 @@ file = "$BENCH/owner"
 wait = 3
 TOML
 
-$KIT ask plant --project "$REPO" --slug "$SLUG" --step design \
+$KIT -C "$REPO" ask plant --slug "$SLUG" --step design \
   --id 2xdhdn --question 'one VAT rate for everything, or one per country?' \
   --default 'one rate for everything' --message 99 --until '2020-01-01T00:00:00+00:00' \
   > "$BENCH/ask-planted" 2>&1 || exit 1

@@ -4,4 +4,4 @@
 (
   while [ ! -s "$BENCH/owner.out" ]; do sleep 0.05; done
   printf 'телеграм лёг\n' > "$BENCH/owner.fail"
-) &
+) >/dev/null 2>&1 &

@@ -16,7 +16,7 @@ finish, and the contract refuses it by name.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Callable
 
 from ..knowledge.format import identifier
@@ -151,17 +151,20 @@ class Owner:
             # except that the default is now written down instead of invisible.
             return [Settled(question=asked, how=NO_CHANNEL) for asked in questions]
 
-        try:
-            standing = self._send(project, slug, step, questions)
-        except ChannelFailed as unreachable:
-            self.say(f"{slug}: {step} asked the owner and {unreachable.detail}")
+        went, broke, why = self._send(project, slug, step, questions)
+        if not went:
+            self.say(f"{slug}: {step} спросил владельца, и {why}")
             self.ledger.forget([asked.id for asked in questions])
-            return [Settled(question=asked, how=BROKEN, detail=unreachable.detail) for asked in questions]
+            return [Settled(question=asked, how=BROKEN, detail=why) for asked in questions]
 
         try:
-            return self._wait(slug, step, questions, standing, stop)
+            # Ждём только то, что действительно ушло. Вопрос, который владелец
+            # уже видит на телефоне, нельзя выбросить вместе с недоставленным:
+            # ответ на него придёт, и его должно быть куда положить.
+            settled = self._wait(slug, step, went, stop)
         finally:
             self.ledger.forget([asked.id for asked in questions])
+        return settled + [Settled(question=asked, how=BROKEN, detail=why) for asked in broke]
 
     def news(self, text: str) -> None:
         """Something the owner would want to know, and nothing waits on it."""
@@ -175,24 +178,36 @@ class Owner:
 
     # --- sending ----------------------------------------------------------
 
-    def _send(self, project: str, slug: str, step: str, questions: list[Question]) -> list[Ask]:
+    def _send(
+        self, project: str, slug: str, step: str, questions: list[Question]
+    ) -> tuple[list[Question], list[Question], str]:
+        """Что ушло, что не ушло, и почему не ушло.
+
+        Канал может лечь посреди списка. Ушедшее при этом остаётся ушедшим — оно
+        уже на телефоне у человека, — и ждут именно его.
+        """
         from ..machine.ledger import after
 
         until = after(self.wait)
-        standing = []
-        for asked in questions:
-            message = self.channel.send(worded(slug, step, asked, self.wait))
-            standing.append(
-                self.ledger.asked(
-                    Ask(
-                        id=asked.id, project=project, slug=slug, step=step,
-                        question=asked.question, default=asked.default,
-                        until=until, message=message,
-                    )
+        went: list[Question] = []
+        for number, asked in enumerate(questions):
+            # Имя спрашивается у реестра до отправки: сообщение уже нельзя будет
+            # переписать, а имя в нём должно быть тем, под которым лежит строка.
+            named = replace(asked, id=self.ledger.free_ask_id(project, slug, asked.id))
+            try:
+                message = self.channel.send(worded(slug, step, named, self.wait))
+            except ChannelFailed as unreachable:
+                return went, questions[number:], unreachable.detail
+            self.ledger.asked(
+                Ask(
+                    id=named.id, project=project, slug=slug, step=step,
+                    question=named.question, default=named.default,
+                    until=until, message=message,
                 )
             )
-        self.say(f"{slug}: {step} is asking the owner {_questions(len(questions))}, {_minutes(self.wait)}")
-        return standing
+            went.append(named)
+        self.say(f"{slug}: {step} спрашивает владельца {_questions(len(went))}, {_minutes(self.wait)}")
+        return went, [], ""
 
     # --- waiting ----------------------------------------------------------
 
@@ -201,7 +216,6 @@ class Owner:
         slug: str,
         step: str,
         questions: list[Question],
-        standing: list[Ask],
         stop: Callable[[], bool] | None,
     ) -> list[Settled]:
         wanted = [asked.id for asked in questions]

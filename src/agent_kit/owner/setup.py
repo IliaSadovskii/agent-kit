@@ -41,8 +41,12 @@ def setup(
     wait: int = WAIT_FOR_A_MESSAGE,
     pause: Callable[[float], None] | None = None,
     clock: Callable[[], float] | None = None,
+    ledger: "Ledger | None" = None,
 ) -> OwnerConfig:
+    from ..machine import Ledger, ledger_path
+
     paths = paths or Paths.from_env()
+    ledger = ledger or Ledger(ledger_path(paths))
     pause = pause or time.sleep
     clock = clock or time.monotonic
 
@@ -61,7 +65,7 @@ def setup(
     say(f"Открой https://t.me/{who} и отправь ему любое сообщение — иначе он не")
     say("имеет права писать тебе первым. Жду…")
 
-    chat, name, offset = _wait_for_a_word(talking, wait, pause, clock)
+    chat, name, offset = _wait_for_a_word(talking, ledger, wait, pause, clock)
     if not chat:
         raise ConfigError(
             "no-chat",
@@ -101,6 +105,7 @@ def setup(
 
 def _wait_for_a_word(
     talking: Telegram,
+    ledger,
     wait: int,
     pause: Callable[[float], None],
     clock: Callable[[], float],
@@ -110,13 +115,23 @@ def _wait_for_a_word(
     Идентификатор чата не спрашивают у человека: его негде посмотреть, кроме
     как в ответе того же API, и переписывание числа руками — это ровно тот шаг,
     ради удаления которого команда и заведена.
+
+    Читается канал под арендой читателя, как и везде: `getUpdates` рассчитан на
+    одного потребителя, и команда, которая канал заводит, — не исключение из
+    правила, которое она заводит. Держит аренду кто-то другой — эта команда
+    молчит и ждёт своей очереди, а не забирает чужие сообщения.
     """
     deadline = clock() + wait
     offset = ""
     while True:
-        chat, name, offset = talking.listen(offset)
-        if chat:
-            return chat, name, offset
+        held = ledger.read_channel()
+        if held.granted:
+            try:
+                chat, name, offset = talking.listen(offset)
+            finally:
+                ledger.release(held)
+            if chat:
+                return chat, name, offset
         if clock() >= deadline:
             return "", "", offset
         pause(min(POLL, deadline - clock()))

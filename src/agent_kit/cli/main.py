@@ -150,6 +150,19 @@ def build_parser() -> argparse.ArgumentParser:
     give_back = slot_what.add_parser("release", help="give back what was taken by hand, slot and run alike")
     give_back.add_argument("--slug", required=True)
 
+    ask = commands.add_parser("ask", help="вопрос владельцу руками: там, где стоял бы драйвер")
+    ask_what = ask.add_subparsers(dest="what", metavar="WHAT")
+    ask_plant = ask_what.add_parser("plant", help="положить вопрос так, как его оставил бы драйвер")
+    ask_plant.add_argument("--slug", required=True)
+    ask_plant.add_argument("--step", default="by-hand")
+    ask_plant.add_argument("--id", required=True, help="имя вопроса; выводится из прогона и его слов")
+    ask_plant.add_argument("--question", required=True)
+    ask_plant.add_argument("--default", required=True, help="что берётся без ответа")
+    ask_plant.add_argument("--message", default="", help="каким сообщением он ушёл")
+    ask_plant.add_argument("--until", help="до какого часа ждёт; час вперёд, если не сказано")
+    ask_clear = ask_what.add_parser("clear", help="снять вопрос, который завис")
+    ask_clear.add_argument("id")
+
     limit = commands.add_parser("limit", help="an account that is out of quota, and until when")
     limit_what = limit.add_subparsers(dest="what", metavar="WHAT")
     limit_set = limit_what.add_parser("set", help="write down that an account is limited")
@@ -230,6 +243,8 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace, paths: 
         return _machine(paths)
     if args.command == "slot":
         return _slot(args, paths)
+    if args.command == "ask":
+        return _ask(args, paths)
     if args.command == "limit":
         return _limit(args, paths)
     if args.command == "owner":
@@ -962,6 +977,40 @@ def _slot(args: argparse.Namespace, paths: Paths) -> int:
         raise StateError("no-such-slot", f"nothing here holds a slot or a run for {args.slug!r}")
 
     raise UsageError("unknown-command", f"slot {what}")
+
+
+def _ask(args: argparse.Namespace, paths: Paths) -> int:
+    """Вопрос руками. Читатели те же, что у `slot hold`: стенд и человек.
+
+    Стенду нужно встать там, где стоял бы драйвер — оставить строку, какую он
+    оставил бы, умерев. Человеку нужен выход, когда вопрос завис и прогона за
+    ним уже нет: то же, чем `limit clear` отвечает на лимит, который не снялся.
+    """
+    from ..machine import Ask
+    from ..machine.ledger import after
+
+    what = args.what
+    if what is None:
+        raise UsageError("missing-command", "ask needs one of: plant, clear")
+    ledger = _ledger(paths)
+
+    if what == "plant":
+        held = ledger.asked(
+            Ask(
+                id=args.id, project=str(Path(args.project).resolve()), slug=args.slug, step=args.step,
+                question=args.question, default=getattr(args, "default"),
+                until=args.until or after(3600), message=args.message,
+            )
+        )
+        print(f"{held.id} {held.slug}/{held.step} until {held.until} message {held.message or 'unnumbered'}")
+        return int(ExitCode.OK)
+
+    if what == "clear":
+        ledger.forget([args.id])
+        print(f"{args.id}: снят")
+        return int(ExitCode.OK)
+
+    raise UsageError("unknown-command", f"ask {what}")
 
 
 def _limit(args: argparse.Namespace, paths: Paths) -> int:

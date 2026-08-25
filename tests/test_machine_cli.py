@@ -742,9 +742,11 @@ def test_a_question_can_be_planted_by_hand_where_a_driver_would_stand(machine, l
 
     assert code == ExitCode.OK
     assert "message 99" in out
-    (waiting,) = ledger.waiting_on_the_owner()
-    assert waiting.id == "k7f3q2"
-    assert waiting.message == "99"
+    # Час давно прошёл — именно это и оставил бы умерший драйвер, — поэтому
+    # строка читается прямо, а не через очередь, которая её выметет.
+    held = ledger.ask_of("k7f3q2")
+    assert held.message == "99"
+    assert held.until.startswith("2020")
 
 
 def test_a_question_that_is_stuck_can_be_taken_away_by_hand(machine, ledger, capsys):

@@ -38,6 +38,10 @@ RUN_TTL = 24 * 60 * 60
 #: A guess, and the row says so rather than passing it off as something read.
 GUESSED_LIMIT = 60 * 60
 
+#: Сколько имён подряд пробуется для вопроса, прежде чем это перестаёт быть
+#: совпадением и становится дефектом.
+_NAMES_TRIED = 16
+
 SESSION = "session"
 RUN = "run"
 #: Whoever is reading the owner's channel right now. `getUpdates` is
@@ -610,22 +614,54 @@ class Ledger:
     # --- questions waiting on a person ---------------------------------------
 
     def asked(self, ask: Ask) -> Ask:
-        """Write the question down before it goes out, and asking it twice is asking it once.
+        """Записать вопрос до того, как он уйдёт, и спросить дважды — это спросить раз.
 
-        A driver that died between asking and hearing back is run again from
-        the top, and it must find the question it already asked — with whatever
-        answer arrived while it was gone — rather than plant a second one.
+        Драйвер, умерший между отправкой и ответом, поднимается заново и шлёт
+        вопрос ещё раз — новым сообщением и с новым часом. Строка обязана
+        назвать именно их: иначе реплай на второе сообщение не находит вопроса,
+        а выметание сносит строку по первому, давно прошедшему часу — из-под
+        драйвера, который в эту минуту её ждёт.
+
+        Ответ при этом не трогается. Он пришёл к тому же вопросу, кто бы его ни
+        отправлял, и первый ответ стоит.
         """
         with self._writing() as db:
             db.execute(
                 "INSERT INTO asks (id, project, slug, step, question, \"default\", message, asked_at, until,"
                 " answer) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)"
-                " ON CONFLICT(id) DO NOTHING",
+                " ON CONFLICT(id) DO UPDATE SET message = excluded.message, until = excluded.until,"
+                " asked_at = excluded.asked_at",
                 (ask.id, ask.project, ask.slug, ask.step, ask.question, ask.default,
                  ask.message, ask.asked_at, ask.until),
             )
             row = db.execute("SELECT * FROM asks WHERE id = ?", (ask.id,)).fetchone()
         return _ask(row)
+
+    def free_ask_id(self, project: str, slug: str, id: str) -> str:
+        """Имя, которым этот вопрос может назваться, не отняв чужого.
+
+        Идентификатор выводится из имени прогона и слов вопроса — так, чтобы
+        случай стенда мог назвать его заранее. Но проекта он не знает, а строка
+        одна на всех: два прогона с одинаковым именем и одинаковым вопросом в
+        разных проектах делили бы её, и ответ одного доставался бы другому.
+
+        Свой вопрос остаётся при своём имени; чужому подбирается следующее, тем
+        же способом, каким знание разводит два одинаково сформулированных
+        допущения.
+        """
+        from ..knowledge.format import identifier
+
+        with self._writing() as db:
+            taken = id
+            for salt in range(_NAMES_TRIED):
+                row = db.execute("SELECT project FROM asks WHERE id = ?", (taken,)).fetchone()
+                if row is None or row["project"] == project:
+                    return taken
+                taken = identifier(f"{project}\0{slug}", taken, salt=salt + 1)
+        raise ProviderError(
+            "no-free-ask-id",
+            f"{_NAMES_TRIED} имён для одного вопроса уже заняты; это не может быть правдой",
+        )
 
     def answered(self, id: str, text: str) -> bool:
         """A person answered. True when this was the answer, false when it was not.
