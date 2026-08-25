@@ -441,6 +441,12 @@ def _run(args: argparse.Namespace) -> int:
             print(f"{run.slug}  {run.status.value}  {run.branch}")
             if run.brief:
                 print(f"  for: {run.brief}")
+            if run.base:
+                print(f"  built on: {run.base}")
+            if run.tree:
+                print(f"  in: {run.tree}")
+            if run.needs:
+                print(f"  after: {', '.join(run.needs)}")
             for index, step in enumerate(run.steps):
                 mark = ">" if index == run.current_step else " "
                 reason = f"  {step.reason}" if step.reason else ""

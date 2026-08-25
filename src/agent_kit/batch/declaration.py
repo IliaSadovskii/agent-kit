@@ -89,6 +89,17 @@ def _refuse_a_graph_that_cannot_run(features: list[Feature]) -> None:
                     "no-such-feature",
                     f"{feature.slug} needs {name}, which this batch does not declare",
                 )
+        if len(feature.needs) > 1:
+            # A feature is built on the branch of what it needs and opens its
+            # pull request against it, and a pull request has one base. Two
+            # would mean merging two branches into a third — the kit writing a
+            # merge nobody reviewed, which is the one thing §7 of the note
+            # refuses. Named here rather than picked silently from the list.
+            raise ConfigError(
+                "needs-more-than-one",
+                f"{feature.slug} needs {', '.join(feature.needs)}; a feature is built on one branch"
+                " and opens against it, so it may wait for one thing",
+            )
 
     waiting = {feature.slug: list(feature.needs) for feature in features}
     settled: set[str] = set()
