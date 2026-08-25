@@ -548,3 +548,89 @@ def test_a_kit_that_does_not_know_asking_refuses_the_file(store, tmp_path, monke
         store.load("add-vat")
 
     assert refused.value.code == "schema-too-new"
+
+
+# --- S8: what a run learns when it is one of several ------------------------
+
+
+def test_a_run_on_its_own_names_no_tree_no_base_and_needs_nothing(store):
+    """The run S4 to S7a proved, unchanged: it works in the project, off the trunk."""
+    run = store.create("add-vat", steps=["design"])
+
+    assert run.tree is None
+    assert run.base == ""
+    assert run.needs == []
+
+
+def test_a_run_can_say_what_it_builds_on_and_where(store, tmp_path):
+    run = store.create(
+        "quote", steps=["design"], base="kit/rates", tree=str(tmp_path / "trees/quote"), needs=["rates"],
+    )
+
+    read = store.load("quote")
+
+    assert read.base == "kit/rates"
+    assert read.tree == str(tmp_path / "trees/quote")
+    assert read.needs == ["rates"]
+    assert read.to_dict() == run.to_dict()
+
+
+def test_what_a_run_needs_must_be_run_names(store):
+    with pytest.raises(StateError) as refused:
+        store.create("quote", steps=["design"], needs=["Rates!"])
+
+    assert refused.value.code == "bad-slug"
+
+
+def test_needs_must_be_a_list(store, tmp_path):
+    store.create("quote", steps=["design"])
+    path = tmp_path / ".agent-kit/v3/runs/quote/run.json"
+    data = json.loads(path.read_text())
+    data["needs"] = "rates"
+    path.write_text(json.dumps(data))
+
+    with pytest.raises(StateError) as refused:
+        store.load("quote")
+
+    assert refused.value.code == "bad-field: needs"
+
+
+def test_a_run_may_not_need_itself(store):
+    with pytest.raises(StateError) as refused:
+        store.create("quote", steps=["design"], needs=["quote"])
+
+    assert refused.value.code == "bad-field: needs"
+
+
+def test_a_run_file_from_schema_3_gains_a_tree_it_never_had(store, tmp_path):
+    store.create("add-vat", steps=["design"])
+    path = tmp_path / ".agent-kit/v3/runs/add-vat/run.json"
+    data = json.loads(path.read_text())
+    data["schema"] = 3
+    for gone in ("tree", "base", "needs"):
+        data.pop(gone, None)
+    path.write_text(json.dumps(data))
+
+    run = store.load("add-vat")
+
+    assert run.schema == SCHEMA_VERSION
+    assert (run.tree, run.base, run.needs) == (None, "", [])
+
+
+def test_a_kit_that_does_not_know_a_tree_refuses_the_file(store, tmp_path, monkeypatch):
+    """A run built in a worktree must not be read by a kit that would run it in the project.
+
+    Not a duplicate of its neighbour: the file really names a tree, and a kit
+    that does not know the field would work in the project itself — which is
+    two runs in one working copy, the thing S8 exists to make impossible.
+    """
+    store.create("quote", steps=["design"], tree=str(tmp_path / "trees/quote"))
+    path = tmp_path / ".agent-kit/v3/runs/quote/run.json"
+    assert "trees/quote" in path.read_text()
+
+    monkeypatch.setattr("agent_kit.state.migrations.SCHEMA_VERSION", SCHEMA_VERSION - 1)
+
+    with pytest.raises(StateError) as refused:
+        store.load("quote")
+
+    assert refused.value.code == "schema-too-new"
