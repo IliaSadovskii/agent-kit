@@ -601,3 +601,106 @@ def test_a_case_that_says_nothing_about_waiting_waits_as_the_machine_says(tmp_pa
     )
 
     assert read_case(root, "plain").wait is None
+
+
+# --- S8: a case may declare a batch instead of a run ------------------------
+
+
+def batch_case(root, name, features, expect, replies, judge=None):
+    """A case that drives a batch, laid out exactly as one the kit ships."""
+    case = root / name
+    case.mkdir(parents=True)
+    lines = [
+        "[case]",
+        f'title = "{name}"',
+        'fires = "whatever this case is for"',
+        "",
+        "[batch]",
+        'name = "vat"',
+        "features = [",
+    ]
+    for feature in features:
+        needs = ", ".join(f'"{one}"' for one in feature.get("needs", []))
+        lines.append(
+            f'  {{ slug = "{feature["slug"]}", brief = "{feature.get("brief", "build the thing")}"'
+            + (f", needs = [{needs}]" if needs else "")
+            + " },"
+        )
+    lines += ["]", "", "[expect]", f'exit_code = {expect["exit_code"]}']
+    if expect.get("features"):
+        lines.append(
+            "features = { " + ", ".join(f'{k} = "{v}"' for k, v in expect["features"].items()) + " }"
+        )
+    (case / "case.toml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    for slug, answers in replies.items():
+        where = case / "replies" / slug
+        where.mkdir(parents=True)
+        for number, reply in enumerate(answers, start=1):
+            (where / f"{number:02d}-reply.json").write_text(json.dumps(reply, indent=2), encoding="utf-8")
+    if judge is not None:
+        _script(case / "judge.sh", judge)
+    return case
+
+
+def _answers(slug):
+    return [
+        {**DESIGN, "title": f"{slug} learns something"},
+        {**BUILD, "files": [f"{slug}.py"], "summary": f"{slug}, and the check decided before it."},
+        REVIEW,
+    ]
+
+
+def _wrote(slug):
+    return {slug: _answers(slug)}
+
+
+def test_a_case_may_drive_a_batch_and_the_features_are_judged_one_by_one(cases, capsys):
+    batch_case(
+        cases,
+        "two-features-land",
+        [{"slug": "rates"}, {"slug": "quote"}],
+        {"exit_code": 0, "features": {"rates": "done", "quote": "done"}},
+        replies={**_wrote("rates"), **_wrote("quote")},
+    )
+
+    code, printed = bench(cases, capsys=capsys)
+
+    assert "fired" in printed.out and "did not fire" not in printed.out
+    assert code == int(ExitCode.OK)
+
+
+def test_a_feature_that_ends_otherwise_than_the_case_says_does_not_fire(cases, capsys):
+    batch_case(
+        cases,
+        "two-features-land",
+        [{"slug": "rates"}, {"slug": "quote"}],
+        {"exit_code": 0, "features": {"rates": "done", "quote": "skipped"}},
+        replies={**_wrote("rates"), **_wrote("quote")},
+    )
+
+    code, printed = bench(cases, capsys=capsys)
+
+    assert "did not fire" in printed.out
+    assert "quote" in printed.out
+    assert code == int(ExitCode.BENCH)
+
+
+def test_a_batch_case_judge_reads_the_batch_and_the_branches(cases, capsys):
+    batch_case(
+        cases,
+        "two-features-land",
+        [{"slug": "rates"}, {"slug": "quote"}],
+        {"exit_code": 0, "features": {"rates": "done", "quote": "done"}},
+        replies={**_wrote("rates"), **_wrote("quote")},
+        judge=(
+            'test -f "$BATCH_FILE" || { echo "no batch file"; exit 1; }\n'
+            'git rev-parse --verify kit/rates >/dev/null || exit 1\n'
+            'git rev-parse --verify kit/quote >/dev/null || exit 1\n'
+        ),
+    )
+
+    code, printed = bench(cases, capsys=capsys)
+
+    assert "fired" in printed.out
+    assert code == int(ExitCode.OK)
