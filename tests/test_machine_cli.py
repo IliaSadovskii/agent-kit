@@ -759,3 +759,24 @@ def test_a_question_that_is_stuck_can_be_taken_away_by_hand(machine, ledger, cap
 
     assert code == ExitCode.OK
     assert ledger.waiting_on_the_owner() == []
+
+
+# --- S8: a batch is a thing a machine is doing ------------------------------
+
+
+def test_machine_names_the_batches_being_driven_here(machine, ledger, capsys):
+    ledger.hold_batch("/projects/thing", "2026-08-26-vat")
+
+    code, out, _ = run(["machine"], capsys)
+
+    assert code == ExitCode.OK
+    assert "2026-08-26-vat" in out
+
+
+def test_the_page_answers_with_the_batches_as_well_as_the_runs(machine, ledger):
+    from agent_kit.daemon.server import as_dict, page
+
+    ledger.hold_batch("/projects/thing", "2026-08-26-vat")
+
+    assert [row["name"] for row in as_dict(ledger)["batches"]] == ["2026-08-26-vat"]
+    assert "2026-08-26-vat" in page(ledger)
