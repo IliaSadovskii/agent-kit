@@ -7,6 +7,5 @@ file = "$BENCH/owner"
 wait = 3
 TOML
 printf '/a 2xdhdn one per country\n' > "$BENCH/owner.in"
-cat > "$BENCH/fall-over" <<'SH'
-#!/bin/sh
-SH
+# Канал отдаёт ровно одно сообщение и падает на втором.
+printf '1\n' > "$BENCH/owner.fail-after"

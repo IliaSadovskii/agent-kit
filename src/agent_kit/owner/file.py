@@ -30,6 +30,11 @@ class FileChannel:
         #: a night must go on when the token is wrong or Telegram is down, and
         #: that is a mechanism like any other, so it gets a trap like any other.
         self.broken = path.with_name(path.name + ".fail")
+        #: Столько сообщений канал отдаёт, а на следующем падает. Ловушке нужно
+        #: падение ровно посреди списка вопросов, а не когда придётся: сторож,
+        #: следящий за файлом со стороны, роняет канал в непредсказуемый момент
+        #: и меряет то, что подвернулось.
+        self.falls_after = path.with_name(path.name + ".fail-after")
 
     def me(self) -> str:
         """Кто отвечает на том конце. У файлов это сами файлы.
@@ -44,6 +49,7 @@ class FileChannel:
         self._refuse_if_broken()
         self.out.parent.mkdir(parents=True, exist_ok=True)
         number = self._sent() + 1
+        self._refuse_if_it_is_time(number)
         with self.out.open("a", encoding="utf-8") as handle:
             handle.write(f"--- {number}\n{text.rstrip()}\n")
         return str(number)
@@ -66,6 +72,16 @@ class FileChannel:
             return self.inbox.read_text(encoding="utf-8").splitlines()
         except OSError:
             return []
+
+    def _refuse_if_it_is_time(self, number: int) -> None:
+        try:
+            after = int(self.falls_after.read_text(encoding="utf-8").strip())
+        except (OSError, ValueError):
+            return
+        if number > after:
+            raise ChannelFailed(
+                "channel-failed", f"канал отдал {after} и лёг: так велел {self.falls_after.name}"
+            )
 
     def _refuse_if_broken(self) -> None:
         if self.broken.exists():
