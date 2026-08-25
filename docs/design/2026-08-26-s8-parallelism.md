@@ -455,3 +455,133 @@ say it did not fire.
   fallback are the retry policy, settled with the plan; a second layer of retrying on top of it
   would be a mechanism nobody measured a need for.
 - **S9.** The adapters are the next step and none of them is touched here.
+
+---
+
+# What was built, 26 August 2026
+
+Everything above was built as decided, with two departures the note did not foresee and one trap
+that was green against a broken kit until it was broken by hand. Fifty-nine bench cases all firing,
+745 tests, and three features built at once by three sessions that were alive together.
+
+## The sentence the step is done by, measured
+
+`three-features-at-once` is the case, and what makes it a measurement rather than a hope is that
+every build session waits for the other two before it may answer:
+
+```sh
+printf 'here\n' > "$BENCH/rates.here"
+while ...; do
+  if [ -f "$BENCH/rates.here" ] && [ -f "$BENCH/quote.here" ] && [ -f "$BENCH/receipt.here" ]; then
+    printf 'met\n' > "$BENCH/rates.met"; exit 0
+  fi
+done
+```
+
+A kit that builds them one after another never gets past that line: the first session waits for two
+that have not started, times out, and the run fails. Three branches, three pull requests, and three
+`met` files is the whole of the plan's *done when*.
+
+The same rendezvous is what makes `two-features-in-one-repository` mean anything: both sessions
+append to `money.py` at the same moment, each checks that the other's line is **not** in its own
+copy, and each commit holds only its own change. With one working copy that case cannot pass; with
+a tree per run it cannot fail.
+
+## The two departures
+
+**A feature waits for one thing, not several.** The note says a feature is based on the branch of
+what it needs and opens its pull request against it — and a pull request has one base. Two needs
+would mean merging two branches into a third before the work starts, which is the kit writing a
+merge nobody reviewed. So `needs-more-than-one` is refused at `batch new`, by name, with the reason
+in the message. It is a real limitation and it is written down here rather than picked silently
+from the list.
+
+**A skipped feature takes what needed it *skipped*, not stopped, and a batch of skipped features
+exits 0.** The first cut cascaded everything the same way and gave a skipped feature the exit code
+of a failure. Both were wrong for the same reason: nobody tried to build these and nothing failed —
+a person said not to. A night that did everything it was allowed to do exits 0, and the report says
+which features the owner dropped.
+
+## The trap that was green against a broken kit
+
+`one-message-for-a-whole-batch` counted the batch's name in the channel file. Breaking `--silent` —
+so that every child speaks for itself, which is the defect the flag exists to prevent — left the
+whole bench green: a child's own message names its *run*, and the batch's name appears exactly once
+whether one message was sent or three. The judge counts sends now (`^--- `), and the same break
+makes it say so.
+
+That is the S7a lesson in a new costume, and it was found the only way this kind of thing is found:
+by breaking the mechanism, not by reading the case.
+
+## Breaking the twelve
+
+Each mechanism was switched off with the smallest edit that switches off only it, and the whole
+bench was run against the broken kit:
+
+| What was broken | What said so |
+|---|---|
+| the base is the branch of what it needs | `a-feature-built-on-what-it-needs` |
+| what a feature needs is enclosed for its sessions | `a-feature-that-waits-for-another` |
+| a need that names no feature is refused | `a-need-that-names-nothing` |
+| a cycle is refused | `a-batch-that-waits-for-itself` |
+| a skip is read while the batch runs | `a-feature-skipped-mid-batch` |
+| a stop is read while the batch runs | `a-stop-while-a-batch-is-running` |
+| the merge check | `two-branches-that-will-not-merge` |
+| one message for the whole batch | `one-message-for-a-whole-batch` |
+| the queue across accounts | `the-oldest-waiter-goes-first` |
+| a stalled feature's tree is kept | `a-feature-that-does-not-land` |
+
+Ten of the twelve light exactly one case. Two light several, and both are one mechanism seen from
+its sides rather than a case measuring the wrong thing:
+
+- **children start together** (`one-at-a-time`) reddens `three-features-at-once`,
+  `two-features-in-one-repository` and `a-feature-skipped-mid-batch`. All three are about what can
+  only happen while two sessions are alive at once; a case that covered all of it could not say
+  which side broke.
+- **a feature waits for what it needs** (`needs-ignored`) reddens five, and **a tree per run**
+  (`one-working-copy`) reddens eight. These two are the spine of a batch: without them a dependant
+  designs against a branch that holds nothing, and two runs fight over one HEAD. Every case with an
+  edge in its graph, or two features in it, is a case about them.
+- **the cascade** (`no-cascade`) reddens the two cases that have a dependant to cascade to.
+
+The bench was also run from `git archive HEAD` unpacked elsewhere — the check that caught S5's
+blocker — before this was called done.
+
+## What the bench had to learn, and what it cost
+
+**One case declaration, two commands.** A `[batch]` block, `replies/<feature>/*.json`, and
+`expect.features`. The runner writes the declaration and runs `batch new` and `batch go`; everything
+else — the world, the fake provider, the judges, the `gh` that is a script — is untouched, which is
+the claim S8 makes about a batch being several ordinary runs.
+
+**The `gh` that is a script needed one flag per branch.** With one `gh-opened` for the whole world,
+the second feature's `pr view` found the *first* one's pull request and delivered without ever
+opening its own — and the case said three features had landed. Parallelism is what surfaced it; a
+fixture that cannot tell two branches apart cannot judge two features.
+
+**`REPO` reaches a session's own script.** With a tree per run the cwd is the worktree, so a reply
+script that wanted to reach the project — to skip a feature from inside the night — was reaching
+its own tree instead. Two of the twelve cases could not have been written without it.
+
+**The declaration is written beside the world, not in the project.** A case about two runs not
+dirtying one working copy must not be the thing that dirties it.
+
+## What is open, said out loud
+
+**A feature may wait for one thing.** Named above; the alternative is the kit merging branches
+nobody reviewed. If a real evening wants a diamond in its graph, that is the measurement that would
+justify building it, and not before.
+
+**Autostart is still unproven, and so is a live Telegram.** Unchanged from S7 and S7a: this machine
+runs the kit in a container with no systemd, and every bench case answers through the file channel.
+
+**A tree reclaimed from a driver that died is proved by tests and not by a trap.** Reaching it on
+the bench needs a run that outlives its own death, and the bench runs a batch once. The same shape
+S7a had to write down about sweeping a question out from under a live driver.
+
+**The merge check believes git.** It reports what git says will not merge; it does not say whether
+the owner would have wanted those two features to touch one file at all.
+
+**Nothing measures how much a batch actually parallelises.** Every case here is a handful of
+scripted sessions. What three real features across two providers cost, and whether the machine's
+ceiling or the graph is what binds a real night, is a measurement that needs S9 and a live evening.
