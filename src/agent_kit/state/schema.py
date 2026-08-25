@@ -15,7 +15,7 @@ from typing import Any
 from .. import __version__
 from ..errors import StateError
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 BRANCH_PREFIX = "kit/"
 
 #: What a run does when nobody says otherwise: one feature, end to end.
@@ -115,6 +115,16 @@ class Run:
     #: What this run is for, in the owner's own words. Every step's input
     #: encloses it, so no step is ever told to go and find out.
     brief: str | None = None
+    #: The branch this run builds on and opens its pull request against. Empty
+    #: means the project's default branch, which is every run that stands on
+    #: its own; a run that needs another is based on that one's branch.
+    base: str = ""
+    #: The working copy this run builds in — its own `git worktree`. None means
+    #: the project itself, which is what a run started by hand is and must stay.
+    tree: str | None = None
+    #: The runs this one may not start before, and whose work its steps are
+    #: shown. Read by the batch driver and by `driver/compose.py`.
+    needs: list[str] = field(default_factory=list)
     current_step: int | None = None
     created_at: str = field(default_factory=now)
     updated_at: str = field(default_factory=now)
@@ -125,7 +135,8 @@ class Run:
 
     @classmethod
     def new(cls, slug: str, steps: list[str] | tuple[str, ...] | None = None, project: str | None = None,
-            branch: str | None = None, brief: str | None = None) -> "Run":
+            branch: str | None = None, brief: str | None = None, base: str | None = None,
+            tree: str | None = None, needs: list[str] | None = None) -> "Run":
         check_slug(slug)
         names = list(steps or DEFAULT_STEPS)
         if not names:
@@ -136,6 +147,9 @@ class Run:
             branch=branch or f"{BRANCH_PREFIX}{slug}",
             project=project,
             brief=_optional_text(brief, "brief"),
+            base=base or "",
+            tree=_optional_text(tree, "tree"),
+            needs=_needs(needs or [], slug),
         )
 
     # --- reading ----------------------------------------------------------
@@ -346,6 +360,9 @@ class Run:
             "project": self.project,
             "brief": self.brief,
             "branch": self.branch,
+            "base": self.base,
+            "tree": self.tree,
+            "needs": list(self.needs),
             "status": self.status.value,
             "current_step": self.current_step,
             "created_at": self.created_at,
@@ -373,6 +390,9 @@ class Run:
             branch=_text(data.get("branch"), "branch"),
             project=_optional_text(data.get("project"), "project"),
             brief=_optional_text(data.get("brief"), "brief"),
+            base=_optional_text(data.get("base") or None, "base") or "",
+            tree=_optional_text(data.get("tree"), "tree"),
+            needs=_needs(data.get("needs") or [], check_slug(slug)),
             current_step=_step_index(data.get("current_step"), len(raw_steps)),
             created_at=_text(data.get("created_at"), "created_at"),
             updated_at=_text(data.get("updated_at"), "updated_at"),
@@ -433,6 +453,21 @@ def _step_index(value: Any, count: int) -> int | None:
     if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value < count:
         _bad("current_step", f"{value!r} is not a step of this run")
     return value
+
+
+def _needs(value: Any, slug: str) -> list[str]:
+    """What a run may not start before: names of other runs, and never its own.
+
+    A run that needs itself is a batch that can never start it, and the graph
+    that would have said so is one layer up. It is refused here, where a name
+    is checked, so that no layer above has to remember to.
+    """
+    if not isinstance(value, list):
+        _bad("needs", "needs must be a list of run names")
+    named = [check_slug(name) for name in value]
+    if slug in named:
+        _bad("needs", f"{slug} cannot wait for itself")
+    return named
 
 
 def _reason(reason: Any) -> str:

@@ -44,6 +44,20 @@ def _a_step_may_be_asking(data: dict[str, Any]) -> dict[str, Any]:
 MIGRATIONS[2] = _a_step_may_be_asking
 
 
+def _a_run_may_have_a_tree(data: dict[str, object]) -> dict[str, object]:
+    """Schema 4 — a run says what it builds on, where it builds, and what it waits for.
+
+    A schema 3 file gains none of the three: it was built in the project itself,
+    off the project's default branch, waiting for nothing. What the number buys
+    is the refusal in the other direction — a kit that does not know `tree`
+    would run such a file in the project, which is two runs in one working copy.
+    """
+    return data
+
+
+MIGRATIONS[3] = _a_run_may_have_a_tree
+
+
 def oldest_schema() -> int:
     """The oldest file this kit can read: whatever the migrations reach back to.
 
