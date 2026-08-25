@@ -146,7 +146,8 @@ def test_a_feature_that_did_not_land_stops_what_needed_it_by_name(batch):
 
     assert made.feature("quote").status is FeatureStatus.STOPPED
     assert made.feature("quote").reason == "needed-rates"
-    assert made.feature("receipt").reason == "needed-rates"
+    # The one it actually waited for: receipt never needed rates, it needed quote.
+    assert made.feature("receipt").reason == "needed-quote"
     assert made.ready() == []
     assert made.finished
 
