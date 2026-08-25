@@ -1,7 +1,7 @@
 #!/bin/sh
 # The branch half, as it always was.
 git rev-parse --verify --quiet "$BRANCH" >/dev/null && { echo "blocked work was branched anyway"; exit 1; }
-test ! -f "$BENCH/gh-opened" || { echo "a pull request was opened for blocked work"; exit 1; }
+test -z "$(find "$BENCH" -maxdepth 1 -name "gh-opened-*" -print -quit)" || { echo "a pull request was opened for blocked work"; exit 1; }
 
 # And the knowledge half, which this case only started promising when the
 # deliverable question moved in front of `record`. A judge asserting "the

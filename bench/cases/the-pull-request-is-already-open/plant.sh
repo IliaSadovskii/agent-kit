@@ -8,4 +8,4 @@ git add -- money.py
 git commit -q -m "Money learns a VAT rate"
 git push -q -u origin "$BRANCH"
 # What `gh pr view` reads to know a pull request is already there.
-touch "$BENCH/gh-opened"
+touch "$BENCH/gh-opened-$(printf '%s' "$BRANCH" | tr / -)"

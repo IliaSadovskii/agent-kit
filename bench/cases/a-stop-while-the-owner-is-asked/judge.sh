@@ -10,5 +10,5 @@ test ! -e "$BENCH/owner.in" || { echo "an answer was standing, so this measured 
 
 # It stopped where it was, rather than waiting out its ten minutes.
 test ! -d "$RUN_DIR/steps/1-build" || { echo "a step ran after the run was told to stop"; exit 1; }
-test ! -f "$BENCH/gh-opened" || { echo "a pull request was opened for a run that was stopped"; exit 1; }
+test -z "$(find "$BENCH" -maxdepth 1 -name "gh-opened-*" -print -quit)" || { echo "a pull request was opened for a run that was stopped"; exit 1; }
 exit 0

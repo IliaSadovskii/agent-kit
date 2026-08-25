@@ -699,14 +699,18 @@ def _batch_go(args: argparse.Namespace, paths: Paths, root: Path, store) -> int:
 
     if outcome.interrupted:
         return int(ExitCode.INTERRUPTED)
-    if outcome.batch.landed_everything:
-        return int(ExitCode.OK)
-    # The code of the first feature that did not land, with the meaning that
-    # code already has. A batch does not invent one for "some of it worked":
-    # that is what the report above is for.
     behind = outcome.batch.first_that_did_not_land()
+    if behind is None or all(
+        feature.status in (FeatureStatus.DONE, FeatureStatus.SKIPPED) for feature in outcome.batch.features
+    ):
+        # A skipped feature is the owner's own decision, and a night that did
+        # everything it was allowed to do did not fail at anything.
+        return int(ExitCode.OK)
+    # Otherwise the code of the first feature that did not land, with the
+    # meaning that code already has. A batch does not invent one for "some of
+    # it worked": that is what the report above is for.
     print(f"{outcome.batch.name}: {behind.slug} — {behind.reason or behind.status.value}", file=sys.stderr)
-    return int(ExitCode.REFUSED if behind.status is FeatureStatus.SKIPPED else ExitCode.STATE)
+    return int(ExitCode.STATE)
 
 
 def _driving_batch(root: Path, name: str) -> list:

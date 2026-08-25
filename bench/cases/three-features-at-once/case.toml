@@ -1,0 +1,17 @@
+# three features that need nothing, built at once
+
+[case]
+title = "three features that wait for nothing are built by three sessions at once"
+fires = "all three land, and their build sessions were alive together"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+  { slug = "quote", brief = "A price quoted with VAT on it" },
+  { slug = "receipt", brief = "A receipt line naming the VAT" },
+]
+
+[expect]
+exit_code = 0
+features = { rates = "done", quote = "done", receipt = "done" }

@@ -44,10 +44,23 @@ BASELINE = {
 #: otherwise sign the commit with the name of whoever ran the bench.
 IDENTITY = ("the bench", "bench@example.com")
 
+#: One flag per branch, and parallelism is what made that necessary: with one
+#: flag for the whole world the second feature's `pr view` found the first
+#: one's pull request and delivered without ever opening its own.
 GH = """#!/bin/sh
 printf '%s\\n' "$@" >> "$BENCH/gh-argv"
-if [ "$2" = "view" ]; then [ -f "$BENCH/gh-opened" ] || exit 1; fi
-touch "$BENCH/gh-opened"
+mark() { echo "$BENCH/gh-opened-$(printf '%s' "$1" | tr / -)"; }
+if [ "$2" = "view" ]; then
+  [ -f "$(mark "$3")" ] || exit 1
+  echo https://github.com/owner/project/pull/7
+  exit 0
+fi
+head=""
+while [ $# -gt 0 ]; do
+  if [ "$1" = "--head" ]; then head="$2"; fi
+  shift
+done
+touch "$(mark "$head")"
 echo https://github.com/owner/project/pull/7
 """
 
