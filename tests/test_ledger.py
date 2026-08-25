@@ -690,3 +690,85 @@ def test_the_same_project_asking_again_keeps_its_own_name(ledger):
     ledger.asked(an_ask(id="k7f3q2", project="/projects/one"))
 
     assert ledger.free_ask_id("/projects/one", "add-vat", "k7f3q2") == "k7f3q2"
+
+
+# --- S8: a batch, a skip, and the machine's own ceiling ---------------------
+
+
+def test_one_driver_per_batch_the_way_there_is_one_per_run(ledger):
+    first = ledger.hold_batch("/projects/thing", "2026-08-26-vat")
+
+    assert first.granted
+    assert ledger.hold_batch("/projects/thing", "2026-08-26-vat", pid=first.pid + 1).code == (
+        "batch-held-elsewhere"
+    )
+
+
+def test_the_same_driver_holds_what_it_already_holds(ledger):
+    first = ledger.hold_batch("/projects/thing", "2026-08-26-vat")
+
+    assert ledger.hold_batch("/projects/thing", "2026-08-26-vat").id == first.id
+
+
+def test_a_skip_reaches_the_batch_driver_by_the_feature_it_names(ledger):
+    ledger.hold_batch("/projects/thing", "vat")
+    ledger.ask_skip("/projects/thing", "vat", "rates", reason="not settled yet")
+    ledger.ask_skip("/projects/thing", "vat", "quote", reason="nor is this")
+
+    assert ledger.skips_asked("/projects/thing", "vat") == [
+        ("rates", "not settled yet"),
+        ("quote", "nor is this"),
+    ]
+    assert ledger.skips_asked("/projects/thing", "vat") == []
+
+
+def test_a_skip_nobody_is_there_to_read_is_swept(ledger):
+    """The same rule a stop has: a request left standing skips whatever next carries that name."""
+    ledger.ask_skip("/projects/thing", "vat", "rates", reason="not settled yet")
+
+    ledger.reap()
+
+    assert ledger.skips_asked("/projects/thing", "vat") == []
+
+
+def test_a_stop_for_a_batch_a_driver_holds_survives_a_sweep(ledger):
+    ledger.hold_batch("/projects/thing", "vat")
+    ledger.ask_stop("/projects/thing", "vat", reason="enough for tonight")
+
+    ledger.reap()
+
+    assert ledger.stop_asked("/projects/thing", "vat") == "enough for tonight"
+
+
+def test_when_the_machine_is_what_binds_the_oldest_waiter_of_all_goes_first(ledger):
+    """S7's second debt, and a batch across two providers is what makes it real.
+
+    The queue orders per account, so two waiters on *different* accounts were
+    ordered by whoever polled at the right moment rather than by who asked
+    first — and with one provider configured there was one account, which is
+    why S7 refused to fix it on a guess.
+    """
+    ledger.take(want(slug="holder", account="anthropic"), one(machine=1))
+    ledger.wants_one(want(slug="patient", account="openai", provider="codex"))
+    ledger.wants_one(want(slug="hasty", account="anthropic"))
+    ledger.release(ledger.held()[0])
+
+    assert ledger.take(want(slug="hasty", account="anthropic"), one(machine=1)).code == "no-slot"
+    assert ledger.take(want(slug="patient", account="openai", provider="codex"), one(machine=1)).granted
+
+
+def test_a_provider_s_own_ceiling_is_still_its_account_s_queue(ledger):
+    """Only the machine's ceiling is answered across accounts.
+
+    A provider's ceiling binds one provider and a limit binds one account:
+    letting a waiter on another account jump that queue would order it by
+    something that does not hold it back at all.
+    """
+    ledger.take(want(slug="holder", provider="codex", account="openai"), one(machine=4, provider={"codex": 1}))
+    ledger.wants_one(want(slug="elsewhere", provider="claude_code", account="anthropic"))
+    ledger.wants_one(want(slug="waiting", provider="codex", account="openai"))
+
+    got = ledger.take(want(slug="waiting", provider="codex", account="openai"), one(machine=4, provider={"codex": 1}))
+
+    assert got.code == "no-slot"
+    assert "codex" in got.detail
