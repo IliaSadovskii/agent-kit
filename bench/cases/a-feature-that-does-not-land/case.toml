@@ -1,0 +1,17 @@
+# one feature fails, and the batch says what that costs
+
+[case]
+title = "rates cannot be built, and quote needed it"
+fires = "quote is stopped by name without a session, and what needed nothing still lands"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+  { slug = "quote", brief = "A price quoted with VAT on it", needs = ["rates"] },
+  { slug = "receipt", brief = "A receipt line naming the VAT" },
+]
+
+[expect]
+exit_code = 3
+features = { rates = "failed", quote = "stopped", receipt = "done" }

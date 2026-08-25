@@ -1,0 +1,12 @@
+{
+  "complete": true,
+  "summary": "receipt, and the check decided before it.",
+  "files": [
+    "receipt.py"
+  ],
+  "tests": [
+    "receipt_is_there"
+  ],
+  "deviations": [],
+  "remaining": null
+}

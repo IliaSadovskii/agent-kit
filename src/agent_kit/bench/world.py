@@ -90,7 +90,7 @@ def make_world(case: Case, into: Path) -> World:
     repo = _made(into / "project")
     origin = into / "origin.git"
 
-    env = _environment(into, home, binaries)
+    env = _environment(into, home, binaries, repo)
     _write_gh(binaries / "gh")
 
     _lay_out(repo, case)
@@ -120,7 +120,7 @@ INHERITED = (
 )
 
 
-def _environment(bench: Path, home: Path, binaries: Path) -> dict[str, str]:
+def _environment(bench: Path, home: Path, binaries: Path, repo: Path) -> dict[str, str]:
     """A machine of its own. Nothing here reads the one the bench is running on."""
     env = {name: os.environ[name] for name in INHERITED if name in os.environ}
     env.update(
@@ -143,6 +143,11 @@ def _environment(bench: Path, home: Path, binaries: Path) -> dict[str, str]:
             "PYTHONPATH": str(Path(__file__).resolve().parents[2]),
             # Read by the scripts a case plants, and by the `gh` above.
             "BENCH": str(bench),
+            # The project itself, which is not where a session stands: with a
+            # tree per run the cwd is the run's own worktree, so a script that
+            # wants to reach the project — to skip a feature, to read a run —
+            # has to be told where it is.
+            "REPO": str(repo),
             # How a plant or a judge runs the kit it is measuring. The same
             # interpreter, so a case never reaches a version nobody asked about.
             "KIT": f"{sys.executable} -m agent_kit",

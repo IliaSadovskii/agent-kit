@@ -1,0 +1,17 @@
+# a person drops a feature while it is being built
+
+[case]
+title = "quote is skipped while its own session is running, and receipt needed quote"
+fires = "quote's driver stops it, what needed it is skipped too, and the rest lands"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+  { slug = "quote", brief = "A price quoted with VAT on it" },
+  { slug = "receipt", brief = "A receipt line naming the VAT", needs = ["quote"] },
+]
+
+[expect]
+exit_code = 0
+features = { rates = "done", quote = "skipped", receipt = "skipped" }

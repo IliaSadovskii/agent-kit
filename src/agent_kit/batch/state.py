@@ -187,13 +187,17 @@ class Batch:
         feature.pull_request = pull_request
         if status is not FeatureStatus.DONE and cascade:
             # Building on a feature that did not land is building on nothing.
-            # It is `stopped` and not `failed`: the kit did not try and fail
-            # here, it never started.
+            # A feature dropped on purpose takes what needed it the same way it
+            # went itself — skipped, not stopped, because nobody tried to build
+            # it either. Anything else is `stopped`: the kit did not try and
+            # fail here, it never started.
             #
             # A person stopping the whole batch is the one case that does not
             # cascade, and `cascade` is the flag for it: what was never started
             # stays pending, so `batch go` again carries on with it.
-            self._take_the_dependants(slug, FeatureStatus.STOPPED)
+            self._take_the_dependants(
+                slug, status if status is FeatureStatus.SKIPPED else FeatureStatus.STOPPED
+            )
         return self._touch(feature)
 
     def skip(self, slug: str, reason: str) -> list[str]:
