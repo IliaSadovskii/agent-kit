@@ -31,12 +31,15 @@ CASE_FILE = "case.toml"
 DEFAULT_SLUG = "add-vat"
 DEFAULT_BRIEF = "Money should be able to quote a price with VAT on it"
 
-_TOP_KEYS = {"case", "expect"}
+_TOP_KEYS = {"case", "expect", "batch"}
 _CASE_KEYS = {"title", "fires", "slug", "brief", "wait"}
-_EXPECT_KEYS = {"exit_code", "status", "refusal", "steps"}
+_EXPECT_KEYS = {"exit_code", "status", "refusal", "steps", "features"}
+_BATCH_KEYS = {"name", "features"}
+_FEATURE_KEYS = {"slug", "brief", "needs"}
 
 _STATUSES = ("created", "running", "done", "failed", "stopped")
-_STEP_STATUSES = ("pending", "running", "passed", "failed")
+_STEP_STATUSES = ("pending", "running", "asking", "passed", "failed")
+_FEATURE_STATUSES = ("pending", "running", "done", "failed", "stopped", "skipped")
 
 
 class CaseError(StateError):
@@ -48,11 +51,42 @@ class Expect:
     """What must be true of the run afterwards, if the mechanism fired."""
 
     exit_code: int
-    status: str
+    status: str = ""
     #: A substring of the reason the run recorded. Usually the refusal's code.
     refusal: str = ""
     #: Step name -> the status it must have ended on.
     steps: dict[str, str] = field(default_factory=dict)
+    #: Feature name -> the status it must have ended on. A batch case only:
+    #: several runs have no one status between them.
+    features: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class BatchFeature:
+    slug: str
+    brief: str
+    needs: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class BatchCase:
+    """A case that drives a batch rather than one run.
+
+    The one thing the bench learns for S8. Everything else — the world, the
+    fake provider, the judges, the `gh` that is a script — is untouched: a
+    batch is several ordinary runs, which is the whole claim S8 makes.
+    """
+
+    name: str
+    features: tuple[BatchFeature, ...]
+
+    def declaration(self) -> str:
+        lines = [f'name = "{self.name}"']
+        for feature in self.features:
+            lines += ["", f"[features.{feature.slug}]", f'brief = "{feature.brief}"']
+            if feature.needs:
+                lines.append("needs = [" + ", ".join(f'"{one}"' for one in feature.needs) + "]")
+        return "\n".join(lines) + "\n"
 
 
 @dataclass(frozen=True)
@@ -67,6 +101,8 @@ class Case:
     #: How long this case's run waits for the machine. `None` leaves it to the
     #: configuration, which is what every case about something else wants.
     wait: int | None = None
+    #: The batch this case drives, where it drives one instead of a single run.
+    batch: BatchCase | None = None
 
     @property
     def branch(self) -> str:
@@ -89,6 +125,11 @@ class Case:
     @property
     def replies(self) -> list[Path]:
         folder = self.root / "replies"
+        return sorted(folder.glob("*.json")) if folder.is_dir() else []
+
+    def replies_for(self, slug: str) -> list[Path]:
+        """A batch case answers per feature: `replies/<feature>/*.json`."""
+        folder = self.root / "replies" / slug
         return sorted(folder.glob("*.json")) if folder.is_dir() else []
 
 
@@ -139,16 +180,50 @@ def read_case(root: Path, name: str) -> Case:
         slug=_text(block.get("slug", DEFAULT_SLUG), "case.slug"),
         brief=_text(block.get("brief", DEFAULT_BRIEF), "case.brief"),
         wait=None if "wait" not in block else _number(block["wait"], "case.wait"),
+        batch=_batch(document.get("batch")),
         expect=Expect(
             exit_code=_number(wanted.get("exit_code"), "expect.exit_code"),
-            status=_one_of(wanted.get("status"), _STATUSES, "expect.status"),
+            status=(
+                ""
+                if "batch" in document and "status" not in wanted
+                else _one_of(wanted.get("status"), _STATUSES, "expect.status")
+            ),
             refusal=_optional_text(wanted.get("refusal"), "expect.refusal"),
             steps={
                 name: _one_of(value, _STEP_STATUSES, f"expect.steps.{name}")
                 for name, value in _table(wanted.get("steps", {}), "expect.steps").items()
             },
+            features={
+                name: _one_of(value, _FEATURE_STATUSES, f"expect.features.{name}")
+                for name, value in _table(wanted.get("features", {}), "expect.features").items()
+            },
         ),
     )
+
+
+def _batch(block: Any) -> BatchCase | None:
+    if block is None:
+        return None
+    block = _table(block, "batch")
+    _refuse_unknown(block, _BATCH_KEYS, "batch.")
+    declared = block.get("features")
+    if not isinstance(declared, list) or not declared:
+        raise CaseError("bad-value", "batch.features must be a non-empty list of features")
+    features = []
+    for feature in declared:
+        feature = _table(feature, "batch.features[]")
+        _refuse_unknown(feature, _FEATURE_KEYS, "batch.features[].")
+        needs = feature.get("needs", [])
+        if not isinstance(needs, list):
+            raise CaseError("bad-value", "batch.features[].needs must be a list")
+        features.append(
+            BatchFeature(
+                slug=_text(feature.get("slug"), "batch.features[].slug"),
+                brief=_text(feature.get("brief", DEFAULT_BRIEF), "batch.features[].brief"),
+                needs=tuple(_text(one, "batch.features[].needs") for one in needs),
+            )
+        )
+    return BatchCase(name=_text(block.get("name"), "batch.name"), features=tuple(features))
 
 
 # --- field checks, each naming what it refused ------------------------------

@@ -104,16 +104,52 @@ def _run_and_judge(case: Case, where: Path) -> Verdict:
         return unjudgeable(f"the world could not be made: {broken}")
 
     try:
-        created = _kit(world, ["run", "new", case.slug, "--brief", case.brief])
-        if created.returncode != 0:
-            return unjudgeable(f"the run could not be created: {_said(created)}")
-        waiting = [] if case.wait is None else ["--wait", str(case.wait)]
-        went = _kit(world, ["run", "go", case.slug, "--provider", "fake", *waiting, *_replies(case)])
+        went = _drive_a_batch(case, world) if case.batch else _drive_a_run(case, world)
     except subprocess.SubprocessError as broken:
         return unjudgeable(f"the kit did not come back: {broken}")
+    if isinstance(went, Verdict):
+        return went
 
     _write_down(world, went)
     return _judge(case, world, went)
+
+
+def _drive_a_run(case: Case, world: World):
+    created = _kit(world, ["run", "new", case.slug, "--brief", case.brief])
+    if created.returncode != 0:
+        return unjudgeable(f"the run could not be created: {_said(created)}")
+    waiting = [] if case.wait is None else ["--wait", str(case.wait)]
+    return _kit(world, ["run", "go", case.slug, "--provider", "fake", *waiting, *_replies(case)])
+
+
+def _drive_a_batch(case: Case, world: World):
+    """The one thing the bench learns for S8, and it is two commands rather than one.
+
+    A batch's declaration is a file, so the case writes the file it declared and
+    the kit reads it the way a person's would be read. A case that expects the
+    declaration itself to be refused wants that exit code, so `batch new` is
+    what is judged where `batch go` never runs.
+    """
+    declared = world.repo / "batch.toml"
+    declared.write_text(case.batch.declaration(), encoding="utf-8")
+
+    made = _kit(world, ["batch", "new", str(declared)])
+    if made.returncode != 0:
+        # The declaration was refused. That is an answer, not a broken case: a
+        # cycle and a need that names nothing are two of the mechanisms here.
+        return made
+    return _kit(
+        world,
+        ["batch", "go", case.batch.name, "--provider", "fake", *_replies_per_feature(case)],
+    )
+
+
+def _replies_per_feature(case: Case) -> list[str]:
+    options: list[str] = []
+    for feature in case.batch.features:
+        for path in case.replies_for(feature.slug):
+            options += ["--option", f"{feature.slug}:reply={path}"]
+    return options
 
 
 def _write_down(world: World, went: subprocess.CompletedProcess) -> None:
@@ -183,12 +219,15 @@ def _judge(case: Case, world: World, went: subprocess.CompletedProcess) -> Verdi
     if went.returncode != expect.exit_code:
         return did_not(f"it exited {went.returncode} and the case wants {expect.exit_code}: {_said(went)}")
 
+    if case.batch is not None:
+        return _judge_a_batch(case, world, went)
+
     state = _state(world, case.slug)
     if state is None:
         return unjudgeable(f"no run state was left to read: {_said(went)}")
 
     status = state.get("status")
-    if status != expect.status:
+    if expect.status and status != expect.status:
         return did_not(f"the run is {status!r} and the case wants {expect.status!r}")
 
     reason = (state.get("reason") or "").strip()
@@ -201,6 +240,31 @@ def _judge(case: Case, world: World, went: subprocess.CompletedProcess) -> Verdi
             return did_not(f"step {name} is {steps.get(name)!r} and the case wants {wanted!r}")
 
     return _judge_script(case, world, went.returncode)
+
+
+def _judge_a_batch(case: Case, world: World, went: subprocess.CompletedProcess) -> Verdict:
+    """Every feature separately, because several runs have no one status between them."""
+    if not case.expect.features:
+        return _judge_script(case, world, went.returncode)
+
+    held = _batch_state(world, case.batch.name)
+    if held is None:
+        return unjudgeable(f"no batch state was left to read: {_said(went)}")
+    where = {feature.get("slug"): feature.get("status") for feature in held.get("features") or []}
+    for slug, wanted in case.expect.features.items():
+        if where.get(slug) != wanted:
+            return did_not(f"feature {slug} is {where.get(slug)!r} and the case wants {wanted!r}")
+    return _judge_script(case, world, went.returncode)
+
+
+def _batch_state(world: World, name: str) -> dict | None:
+    try:
+        held = json.loads(
+            (world.repo / ".agent-kit/v3/batches" / name / "batch.json").read_text(encoding="utf-8")
+        )
+    except (OSError, json.JSONDecodeError):
+        return None
+    return held if isinstance(held, dict) else None
 
 
 def _state(world: World, slug: str) -> dict | None:
@@ -225,6 +289,12 @@ def _judge_script(case: Case, world: World, exit_code: int) -> Verdict:
         RUN_DIR=str(world.run_dir / case.slug),
         EXIT_CODE=str(exit_code),
     )
+    if case.batch is not None:
+        env.update(
+            BATCH=case.batch.name,
+            BATCH_FILE=str(world.repo / ".agent-kit/v3/batches" / case.batch.name / "batch.json"),
+            TREES=str(world.repo / ".agent-kit/v3/trees"),
+        )
     try:
         done = _group(["sh", str(script)], world.repo, env)
     except subprocess.SubprocessError as broken:

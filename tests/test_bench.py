@@ -638,6 +638,9 @@ def batch_case(root, name, features, expect, replies, judge=None):
         where.mkdir(parents=True)
         for number, reply in enumerate(answers, start=1):
             (where / f"{number:02d}-reply.json").write_text(json.dumps(reply, indent=2), encoding="utf-8")
+            # The build session writes what it says it wrote, in its own tree.
+            for named in reply.get("files") or []:
+                _script(where / f"{number:02d}-reply.sh", f"printf 'RATE = 20\\n' >> {named}\n")
     if judge is not None:
         _script(case / "judge.sh", judge)
     return case
