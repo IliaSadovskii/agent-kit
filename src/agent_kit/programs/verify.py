@@ -44,6 +44,9 @@ class Verify:
     def execute(self, request: StepRequest) -> ExecutorResult:
         root = Path(request.project) if request.project else self.root
         project = require_project(root)
+        # Declared by the project, run in the working copy this run holds: with
+        # a tree per run, the project's own checkout is somebody else's feature.
+        where = request.where
         if not project.commands:
             raise ExecutorFailed(
                 "no-commands",
@@ -56,7 +59,7 @@ class Verify:
         ran: list[dict] = []
         for command in project.commands:
             log.info("verify: %s — %s", command.name, command.command)
-            record = self._one(command.name, command.command, root, waiting)
+            record = self._one(command.name, command.command, where, waiting)
             ran.append(record)
             if not record["passed"]:
                 # Everything after this would be run over code already refused.

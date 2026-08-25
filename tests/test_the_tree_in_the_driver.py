@@ -17,6 +17,7 @@ from agent_kit.driver.tree import make_tree
 from agent_kit.programs import build_program
 from agent_kit.providers.base import StepRequest
 from agent_kit.providers.fake import FakeExecutor
+from agent_kit.providers.fake.adapter import Scripted
 from agent_kit.state import RunStore
 from agent_kit.steps import builtin_registry
 
@@ -56,7 +57,7 @@ def test_a_session_works_in_the_tree_and_not_in_the_project(repo, tmp_path):
     )
     acted = tmp_path / "acted.sh"
     acted.write_text("#!/bin/sh\npwd > where-the-session-ran\n")
-    fake = FakeExecutor(name="fake", replies=[(PROBE, acted)])
+    fake = FakeExecutor(name="fake", replies=[Scripted(PROBE, acted)])
     StepRunner(
         store=store, registry=builtin_registry(), executors={"fake": fake}, default_provider="fake",
     ).run_next("rates")

@@ -69,7 +69,7 @@ class FakeExecutor:
 
     def _act(self, script: Path, request: StepRequest) -> None:
         """What the session did before it answered, run where it would have run."""
-        where = Path(request.project) if request.project else Path(request.workdir)
+        where = request.where
         # Its own process group, like every other place in the kit that starts
         # somebody else's process: a script that backgrounds something and then
         # hangs must not leave it behind.

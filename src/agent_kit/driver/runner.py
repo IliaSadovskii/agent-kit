@@ -613,7 +613,9 @@ class StepRunner:
             input_text=text,
             workdir=workspace.attempt_dir(attempt),
             project=Path(run.project) if run.project else self.store.paths.root.resolve(),
+            tree=Path(run.tree) if run.tree else None,
             branch=run.branch,
+            base=run.base,
             brief=run.brief,
             prior=prior,
         )
@@ -753,6 +755,9 @@ class StepRunner:
         root = Path(run.project) if run.project else self.store.paths.root
         return Knowledge(project.knowledge_dir if project else root / KNOWLEDGE_DIR)
 
+    def _what_it_needs(self, run: Run) -> list[tuple[str, str]]:
+        return _needed_run_enclosures(self.store, run.needs)
+
     def _enclosures(
         self, run: Run, index: int, definition: StepDefinition | None = None
     ) -> tuple[list[tuple[str, str]], dict[str, dict[str, Any]]]:
@@ -767,6 +772,7 @@ class StepRunner:
         """
         enclosed: list[tuple[str, str]] = []
         prior: dict[str, dict[str, Any]] = {}
+        enclosed += self._what_it_needs(run)
         for earlier in range(index):
             step = run.steps[earlier]
             workspace = StepWorkspace(self.store.run_root(run.slug), earlier, step.name)
@@ -779,6 +785,33 @@ class StepRunner:
         return enclosed, prior
 
 
+def _needed_run_enclosures(store: RunStore, needs: list[str]) -> list[tuple[str, str]]:
+    """What the features this one is built on already designed and built.
+
+    A run that needs another is based on its branch, so that work is in the
+    tree — but a session that is not shown it designs it again from the trunk.
+    Reading is never an instruction, so it arrives enclosed like everything
+    else, and a dependency the store cannot read is left out rather than faked.
+    """
+    enclosed: list[tuple[str, str]] = []
+    for slug in needs:
+        try:
+            needed = store.load(slug)
+        except KitError:
+            continue
+        for index, step in enumerate(needed.steps):
+            # Whatever satisfied a contract: `output.json` is written by
+            # `accept` and by nothing else, so its being there is the same fact
+            # as the step having passed, read from one place instead of two.
+            output = StepWorkspace(store.run_root(slug), index, step.name).read_output()
+            if output is not None:
+                enclosed.append(
+                    (f"{slug}, which this one is built on, {step.name} returned",
+                     json.dumps(output, indent=2, ensure_ascii=False))
+                )
+    return enclosed
+
+
 def create_run(
     store: RunStore,
     registry: Registry,
@@ -786,6 +819,9 @@ def create_run(
     steps: list[str] | None = None,
     project: str | None = None,
     brief: str | None = None,
+    base: str | None = None,
+    tree: str | None = None,
+    needs: list[str] | None = None,
 ) -> Run:
     """A run may only be created from steps that exist.
 
@@ -804,7 +840,8 @@ def create_run(
     # A run always knows where it is. A session that does not is run wherever
     # the driver happened to keep its paperwork, which is nowhere useful.
     return store.create(
-        slug, steps=steps, project=project or str(store.paths.root.resolve()), brief=brief
+        slug, steps=steps, project=project or str(store.paths.root.resolve()), brief=brief,
+        base=base, tree=tree, needs=needs,
     )
 
 

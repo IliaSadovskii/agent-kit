@@ -65,7 +65,7 @@ class ClaudeCode(ProcessExecutor):
 
     def execute(self, request: StepRequest) -> ExecutorResult:
         asked_for = self.new_session()
-        workdir = request.project or request.workdir
+        workdir = request.where
         log.info("claude_code: %s in %s (session %s)", request.step_name, workdir, asked_for)
 
         stdout, _ = self.run(self.command(asked_for), request.input_text, workdir)

@@ -130,7 +130,7 @@ class ProcessExecutor:
     # --- running it -------------------------------------------------------
 
     def execute(self, request: StepRequest) -> ExecutorResult:
-        workdir = request.project or request.workdir
+        workdir = request.where
         stdout, stderr = self.run(self.command(), request.input_text, workdir)
         return ExecutorResult(raw=self.text_of(stdout, stderr), meta={})
 

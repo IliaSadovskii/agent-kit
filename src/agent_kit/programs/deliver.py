@@ -52,6 +52,14 @@ class Deliver:
     def execute(self, request: StepRequest) -> ExecutorResult:
         root = Path(request.project) if request.project else self.root
         project = require_project(root)
+        # Two places, and they are two: the commit is made where the code is —
+        # this run's own worktree — and the run's paperwork stays in the
+        # project, out of the branch it is about to push.
+        where = request.where
+        # What this run builds on. Empty is every run that stands on its own,
+        # and then it is the project's trunk; a feature that needs another is
+        # based on that one's branch and opens against it.
+        base = request.base or project.default_branch
         # A project that keeps knowledge cannot close a feature without the step
         # that writes it: the join is what S6 exists for, and a run that skipped
         # `record` has not made it.
@@ -80,15 +88,16 @@ class Deliver:
         # overwrites somebody's work has already done the damage by the time it
         # notices, and `checkout -B` does exactly that.
         commit = self._settle_branch(
-            root, branch, project.default_branch, title, _files(build, recorded), _message(title, build)
+            where, branch, base, title, _files(build, recorded), _message(title, build)
         )
-        self._git(root, "push", "--set-upstream", "origin", branch)
+        self._git(where, "push", "--set-upstream", "origin", branch)
 
-        url = self._open_pull_request(root, project.default_branch, branch, title, body_file)
+        url = self._open_pull_request(where, base, branch, title, body_file)
 
         return ExecutorResult(
             raw=json.dumps(
-                {"branch": branch, "commit": commit, "pull_request": url}, indent=2, ensure_ascii=False
+                {"branch": branch, "base": base, "commit": commit, "pull_request": url},
+                indent=2, ensure_ascii=False,
             ),
             # No `model`: a program is not a session, and the record must not
             # read as though one did this.

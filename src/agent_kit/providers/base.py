@@ -56,10 +56,11 @@ class ExecutorFailed(KitError):
 class StepRequest:
     """What an executor is handed. A session reads `input_text` and nothing else.
 
-    The three fields below it are for the executors that are programs: a
-    program must not parse prose to find out which branch it is on or what an
-    earlier step returned, so it is handed both as data. A session ignores
-    them — everything they hold is already in the input the driver composed.
+    The fields below it are for the executors that are programs: a program must
+    not parse prose to find out which branch it is on, which working copy it is
+    in, or what an earlier step returned, so it is handed all of it as data. A
+    session ignores them — everything they hold is already in the input the
+    driver composed, and its own cwd is `where`.
     """
 
     slug: str
@@ -69,9 +70,22 @@ class StepRequest:
     input_text: str
     workdir: Path
     project: Path | None = None
+    #: The working copy this run builds in — its own worktree, where there is
+    #: one. The project itself otherwise, which is what a run started by hand
+    #: is. Everything that touches code reads this; everything that writes the
+    #: run's own paperwork reads `project`.
+    tree: Path | None = None
     branch: str = ""
+    #: What this run builds on and opens its pull request against. Empty is a
+    #: run that stands on its own, and then it is the project's trunk.
+    base: str = ""
     brief: str | None = None
     prior: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+    @property
+    def where(self) -> Path:
+        """Where the code is: the run's own tree, or the project when it has none."""
+        return Path(self.tree or self.project or self.workdir)
 
 
 @dataclass(frozen=True)
