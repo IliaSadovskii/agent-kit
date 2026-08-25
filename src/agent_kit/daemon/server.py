@@ -68,6 +68,12 @@ def as_dict(ledger: Ledger) -> dict:
             for row in ledger.waiting_on_the_owner()
         ],
         "runs": [{"slug": row.slug, "project": row.project, "since": row.taken_at} for row in ledger.runs()],
+        # A batch is one row and its features are the held ones above: what a
+        # phone wants to know at 03:00 is *whose night this is*, and a driver
+        # that holds a batch is the only thing that can say so.
+        "batches": [
+            {"name": row.slug, "project": row.project, "since": row.taken_at} for row in ledger.batches()
+        ],
     }
 
 
@@ -84,10 +90,19 @@ def page(ledger: Ledger) -> str:
         f"<title>agent-kit</title><style>{STYLE}</style>"
         "<meta http-equiv='refresh' content='10'></head><body>"
         "<h1>agent-kit — this machine</h1>"
-        f"{_running(picture)}{_queued(picture)}{_limited(picture)}{_asking(ledger)}"
+        f"{_batches(ledger)}{_running(picture)}{_queued(picture)}{_limited(picture)}{_asking(ledger)}"
         "<p class='quiet'>This page shows and does not act.</p>"
         "</body></html>"
     )
+
+
+def _batches(ledger: Ledger) -> str:
+    """Whose night this is. The features under it are the rows below."""
+    held = ledger.batches()
+    if not held:
+        return ""
+    rows = "".join(f"<tr><td>{row.slug}</td><td>{row.project}</td><td>{row.taken_at}</td></tr>" for row in held)
+    return f"<h2>batches</h2><table><tr><th>batch</th><th>project</th><th>since</th></tr>{rows}</table>"
 
 
 def _running(picture: Picture) -> str:

@@ -1130,6 +1130,14 @@ def _machine(paths: Paths) -> int:
         print(f"  {row.slug:20} {row.project}  since {row.taken_at}")
     if not runs:
         print("  nothing is being driven")
+
+    print()
+    print("batches being driven here")
+    batches = ledger.batches()
+    for row in batches:
+        print(f"  {row.slug:20} {row.project}  since {row.taken_at}")
+    if not batches:
+        print("  no batch is running")
     return int(ExitCode.OK)
 
 
