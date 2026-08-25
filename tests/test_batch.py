@@ -75,6 +75,20 @@ def test_a_feature_that_needs_itself_is_a_cycle(tmp_path):
     assert refused.value.code == "needs-a-cycle"
 
 
+def test_a_feature_may_be_built_on_one_thing_and_not_on_two(tmp_path):
+    """A pull request has one base, and merging two branches into a third is
+    the kit writing a merge nobody reviewed."""
+    with pytest.raises(ConfigError) as refused:
+        declared(
+            tmp_path,
+            'name = "n"\n\n[features.a]\nbrief = "b"\n\n[features.b]\nbrief = "b"\n'
+            '\n[features.c]\nbrief = "b"\nneeds = ["a", "b"]\n',
+        )
+
+    assert refused.value.code == "needs-more-than-one"
+    assert "c" in refused.value.detail
+
+
 def test_a_feature_with_no_brief_is_refused_before_anything_is_made(tmp_path):
     with pytest.raises(ConfigError) as refused:
         declared(tmp_path, 'name = "n"\n\n[features.a]\n')

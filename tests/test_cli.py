@@ -546,3 +546,19 @@ def test_step_show_prints_the_contract_this_project_imposes(tmp_path, capsys, mo
     main(["-C", str(tmp_path), "step", "show", "design"])
 
     assert "required when `expensive`" in capsys.readouterr().out
+
+
+def test_run_show_names_the_tree_and_what_it_is_built_on(machine, capsys, tmp_path):
+    """A run in a worktree is a run somebody has to be able to find."""
+    from agent_kit.state import RunStore
+
+    RunStore(tmp_path / "project").create(
+        "quote", steps=["design"], base="kit/rates", tree="/trees/quote", needs=["rates"],
+    )
+
+    code, out, _ = run(["run", "show", "quote"], capsys)
+
+    assert code == ExitCode.OK
+    assert "/trees/quote" in out
+    assert "kit/rates" in out
+    assert "rates" in out
