@@ -10,6 +10,7 @@ errors and on nothing else in the kit. The arrow keeps pointing one way.
 from pathlib import Path
 
 from .ledger import (
+    BATCH,
     RUN,
     SCHEMA_VERSION,
     SESSION,
@@ -33,6 +34,7 @@ __all__ = [
     "Ledger",
     "Limited",
     "Picture",
+    "BATCH",
     "RUN",
     "SCHEMA_VERSION",
     "SESSION",

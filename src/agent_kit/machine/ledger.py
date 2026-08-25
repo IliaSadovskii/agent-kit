@@ -44,9 +44,16 @@ _NAMES_TRIED = 16
 
 SESSION = "session"
 RUN = "run"
+#: The process driving a batch. It runs no session and holds no slot: what it
+#: holds is the batch's own file, so that two `batch go` on one batch is
+#: refused by name rather than becoming two writers.
+BATCH = "batch"
 #: Whoever is reading the owner's channel right now. `getUpdates` is
 #: single-consumer: two processes reading at once steal each other's answers.
 CHANNEL = "channel"
+
+#: What a request against a batch is called when it names a feature.
+SKIP = "skip"
 
 #: How long the reader holds the channel. Short, because it is one poll: a
 #: driver that dies mid-poll must not keep everybody else out for three hours.
@@ -382,13 +389,21 @@ class Ledger:
                     until=limited.until,
                 )
 
-            ahead = self._ahead_of(db, want)
-            if ahead is not None:
-                return Busy("no-slot", f"{ahead.slug} asked for {want.account} first and is still waiting")
-
+            # What holds *this* request back is asked first, so the refusal
+            # names what is actually in the way rather than who is in front.
             full = self._full(db, want, ceilings)
             if full is not None:
                 return full
+
+            # Nothing holds it back, so the only question left is whose turn it
+            # is. S7 asked that of the asking account alone, which ordered two
+            # waiters on two accounts by whoever polled at a lucky moment —
+            # its own second debt, and a batch across two providers is what
+            # makes it real. The queue that decides is the whole queue: whoever
+            # asked first and could take this slot now.
+            ahead = self._ahead_of(db, want, ceilings)
+            if ahead is not None:
+                return Busy("no-slot", f"{ahead.slug} asked for a slot first and is still waiting")
 
             db.execute(
                 "DELETE FROM waiters WHERE project = ? AND slug = ?", (want.project, want.slug)
@@ -486,26 +501,43 @@ class Ledger:
             rows = db.execute("SELECT * FROM waiters ORDER BY id").fetchall()
         return [_waiting(row) for row in rows]
 
-    def _ahead_of(self, db: sqlite3.Connection, want: Want) -> Waiting | None:
-        """Somebody asked for this account before us and is still waiting.
+    def _ahead_of(self, db: sqlite3.Connection, want: Want, ceilings: Ceilings) -> Waiting | None:
+        """Somebody asked before us and could take this slot right now.
 
         Insertion order and not the clock: two waiters in one second are still
-        two waiters, and the row that was written first is the one that asked first.
+        two waiters, and the row that was written first is the one that asked
+        first. *Could take it* is what makes the ordering honest across
+        accounts — a waiter whose own account is limited, or whose provider is
+        already full here, is not in front of anybody: letting it hold the
+        queue would idle a machine that has room.
         """
         mine = db.execute(
             "SELECT id FROM waiters WHERE project = ? AND slug = ?", (want.project, want.slug)
         ).fetchone()
-        limit = mine["id"] if mine else None
-        if limit is None:
-            row = db.execute(
-                "SELECT * FROM waiters WHERE account = ? ORDER BY id LIMIT 1", (want.account,)
-            ).fetchone()
-        else:
-            row = db.execute(
-                "SELECT * FROM waiters WHERE account = ? AND id < ? ORDER BY id LIMIT 1",
-                (want.account, limit),
-            ).fetchone()
-        return _waiting(row) if row else None
+        rows = (
+            db.execute("SELECT * FROM waiters ORDER BY id").fetchall()
+            if mine is None
+            else db.execute("SELECT * FROM waiters WHERE id < ? ORDER BY id", (mine["id"],)).fetchall()
+        )
+        sessions = db.execute("SELECT * FROM leases WHERE kind = ?", (SESSION,)).fetchall()
+        for row in rows:
+            if self._could_go(db, row, sessions, ceilings):
+                return _waiting(row)
+        return None
+
+    def _could_go(self, db: sqlite3.Connection, row: sqlite3.Row, sessions: list, ceilings: Ceilings) -> bool:
+        """Is this waiter actually able to run, or is it waiting on something else?
+
+        Asked only of waiters ahead of a request the machine has already agreed
+        to, so the machine's own ceiling is known to have room; what is left is
+        the two things that bind one account and one provider.
+        """
+        if self._limit_of(db, str(row["account"])) is not None:
+            return False
+        ceiling = ceilings.for_provider(str(row["provider"]))
+        if ceiling is None:
+            return True
+        return len([held for held in sessions if held["provider"] == row["provider"]]) < ceiling
 
     # --- limits ------------------------------------------------------------
 
@@ -576,6 +608,35 @@ class Ledger:
                 )
             return self._write_lease(db, want, RUN, RUN_TTL)
 
+    def hold_batch(self, project: str, name: str, pid: int | None = None, boot: str | None = None) -> Lease | Busy:
+        """One driver per batch, for the reason there is one per run.
+
+        It takes no slot: a batch driver starts children and waits, and a slot
+        counts live sessions, whose cost is quota.
+        """
+        want = Want(
+            account="", provider="", project=project, slug=name, step="",
+            ttl=RUN_TTL, **({"pid": pid} if pid is not None else {}), **({"boot": boot} if boot is not None else {}),
+        )
+        with self._writing() as db:
+            self._reap(db)
+            row = db.execute(
+                "SELECT * FROM leases WHERE kind = ? AND project = ? AND slug = ?", (BATCH, project, name)
+            ).fetchone()
+            if row is not None:
+                if row["pid"] == want.pid and row["boot"] == want.boot:
+                    return _lease(row)
+                return Busy(
+                    "batch-held-elsewhere",
+                    f"{name} is being run by process {row['pid']} since {row['taken_at']};"
+                    " two drivers on one batch is two writers on one file",
+                )
+            return self._write_lease(db, want, BATCH, RUN_TTL)
+
+    def batches(self) -> list[Lease]:
+        """Which batches have a driver on them right now."""
+        return self.held(kind=BATCH)
+
     # --- stop ---------------------------------------------------------------
 
     def ask_stop(self, project: str, slug: str, reason: str) -> None:
@@ -610,6 +671,41 @@ class Ledger:
                 "DELETE FROM requests WHERE project = ? AND slug = ? AND what = 'stop'", (project, slug)
             )
         return str(rows[0]["reason"])
+
+    # --- skip, whose unit is a feature inside a batch -------------------------
+
+    def ask_skip(self, project: str, name: str, feature: str, reason: str) -> None:
+        """Do not build this feature tonight, posted where the batch driver reads it.
+
+        Addressed to the batch and naming the feature, because that is what a
+        skip is: outside a batch there is no night to take a feature out of, and
+        a run on its own is stopped by a door that already exists.
+        """
+        with self._writing() as db:
+            db.execute(
+                "INSERT INTO requests (project, slug, what, reason, asked_at) VALUES (?, ?, ?, ?, ?)",
+                (project, name, f"{SKIP}:{feature}", reason, now()),
+            )
+
+    def skips_asked(self, project: str, name: str) -> list[tuple[str, str]]:
+        """Read once, in the order they were asked for. Asked twice, skipped once."""
+        with self._writing() as db:
+            rows = db.execute(
+                "SELECT * FROM requests WHERE project = ? AND slug = ? AND what LIKE ? ORDER BY id",
+                (project, name, f"{SKIP}:%"),
+            ).fetchall()
+            if not rows:
+                return []
+            db.execute(
+                "DELETE FROM requests WHERE project = ? AND slug = ? AND what LIKE ?",
+                (project, name, f"{SKIP}:%"),
+            )
+        asked: list[tuple[str, str]] = []
+        for row in rows:
+            feature = str(row["what"]).split(":", 1)[1]
+            if feature not in [named for named, _ in asked]:
+                asked.append((feature, str(row["reason"])))
+        return asked
 
     # --- questions waiting on a person ---------------------------------------
 
@@ -773,9 +869,9 @@ class Ledger:
         ).rowcount
         gone += db.execute(
             "DELETE FROM requests WHERE NOT EXISTS ("
-            "  SELECT 1 FROM leases WHERE leases.kind = ? AND leases.project = requests.project"
+            "  SELECT 1 FROM leases WHERE leases.kind IN (?, ?) AND leases.project = requests.project"
             "   AND leases.slug = requests.slug)",
-            (RUN,),
+            (RUN, BATCH),
         ).rowcount
         return gone
 
