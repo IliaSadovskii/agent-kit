@@ -464,3 +464,40 @@ def test_the_package_says_which_channels_there_are_and_nobody_else_does():
     from agent_kit.owner import CHANNELS
 
     assert set(CHANNELS) == {"telegram", "file"}
+
+
+# --- ревью: канал упал посреди отправки -------------------------------------
+
+
+def test_a_question_that_did_go_out_is_not_thrown_away_with_the_ones_that_did_not(channel, ledger):
+    """Владелец видит вопрос на телефоне — значит ответ на него должно быть куда положить."""
+    first, second = a_question("первый?"), a_question("второй?")
+    channel.inbox.write_text(f"/a {first.id} да\n")
+
+    sent = []
+    real = channel.send
+
+    def once(text):
+        if sent:
+            raise ChannelFailed("channel-failed", "телеграм лёг после первого")
+        sent.append(text)
+        return real(text)
+
+    channel.send = once
+    owner = an_owner(channel, ledger, wait=0)
+
+    mine, theirs = owner.ask(PROJECT, "add-vat", "design", [first, second])
+
+    assert mine.how == ANSWERED, "ответ на доставленный вопрос выбросили вместе с недоставленным"
+    assert mine.answer == "да"
+    assert theirs.how == BROKEN
+
+
+def test_a_channel_that_fails_on_the_very_first_question_still_settles_them_all(channel, ledger):
+    channel.broken.write_text("нет\n")
+
+    settled = an_owner(channel, ledger, wait=0).ask(
+        PROJECT, "add-vat", "design", [a_question("первый?"), a_question("второй?")]
+    )
+
+    assert [one.how for one in settled] == [BROKEN, BROKEN]

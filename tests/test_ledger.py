@@ -628,3 +628,65 @@ def test_a_question_just_past_its_deadline_is_not_swept_from_under_its_driver(le
     ledger.reap()
 
     assert [row.id for row in ledger.waiting_on_the_owner()] == ["justnow"]
+
+
+# --- ревью: вопрос, заданный повторно, называет новое сообщение -------------
+
+
+def test_asking_again_refreshes_the_message_and_the_hour(ledger):
+    """Драйвер умер, шаг подняли заново, вопрос ушёл новым сообщением.
+
+    Строка обязана назвать это сообщение и новый час: иначе реплай не находит
+    вопрос, а выметание сносит строку из-под живого ждущего драйвера.
+    """
+    from agent_kit.machine.ledger import after
+
+    ledger.asked(an_ask(message="1", until=after(60)))
+    later = after(3600)
+
+    again = ledger.asked(an_ask(message="2", until=later))
+
+    assert again.message == "2"
+    assert again.until == later
+    assert ledger.ask_sent_as("2").id == "k7f3q2"
+
+
+def test_asking_again_does_not_lose_an_answer_that_already_came(ledger):
+    ledger.asked(an_ask(message="1"))
+    ledger.answered("k7f3q2", "one per country")
+
+    again = ledger.asked(an_ask(message="2"))
+
+    assert again.answer == "one per country"
+
+
+def test_a_question_asked_again_is_not_swept_by_the_hour_it_first_had(ledger):
+    from agent_kit.machine.ledger import after
+
+    ledger.asked(an_ask(until=after(-2 * 60 * 60)))
+    ledger.asked(an_ask(until=after(3600)))
+
+    ledger.reap()
+
+    assert [row.id for row in ledger.waiting_on_the_owner()] == ["k7f3q2"]
+
+
+def test_two_projects_asking_the_same_thing_are_two_questions(ledger):
+    """Имя прогона и слова вопроса совпадают — идентификатор один, а вопроса два."""
+    mine = ledger.free_ask_id("/projects/one", "add-vat", "k7f3q2")
+    ledger.asked(an_ask(id=mine, project="/projects/one"))
+
+    theirs = ledger.free_ask_id("/projects/two", "add-vat", "k7f3q2")
+
+    assert theirs != mine
+    ledger.asked(an_ask(id=theirs, project="/projects/two"))
+    ledger.answered(theirs, "их ответ")
+
+    assert ledger.ask_of(mine).answer is None
+    assert ledger.ask_of(theirs).answer == "их ответ"
+
+
+def test_the_same_project_asking_again_keeps_its_own_name(ledger):
+    ledger.asked(an_ask(id="k7f3q2", project="/projects/one"))
+
+    assert ledger.free_ask_id("/projects/one", "add-vat", "k7f3q2") == "k7f3q2"

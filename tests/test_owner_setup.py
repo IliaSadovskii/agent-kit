@@ -207,3 +207,22 @@ def test_a_config_that_cannot_be_written_takes_the_token_back(tmp_path, monkeypa
     from agent_kit.paths import Paths
 
     assert read_secret(Paths.from_env().secrets_file, TELEGRAM_TOKEN) == ""
+
+
+def test_setup_reads_the_channel_under_the_readers_lease(tmp_path, monkeypatch):
+    """getUpdates — на одного потребителя, и настройка не исключение из правила."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from agent_kit.machine import Ledger, ledger_path
+    from agent_kit.paths import Paths
+
+    ledger = Ledger(ledger_path(Paths.from_env()))
+    # Кто-то уже читает канал: живой процесс, и это не мы.
+    held = ledger.read_channel(pid=1)
+    assert held.granted
+
+    bot = Bot(["vat_night_bot"])
+    with pytest.raises(ConfigError) as refused:
+        setup(ask=typed(TOKEN), say=said_by([]), bot=bot, wait=0, pause=lambda _: None)
+
+    assert refused.value.code == "no-chat"
+    assert "listen" not in bot.asked, "настройка читала канал через голову держателя аренды"
