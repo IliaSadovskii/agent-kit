@@ -1,0 +1,11 @@
+# two runs on two accounts, one slot
+
+[case]
+title = "somebody on another account asked for the machine first and is still waiting"
+fires = "the slot is not taken over their head, and the run gives up by name with its state untouched"
+wait = 8
+
+[expect]
+exit_code = 4
+status = "created"
+steps = { design = "pending" }

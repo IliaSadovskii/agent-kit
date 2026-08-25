@@ -180,6 +180,13 @@ def build_parser() -> argparse.ArgumentParser:
     take.add_argument("--ttl", type=int, help="how many seconds it lives if nobody gives it back")
     take.add_argument("--machine-max", type=int, help="the ceiling to judge it against; the configured one when left out")
     take.add_argument("--pid", type=int, help="the process this lease belongs to; this one when left out")
+    wants = slot_what.add_parser("wants", help="stand in the queue, as a driver about to sleep does")
+    wants.add_argument("--provider", required=True)
+    wants.add_argument("--slug", required=True)
+    wants.add_argument("--step", default="build")
+    wants.add_argument("--account", help="the quota pool; the provider's own name when left out")
+    wants.add_argument("--pid", type=int, help="whose waiter it is; a dead one is reaped like any row")
+
     hold = slot_what.add_parser("hold", help="hold a run, as its driver does")
     hold.add_argument("--slug", required=True)
     hold.add_argument("--pid", type=int, help="the process holding it; this one when left out")
@@ -1151,7 +1158,7 @@ def _slot(args: argparse.Namespace, paths: Paths) -> int:
 
     what = args.what
     if what is None:
-        raise UsageError("missing-command", "slot needs one of: take, hold, release")
+        raise UsageError("missing-command", "slot needs one of: take, wants, hold, release")
 
     ledger = _ledger(paths)
     project = str(Path(args.project).resolve())
@@ -1170,6 +1177,20 @@ def _slot(args: argparse.Namespace, paths: Paths) -> int:
         if not got.granted:
             raise ProviderError(got.code, got.detail)
         print(f"{args.slug}: holding a slot on {args.provider} until {got.expires_at}")
+        return int(ExitCode.OK)
+
+    if what == "wants":
+        ledger.wants_one(
+            Want(
+                account=args.account or args.provider,
+                provider=args.provider,
+                project=project,
+                slug=args.slug,
+                step=args.step,
+                **({"pid": args.pid} if args.pid is not None else {}),
+            )
+        )
+        print(f"{args.slug}: standing in the queue for {args.account or args.provider}")
         return int(ExitCode.OK)
 
     if what == "hold":

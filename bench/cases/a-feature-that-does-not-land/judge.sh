@@ -6,6 +6,8 @@ grep -q '"status": "failed"' "$BATCHES" || { echo "nothing failed, so nothing wa
 grep -q 'needed-rates' "$BATCHES" || { echo "quote does not say what it was waiting for"; exit 1; }
 test ! -d "$REPO/.agent-kit/v3/runs/quote" || { echo "a run was started for a feature that could not be built"; exit 1; }
 test ! -d "$REPO/.agent-kit/v3/trees/quote" || { echo "a tree was made for it"; exit 1; }
+# What the run that failed was working in is the only record of how far it got.
+test -d "$TREES/rates" || { echo "the failed feature's tree was thrown away with its evidence"; exit 1; }
 # Commits the trunk does not have: a branch made by `worktree add` already
 # carries main's history, so "it has a commit" is true before anything is built.
 test "$(git rev-list --count main..kit/receipt)" -ge 1 ||

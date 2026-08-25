@@ -780,3 +780,21 @@ def test_the_page_answers_with_the_batches_as_well_as_the_runs(machine, ledger):
 
     assert [row["name"] for row in as_dict(ledger)["batches"]] == ["2026-08-26-vat"]
     assert "2026-08-26-vat" in page(ledger)
+
+
+def test_a_waiter_can_be_planted_where_one_would_be_standing(machine, ledger, capsys):
+    """A queue with only one waiter in it cannot show that order is kept.
+
+    Its readers are the bench — a case has to stand where another project's
+    driver would — and a person untangling a machine that is handing its slots
+    to the wrong run.
+    """
+    code, out, _ = run(
+        ["slot", "wants", "--provider", "codex", "--slug", "somebody-else",
+         "--step", "build", "--account", "openai", "--pid", "1"],
+        capsys,
+    )
+
+    assert code == ExitCode.OK
+    assert [(row.slug, row.account) for row in ledger.queue()] == [("somebody-else", "openai")]
+    assert "somebody-else" in out

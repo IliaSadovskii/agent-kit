@@ -1,0 +1,16 @@
+# a batch of two, and one phone
+
+[case]
+title = "two features end, and the owner is woken once rather than twice"
+fires = "the channel carries exactly one message, and it names both features"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+  { slug = "quote", brief = "A price quoted with VAT on it" },
+]
+
+[expect]
+exit_code = 0
+features = { rates = "done", quote = "done" }
