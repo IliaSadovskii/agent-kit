@@ -355,6 +355,18 @@ unanswered one takes the default and records it as an assumption.
 an order the program decides.
 *Done when* a batch of three features that depend on nothing builds at once and all three land.
 
+Two things earlier steps deliberately left for this one, because neither has a unit until
+batches exist:
+
+- **Skip** (open question 9). S7 built stop and refused to build skip beside it: *its unit is a
+  feature inside a batch, and there are no batches until S8. A `skip` with nothing to skip is a
+  field with no reader wearing a command's clothes.*
+- **The machine's own ceiling is not queued.** S7's queue orders waiters per account. Two runs
+  waiting on *different* accounts, both held back by `machine.max_sessions`, are ordered by
+  whoever polls first rather than by who asked first. S7 named it and refused to fix it on a
+  guess — with one provider configured there is one account. Parallelism is what stops it being
+  a guess.
+
 **S9 · Adapters two to four.** Codex, Gemini CLI, OpenCode. Each is a config block plus a small
 module, and each is run through the bench for its level. The context ceiling is measured per
 provider, never inherited.
