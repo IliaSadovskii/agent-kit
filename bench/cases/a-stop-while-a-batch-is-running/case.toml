@@ -1,0 +1,16 @@
+# a person stops the whole night
+
+[case]
+title = "the batch is stopped while one feature is being built and another has not started"
+fires = "the running child stops itself, nothing else starts, and the exit code says a person did it"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+  { slug = "quote", brief = "A price quoted with VAT on it", needs = ["rates"] },
+]
+
+[expect]
+exit_code = 130
+features = { rates = "stopped", quote = "pending" }

@@ -1,0 +1,12 @@
+{
+  "complete": true,
+  "summary": "quote, and the check decided before it.",
+  "files": [
+    "money.py"
+  ],
+  "tests": [
+    "quote_is_there"
+  ],
+  "deviations": [],
+  "remaining": null
+}

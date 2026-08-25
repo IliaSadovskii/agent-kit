@@ -1,0 +1,16 @@
+# two features building at the same time, in one repository
+
+[case]
+title = "two features change the same file at the same time, each in its own tree"
+fires = "neither session sees the other's uncommitted work, and each commit holds only its own line"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+  { slug = "quote", brief = "A price quoted with VAT on it" },
+]
+
+[expect]
+exit_code = 0
+features = { rates = "done", quote = "done" }

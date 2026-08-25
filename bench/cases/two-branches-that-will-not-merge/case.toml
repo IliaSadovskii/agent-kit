@@ -1,0 +1,16 @@
+# two features that both rewrote one line
+
+[case]
+title = "both features land, and their branches conflict with each other"
+fires = "the conflict is named with its file before the owner finds it in the morning, and nothing was merged"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+  { slug = "quote", brief = "A price quoted with VAT on it" },
+]
+
+[expect]
+exit_code = 0
+features = { rates = "done", quote = "done" }

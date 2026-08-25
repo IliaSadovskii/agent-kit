@@ -130,7 +130,9 @@ def _drive_a_batch(case: Case, world: World):
     declaration itself to be refused wants that exit code, so `batch new` is
     what is judged where `batch go` never runs.
     """
-    declared = world.repo / "batch.toml"
+    # Beside the world rather than inside the project: a case about two runs
+    # not dirtying one working copy must not be the thing that dirties it.
+    declared = Path(world.env["BENCH"]) / "batch.toml"
     declared.write_text(case.batch.declaration(), encoding="utf-8")
 
     made = _kit(world, ["batch", "new", str(declared)])
