@@ -124,6 +124,7 @@ class Owner:
         pause: Callable[[float], None] | None = None,
         clock: Callable[[], float] | None = None,
         say: Callable[[str], None] | None = None,
+        quiet: bool = False,
     ) -> None:
         self.channel = channel
         self.ledger = ledger
@@ -133,6 +134,10 @@ class Owner:
         # an hour somebody else's tool printed, believed as if it were a time.
         self.clock = clock or time.monotonic
         self.say = say or log.info
+        #: True when somebody else is telling the owner about this run — a
+        #: batch, which sends one message for the whole of it. Questions are
+        #: unaffected: a question has its own deadline against a person.
+        self.quiet = quiet
 
     # --- the one thing it does --------------------------------------------
 
@@ -168,7 +173,7 @@ class Owner:
 
     def news(self, text: str) -> None:
         """Something the owner would want to know, and nothing waits on it."""
-        if self.channel is None:
+        if self.channel is None or self.quiet:
             return
         try:
             self.channel.send(text)

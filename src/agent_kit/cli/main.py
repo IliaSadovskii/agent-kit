@@ -71,6 +71,9 @@ def build_parser() -> argparse.ArgumentParser:
                     help="an option for the provider, as its own block documents; repeat to give several")
     go.add_argument("--wait", type=int, metavar="SECONDS",
                     help="how long to wait for a slot or a limit to reset; 0 refuses instead of waiting")
+    go.add_argument("--silent", action="store_true",
+                    help="somebody else is telling the owner about this run; used by a batch, "
+                         "so five features do not wake a phone five times")
 
     show = run_what.add_parser("show", help="a run, as it stands")
     show.add_argument("slug")
@@ -90,6 +93,39 @@ def build_parser() -> argparse.ArgumentParser:
     stopped = run_what.add_parser("stop", help="stop the run, and say why")
     stopped.add_argument("slug")
     stopped.add_argument("reason")
+
+    batch = commands.add_parser("batch", help="an evening's work: several features, and what waits for what")
+    batch_what = batch.add_subparsers(dest="what", metavar="WHAT")
+
+    batch_new = batch_what.add_parser("new", help="create a batch from the file you wrote")
+    batch_new.add_argument("file", help="the declaration: features, briefs, and what needs what")
+
+    batch_what.add_parser("list", help="the batches this project holds")
+
+    batch_show = batch_what.add_parser("show", help="a batch, as it stands")
+    batch_show.add_argument("name")
+    batch_show.add_argument("--json", action="store_true", help="the state itself, not a summary")
+
+    batch_go = batch_what.add_parser("go", help="build everything that is left, as much of it at once as fits")
+    batch_go.add_argument("name")
+    batch_go.add_argument("--provider", help="who executes the steps a session does")
+    batch_go.add_argument("--option", action="append", default=[], metavar="[FEATURE:]KEY=VALUE",
+                          help="an option for the provider; name a feature first to address one run")
+
+    batch_stop = batch_what.add_parser("stop", help="stop the batch, and say why")
+    batch_stop.add_argument("name")
+    batch_stop.add_argument("reason")
+
+    batch_skip = batch_what.add_parser("skip", help="do not build this feature tonight — nor what needed it")
+    batch_skip.add_argument("name")
+    batch_skip.add_argument("feature")
+    batch_skip.add_argument("reason")
+
+    tree = commands.add_parser("tree", help="the working copies this project's runs build in")
+    tree_what = tree.add_subparsers(dest="what", metavar="WHAT")
+    tree_what.add_parser("list", help="every tree, and the branch it is on")
+    tree_remove = tree_what.add_parser("remove", help="take one away; the branch keeps the work")
+    tree_remove.add_argument("slug")
 
     provider = commands.add_parser("provider", help="the providers this kit ships")
     provider_what = provider.add_subparsers(dest="what", metavar="WHAT")
@@ -233,6 +269,10 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace, paths: 
         return _config(args, paths)
     if args.command == "run":
         return _run(args)
+    if args.command == "batch":
+        return _batch(args, paths)
+    if args.command == "tree":
+        return _tree(args)
     if args.command == "step":
         return _step(args, paths)
     if args.command == "provider":
@@ -504,7 +544,9 @@ def _go(store: RunStore, registry, args: argparse.Namespace) -> int:
     if run.finished:
         raise StateError("run-finished", f"{args.slug} is {run.status.value}; there is nothing left to run")
 
-    runner = _runner(store, registry, args.provider, args.option, wait=args.wait)
+    runner = _runner(
+        store, registry, args.provider, args.option, wait=args.wait, silent=getattr(args, "silent", False)
+    )
     while True:
         outcome = runner.run_next(args.slug)
         for attempt in outcome.attempts:
@@ -545,6 +587,151 @@ def _where(run) -> str:
 
 
 # --- step ------------------------------------------------------------------
+
+
+def _batch(args: argparse.Namespace, paths: Paths) -> int:
+    """An evening's work: several features, and what waits for what."""
+    from ..batch import BatchStore, FeatureStatus, read_declaration
+
+    root = Path(args.project).resolve()
+    store = BatchStore(root)
+    what = args.what
+    if what is None:
+        raise UsageError("missing-command", "batch needs one of: new, list, show, go, stop, skip")
+
+    if what == "new":
+        declaration = read_declaration(Path(args.file))
+        batch = store.create(declaration)
+        print(f"{batch.name}: created with {len(batch.features)} features")
+        for feature in batch.features:
+            waits = f" — after {', '.join(feature.needs)}" if feature.needs else ""
+            print(f"  {feature.slug}{waits}")
+        return int(ExitCode.OK)
+
+    if what == "list":
+        names = store.list()
+        if not names:
+            print("no batches yet")
+        for name in names:
+            batch = store.load(name)
+            landed = sum(1 for feature in batch.features if feature.status is FeatureStatus.DONE)
+            print(f"{name:24} {landed}/{len(batch.features)} landed")
+        return int(ExitCode.OK)
+
+    if what == "show":
+        batch = store.load(args.name)
+        if args.json:
+            print(json.dumps(batch.to_dict(), indent=2, ensure_ascii=False))
+            return int(ExitCode.OK)
+        print(f"{batch.name}  {len(batch.features)} features")
+        if batch.reason:
+            print(f"  {batch.reason}")
+        for feature in batch.features:
+            waits = f"  needs {', '.join(feature.needs)}" if feature.needs else ""
+            said_why = f"  {feature.reason}" if feature.reason else ""
+            print(f"  {feature.slug:20} {feature.status.value:9}{waits}{said_why}")
+            if feature.pull_request:
+                print(f"    {feature.pull_request}")
+        return int(ExitCode.OK)
+
+    if what == "go":
+        return _batch_go(args, paths, root, store)
+
+    if what == "stop":
+        # One writer per batch, the way there is one per run: if a driver holds
+        # it, the stop is posted where that driver reads it.
+        driving = _driving_batch(root, args.name)
+        if driving:
+            _ledger(paths).ask_stop(str(root), args.name, reason=args.reason)
+            print(f"stop-asked: {args.name} — the driver (pid {driving[0].pid}) stops when its children do")
+            return int(ExitCode.OK)
+        batch = store.load(args.name)
+        batch.reason = args.reason
+        store.save(batch)
+        print(f"{args.name}: stopped — {args.reason}")
+        return int(ExitCode.OK)
+
+    if what == "skip":
+        driving = _driving_batch(root, args.name)
+        if driving:
+            _ledger(paths).ask_skip(str(root), args.name, args.feature, reason=args.reason)
+            print(f"skip-asked: {args.feature} — the driver (pid {driving[0].pid}) reads it between steps")
+            return int(ExitCode.OK)
+        batch = store.load(args.name)
+        taken = batch.skip(args.feature, args.reason)
+        store.save(batch)
+        # Said at the moment it is typed: a person who wanted one feature
+        # dropped and got three must hear it now, not in a report afterwards.
+        print(f"{args.name}: skipping {', '.join(taken)} — {args.reason}")
+        return int(ExitCode.OK)
+
+    raise UsageError("unknown-command", f"batch {what}")
+
+
+def _batch_go(args: argparse.Namespace, paths: Paths, root: Path, store) -> int:
+    from ..batch import BatchDriver, FeatureStatus
+
+    config = load_config(paths.config_file)
+    ledger = _ledger(paths)
+    outcome = BatchDriver(
+        project=root,
+        store=store,
+        runs=RunStore(root),
+        registry=builtin_registry(),
+        ledger=ledger,
+        ceilings=_ceilings(config),
+        owner=_owner_of(config, paths, ledger),
+        options=args.option,
+        provider=args.provider,
+        say=print,
+    ).go(args.name)
+
+    for feature in outcome.batch.features:
+        print(f"{feature.slug}: {feature.status.value}{'  ' + feature.pull_request if feature.pull_request else ''}")
+    for conflict in outcome.conflicts:
+        print(f"will not merge: {conflict.said()}", file=sys.stderr)
+
+    if outcome.interrupted:
+        return int(ExitCode.INTERRUPTED)
+    if outcome.batch.landed_everything:
+        return int(ExitCode.OK)
+    # The code of the first feature that did not land, with the meaning that
+    # code already has. A batch does not invent one for "some of it worked":
+    # that is what the report above is for.
+    behind = outcome.batch.first_that_did_not_land()
+    print(f"{outcome.batch.name}: {behind.slug} — {behind.reason or behind.status.value}", file=sys.stderr)
+    return int(ExitCode.REFUSED if behind.status is FeatureStatus.SKIPPED else ExitCode.STATE)
+
+
+def _driving_batch(root: Path, name: str) -> list:
+    """The lease a driver holds on this batch right now, if any."""
+    ledger = _ledger(Paths.from_env())
+    return [lease for lease in ledger.batches() if lease.slug == name and lease.project == str(root)]
+
+
+def _tree(args: argparse.Namespace) -> int:
+    """The working copies this project's runs build in."""
+    from ..driver.tree import remove_tree, trees
+
+    root = Path(args.project).resolve()
+    what = args.what
+    if what is None:
+        raise UsageError("missing-command", "tree needs one of: list, remove")
+
+    if what == "list":
+        standing = trees(root)
+        if not standing:
+            print("no trees")
+        for slug, where, branch in standing:
+            print(f"{slug:20} {branch:24} {where}")
+        return int(ExitCode.OK)
+
+    if what == "remove":
+        gone = remove_tree(root, args.slug)
+        print(f"{args.slug}: {'taken away; the branch keeps the work' if gone else 'no tree of that name'}")
+        return int(ExitCode.OK)
+
+    raise UsageError("unknown-command", f"tree {what}")
 
 
 def _step(args: argparse.Namespace, paths: Paths) -> int:
@@ -600,7 +787,9 @@ def _step(args: argparse.Namespace, paths: Paths) -> int:
         return int(ExitCode.OK)
 
     if what == "run":
-        runner = _runner(store, registry, args.provider, args.option, wait=args.wait)
+        runner = _runner(
+        store, registry, args.provider, args.option, wait=args.wait, silent=getattr(args, "silent", False)
+    )
         outcome = runner.run_next(args.slug)
         for attempt in outcome.attempts:
             mark = "passed" if attempt.passed else f"refused — {attempt.refusal}"
@@ -714,7 +903,7 @@ def _bench_list(root: Path, names: list[str], read_case, CaseError) -> int:
 
 
 def _runner(store: RunStore, registry, provider: str | None, options: list[str],
-            wait: int | None = None) -> StepRunner:
+            wait: int | None = None, silent: bool = False) -> StepRunner:
     """Everything a run needs to advance: who executes, which role names them, and what the machine allows."""
     from ..programs import build_program, program_names
     from ..project import read_project
@@ -730,7 +919,7 @@ def _runner(store: RunStore, registry, provider: str | None, options: list[str],
         accounts=_accounts(config),
         wait=config.machine.wait if wait is None else wait,
         say=print,
-        owner=_owner_of(config, paths, ledger),
+        owner=_owner_of(config, paths, ledger, silent=silent),
     )
 
     # The programs are not providers: nobody chooses them, nobody configures
@@ -763,7 +952,7 @@ def _runner(store: RunStore, registry, provider: str | None, options: list[str],
     return StepRunner(store=store, registry=registry, executors=executors, roles=roles, **machine)
 
 
-def _owner_of(config: Config, paths: Paths, ledger) -> object:
+def _owner_of(config: Config, paths: Paths, ledger, silent: bool = False) -> object:
     """The person this run can ask, or nobody — which is a run like any other.
 
     A channel that is configured and unusable is not a night's problem: the
@@ -777,7 +966,11 @@ def _owner_of(config: Config, paths: Paths, ledger) -> object:
     except KitError as unusable:
         print(f"{PROGRAM}: {unusable.code}: {unusable.detail}", file=sys.stderr)
         channel = None
-    return Owner(channel=channel, ledger=ledger, wait=config.owner.wait, say=print)
+    # `silent` is somebody else speaking for this run — a batch, which sends one
+    # message for all of its features rather than waking a phone once each. A
+    # question still goes out: it has a deadline against a person, and holding
+    # it back would be a second kind of waiting on top of the one S7a measured.
+    return Owner(channel=channel, ledger=ledger, wait=config.owner.wait, say=print, quiet=silent)
 
 
 def _settings(config: Config, provider: str, typed: dict[str, list[str]]) -> dict[str, list[str]]:
