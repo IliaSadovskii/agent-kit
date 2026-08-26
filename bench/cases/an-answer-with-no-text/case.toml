@@ -1,0 +1,10 @@
+# ответ, в котором нет ни одного слова
+
+[case]
+title = "the owner replies with a sticker: a message that carries no text"
+fires = "it settles nothing — the question ends in silence, the default is taken, and no second session is paid for"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { design = "passed", record = "passed", deliver = "passed" }
