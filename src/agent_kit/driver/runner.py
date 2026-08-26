@@ -17,11 +17,13 @@ from typing import Any, Mapping
 
 from ..config import DEFAULT_WAIT, RoleConfig
 from ..errors import KitError, ProviderError, StateError
+from ..hook import write_pre_push
 from ..knowledge import DEFAULT_DIR as KNOWLEDGE_DIR, Knowledge
 from ..logs import get_logger
 from ..machine import Busy, Ceilings, Lease, Ledger, Want, ledger_path
 from ..owner import ANSWERED, HAD_ROUND, NOBODY, Owner, Question, Settled, as_assumption, questions_of
 from ..paths import Paths
+from ..project import DEFAULT_BRANCH, read_project
 from ..state import DEFAULT_STEPS, Run, RunStore, StepStatus
 from ..steps import Registry, StepDefinition
 from ..steps.contract import ContractRefusal, parse_output
@@ -168,17 +170,46 @@ class StepRunner:
         symlink is all it would take for them not to be.
         """
         where = self._where(self.store.load(slug))
-        for lease in self.ledger.runs():
+        for lease in self.ledger.runs() + self.ledger.checkouts():
             if lease.slug == slug and lease.project == where:
                 self.ledger.release(lease)
 
     # --- the machine, asked before anything is spent ----------------------
 
     def _hold(self, run: Run) -> None:
-        """One driver per run — open question 2, enforced instead of merely settled."""
-        held = self.ledger.hold_run(self._where(run), run.slug)
+        """One driver per run, one writer per working copy, and the refusals in place.
+
+        Open question 2 was the first of those and the only one enforced. The
+        second is what a batch already had and a run started by hand did not: it
+        has no worktree, so it builds in the project's own checkout, and a second
+        one of those would edit the same files under it.
+        """
+        where = self._where(run)
+        held = self.ledger.hold_run(where, run.slug)
         if not held.granted:
             raise StateError(held.code, held.detail)
+
+        if not run.tree:
+            checkout = self.ledger.hold_checkout(where, run.slug)
+            if not checkout.granted:
+                raise StateError(checkout.code, checkout.detail)
+
+        self._refusals_in_place(run)
+
+    def _refusals_in_place(self, run: Run) -> None:
+        """The pre-push hook, put in before a session is let loose in the checkout.
+
+        `agent-kit init` writes it too, and that is not enough on its own:
+        `.git/hooks` is not repository content, so a project whose declaration is
+        committed and cloned arrives without one. A worktree shares the hook of
+        the repository it belongs to, so this covers a batch's children as well.
+        """
+        project = read_project(self._where(run))
+        hook = write_pre_push(
+            self._where(run), trunk=project.default_branch if project else DEFAULT_BRANCH
+        )
+        if hook.said():
+            self.say(f"{run.slug}: {hook.said()}")
 
     def _stop_asked(self, run: Run) -> StepOutcome | None:
         """A person's stop, read where the run's own driver can act on it.

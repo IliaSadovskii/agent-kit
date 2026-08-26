@@ -10,10 +10,17 @@ import re
 from typing import Sequence
 
 from ..state import Run
-from ..steps import StepDefinition
+from ..steps import StepDefinition, read_method
 from ..steps.contract import Contract
 
 Enclosure = tuple[str, str]
+
+#: Prose every role carries, whatever step it is on. It is not the envelope: the
+#: envelope is about the shape of an answer and a step may override it, and this
+#: is about the repository and no step may. The one refusal in it that no git
+#: hook can hold — `gh pr merge` is an API call, not a push — is the reason it
+#: is here at all.
+REPOSITORY_RULES = "rules/repository.md"
 
 
 def compose_input(
@@ -47,6 +54,7 @@ def compose_input(
 
     if definition.by_agent:
         parts += ["", "## What you are doing", "", definition.instructions().strip()]
+        parts += ["", read_method(REPOSITORY_RULES).strip()]
     else:
         parts += [
             "",

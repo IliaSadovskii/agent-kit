@@ -190,6 +190,8 @@ def build_parser() -> argparse.ArgumentParser:
     hold = slot_what.add_parser("hold", help="hold a run, as its driver does")
     hold.add_argument("--slug", required=True)
     hold.add_argument("--pid", type=int, help="the process holding it; this one when left out")
+    hold.add_argument("--checkout", action="store_true",
+                      help="hold the project's working copy instead, as a run with no worktree does")
     give_back = slot_what.add_parser("release", help="give back what was taken by hand, slot and run alike")
     give_back.add_argument("--slug", required=True)
 
@@ -349,6 +351,7 @@ def _present(path: Path) -> str:
 
 def _init(root: Path, force: bool) -> int:
     """Read the repository, write the declaration, and name what was not found."""
+    from ..hook import WRITTEN, write_pre_push
     from ..project import discover, is_repository, write_project
 
     if not is_repository(root):
@@ -358,11 +361,19 @@ def _init(root: Path, force: bool) -> int:
 
     project, missing = discover(root)
     path = write_project(project, force=force)
+    # The moment a project becomes known to the kit is the moment to put the
+    # refusals in. `.git/hooks` is not repository content, so a project whose
+    # declaration is committed and cloned arrives with none.
+    hook = write_pre_push(root, trunk=project.default_branch)
 
     print(f"wrote {path}")
     print(f"  default branch  {project.default_branch}")
     for command in project.commands:
         print(f"  {command.name:14}  {command.command}")
+    if hook.what == WRITTEN:
+        print(f"  pre-push        {hook.path}")
+    elif hook.said():
+        print(f"{PROGRAM}: pre-push: {hook.said()}", file=sys.stderr)
     if not missing:
         return int(ExitCode.OK)
 
@@ -1143,6 +1154,14 @@ def _machine(paths: Paths) -> int:
         print("  nothing is being driven")
 
     print()
+    print("working copies being built in")
+    checkouts = ledger.checkouts()
+    for row in checkouts:
+        print(f"  {row.slug:20} {row.project}  since {row.taken_at}")
+    if not checkouts:
+        print("  no run is building in a project's own checkout")
+
+    print()
     print("batches being driven here")
     batches = ledger.batches()
     for row in batches:
@@ -1194,14 +1213,16 @@ def _slot(args: argparse.Namespace, paths: Paths) -> int:
         return int(ExitCode.OK)
 
     if what == "hold":
-        held = ledger.hold_run(project, args.slug, pid=args.pid)
+        take = ledger.hold_checkout if args.checkout else ledger.hold_run
+        held = take(project, args.slug, pid=args.pid)
         if not held.granted:
             raise StateError(held.code, held.detail)
-        print(f"{args.slug}: held by process {held.pid}")
+        what_is_held = "the working copy" if args.checkout else "the run"
+        print(f"{args.slug}: {what_is_held} is held by process {held.pid}")
         return int(ExitCode.OK)
 
     if what == "release":
-        for lease in ledger.held() + ledger.runs():
+        for lease in ledger.held() + ledger.runs() + ledger.checkouts():
             if lease.slug == args.slug and lease.project == project:
                 ledger.release(lease)
                 print(f"{args.slug}: the {lease.kind} is given back")

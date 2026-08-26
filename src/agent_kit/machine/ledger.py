@@ -52,6 +52,13 @@ BATCH = "batch"
 #: single-consumer: two processes reading at once steal each other's answers.
 CHANNEL = "channel"
 
+#: Who is building in a working copy right now. A run with a worktree of its
+#: own holds that and nothing else; a run started by hand has no worktree, so it
+#: builds in the project's own checkout and holds *that*. Two runs in one
+#: checkout is two sessions editing one file, which is what S8 gave the batch a
+#: tree per child to prevent and left standing everywhere else.
+CHECKOUT = "checkout"
+
 #: What a request against a batch is called when it names a feature.
 SKIP = "skip"
 
@@ -607,6 +614,37 @@ class Ledger:
                     " two drivers on one run is how a record ends up truncated",
                 )
             return self._write_lease(db, want, RUN, RUN_TTL)
+
+    def hold_checkout(self, project: str, slug: str, pid: int | None = None, boot: str | None = None) -> Lease | Busy:
+        """One writer per working copy, asked for by whoever has no tree of their own.
+
+        Keyed on the checkout and not on the run: the point is that a second run
+        cannot have it, so the row says which run does and the refusal names it.
+        It takes no slot — a working copy is not quota.
+        """
+        want = Want(
+            account="", provider="", project=project, slug=slug, step="",
+            ttl=RUN_TTL, **({"pid": pid} if pid is not None else {}), **({"boot": boot} if boot is not None else {}),
+        )
+        with self._writing() as db:
+            self._reap(db)
+            row = db.execute(
+                "SELECT * FROM leases WHERE kind = ? AND project = ?", (CHECKOUT, project)
+            ).fetchone()
+            if row is not None:
+                if row["slug"] == slug and row["pid"] == want.pid and row["boot"] == want.boot:
+                    return _lease(row)
+                return Busy(
+                    "checkout-held-elsewhere",
+                    f"{row['slug']} is building in {project} itself (process {row['pid']},"
+                    f" since {row['taken_at']}), and a run with no worktree of its own builds there too;"
+                    " two of them in one working copy is two sessions editing one file",
+                )
+            return self._write_lease(db, want, CHECKOUT, RUN_TTL)
+
+    def checkouts(self) -> list[Lease]:
+        """Which working copies have a run building in them right now."""
+        return self.held(kind=CHECKOUT)
 
     def hold_batch(self, project: str, name: str, pid: int | None = None, boot: str | None = None) -> Lease | Busy:
         """One driver per batch, for the reason there is one per run.
