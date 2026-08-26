@@ -166,6 +166,44 @@ def test_a_feature_that_did_not_land_stops_what_needed_it_by_name(batch):
     assert made.finished
 
 
+def test_a_feature_does_not_end_without_a_reason_anybody_can_read(batch):
+    """The same refusal the run store makes, by the same name and for the same reason.
+
+    A feature recorded `failed` with nothing in `reason` is what a run left
+    where it was becomes when its ending is inferred rather than read.
+    """
+    _, made = batch
+    made.starting("rates", tree="/trees/rates")
+
+    with pytest.raises(StateError) as refused:
+        made.ended("rates", FeatureStatus.FAILED)
+
+    assert refused.value.code == "reason-required"
+    assert made.feature("rates").status is FeatureStatus.RUNNING
+
+
+def test_every_run_status_is_spelled_out_rather_than_defaulted(batch):
+    """A status the batch has no word for must be a KeyError, not a failure."""
+    from agent_kit.batch.state import OF_A_RUN
+    from agent_kit.state import RunStatus
+
+    assert set(OF_A_RUN) == set(RunStatus)
+
+
+def test_a_feature_that_was_never_started_is_to_be_built_again(batch):
+    """The machine had no room: nothing was attempted, so nothing is over."""
+    _, made = batch
+    made.starting("rates", tree="/trees/rates")
+
+    made.never_started("rates", "no agent could be started for it")
+
+    assert made.feature("rates").status is FeatureStatus.PENDING
+    assert made.feature("rates").reason == "no agent could be started for it"
+    assert made.feature("rates").ended_at is None
+    assert made.ready() == ["rates"]
+    assert not made.finished
+
+
 def test_what_did_not_need_it_is_untouched(tmp_path):
     store = BatchStore(tmp_path)
     made = store.create(

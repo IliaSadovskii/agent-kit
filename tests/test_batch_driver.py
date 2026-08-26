@@ -111,6 +111,11 @@ class _Child:
     def poll(self):
         self.polls += 1
         how = self.spawn.endings.get(self.slug, "done")
+        if how == "stops-when-asked":
+            if self.spawn.ledger.stop_pending(str(self.spawn.project), self.slug) is None:
+                return None
+            self.spawn.runs.stop(self.slug, "stopped-by-request: the batch was asked to stop")
+            return self._gone(130)
         if how == "asks-the-batch-to-stop":
             if self.polls == 1:
                 # A person, while the batch is running: the one moment a stop
@@ -128,6 +133,11 @@ class _Child:
         if how == "done":
             _land(self.spawn.runs, self.slug)
             return self._gone(0)
+        if how in UNTOUCHED:
+            # A child that came back leaving its run exactly where it was. All
+            # that is left of what happened is the code it came back with, and
+            # the kit gives each of these one meaning.
+            return self._gone(UNTOUCHED[how])
         self.spawn.runs.fail_run(self.slug, f"{self.slug}: build was refused three times")
         return self._gone(3)
 
@@ -135,6 +145,10 @@ class _Child:
         self.spawn.alive.discard(self.slug)
         self.spawn.ledger.release(self.spawn.held.pop(self.slug, None))
         return code
+
+
+#: Endings that touch no state at all, and the code the child comes back with.
+UNTOUCHED = {"the-machine-was-full": 4, "killed": -9, "stopped-without-a-word": 130}
 
 
 def _land(runs, slug):
@@ -147,6 +161,11 @@ def _land(runs, slug):
 def driver(repo, text=THREE, endings=None, machine=4, spoke=None, merges=None):
     store = BatchStore(repo)
     store.create(read_declaration(_declared(repo, text)))
+    return another_driver(repo, store, endings=endings, machine=machine, spoke=spoke, merges=merges)
+
+
+def another_driver(repo, store, endings=None, machine=4, spoke=None, merges=None):
+    """The next night: a driver over a batch somebody else created."""
     runs = RunStore(repo)
     ledger = Ledger(repo / "daemon.sqlite")
     spawn = Scripted(runs, endings or {}, ledger=ledger, project=repo)
@@ -261,6 +280,147 @@ def test_the_run_s_own_ending_is_what_the_batch_records(repo):
 
     assert runs.load("one").status is RunStatus.DONE
     assert store.load("vat").feature("one").status is FeatureStatus.DONE
+
+
+# --- what the child came back with ------------------------------------------
+
+
+def test_a_feature_the_machine_had_no_room_for_is_left_to_be_built(repo):
+    """Code 4 is the machine saying no. Nothing was attempted, so nothing failed.
+
+    The rule a level down, at the batch's own level: a run that could not have
+    a session is left exactly as it was, and this is what that means for the
+    night above it — the feature is still to do, and `batch go` picks it up.
+    """
+    drive, store, runs, spawn, _ = driver(repo, endings={"rates": "the-machine-was-full"})
+
+    outcome = drive.go("vat")
+
+    assert [slug for slug, _ in spawn.started] == ["rates"]  # once, not in a loop
+    assert outcome.batch.feature("rates").status is FeatureStatus.PENDING
+    assert outcome.batch.feature("rates").reason  # and it says what stopped it
+    assert outcome.batch.feature("quote").status is FeatureStatus.PENDING
+    assert not outcome.batch.finished
+    assert runs.load("rates").status is RunStatus.CREATED
+
+
+def test_the_night_carries_on_with_what_the_machine_had_no_room_for(repo):
+    """Resumable is measured by resuming it, not by reading a status."""
+    drive, store, runs, spawn, _ = driver(repo, APART, endings={"one": "the-machine-was-full"})
+    drive.go("vat")
+
+    again, _, _, second, _ = another_driver(repo, store)
+    outcome = again.go("vat")
+
+    assert [slug for slug, _ in second.started] == ["one"]
+    assert outcome.batch.landed_everything
+
+
+def test_a_person_stopping_a_child_is_not_a_feature_that_failed(repo):
+    """Code 130 says who ended it, and it was not the method."""
+    drive, store, runs, spawn, _ = driver(repo, endings={"rates": "stopped-without-a-word"})
+
+    outcome = drive.go("vat")
+
+    assert outcome.batch.feature("rates").status is FeatureStatus.STOPPED
+    assert outcome.batch.feature("rates").reason
+
+
+def test_a_child_that_was_killed_says_so_rather_than_failing_in_silence(repo):
+    drive, store, runs, spawn, _ = driver(repo, endings={"rates": "killed"})
+
+    outcome = drive.go("vat")
+
+    rates = outcome.batch.feature("rates")
+    assert rates.status is FeatureStatus.FAILED
+    assert "9" in (rates.reason or "") and "created" in (rates.reason or "")
+
+
+def test_a_feature_that_could_not_be_started_does_not_take_the_batch_with_it(repo):
+    """Something sitting where the second feature's tree goes: the audit's own case.
+
+    The exception left `go` altogether, and the child already spawned went on
+    building — finishing its feature and opening its pull request — against a
+    record that had it running for good.
+    """
+    (repo / ".agent-kit/v3/trees/two").mkdir(parents=True)
+    drive, store, runs, spawn, _ = driver(repo, APART)
+
+    outcome = drive.go("vat")
+
+    assert outcome.batch.feature("one").status is FeatureStatus.DONE
+    assert outcome.batch.feature("two").status is FeatureStatus.FAILED
+    assert "tree-in-the-way" in (outcome.batch.feature("two").reason or "")
+
+
+def test_a_child_still_running_is_seen_off_rather_than_left_building(repo):
+    """The way out through an exception, which is where the orphans came from."""
+    drive, store, runs, spawn, ledger = driver(
+        repo, APART, endings={"one": "stops-when-asked", "two": "stops-when-asked"}
+    )
+    broke = []
+
+    def falls_over(_):
+        if not broke:
+            broke.append(1)
+            raise RuntimeError("the batch driver broke mid-flight")
+
+    drive.pause = falls_over
+
+    with pytest.raises(RuntimeError):
+        drive.go("vat")
+
+    kept = store.load("vat")
+    assert spawn.alive == set()  # nobody is left building
+    assert [kept.feature(slug).status for slug, _ in spawn.started] == [
+        FeatureStatus.STOPPED, FeatureStatus.STOPPED,
+    ]
+
+
+# --- a driver that never came back ------------------------------------------
+
+
+def test_a_feature_left_running_by_a_driver_that_never_came_back_is_taken_up_again(repo):
+    """The same reading as a step left running one level down: nobody is on it."""
+    drive, store, runs, spawn, _ = driver(repo, APART)
+    left = store.load("vat")
+    left.starting("one", tree=str(repo / ".agent-kit/v3/trees/one"))
+    store.save(left)
+
+    outcome = drive.go("vat")
+
+    assert sorted(slug for slug, _ in spawn.started) == ["one", "two"]
+    assert outcome.batch.landed_everything
+
+
+def test_a_feature_whose_orphan_finished_it_is_read_back_rather_than_built_again(repo):
+    """A child outlives the driver that spawned it, and it may have landed."""
+    from agent_kit.driver import create_run
+
+    drive, store, runs, spawn, _ = driver(repo, APART)
+    left = store.load("vat")
+    left.starting("one", tree=str(repo / ".agent-kit/v3/trees/one"))
+    store.save(left)
+    create_run(runs, builtin_registry(), "one", project=str(repo), brief="The first", base="main")
+    _land(runs, "one")
+
+    outcome = drive.go("vat")
+
+    assert [slug for slug, _ in spawn.started] == ["two"]
+    assert outcome.batch.feature("one").status is FeatureStatus.DONE
+
+
+def test_a_feature_somebody_is_still_driving_is_left_alone(repo):
+    drive, store, runs, spawn, ledger = driver(repo, APART)
+    left = store.load("vat")
+    left.starting("one", tree=str(repo / ".agent-kit/v3/trees/one"))
+    store.save(left)
+    ledger.hold_run(str(repo), "one", pid=1)
+
+    outcome = drive.go("vat")
+
+    assert [slug for slug, _ in spawn.started] == ["two"]
+    assert outcome.batch.feature("one").status is FeatureStatus.RUNNING
 
 
 # --- a person, mid-batch ----------------------------------------------------

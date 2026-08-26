@@ -1,0 +1,16 @@
+# one feature cannot be started, and a child is already building another
+
+[case]
+title = "something git never heard of is sitting where one feature's tree would go"
+fires = "that feature fails by name, and the child already building is accounted for"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "one", brief = "The first, which waits for nothing" },
+  { slug = "two", brief = "The second, which waits for nothing either" },
+]
+
+[expect]
+exit_code = 3
+features = { one = "done", two = "failed" }

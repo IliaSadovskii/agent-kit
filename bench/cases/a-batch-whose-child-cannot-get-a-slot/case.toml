@@ -1,0 +1,17 @@
+# a batch on a machine that has no room for its child
+
+[case]
+title = "the machine is full when the batch's own child asks for a slot"
+fires = "the feature is left to be built rather than recorded as one that failed"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+]
+
+[expect]
+# 4 is what a run leaves when it could not have a session, and a batch does not
+# rename it: nothing was attempted, so nothing failed and nothing is over.
+exit_code = 4
+features = { rates = "pending" }

@@ -1,0 +1,21 @@
+{
+  "title": "two learns what it is for",
+  "summary": "two: what this feature is, decided before the code.",
+  "changes": [
+    "two.py \u2014 the whole of it"
+  ],
+  "seams": [
+    "nothing else in the project reads it yet"
+  ],
+  "verification": [
+    "the project's own check command"
+  ],
+  "asks": [],
+  "assumptions": [
+    {
+      "what": "the sandbox is what it looks like",
+      "expensive": false,
+      "because": "one file, one command"
+    }
+  ]
+}
