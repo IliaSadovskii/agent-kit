@@ -126,6 +126,57 @@ def test_stopping_a_batch_nobody_drives_is_written_where_it_stands(project, caps
     assert "enough for tonight" in shown
 
 
+def a_feature_the_night_stopped(project, capsys):
+    """A batch whose first feature stopped, with the run it stands on stopped too."""
+    from agent_kit.batch import BatchStore, FeatureStatus
+    from agent_kit.state import RunStore
+
+    run(["batch", "new", "batch.toml"], capsys)
+    runs = RunStore(project)
+    runs.create("rates", steps=["design", "build"], project=str(project.resolve()))
+    runs.start_step("rates")
+    runs.stop("rates", "stopped-by-request: enough for tonight")
+
+    batches = BatchStore(project)
+    made = batches.load("vat")
+    made.starting("rates", tree=None)
+    made.ended("rates", FeatureStatus.STOPPED, reason="stopped-by-request: enough for tonight")
+    batches.save(made)
+    return batches, runs
+
+
+def test_a_stopped_feature_is_carried_on_with_the_run_it_stands_on(project, capsys):
+    from agent_kit.batch import FeatureStatus
+    from agent_kit.state import RunStatus
+
+    batches, runs = a_feature_the_night_stopped(project, capsys)
+
+    code, out, _ = run(["batch", "reopen", "vat", "rates"], capsys)
+
+    assert code == ExitCode.OK
+    # Said at the moment it is typed, the way a skip is: quote is coming back too.
+    assert "rates" in out and "quote" in out
+    made = batches.load("vat")
+    assert made.feature("rates").status is FeatureStatus.PENDING
+    assert made.feature("quote").status is FeatureStatus.PENDING
+    assert made.ready() == ["rates"]
+    # And the run itself, or `batch go` would read the same ending straight back.
+    assert runs.load("rates").status is RunStatus.RUNNING
+
+
+def test_a_feature_is_not_carried_on_under_a_driver_that_is_building_the_batch(project, capsys):
+    from agent_kit.machine import Ledger, ledger_path
+    from agent_kit.paths import Paths
+
+    a_feature_the_night_stopped(project, capsys)
+    Ledger(ledger_path(Paths.from_env())).hold_batch(str(project.resolve()), "vat", pid=1)
+
+    code, _, err = run(["batch", "reopen", "vat", "rates"], capsys)
+
+    assert code == ExitCode.STATE
+    assert "batch-held-elsewhere" in err
+
+
 def test_an_unknown_batch_is_a_state_error_that_names_it(project, capsys):
     code, _, err = run(["batch", "show", "hedges"], capsys)
 

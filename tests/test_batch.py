@@ -228,6 +228,52 @@ def test_skipping_takes_what_needed_it_and_says_so_at_once(batch):
     assert made.finished
 
 
+def test_a_stopped_feature_is_pickable_again_and_so_is_what_it_took_with_it(batch):
+    """The morning after: the run was carried on, so the feature is to build again.
+
+    What stopped only because this one did carries `needed-<slug>` and nothing
+    else wrong with it, so it comes back too. Otherwise reopening the run one
+    feature is built by leaves the chain the others stand on dead.
+    """
+    _, made = batch
+    made.starting("rates", tree="/trees/rates")
+    made.ended("rates", FeatureStatus.STOPPED, reason="gate-closed: the suite came back red")
+
+    given = made.reopen("rates")
+
+    assert given == ["rates", "quote", "receipt"]
+    assert made.feature("rates").status is FeatureStatus.PENDING
+    assert made.feature("quote").status is FeatureStatus.PENDING
+    assert made.ready() == ["rates"]
+    assert not made.finished
+
+
+def test_a_feature_stopped_on_its_own_account_is_left_where_it_is(batch):
+    """Only what this one took down comes back with it."""
+    _, made = batch
+    made.starting("rates", tree="/trees/rates")
+    made.ended("rates", FeatureStatus.STOPPED, reason="gate-closed: the suite came back red", cascade=False)
+    made.starting("quote", tree="/trees/quote")
+    made.ended("quote", FeatureStatus.STOPPED, reason="blocked-by-review: a negative rate is not refused")
+
+    given = made.reopen("rates")
+
+    assert given == ["rates"]
+    assert made.feature("quote").status is FeatureStatus.STOPPED
+
+
+@pytest.mark.parametrize("bring_it_to", [FeatureStatus.DONE, FeatureStatus.SKIPPED, FeatureStatus.FAILED])
+def test_only_a_stopped_feature_is_carried_on(batch, bring_it_to):
+    _, made = batch
+    made.starting("rates", tree="/trees/rates")
+    made.ended("rates", bring_it_to, reason="whatever it was")
+
+    with pytest.raises(StateError) as refused:
+        made.reopen("rates")
+
+    assert refused.value.code == "feature-not-stopped"
+
+
 def test_a_batch_is_over_when_nothing_runs_and_nothing_is_ready(batch):
     _, made = batch
 
