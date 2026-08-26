@@ -24,6 +24,7 @@ from ..logs import get_logger
 from ..project import require_project
 from ..shell import kill_group
 from ..providers.base import ExecutorFailed, ExecutorResult, StepRequest
+from .proved import stood_on
 
 #: What is kept of a command's output. Failures announce themselves at the end,
 #: so it is the tail that is kept, and the whole of it is in the step's raw.txt.
@@ -66,8 +67,15 @@ class Verify:
                 break
 
         passed = all(record["passed"] for record in ran)
+        # What the result is about. A claim bound to nothing is what let a
+        # build change six files, name four, and deliver a green run on a
+        # branch missing two of them — see `proved.py`, and `deliver` reads it.
+        head, held = stood_on(where)
         return ExecutorResult(
-            raw=json.dumps({"commands": ran, "passed": passed}, indent=2, ensure_ascii=False),
+            raw=json.dumps(
+                {"commands": ran, "passed": passed, "proved_at": head, "proved_over": held},
+                indent=2, ensure_ascii=False,
+            ),
             # No `model`: a program is not a session and must not appear in the
             # record as one. `run show` reads that field to say who did the work.
             meta={"commands_run": len(ran)},

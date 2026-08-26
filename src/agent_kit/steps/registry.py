@@ -247,6 +247,18 @@ VERIFY = StepDefinition(
                 ),
             ),
             Bool("passed", help="every command that ran came back green"),
+            # What the result is a claim about. Its reader is `deliver`, which
+            # refuses a commit that is not the tree these commands ran over.
+            Text(
+                "proved_at",
+                required=False,
+                help="the commit the working copy stood on; absent where it is no repository",
+            ),
+            TextList(
+                "proved_over",
+                required=False,
+                help="every change the tree held that its commit did not, as `<state> <digest> <path>`",
+            ),
         )
     ),
 )

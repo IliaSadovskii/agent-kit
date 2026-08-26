@@ -32,6 +32,11 @@ from ..providers.base import ExecutorFailed, ExecutorResult, StepRequest
 from ..state.store import keep_runs_out_of_git
 from .deliverable import BLOCKING, expensive_of, read, refuse_unless_deliverable
 from .deliverable import where as _where
+from .proved import (
+    left_behind,
+    refuse_unless_the_commit_is_what_was_proved,
+    refuse_unless_the_tree_is_where_it_was_proved,
+)
 
 #: git and gh are local commands; one that has hung for this long has hung.
 DEFAULT_TIMEOUT = 300
@@ -68,6 +73,11 @@ class Deliver:
         recorded = request.prior.get("record") or {"blocks": [], "closed": [], "files": []}
 
         refuse_unless_deliverable(build, verify, review)
+        # The green suite was measured over a working copy, and this is the one
+        # it was measured over or it is not. Asked here, where nothing has been
+        # touched yet, because a delivery that notices afterwards has already
+        # made the branch it is about to disown.
+        refuse_unless_the_tree_is_where_it_was_proved(where, verify)
         if keeps:
             _refuse_a_naked_assumption(design, recorded)
 
@@ -89,7 +99,7 @@ class Deliver:
         # notices, and `checkout -B` does exactly that.
         commit = self._settle_branch(
             where, branch, base, title, _files(build, recorded), _message(title, build),
-            _written(recorded),
+            _written(recorded), verify,
         )
         self._git(where, "push", "--set-upstream", "origin", branch)
 
@@ -109,7 +119,7 @@ class Deliver:
 
     def _settle_branch(
         self, root: Path, branch: str, base: str, title: str, files: list[str], message: str,
-        written: list[str] | None = None,
+        written: list[str] | None = None, verify: dict | None = None,
     ) -> str:
         """Make the branch hold this work, or refuse without having touched it.
 
@@ -168,6 +178,11 @@ class Deliver:
                     retryable=False,
                 )
             _refuse_a_block_that_is_not_here(staged, written or [])
+            # The index, against the tree the project's commands ran over. It
+            # is the last thing asked and the first thing that would have been
+            # missed: everything above says the work is deliverable, and this
+            # says the work about to be committed is the work that was proved.
+            refuse_unless_the_commit_is_what_was_proved(root, verify or {}, staged, written or [])
             self._git(root, "commit", "-m", message)
         except BaseException:
             if made_it:
@@ -470,6 +485,17 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
     ]
     if red:
         open_part += ["Не зелено: " + ", ".join(red), ""]
+    # Что мерили и чего в ветке нет. Открыто, а не под спойлером: если это
+    # файл самой фичи, которую сборка изменила и не назвала, ветка не та
+    # работа, что прошла проверку, — и до сих пор об этом не говорил никто.
+    outside = left_behind(verify, _files(build, recorded))
+    if outside:
+        open_part += [
+            "Команды шли по изменениям, которых нет в коммите: "
+            + ", ".join(f"`{name}`" for name in outside)
+            + ". Если это файлы фичи — ветка не та работа, что прошла проверку.",
+            "",
+        ]
 
     folded = ["## Замысел", "", (design.get("summary") or "").strip(), ""]
     folded += _list("Что меняется", design.get("changes"))
