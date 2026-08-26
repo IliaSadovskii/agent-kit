@@ -340,3 +340,83 @@ def test_init_says_what_it_found_rather_than_overwriting_a_hook(repo, capsys):
     assert theirs.read_text() == "#!/bin/sh\nexit 0\n"
     said = capsys.readouterr()
     assert "pre-push" in said.out + said.err
+
+
+# --- a declared command that starts nothing ---------------------------------
+#
+# `test = "make test"` in a repository with no make passes init, passes design,
+# passes build, and fails at verify — after two sessions have been paid for, and
+# again every night until somebody edits the file. The first word of a command
+# is the cheapest thing there is to ask about.
+
+
+def test_a_command_whose_first_word_is_on_no_path_is_named(tmp_path):
+    from agent_kit.project import commands_that_start_nothing
+
+    declare(tmp_path, '[commands]\ntest = "definitely-not-here --all"\nlint = "true"\n')
+
+    lost = commands_that_start_nothing(read_project(tmp_path))
+
+    assert [command.name for command in lost] == ["test"]
+
+
+def test_a_command_the_machine_can_start_is_not_named(tmp_path):
+    from agent_kit.project import commands_that_start_nothing
+
+    declare(tmp_path, '[commands]\ntest = "sh -c \'exit 0\'"\n')
+
+    assert commands_that_start_nothing(read_project(tmp_path)) == []
+
+
+def test_a_shell_builtin_is_not_a_command_to_look_for(tmp_path):
+    """`cd`, `:` and `echo` are the shell's own, and `which` finds none of them."""
+    from agent_kit.project import commands_that_start_nothing
+
+    declare(tmp_path, '[commands]\nlint = ":"\ntest = "cd . && echo done"\n')
+
+    assert commands_that_start_nothing(read_project(tmp_path)) == []
+
+
+def test_a_command_given_as_a_path_is_looked_for_where_it_says(tmp_path):
+    from agent_kit.project import commands_that_start_nothing
+
+    script = tmp_path / "check.sh"
+    script.write_text("#!/bin/sh\nexit 0\n")
+    script.chmod(0o755)
+    declare(tmp_path, f'[commands]\ntest = "{script}"\nlint = "{tmp_path}/nowhere.sh"\n')
+
+    assert [command.name for command in commands_that_start_nothing(read_project(tmp_path))] == ["lint"]
+
+
+def test_a_line_the_kit_cannot_read_as_a_command_is_left_alone(tmp_path):
+    """A variable, a subshell, an assignment: the shell decides, and this does not guess."""
+    from agent_kit.project import commands_that_start_nothing
+
+    declare(tmp_path, '[commands]\ntest = "MODE=ci make test"\nlint = "$LINTER --all"\n')
+
+    assert commands_that_start_nothing(read_project(tmp_path)) == []
+
+
+def test_the_refusal_names_the_command_and_the_word(tmp_path):
+    from agent_kit.project import refuse_commands_that_start_nothing
+
+    declare(tmp_path, '[commands]\ntest = "definitely-not-here --all"\n')
+
+    with pytest.raises(ConfigError) as refused:
+        refuse_commands_that_start_nothing(read_project(tmp_path))
+
+    assert refused.value.code == "no-such-command"
+    assert "test" in refused.value.detail
+    assert "definitely-not-here" in refused.value.detail
+    assert refused.value.exit_code == ExitCode.CONFIG
+
+
+def test_doctor_says_which_declared_command_starts_nothing(tmp_path, capsys, machine_home, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    declare(tmp_path, '[commands]\ntest = "definitely-not-here --all"\n')
+
+    main(["-C", str(tmp_path), "doctor"])
+
+    out = capsys.readouterr().out
+    assert "definitely-not-here" in out
+    assert "test" in out

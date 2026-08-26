@@ -1,0 +1,10 @@
+# a project declaring a command nothing on this machine can start
+
+[case]
+title = "a declared command that starts nothing"
+fires = "the run is refused before the first session, and the state is untouched"
+
+[expect]
+exit_code = 2
+status = "created"
+steps = { design = "pending", verify = "pending" }

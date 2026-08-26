@@ -1,0 +1,6 @@
+[project]
+default_branch = "main"
+command_timeout = 20
+
+[commands]
+test = "definitely-not-a-command --all"

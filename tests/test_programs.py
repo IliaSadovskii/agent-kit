@@ -352,3 +352,48 @@ def test_what_verify_stood_on_satisfies_the_step_it_belongs_to(tmp_path):
 
     assert checked["proved_at"]
     assert checked["proved_over"]
+
+
+# --- the spend a declared command that starts nothing used to cost ----------
+
+
+def commands_of(root, text):
+    declare(root, text)
+    store = RunStore(root)
+    create_run(store, builtin_registry(), "add-vat", steps=["design", "verify"],
+               project=str(root), brief="Money should know about VAT")
+    return store
+
+
+def test_a_command_that_starts_nothing_stops_the_run_before_the_first_session(tmp_path):
+    from agent_kit.errors import ConfigError
+
+    store = commands_of(tmp_path, '[commands]\ntest = "definitely-not-here --all"\n')
+    fake = FakeExecutor(name="fake", replies=["{}"])
+    runner = StepRunner(
+        store=store, registry=builtin_registry(), executors={"fake": fake}, default_provider="fake"
+    )
+
+    with pytest.raises(ConfigError) as refused:
+        runner.run_next("add-vat")
+
+    assert refused.value.code == "no-such-command"
+    run = store.load("add-vat")
+    assert run.steps[0].status is StepStatus.PENDING
+    assert run.steps[0].attempts == 0
+    assert fake.requests == []  # nothing was asked of a provider, so nothing was spent
+
+
+def test_a_run_that_never_verifies_is_not_held_to_the_project_s_commands(tmp_path):
+    """`verify` is the only reader of them, and a run without it reads nothing."""
+    declare(tmp_path, '[commands]\ntest = "definitely-not-here --all"\n')
+    store = RunStore(tmp_path)
+    create_run(store, builtin_registry(), "add-vat", steps=["probe"], project=str(tmp_path))
+    fake = FakeExecutor(
+        name="fake", replies=['```json\n{"branch": "main", "can_write": true}\n```']
+    )
+    runner = StepRunner(
+        store=store, registry=builtin_registry(), executors={"fake": fake}, default_provider="fake"
+    )
+
+    assert runner.run_next("add-vat").passed
