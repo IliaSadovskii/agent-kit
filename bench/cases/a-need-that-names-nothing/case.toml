@@ -3,6 +3,10 @@
 [case]
 title = "a feature needs something the batch does not declare"
 fires = "the declaration is refused by name, and no batch, run or tree is made"
+no_disarm = """
+the need that names nothing is the declaration itself, and a batch whose needs all name
+something is a different case, so there is nothing to take away
+"""
 
 [batch]
 name = "vat"

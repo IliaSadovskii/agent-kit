@@ -3,6 +3,10 @@
 [case]
 title = "the needs graph is a loop, so nothing in it could ever start"
 fires = "the declaration is refused by name and the loop is named"
+no_disarm = """
+the loop in the needs graph is the trap, and it is the declaration itself: a batch
+without it is a different case, so there is nothing to take away
+"""
 
 [batch]
 name = "vat"

@@ -9,6 +9,10 @@ A case is a directory. Everything in it is optional except the declaration:
                   order; a `.sh` of the same name is what that session did
     judge.sh      read the run and say whether the mechanism fired
 
+The first three are the trap, and `disarm.py` takes all three away to ask
+whether the case is reading them or the night around them. `case.toml` is the
+question the case asks and is never touched.
+
 Nothing here names a provider. Every case runs on `providers/fake/`, which
 answers from files, so the whole set costs nothing and runs on every change.
 Cases that drive a real provider wait for a second adapter to compare against —
@@ -32,7 +36,7 @@ DEFAULT_SLUG = "add-vat"
 DEFAULT_BRIEF = "Money should be able to quote a price with VAT on it"
 
 _TOP_KEYS = {"case", "expect", "batch"}
-_CASE_KEYS = {"title", "fires", "slug", "brief", "wait"}
+_CASE_KEYS = {"title", "fires", "slug", "brief", "wait", "no_disarm"}
 _EXPECT_KEYS = {"exit_code", "status", "refusal", "steps", "features"}
 _BATCH_KEYS = {"name", "features"}
 _FEATURE_KEYS = {"slug", "brief", "needs"}
@@ -103,6 +107,11 @@ class Case:
     wait: int | None = None
     #: The batch this case drives, where it drives one instead of a single run.
     batch: BatchCase | None = None
+    #: Why nothing can honestly be taken away from this case, where that is so.
+    #: Empty means the mechanical disarm applies — see `disarm.py`. A case that
+    #: fills this in is exempt from being measured, so it is printed every time
+    #: the check runs rather than being agreed to once in a note.
+    no_disarm: str = ""
 
     @property
     def branch(self) -> str:
@@ -180,6 +189,7 @@ def read_case(root: Path, name: str) -> Case:
         slug=_text(block.get("slug", DEFAULT_SLUG), "case.slug"),
         brief=_text(block.get("brief", DEFAULT_BRIEF), "case.brief"),
         wait=None if "wait" not in block else _number(block["wait"], "case.wait"),
+        no_disarm=_prose(block.get("no_disarm"), "case.no_disarm"),
         batch=_batch(document.get("batch")),
         expect=Expect(
             exit_code=_number(wanted.get("exit_code"), "expect.exit_code"),
@@ -249,6 +259,11 @@ def _text(value: Any, where: str) -> str:
 
 def _optional_text(value: Any, where: str) -> str:
     return "" if value is None else _text(value, where)
+
+
+def _prose(value: Any, where: str) -> str:
+    """A sentence that may be wrapped in the file and is one line when printed."""
+    return " ".join(_optional_text(value, where).split())
 
 
 def _number(value: Any, where: str) -> int:

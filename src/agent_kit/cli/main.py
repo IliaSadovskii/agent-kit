@@ -171,6 +171,11 @@ def build_parser() -> argparse.ArgumentParser:
     bench_run.add_argument("--keep", metavar="DIR",
                            help="where to leave the world of a case that did not fire, for reading")
 
+    bench_disarm = bench_what.add_parser(
+        "disarm", help="take each case's trap away and require it to stop firing")
+    bench_disarm.add_argument("--case", metavar="NAME", help="one case, by name")
+    bench_disarm.add_argument("--cases", metavar="DIR", help="where the cases are (default: the kit's own)")
+
     step_run = step_what.add_parser("run", help="run the next step of a run")
     step_run.add_argument("slug")
     step_run.add_argument("--provider", help="who executes it; the role table decides when this is left out")
@@ -977,13 +982,16 @@ def _bench(args: argparse.Namespace) -> int:
 
     if what == "list":
         return _bench_list(root, names, read_case, CaseError)
-    if what != "run":
+    if what not in ("run", "disarm"):
         raise UsageError("unknown-command", f"bench {what}")
 
     if only is not None:
         if only not in names:
             raise UsageError("unknown-case", f"{only!r} is not a case: {', '.join(names) or 'there are none'}")
         names = [only]
+
+    if what == "disarm":
+        return _bench_disarm(root, names)
 
     keep = Path(keeping).resolve() if keeping else None
     if keep is not None:
@@ -1007,6 +1015,38 @@ def _bench(args: argparse.Namespace) -> int:
         print(f"{len(broken)} could not be judged, so the bench answered for {len(results) - len(broken)}")
         return int(ExitCode.BROKEN_BENCH)
     return int(ExitCode.OK if len(fired) == len(results) else ExitCode.BENCH)
+
+
+def _bench_disarm(root: Path, names: list[str]) -> int:
+    """Every case with its trap taken away, and one that still fires is a regression.
+
+    The same two codes the bench itself uses, meaning the same two things. A
+    case that fires against a world with nothing planted in it is not reading
+    its trap, and somebody has to make its judge read one. A check that could
+    not answer is the instrument being wrong, and nothing was measured.
+    """
+    from tempfile import TemporaryDirectory
+
+    from ..bench import check_named
+    from ..bench.disarm import ARMED, NOT_DISARMABLE, STILL_FIRES, UNCHECKABLE
+
+    said = []
+    with TemporaryDirectory(prefix="agent-kit-disarm-") as scratch:
+        for name in names:
+            answer = check_named(root, name, Path(scratch) / name)
+            said.append(answer)
+            print(f"{answer.name:38}  {answer.said}")
+
+    counted = {state: [one for one in said if one.state == state] for state in
+               (ARMED, STILL_FIRES, NOT_DISARMABLE, UNCHECKABLE)}
+    print()
+    print(f"{len(counted[ARMED])} of {len(said)} cases stop firing once their trap is taken away")
+    if counted[NOT_DISARMABLE]:
+        print(f"{len(counted[NOT_DISARMABLE])} say in words why nothing can honestly be taken away")
+    if counted[UNCHECKABLE]:
+        print(f"{len(counted[UNCHECKABLE])} could not be checked, so the bench answered for the rest")
+        return int(ExitCode.BROKEN_BENCH)
+    return int(ExitCode.OK if not counted[STILL_FIRES] else ExitCode.BENCH)
 
 
 def _bench_list(root: Path, names: list[str], read_case, CaseError) -> int:

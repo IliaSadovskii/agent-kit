@@ -7,5 +7,8 @@ printf 'RATE = 20\n' >> money.py
 git add -- money.py
 git commit -q -m "Money learns a VAT rate"
 git push -q -u origin "$BRANCH"
+# The commit that was already there, so the judge can show it was carried on
+# rather than made a second time.
+git rev-parse "$BRANCH" > "$BENCH/planted"
 # The working copy is left where the failed delivery left it: on the branch,
 # clean, with the work committed and nothing to say for it.

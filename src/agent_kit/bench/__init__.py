@@ -11,9 +11,11 @@ network and nothing costs a token: every case answers from `providers/fake/`.
 """
 
 from .cases import Case, CaseError, Expect, case_names, cases_root, read_case
+from .disarm import Armed, check_case, check_named, disarm
 from .runner import Result, Verdict, run_case, run_named
 
 __all__ = [
+    "Armed",
     "Case",
     "CaseError",
     "Expect",
@@ -21,6 +23,9 @@ __all__ = [
     "Verdict",
     "case_names",
     "cases_root",
+    "check_case",
+    "check_named",
+    "disarm",
     "read_case",
     "run_case",
     "run_named",

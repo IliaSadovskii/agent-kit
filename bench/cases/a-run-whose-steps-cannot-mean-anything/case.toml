@@ -3,6 +3,10 @@
 [case]
 title = "a run whose steps cannot mean anything"
 fires = "a verify before its build, and a step asked for twice, are refused at creation"
+no_disarm = """
+the judge lays its own trap: it asks the kit for the two orders that cannot mean
+anything, so plant.sh, repo/ and replies/ hold nothing to take away
+"""
 
 [expect]
 exit_code = 0
