@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from ..config import DEFAULT_WAIT, RoleConfig
-from ..errors import KitError, ProviderError, StateError
+from ..errors import ConfigError, KitError, ProviderError, StateError
 from ..hook import write_pre_push
 from ..knowledge import DEFAULT_DIR as KNOWLEDGE_DIR, Knowledge
 from ..logs import get_logger
@@ -203,13 +203,29 @@ class StepRunner:
         `.git/hooks` is not repository content, so a project whose declaration is
         committed and cloned arrives without one. A worktree shares the hook of
         the repository it belongs to, so this covers a batch's children as well.
+
+        A hook the project owns is written to the log and not said out loud: it
+        is the same sentence at every step of every run, and the person who can
+        act on it is the one who typed `agent-kit init`, which prints it.
         """
-        project = read_project(self._where(run))
-        hook = write_pre_push(
-            self._where(run), trunk=project.default_branch if project else DEFAULT_BRANCH
-        )
+        where = self._where(run)
+        hook = write_pre_push(where, trunk=self._trunk(where))
         if hook.said():
-            self.say(f"{run.slug}: {hook.said()}")
+            log.info("%s: %s", run.slug, hook.said())
+
+    def _trunk(self, where: str) -> str:
+        """What this project calls its trunk, and `main` where it will not say.
+
+        A declaration the kit cannot read is refused by the step that needs it,
+        with the field named. Refusing it here would stop a run of steps that
+        never read the file, and would name the wrong place.
+        """
+        try:
+            project = read_project(where)
+        except ConfigError as unreadable:
+            log.info("%s could not say what its trunk is: %s", where, unreadable)
+            return DEFAULT_BRANCH
+        return project.default_branch if project else DEFAULT_BRANCH
 
     def _stop_asked(self, run: Run) -> StepOutcome | None:
         """A person's stop, read where the run's own driver can act on it.
