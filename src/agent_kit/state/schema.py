@@ -126,6 +126,11 @@ class Run:
     #: shown. Read by the batch driver and by `driver/compose.py`.
     needs: list[str] = field(default_factory=list)
     current_step: int | None = None
+    #: The step whose gate closed, where that is what stopped this run. `halt`
+    #: writes it and `reopen` reads it, and nothing else: the step kept its
+    #: `passed` because it did its work, and it is still the one a run that is
+    #: carried on has to measure again.
+    gate_closed_on: int | None = None
     created_at: str = field(default_factory=now)
     updated_at: str = field(default_factory=now)
     finished_at: str | None = None
@@ -304,7 +309,13 @@ class Run:
         passing does not make a run done when the thing that step recorded is
         that the work is not deliverable. The step keeps its `passed` — it did
         its job — and the run says why it stopped.
+
+        Which step that was is written down here rather than worked out later:
+        a gate closes on the step that has just passed, and afterwards it looks
+        exactly like a step a person's stop was read after. `reopen` is the
+        reader, and the two endings must not be guessed apart.
         """
+        self.gate_closed_on = self._last_started()
         self.current_step = None
         self.status = RunStatus.STOPPED
         self.finished_at = now()
@@ -341,38 +352,38 @@ class Run:
         for: a run the kit could not make work does not quietly resume, and its
         reason stays in the record.
 
-        Everything that passed keeps its `passed`. What goes back to pending is
-        the step the run stopped on — the one `stop` parked, or the one whose
-        gate closed, which `halt` leaves `passed` because it did its work.
-        That step is the whole reason there is anywhere to go on to: what it
-        recorded is what the person went and changed.
+        Everything that passed keeps its `passed`, and the run goes on from the
+        first step that did not: `stop` parks the step it interrupted, so that
+        step is already the next pending one. The single exception is a gate
+        that closed, which `halt` wrote down — that step passed and is still
+        the one to measure again, because what it recorded is what the person
+        went and changed.
         """
         if self.status is not RunStatus.STOPPED:
             raise StateError(
                 "run-not-stopped",
                 f"{self.slug} is {self.status.value}; only a stopped run is carried on",
             )
-        step = self._stopped_on()
-        if step is not None:
-            step.status = StepStatus.PENDING
-            step.reason = _reason(
-                f"the run stopped here and was reopened: {self.reason or 'nothing was written down'}"
+        if self.gate_closed_on is not None:
+            # The step whose gate closed kept its `passed` because it did its
+            # work, and what it recorded — a red suite — is exactly what the
+            # person went and changed. Measuring it again is the only way the
+            # run can go anywhere: everything after it reads what it recorded.
+            self.steps[self.gate_closed_on].status = StepStatus.PENDING
+            self.gate_closed_on = None
+        index = self.next_pending()
+        if index is not None:
+            self.steps[index].reason = _reason(
+                f"reopened: the run had stopped — {self.reason or 'nothing was written down'}"
             )
         self.status = RunStatus.RUNNING
         self.finished_at = None
         self.updated_at = now()
         return self
 
-    def _stopped_on(self) -> Step | None:
-        """The step the run was on when it stopped, whatever became of it.
-
-        Steps are started in order, so the ones that ever started are a prefix
-        of the list and the last of them is where the run got to: parked back
-        to pending by `stop`, or left `passed` by a gate that closed on what it
-        recorded. A run stopped before its first step started has no such step,
-        and goes on from the first.
-        """
-        started = [step for step in self.steps if step.attempts]
+    def _last_started(self) -> int | None:
+        """Where the run got to: steps start in order, so it is the last one that ever did."""
+        started = [index for index, step in enumerate(self.steps) if step.attempts]
         return started[-1] if started else None
 
     def _last_touched(self) -> Step | None:
@@ -418,6 +429,7 @@ class Run:
             "needs": list(self.needs),
             "status": self.status.value,
             "current_step": self.current_step,
+            "gate_closed_on": self.gate_closed_on,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "finished_at": self.finished_at,
@@ -447,6 +459,7 @@ class Run:
             tree=_optional_text(data.get("tree"), "tree"),
             needs=_needs(data.get("needs") or [], check_slug(slug)),
             current_step=_step_index(data.get("current_step"), len(raw_steps)),
+            gate_closed_on=_step_index(data.get("gate_closed_on"), len(raw_steps), "gate_closed_on"),
             created_at=_text(data.get("created_at"), "created_at"),
             updated_at=_text(data.get("updated_at"), "updated_at"),
             finished_at=_optional_text(data.get("finished_at"), "finished_at"),
@@ -500,11 +513,11 @@ def _enum(kind: type[Enum], value: Any, where: str) -> Any:
         _bad(where, f"{value!r} is not one of {', '.join(item.value for item in kind)}")
 
 
-def _step_index(value: Any, count: int) -> int | None:
+def _step_index(value: Any, count: int, where: str = "current_step") -> int | None:
     if value is None:
         return None
     if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value < count:
-        _bad("current_step", f"{value!r} is not a step of this run")
+        _bad(where, f"{value!r} is not a step of this run")
     return value
 
 
