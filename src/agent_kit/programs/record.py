@@ -40,13 +40,20 @@ class Record:
     def execute(self, request: StepRequest) -> ExecutorResult:
         root = Path(request.project) if request.project else self.root
         project = require_project(root)
+        # Two places, and they are two: the declaration is the project's own
+        # paperwork, and the knowledge is repository content — so it is written
+        # where the code is, this run's own worktree, and `deliver` commits it
+        # onto the branch. Written into the project's checkout instead, a block
+        # reaches nobody: not the branch, and not the owner, who is left with an
+        # edit they never made on whatever they had checked out.
+        where = request.where
         design, build, verify, review = read(request.prior)
 
         # Before anything is written, and this is the whole reason the step
         # stands in front of `deliver` rather than inside it.
         refuse_unless_deliverable(build, verify, review)
 
-        knowledge = Knowledge(project.knowledge_dir)
+        knowledge = Knowledge(project.knowledge_in(where))
         owing = expensive_of(design)
         # Named twice means named once. Without this the pre-check below passes
         # twice — the block is still there when it is asked — and the second
@@ -95,7 +102,7 @@ class Record:
 
         files = []
         for path in touched:
-            relative = str(path.relative_to(root))
+            relative = str(path.relative_to(where))
             if relative not in files:
                 files.append(relative)
         log.info("%s: %s blocks written, %s closed", request.slug, len(blocks), len(closed))

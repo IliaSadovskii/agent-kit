@@ -64,9 +64,18 @@ class Project:
     roles: dict[str, RoleConfig] = field(default_factory=dict)
     source: Path | None = None
 
+    def knowledge_in(self, where: Path | str) -> Path:
+        """Where the knowledge stands in a working copy of this project.
+
+        A run builds in a worktree of its own, and the knowledge is repository
+        content like the code beside it: the same relative place, in whichever
+        checkout the run holds.
+        """
+        return Path(where) / self.knowledge
+
     @property
     def knowledge_dir(self) -> Path:
-        return self.root / self.knowledge
+        return self.knowledge_in(self.root)
 
     @property
     def keeps_knowledge(self) -> bool:

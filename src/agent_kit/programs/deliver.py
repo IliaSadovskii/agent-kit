@@ -88,7 +88,8 @@ class Deliver:
         # overwrites somebody's work has already done the damage by the time it
         # notices, and `checkout -B` does exactly that.
         commit = self._settle_branch(
-            where, branch, base, title, _files(build, recorded), _message(title, build)
+            where, branch, base, title, _files(build, recorded), _message(title, build),
+            _written(recorded),
         )
         self._git(where, "push", "--set-upstream", "origin", branch)
 
@@ -107,7 +108,8 @@ class Deliver:
     # --- the branch, and whose it is --------------------------------------
 
     def _settle_branch(
-        self, root: Path, branch: str, base: str, title: str, files: list[str], message: str
+        self, root: Path, branch: str, base: str, title: str, files: list[str], message: str,
+        written: list[str] | None = None,
     ) -> str:
         """Make the branch hold this work, or refuse without having touched it.
 
@@ -158,12 +160,14 @@ class Deliver:
             # in the tree — a .env, a log, a half-written experiment — and pushes
             # it to a remote, and no project's .gitignore can be relied on for that.
             self._git(root, "add", "--", *files)
-            if not _staged(root, self.timeout):
+            staged = _staged(root, self.timeout)
+            if not staged:
                 raise ExecutorFailed(
                     "nothing-to-deliver",
                     f"none of the files the build named has changed: {', '.join(files)}",
                     retryable=False,
                 )
+            _refuse_a_block_that_is_not_here(staged, written or [])
             self._git(root, "commit", "-m", message)
         except BaseException:
             if made_it:
@@ -289,8 +293,35 @@ def _on_branch(root: Path, branch: str, timeout: int) -> bool:
     return printed.strip() == branch
 
 
-def _staged(root: Path, timeout: int) -> bool:
-    return bool(_run(["git", "diff", "--cached", "--name-only"], root, timeout, "git-failed").strip())
+def _staged(root: Path, timeout: int) -> set[str]:
+    """What the index holds, by name.
+
+    `-z` and not a plain listing: git quotes a path with a byte over 127 in it,
+    and a project whose knowledge is filed under a Russian name would have every
+    one of its files come back under another spelling.
+    """
+    printed = _run(["git", "diff", "--cached", "--name-only", "-z"], root, timeout, "git-failed")
+    return {name for name in printed.split("\0") if name}
+
+
+def _refuse_a_block_that_is_not_here(staged: set[str], written: list[str]) -> None:
+    """The knowledge the program says it wrote, and the commit about to be made.
+
+    A file the build named and did not change is the session's business — it is
+    written down as a deviation and the commit goes on. A file `record` named is
+    not: the program wrote it a moment ago, in this working copy, and the pull
+    request is about to tell the owner what went into their knowledge. Missing
+    here, it was written into some other checkout — which is the whole of S8's
+    defect — and the code file beside it would have made the commit look whole.
+    """
+    missing = [name for name in written if name not in staged]
+    if missing:
+        raise ExecutorFailed(
+            "knowledge-not-in-the-commit",
+            "the record step says it wrote these, and this working copy holds no such change: "
+            + ", ".join(missing),
+            retryable=False,
+        )
 
 
 # --- what it reads, and what makes it refuse --------------------------------
@@ -308,6 +339,11 @@ def _files(build: dict, recorded: dict) -> list[str]:
         if str(name).strip() and str(name) not in named:
             named.append(str(name))
     return named
+
+
+def _written(recorded: dict) -> list[str]:
+    """What the program says it wrote into the knowledge, and must be committed."""
+    return [str(name) for name in (recorded.get("files") or []) if str(name).strip()]
 
 
 def _refuse_a_naked_assumption(design: dict, recorded: dict) -> None:
