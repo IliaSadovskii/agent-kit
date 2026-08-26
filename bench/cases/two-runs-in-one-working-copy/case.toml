@@ -1,0 +1,11 @@
+# a second run started by hand, on a project one is already building in
+
+[case]
+title = "a run with no worktree, on a project another one is already building in"
+fires = "the second is refused by name before a session is started, and its state is untouched"
+wait = 0
+
+[expect]
+exit_code = 3
+status = "created"
+steps = { design = "pending" }

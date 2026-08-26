@@ -1,0 +1,10 @@
+# a session that tries the three pushes the plan said were refused
+
+[case]
+title = "a session pushing to the trunk, and forcing over what the origin holds"
+fires = "the pre-push hook refuses both by code, the trunk does not move, and an ordinary push still goes"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { deliver = "passed" }
