@@ -19,7 +19,7 @@ NO_BRANCH = '```json\n{"can_write": true}\n```'
 NOT_JSON = "I had a look around and everything seems fine."
 
 
-def runner(tmp_path, replies, roles=None, executors=None):
+def runner(tmp_path, replies, roles=None, executors=None, pause=None):
     store = RunStore(tmp_path)
     create_run(store, builtin_registry(), "add-login", steps=["probe"], project=str(tmp_path))
     fake = FakeExecutor(name="fake", replies=replies)
@@ -30,6 +30,7 @@ def runner(tmp_path, replies, roles=None, executors=None):
             executors={"fake": fake, **(executors or {})},
             roles=roles or {},
             default_provider="fake",
+            pause=pause,
         ),
         store,
         fake,
@@ -407,3 +408,78 @@ def test_the_output_of_an_earlier_step_is_enclosed_in_the_next(tmp_path):
 
     assert "kit/add-login" in fake.requests[1].input_text
     assert "0-probe" in fake.requests[1].input_text
+
+
+# --- пауза между попытками --------------------------------------------------
+#
+# Провайдер, которого на минуту завалило, отвечает так же и через секунду. Цепь
+# без паузы тратит все свои попытки внутри той минуты, за которую беда прошла
+# бы сама: три сессии подряд, потом запасной, потом прогон провален.
+
+
+def test_a_session_the_tool_refused_is_not_asked_again_at_once(tmp_path):
+    from agent_kit.driver.runner import BACKOFF
+    from agent_kit.providers.base import ExecutorFailed
+
+    def die(_request):
+        raise ExecutorFailed("session-died", "the CLI exited with status 1")
+
+    waited = []
+    run_step, _, _ = runner(tmp_path, [die, die, GOOD], pause=waited.append)
+
+    outcome = run_step.run_next("add-login")
+
+    assert outcome.passed
+    assert waited == [BACKOFF, BACKOFF * 2]  # растёт с номером попытки
+
+
+def test_the_last_refusal_is_not_followed_by_a_pause(tmp_path):
+    """Пауза — это ожидание перед следующей попыткой. Следующей нет — и ждать нечего."""
+    from agent_kit.driver.runner import BACKOFF
+    from agent_kit.providers.base import ExecutorFailed
+
+    def die(_request):
+        raise ExecutorFailed("session-died", "the CLI exited with status 1")
+
+    waited = []
+    run_step, _, _ = runner(tmp_path, [die, die, die], pause=waited.append)
+
+    outcome = run_step.run_next("add-login")
+
+    assert not outcome.passed
+    assert waited == [BACKOFF, BACKOFF * 2]
+
+
+def test_a_provider_that_cannot_be_asked_again_is_left_without_a_pause(tmp_path):
+    """Ждать нечего: этот отказ повторится тем же самым, и цепь идёт к следующему."""
+    from agent_kit.config import RoleConfig
+    from agent_kit.providers.base import ExecutorFailed
+
+    def missing(_request):
+        raise ExecutorFailed("binary-missing", "no such binary", retryable=False)
+
+    spare = FakeExecutor(name="spare", replies=[GOOD])
+    waited = []
+    run_step, _, _ = runner(
+        tmp_path,
+        [missing],
+        roles={"probe": RoleConfig(name="probe", provider="fake", fallback=["spare"])},
+        executors={"spare": spare},
+        pause=waited.append,
+    )
+
+    outcome = run_step.run_next("add-login")
+
+    assert outcome.passed
+    assert waited == []
+
+
+def test_an_answer_that_failed_the_contract_is_asked_again_at_once(tmp_path):
+    """Пауза лечит инструмент, а не ответ: модель, написавшую не то, чинит вложенная причина."""
+    waited = []
+    run_step, _, _ = runner(tmp_path, [NO_BRANCH, GOOD], pause=waited.append)
+
+    outcome = run_step.run_next("add-login")
+
+    assert outcome.passed
+    assert waited == []

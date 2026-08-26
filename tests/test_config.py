@@ -128,3 +128,16 @@ def test_config_show_says_everything_it_reads(tmp_path):
     shown = _config_as_data(load_config(write(tmp_path / "config.toml", '[owner]\nchannel = "file"\n')))
 
     assert set(shown["owner"]) == {"channel", "chat", "wait", "file"}
+
+
+def test_a_machine_may_name_its_own_pause_between_attempts(tmp_path):
+    """Ноль — настоящий ответ: пробовать снова сразу же."""
+    from agent_kit.config import DEFAULT_BACKOFF
+
+    assert load_config(tmp_path / "config.toml").machine.backoff == DEFAULT_BACKOFF
+    assert load_config(write(tmp_path / "config.toml", "[machine]\nbackoff = 0\n")).machine.backoff == 0
+    assert load_config(write(tmp_path / "config.toml", "[machine]\nbackoff = 5\n")).machine.backoff == 5
+
+    with pytest.raises(ConfigError) as caught:
+        load_config(write(tmp_path / "config.toml", "[machine]\nbackoff = -1\n"))
+    assert caught.value.detail.startswith("machine.backoff")
