@@ -173,6 +173,10 @@ class Run:
         stops and says which step, which provider and what was missing — and a
         resumption that erases that reason is the second version's defect: the
         record forgets what the attempt directories still remember.
+
+        A stopped one does not resume quietly either, and it does resume: it
+        takes a person saying so, which is `reopen`, and until they do this is
+        a run with nothing left to advance.
         """
         return self.status in (RunStatus.DONE, RunStatus.STOPPED, RunStatus.FAILED)
 
@@ -321,6 +325,55 @@ class Run:
         self.reason = _reason(reason)
         self.updated_at = now()
         return self
+
+    def reopen(self) -> "Run":
+        """A stopped run goes on, from the step it stopped on.
+
+        `stopped` is where an ordinary night ends: a gate that closed on a red
+        suite, a blocking finding, a build that never finished, a person who
+        typed `run stop`. Every one of those is the method working, and every
+        one of them is something a person puts right in the morning — and until
+        this there was no way on but a new name, which pays for `design` and
+        `build` a second time and, inside a batch, cannot be attached to the
+        branch the other features are based on.
+
+        `failed` is the one status this refuses, and that finality was argued
+        for: a run the kit could not make work does not quietly resume, and its
+        reason stays in the record.
+
+        Everything that passed keeps its `passed`. What goes back to pending is
+        the step the run stopped on — the one `stop` parked, or the one whose
+        gate closed, which `halt` leaves `passed` because it did its work.
+        That step is the whole reason there is anywhere to go on to: what it
+        recorded is what the person went and changed.
+        """
+        if self.status is not RunStatus.STOPPED:
+            raise StateError(
+                "run-not-stopped",
+                f"{self.slug} is {self.status.value}; only a stopped run is carried on",
+            )
+        step = self._stopped_on()
+        if step is not None:
+            step.status = StepStatus.PENDING
+            step.reason = _reason(
+                f"the run stopped here and was reopened: {self.reason or 'nothing was written down'}"
+            )
+        self.status = RunStatus.RUNNING
+        self.finished_at = None
+        self.updated_at = now()
+        return self
+
+    def _stopped_on(self) -> Step | None:
+        """The step the run was on when it stopped, whatever became of it.
+
+        Steps are started in order, so the ones that ever started are a prefix
+        of the list and the last of them is where the run got to: parked back
+        to pending by `stop`, or left `passed` by a gate that closed on what it
+        recorded. A run stopped before its first step started has no such step,
+        and goes on from the first.
+        """
+        started = [step for step in self.steps if step.attempts]
+        return started[-1] if started else None
 
     def _last_touched(self) -> Step | None:
         """The step the run got to: the last one started that did not pass."""

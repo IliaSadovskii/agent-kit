@@ -134,6 +134,10 @@ class RunStore:
     def stop(self, slug: str, reason: str) -> Run:
         return self.update(slug, lambda run: run.stop(reason))
 
+    def reopen(self, slug: str) -> Run:
+        """A stopped run goes on from the step it stopped on."""
+        return self.update(slug, lambda run: run.reopen())
+
 
 def keep_runs_out_of_git(runs_dir: Path) -> None:
     """A run's state is not repository content, and the project should not have to say so.

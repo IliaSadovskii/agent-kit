@@ -94,6 +94,11 @@ def build_parser() -> argparse.ArgumentParser:
     stopped.add_argument("slug")
     stopped.add_argument("reason")
 
+    reopened = run_what.add_parser(
+        "reopen", help="carry a stopped run on from the step it stopped on"
+    )
+    reopened.add_argument("slug")
+
     batch = commands.add_parser("batch", help="an evening's work: several features, and what waits for what")
     batch_what = batch.add_subparsers(dest="what", metavar="WHAT")
 
@@ -434,7 +439,9 @@ def _run(args: argparse.Namespace) -> int:
     registry = builtin_registry()
     what = args.what
     if what is None:
-        raise UsageError("missing-command", "run needs one of: new, list, show, start, pass, fail, stop")
+        raise UsageError(
+            "missing-command", "run needs one of: new, list, go, show, start, pass, fail, stop, reopen"
+        )
 
     if what == "new":
         steps = [name.strip() for name in args.steps.split(",")] if args.steps else None
@@ -511,6 +518,17 @@ def _run(args: argparse.Namespace) -> int:
         print(f"{run.slug}: stopped — {run.reason}")
         return int(ExitCode.OK)
 
+    if what == "reopen":
+        # A verb of its own, and not something `run go` does after saying so:
+        # `go` is what a batch runs for every child, and a `batch go` typed
+        # again would then re-pay for steps of features the method stopped on
+        # purpose. Going on after a stop is a decision, and a decision has an
+        # author — the same reason `refuse_step` and `fail_step` are two words.
+        _refuse_if_a_driver_holds_it(store, args.slug)
+        run = store.reopen(args.slug)
+        print(f"{run.slug}: reopened — {_where(run)}")
+        return int(ExitCode.OK)
+
     raise UsageError("unknown-command", f"run {what}")
 
 
@@ -566,7 +584,15 @@ def _go(store: RunStore, registry, args: argparse.Namespace) -> int:
     """
     run = store.load(args.slug)
     if run.finished:
-        raise StateError("run-finished", f"{args.slug} is {run.status.value}; there is nothing left to run")
+        raise StateError(
+            "run-finished",
+            f"{args.slug} is {run.status.value}; there is nothing left to run",
+            hint=(
+                f"agent-kit run reopen {args.slug} carries it on from the step it stopped on"
+                if run.status is RunStatus.STOPPED
+                else ""
+            ),
+        )
 
     runner = _runner(
         store, registry, args.provider, args.option, wait=args.wait, silent=getattr(args, "silent", False)
