@@ -15,12 +15,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ..errors import ExitCode, KitError
 from ..state.store import write_whole
 from .format import (
     ASSUMED,
     Anchor,
     Block,
+    KnowledgeError,
     identifier,
     read_anchors,
     read_blocks,
@@ -39,12 +39,6 @@ GLIMPSE = 120
 #: loop and not a refusal anybody will meet: reaching it needs every one of
 #: these names to stand in this project's knowledge under other runs.
 SALTS = 64
-
-
-class KnowledgeError(KitError):
-    """The knowledge cannot answer what was asked of it, and this says what."""
-
-    exit_code = ExitCode.STATE
 
 
 class Knowledge:

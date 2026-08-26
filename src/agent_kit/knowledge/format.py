@@ -18,6 +18,8 @@ import re
 import textwrap
 from dataclasses import dataclass
 
+from ..errors import ExitCode, KitError
+
 #: Digits and consonants. Six characters of it cannot spell anything
 #: unfortunate, which is the whole reason the vowels are not here.
 ALPHABET = "23456789bcdfghjkmnpqrstvwxz"
@@ -45,6 +47,12 @@ _COMMENT_CLOSE = "-->"
 _KEY_LINE = re.compile(r"^`key:\s*(?P<key>[A-Za-z0-9_.-]+)`")
 
 SEPARATOR = " · "
+
+
+class KnowledgeError(KitError):
+    """The knowledge cannot answer what was asked of it, and this says what."""
+
+    exit_code = ExitCode.STATE
 
 
 @dataclass(frozen=True)
@@ -104,7 +112,7 @@ def render(kind: str, date: str, run: str, id: str, body: str) -> list[str]:
     return [f"{QUOTE}{line}" for line in wrapped or [header(kind, date, run, id)]]
 
 
-def prose(lines: list[str]) -> list[bool]:
+def prose(file: str, lines: list[str]) -> list[bool]:
     """Which lines the file writes, rather than only shows.
 
     Two things are shown. A fenced sample: a `### Пример` inside one is not a
@@ -115,35 +123,48 @@ def prose(lines: list[str]) -> list[bool]:
     Reading that as a record puts it in the index the driver encloses, and a
     block addressed to it is written inside the comment, where nobody sees it
     again. The second version knew this and had `commented()` for it.
+
+    What is opened and never closed is refused rather than obeyed. A fence
+    with no partner used to hide the rest of the file, and the rest of the file
+    is where the headings and the blocks are: the index then said how many
+    blocks were standing and was wrong, `close` refused an identifier that was
+    there all along, and `free_id` could hand out a name already taken. A file
+    that cannot be read honestly says so.
     """
     outside: list[bool] = []
-    fenced = False
-    commented = False
-    for line in lines:
-        if commented:
+    fenced = comment = 0  # the line it was opened on, counted from one
+    for number, line in enumerate(lines, start=1):
+        if comment:
             outside.append(False)
-            commented = _COMMENT_CLOSE not in line
+            comment = 0 if _COMMENT_CLOSE in line else comment
             continue
         if fenced:
             outside.append(False)
-            fenced = not _FENCE.match(line)
+            fenced = 0 if _FENCE.match(line) else fenced
             continue
         if _FENCE.match(line):
-            fenced = True
+            fenced = number
             outside.append(False)
             continue
         # What stands before `<!--` on its line is written; what follows it is
         # not. A comment closed on the line it opened hides only itself.
         opens = line.find(_COMMENT_OPEN)
-        commented = opens >= 0 and _COMMENT_CLOSE not in line[opens:]
+        comment = number if opens >= 0 and _COMMENT_CLOSE not in line[opens:] else 0
         outside.append(True)
+    if fenced or comment:
+        what = "a code fence" if fenced else "a comment"
+        raise KnowledgeError(
+            "unreadable-knowledge",
+            f"{file}: {what} was opened on line {fenced or comment} and never closed, "
+            "so everything below it would be read as though it were not written",
+        )
     return outside
 
 
 def read_blocks(file: str, lines: list[str]) -> list[Block]:
     """Every block in one file, in the order they stand."""
     found: list[Block] = []
-    written = prose(lines)
+    written = prose(file, lines)
     index = 0
     while index < len(lines):
         matched = _HEADER.match(lines[index]) if written[index] else None
@@ -198,7 +219,7 @@ def read_anchors(file: str, lines: list[str]) -> list[Anchor]:
     one does the address is refused rather than guessed.
     """
     found: list[Anchor] = []
-    written = prose(lines)
+    written = prose(file, lines)
     for index, line in enumerate(lines):
         heading = _HEADING.match(line) if written[index] else None
         if heading is None:
@@ -232,7 +253,7 @@ def _key_below(lines: list[str], index: int) -> str:
 
 def section_end(lines: list[str], anchor: Anchor) -> int:
     """Where the anchor's section stops: the next heading of its level or higher."""
-    written = prose(lines)
+    written = prose(anchor.file, lines)
     for index in range(anchor.line + 1, len(lines)):
         heading = _HEADING.match(lines[index]) if written[index] else None
         if heading is not None and len(heading.group("hashes")) <= anchor.level:

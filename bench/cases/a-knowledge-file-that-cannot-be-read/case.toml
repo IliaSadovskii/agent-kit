@@ -1,0 +1,10 @@
+# a knowledge file whose code fence is never closed
+
+[case]
+title = "a knowledge file whose fence is never closed"
+fires = "the run is refused before the first session, rather than reading half a file as the whole of it"
+
+[expect]
+exit_code = 3
+status = "created"
+steps = { design = "pending", record = "pending" }
