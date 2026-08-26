@@ -161,6 +161,43 @@ def test_an_answer_may_be_a_reply_to_the_message_rather_than_name_anything(chann
     assert settled.answer == "one per country"
 
 
+def test_a_reply_with_no_text_in_it_is_not_an_answer(channel, ledger):
+    """Стикер, фотография, голосовое: пришло сообщение, а ответа в нём нет.
+
+    Засчитать такое ответом — это вторая сессия шага за пустую строку, вопрос,
+    выброшенный из свёртки, и pull request, который говорит владельцу, что тот
+    всё решил.
+    """
+    asked = a_question()
+    channel.inbox.write_text("#1 \n")
+
+    (settled,) = an_owner(channel, ledger, wait=0).ask(PROJECT, "add-vat", "design", [asked])
+
+    assert settled.how == NOBODY
+    assert settled.answer == ""
+
+
+def test_a_command_with_nothing_after_it_is_not_an_answer(channel, ledger):
+    asked = a_question()
+    channel.inbox.write_text(f"/a {asked.id}\n")
+
+    (settled,) = an_owner(channel, ledger, wait=0).ask(PROJECT, "add-vat", "design", [asked])
+
+    assert settled.how == NOBODY
+    assert settled.answer == ""
+
+
+def test_a_sticker_and_then_words_still_gets_the_answer_through(channel, ledger):
+    """Пустое сообщение ничего не решило, значит и вопрос оно не закрыло."""
+    asked = a_question()
+    channel.inbox.write_text(f"#1 \n/a {asked.id} one per country\n")
+
+    (settled,) = an_owner(channel, ledger).ask(PROJECT, "add-vat", "design", [asked])
+
+    assert settled.how == ANSWERED
+    assert settled.answer == "one per country"
+
+
 def test_an_answer_addressed_to_another_question_is_not_this_ones(channel, ledger):
     channel.inbox.write_text("/a zzzzzz one per country\n")
 
