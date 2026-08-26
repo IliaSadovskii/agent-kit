@@ -1,0 +1,11 @@
+# a block addressed to the example a knowledge template ships commented out
+
+[case]
+title = "a block addressed to a record that only stands inside a comment"
+fires = "record refuses the address rather than writing where no renderer shows it"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "no-such-record"
+steps = { record = "failed" }

@@ -40,6 +40,8 @@ _QUOTED = re.compile(r"^\s*>")
 _PAIR = re.compile(r"^(?P<key>[a-z_]+):\s*(?P<value>.+)$")
 _HEADING = re.compile(r"^(?P<hashes>#{1,6}) (?P<text>.+?)\s*$")
 _FENCE = re.compile(r"^\s*(```|~~~)")
+_COMMENT_OPEN = "<!--"
+_COMMENT_CLOSE = "-->"
 _KEY_LINE = re.compile(r"^`key:\s*(?P<key>[A-Za-z0-9_.-]+)`")
 
 SEPARATOR = " · "
@@ -102,31 +104,49 @@ def render(kind: str, date: str, run: str, id: str, body: str) -> list[str]:
     return [f"{QUOTE}{line}" for line in wrapped or [header(kind, date, run, id)]]
 
 
-def outside_fences(lines: list[str]) -> list[bool]:
-    """Which lines are prose rather than a code sample.
+def prose(lines: list[str]) -> list[bool]:
+    """Which lines the file writes, rather than only shows.
 
-    A `### Пример` inside a fenced block is not a record, and a quoted block
-    inside one is an illustration of a block rather than a block. The real
-    knowledge has neither today, which is exactly how this waits.
+    Two things are shown. A fenced sample: a `### Пример` inside one is not a
+    record, and a quoted block inside one illustrates a block rather than being
+    one. And an HTML comment, which is where the second version's templates
+    keep their example record — all six of them — so a project that has started
+    its knowledge and not filled it in carries a `key:` no renderer displays.
+    Reading that as a record puts it in the index the driver encloses, and a
+    block addressed to it is written inside the comment, where nobody sees it
+    again. The second version knew this and had `commented()` for it.
     """
     outside: list[bool] = []
-    inside = False
+    fenced = False
+    commented = False
     for line in lines:
+        if commented:
+            outside.append(False)
+            commented = _COMMENT_CLOSE not in line
+            continue
+        if fenced:
+            outside.append(False)
+            fenced = not _FENCE.match(line)
+            continue
         if _FENCE.match(line):
-            inside = not inside
+            fenced = True
             outside.append(False)
             continue
-        outside.append(not inside)
+        # What stands before `<!--` on its line is written; what follows it is
+        # not. A comment closed on the line it opened hides only itself.
+        opens = line.find(_COMMENT_OPEN)
+        commented = opens >= 0 and _COMMENT_CLOSE not in line[opens:]
+        outside.append(True)
     return outside
 
 
 def read_blocks(file: str, lines: list[str]) -> list[Block]:
     """Every block in one file, in the order they stand."""
     found: list[Block] = []
-    prose = outside_fences(lines)
+    written = prose(lines)
     index = 0
     while index < len(lines):
-        matched = _HEADER.match(lines[index]) if prose[index] else None
+        matched = _HEADER.match(lines[index]) if written[index] else None
         if matched is None:
             index += 1
             continue
@@ -178,9 +198,9 @@ def read_anchors(file: str, lines: list[str]) -> list[Anchor]:
     one does the address is refused rather than guessed.
     """
     found: list[Anchor] = []
-    prose = outside_fences(lines)
+    written = prose(lines)
     for index, line in enumerate(lines):
-        heading = _HEADING.match(line) if prose[index] else None
+        heading = _HEADING.match(line) if written[index] else None
         if heading is None:
             continue
         if len(heading.group("hashes")) == 1:
@@ -212,9 +232,9 @@ def _key_below(lines: list[str], index: int) -> str:
 
 def section_end(lines: list[str], anchor: Anchor) -> int:
     """Where the anchor's section stops: the next heading of its level or higher."""
-    prose = outside_fences(lines)
+    written = prose(lines)
     for index in range(anchor.line + 1, len(lines)):
-        heading = _HEADING.match(lines[index]) if prose[index] else None
+        heading = _HEADING.match(lines[index]) if written[index] else None
         if heading is not None and len(heading.group("hashes")) <= anchor.level:
             return index
     return len(lines)
