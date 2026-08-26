@@ -532,3 +532,56 @@ def test_a_comment_that_opens_and_closes_on_one_line_hides_only_itself(knowledge
     )
 
     assert "Чем меряем" in [anchor.anchor for anchor in knowledge.anchors()]
+
+
+def test_a_fence_that_is_never_closed_is_refused_by_name(knowledge):
+    """Silence is the one answer a half-read file must not give.
+
+    Everything below the opener disappeared: the heading, and the block under
+    it. `index()` then said "0 blocks standing" with complete confidence,
+    `close` refused an identifier that was standing all along, and `free_id`
+    could hand out a name already taken below the fence.
+    """
+    (knowledge.root / "stack.md").write_text(
+        STACK + "\n## Как зовём модель\n\n```json\n{}\n\n## Вызовы модели\n\n"
+        "> **[assumed 2026-08-18 · kit/x · id: hid111]** Спрятан.\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(KnowledgeError) as refused:
+        knowledge.index()
+
+    assert refused.value.code == "unreadable-knowledge"
+    assert "stack.md" in refused.value.detail
+
+
+def test_the_refusal_says_where_the_fence_was_opened(knowledge):
+    path = knowledge.root / "stack.md"
+    path.write_text(STACK + "\n```json\n{}\n", encoding="utf-8")
+    # Counted from the file rather than written down: a line number in a
+    # fixture is a moment, and it goes stale the first time STACK grows a line.
+    opened = path.read_text().splitlines().index("```json") + 1
+
+    with pytest.raises(KnowledgeError) as refused:
+        knowledge.blocks()
+
+    assert f"line {opened}" in refused.value.detail
+
+
+def test_a_comment_that_is_never_closed_is_refused_by_name(knowledge):
+    (knowledge.root / "stack.md").write_text(
+        STACK + "\n<!-- ниже — черновик\n\n## Чем меряем\n", encoding="utf-8"
+    )
+
+    with pytest.raises(KnowledgeError) as refused:
+        knowledge.anchors()
+
+    assert refused.value.code == "unreadable-knowledge"
+
+
+def test_a_file_that_closes_what_it_opens_is_read(knowledge):
+    (knowledge.root / "stack.md").write_text(
+        STACK + "\n```json\n{}\n```\n\n## Чем меряем\n\nодной командой.\n", encoding="utf-8"
+    )
+
+    assert "Чем меряем" in [anchor.anchor for anchor in knowledge.anchors()]
