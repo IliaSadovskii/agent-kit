@@ -44,7 +44,12 @@ _HEADING = re.compile(r"^(?P<hashes>#{1,6}) (?P<text>.+?)\s*$")
 _FENCE = re.compile(r"^\s*(```|~~~)")
 _COMMENT_OPEN = "<!--"
 _COMMENT_CLOSE = "-->"
-_KEY_LINE = re.compile(r"^`key:\s*(?P<key>[A-Za-z0-9_.-]+)`")
+#: Everything up to the closing backtick, which is what the second version's
+#: `KEY_RE` took. A key is the project's word, not the kit's: `платёж` and
+#: `offer request` are addresses like any other. The `·` is the one thing it
+#: cannot hold, because that is what separates the key from `state:` beside it.
+_KEY_LINE = re.compile(r"^`key:\s*(?P<key>[^`·]+?)\s*`")
+_KEY_STARTS = re.compile(r"^`key:")
 
 SEPARATOR = " · "
 
@@ -232,7 +237,7 @@ def read_anchors(file: str, lines: list[str]) -> list[Anchor]:
         found.append(
             Anchor(
                 file=file,
-                anchor=_key_below(lines, index) or text,
+                anchor=_key_below(file, lines, index) or text,
                 heading=text,
                 level=len(heading.group("hashes")),
                 line=index,
@@ -241,13 +246,27 @@ def read_anchors(file: str, lines: list[str]) -> list[Anchor]:
     return found
 
 
-def _key_below(lines: list[str], index: int) -> str:
-    """`key: money` on the first non-blank line under the heading, and nowhere else."""
-    for line in lines[index + 1: index + 4]:
-        if not line.strip():
+def _key_below(file: str, lines: list[str], index: int) -> str:
+    """`key: money` on the first non-blank line under the heading, and nowhere else.
+
+    A line that says `key:` and cannot be read is refused, not dropped. Dropping
+    it addressed the record by its heading instead — a scheme of its own, for
+    the whole project, arrived at without anybody choosing it.
+    """
+    for number in range(index + 1, min(index + 4, len(lines))):
+        line = lines[number].strip()
+        if not line:
             continue
-        matched = _KEY_LINE.match(line.strip())
-        return matched.group("key") if matched else ""
+        matched = _KEY_LINE.match(line)
+        if matched is not None:
+            return matched.group("key")
+        if _KEY_STARTS.match(line):
+            raise KnowledgeError(
+                "unreadable-knowledge",
+                f"{file} line {number + 1}: {line!r} names a key the kit cannot read, "
+                "and a record whose key it cannot read has no address it can print",
+            )
+        return ""
     return ""
 
 

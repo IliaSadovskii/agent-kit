@@ -1,0 +1,10 @@
+# a project whose records are keyed in its own language
+
+[case]
+title = "a block addressed to a record whose key is not English"
+fires = "the key is the address, and the block lands under the record that carries it"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { record = "passed" }
