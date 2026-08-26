@@ -682,3 +682,46 @@ def test_hashes_with_nothing_after_them_are_not_an_address(knowledge):
     (knowledge.root / "stack.md").write_text(STACK + "\n###   \n\nтело\n", encoding="utf-8")
 
     assert all(anchor.anchor.strip() for anchor in knowledge.anchors())
+
+
+# --- what may be closed, and by whom -----------------------------------------
+
+
+def test_only_an_assumed_block_can_be_closed(knowledge):
+    """S8b's `frame` is in force while it stands, and a run must not delete it.
+
+    Nothing can be wrongly closed today, because no block the second version
+    wrote carries an identifier. `frame`, `found` and `stale` all will, and the
+    day they do a midnight `design` can take a batch's frame with it. The kind
+    is asked here rather than guarded for later.
+    """
+    (knowledge.root / "entities.md").write_text(
+        "# Сущности\n\n### Деньги\n`key: money`\n\n"
+        "> **[frame 2026-08-19 · 2026-08-19-teardown · id: fffff2]** Записи стенда правятся\n"
+        "> одним коммитом.\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(KnowledgeError) as refused:
+        knowledge.close("fffff2")
+
+    assert refused.value.code == "not-closable-kind"
+    assert "fffff2" in [block.id for block in knowledge.blocks()]
+
+
+def test_the_kind_is_asked_before_anything_is_written(knowledge):
+    """`record` resolves everything before it edits a file, and this is one of
+
+    the things it resolves: a run that closed one block and then refused the
+    second leaves the owner's knowledge half-edited.
+    """
+    (knowledge.root / "entities.md").write_text(
+        "# Сущности\n\n### Деньги\n`key: money`\n\n"
+        "> **[found 2026-08-19 · kit/review · id: fffff3]** Найдено ревью.\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(KnowledgeError) as refused:
+        knowledge.closable("fffff3")
+
+    assert refused.value.code == "not-closable-kind"
