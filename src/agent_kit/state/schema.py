@@ -18,8 +18,21 @@ from ..errors import StateError
 SCHEMA_VERSION = 4
 BRANCH_PREFIX = "kit/"
 
-#: What a run does when nobody says otherwise: one feature, end to end.
-DEFAULT_STEPS = ("design", "build", "verify", "review", "record", "deliver")
+#: The order the method's steps mean anything in, and it is an argument rather
+#: than a habit: each of them reads what the ones before it left. A `verify`
+#: placed before its `build` runs the project's suite over a tree with no new
+#: code — green by construction — and the review, the pull request and the
+#: owner all read `passed: true` afterwards.
+#:
+#: A run may hold some of these and not others; it may not hold them in an order
+#: that says a step measured what had not happened yet. Steps the kit ships that
+#: are no part of this sequence — `probe`, which asks a provider what it can see
+#: — are not placed in it and are not held to it.
+STEP_ORDER = ("design", "build", "verify", "review", "record", "deliver")
+
+#: What a run does when nobody says otherwise: one feature, end to end, which is
+#: every step of the method in the one order they mean anything in.
+DEFAULT_STEPS = STEP_ORDER
 
 _SLUG = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 
@@ -146,6 +159,7 @@ class Run:
         names = list(steps or DEFAULT_STEPS)
         if not names:
             raise StateError("no-steps", "a run with no steps has nothing to advance")
+        _in_an_order_that_means_something(names)
         return cls(
             slug=slug,
             steps=[Step(name=_text(name, "steps[].name")) for name in names],
@@ -519,6 +533,30 @@ def _step_index(value: Any, count: int, where: str = "current_step") -> int | No
     if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value < count:
         _bad(where, f"{value!r} is not a step of this run")
     return value
+
+
+def _in_an_order_that_means_something(names: list[str]) -> None:
+    """The order a run holds, checked once — where the run is made.
+
+    Here rather than in the driver because it is a fact about a run and not
+    about a night: a run whose steps are in that order is a run whose record
+    can be read, whoever created it and whatever ran it.
+    """
+    placed = [(STEP_ORDER.index(name), name) for name in names if name in STEP_ORDER]
+    seen: set[str] = set()
+    for _, name in placed:
+        if name in seen:
+            raise StateError(
+                "step-twice", f"{name} is asked for twice, and a run does each of its steps once"
+            )
+        seen.add(name)
+    for (rank, name), (next_rank, after) in zip(placed, placed[1:]):
+        if next_rank < rank:
+            raise StateError(
+                "steps-out-of-order",
+                f"{name} comes before {after} in this run, and it would be reading work that has "
+                f"not happened yet",
+            )
 
 
 def _needs(value: Any, slug: str) -> list[str]:
