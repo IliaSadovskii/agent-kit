@@ -530,6 +530,24 @@ def test_the_knowledge_a_run_wrote_is_committed_beside_the_code(repo):
     assert git(repo, "status", "--porcelain").stdout.strip() == ""
 
 
+def test_a_block_that_never_reached_this_working_copy_is_not_delivered_as_though_it_had(repo):
+    """The knowledge the program says it wrote, staged and not there.
+
+    It is what made S8's defect silent: `record` wrote into the project's own
+    checkout while the commit was made in the run's tree, `git add` staged
+    nothing, and the code file beside it made the commit look complete.
+    """
+    with_knowledge(repo)
+    worked_on(repo)
+
+    with pytest.raises(ExecutorFailed) as refused:
+        deliver(repo, {"record": RECORD})
+
+    assert refused.value.code == "knowledge-not-in-the-commit"
+    assert "docs/knowledge/entities.md" in refused.value.detail
+    assert git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
+
+
 def test_a_project_that_keeps_knowledge_cannot_close_a_feature_with_a_naked_assumption(repo):
     with_knowledge(repo)
     worked_on(repo)

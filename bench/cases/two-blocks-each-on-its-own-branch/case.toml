@@ -1,0 +1,16 @@
+# a batch in a project that keeps knowledge
+
+[case]
+title = "two features in a project that keeps knowledge, each in its own tree"
+fires = "each block is in its own feature's commit, on its own branch, and the project's own checkout is untouched"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+  { slug = "quote", brief = "A price quoted with VAT on it" },
+]
+
+[expect]
+exit_code = 0
+features = { rates = "done", quote = "done" }

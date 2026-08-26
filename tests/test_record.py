@@ -84,13 +84,27 @@ def without_knowledge(tmp_path):
     return root
 
 
-def record(root, prior=None):
+def record(root, prior=None, tree=None):
     whole = {"design": DESIGN, "build": BUILD, "verify": VERIFY, "review": REVIEW, **(prior or {})}
     request = StepRequest(
         slug="add-vat", step_name="record", attempt=1, provider="program:record", input_text="",
-        workdir=root, project=root, branch="kit/add-vat", brief="VAT", prior=whole,
+        workdir=root, project=root, tree=tree, branch="kit/add-vat", brief="VAT", prior=whole,
     )
     return build_program("program:record", root).execute(request)
+
+
+@pytest.fixture
+def tree(tmp_path):
+    """The working copy this run builds in: a worktree of the same repository.
+
+    It holds the repository's content and none of the kit's paperwork — the run
+    state and the declaration stay in the project — which is why the knowledge
+    is here and `project.toml` is not.
+    """
+    where = tmp_path / "project/.agent-kit/v3/trees/add-vat"
+    (where / "docs/knowledge").mkdir(parents=True)
+    (where / "docs/knowledge/entities.md").write_text(ENTITIES, encoding="utf-8")
+    return where
 
 
 def entities(root):
@@ -348,3 +362,44 @@ def test_a_block_that_moved_to_another_file_names_both_of_them(project):
 
     assert sorted(said["files"]) == ["docs/knowledge/entities.md", "docs/knowledge/stack.md"]
     assert "kit/add-vat" not in entities(project)
+
+
+# --- which working copy it writes into ---------------------------------------
+#
+# A run builds in its own worktree, and the knowledge is repository content: the
+# block belongs in the tree, so `deliver` commits it onto the branch. Written
+# into the project's own checkout it reaches neither the branch nor the owner —
+# it is an uncommitted edit on whatever they had checked out.
+
+
+def test_the_block_is_written_in_the_tree_the_run_builds_in(project, tree):
+    record(project, tree=tree)
+
+    assert "kit/add-vat" in entities(tree)
+    assert "kit/add-vat" not in entities(project)
+
+
+def test_closing_takes_the_block_out_of_the_tree_and_leaves_the_project_alone(project, tree):
+    record(project, tree=tree)
+    wanted = identifier("add-vat", WHAT)
+    planted = entities(project)
+
+    said = json.loads(record(project, {"design": dict(DESIGN, assumptions=[], closes=[wanted])}, tree=tree).raw)
+
+    assert said["closed"] == [wanted]
+    assert "kit/add-vat" not in entities(tree)
+    assert entities(project) == planted
+
+
+def test_where_the_knowledge_lives_is_the_project_s_word_about_the_tree(project, tree):
+    (project / ".agent-kit/v3/project.toml").write_text(
+        '[project]\ndefault_branch = "main"\nknowledge = "docs/wisdom"\n\n[commands]\ntest = "true"\n',
+        encoding="utf-8",
+    )
+    (tree / "docs/wisdom").mkdir(parents=True)
+    (tree / "docs/wisdom/entities.md").write_text(ENTITIES, encoding="utf-8")
+
+    said = json.loads(record(project, tree=tree).raw)
+
+    assert said["files"] == ["docs/wisdom/entities.md"]
+    assert "kit/add-vat" in (tree / "docs/wisdom/entities.md").read_text(encoding="utf-8")

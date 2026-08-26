@@ -1,0 +1,18 @@
+{
+  "title": "A table of VAT rates",
+  "summary": "rates: the rates themselves, decided before the code.",
+  "changes": ["rates.py — the table"],
+  "seams": ["money.py keeps its meaning"],
+  "verification": ["the project's own check command"],
+  "asks": [],
+  "closes": [],
+  "assumptions": [
+    {
+      "what": "the rate is a whole percent",
+      "expensive": true,
+      "because": "nothing in this project uses fractions of a percent",
+      "at": "entities.md#tax",
+      "block": "Ничего не говорит, что ставка целая. Взял целую: дробная округлялась бы молча."
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "complete": true,
+  "summary": "The quoted price.",
+  "files": ["quote.py"],
+  "tests": ["the declared command"],
+  "deviations": [],
+  "remaining": null
+}

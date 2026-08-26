@@ -1,0 +1,18 @@
+{
+  "title": "A price quoted with VAT on it",
+  "summary": "quote: the price the customer sees, decided before the code.",
+  "changes": ["quote.py — the quoted price"],
+  "seams": ["money.py keeps its meaning"],
+  "verification": ["the project's own check command"],
+  "asks": [],
+  "closes": [],
+  "assumptions": [
+    {
+      "what": "a discount applies before the tax",
+      "expensive": true,
+      "because": "nothing in this project says which comes first",
+      "at": "entities.md#discount",
+      "block": "Ничего не говорит, в каком порядке считать. Взял скидку до налога: обратный порядок даёт другую цену."
+    }
+  ]
+}
