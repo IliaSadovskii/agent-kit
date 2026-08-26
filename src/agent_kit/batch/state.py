@@ -250,6 +250,43 @@ class Batch:
         self._touch(feature)
         return [slug] + self._take_the_dependants(slug, FeatureStatus.SKIPPED)
 
+    def reopen(self, slug: str) -> list[str]:
+        """A feature the night stopped is to be built again — and so is what it took down.
+
+        The inverse of the cascade in `ended`, and it goes exactly as far: what
+        was stopped only because this one was carries `needed-<slug>` and has
+        nothing else wrong with it, so it comes back too. A feature stopped on
+        its own account is left where it is.
+
+        The list is what has to be printed at the moment somebody types the
+        command, for the reason `skip` prints its own: a person who asked for
+        one feature back and got three must be told now, not in a report.
+        """
+        feature = self.feature(slug)
+        if feature.status is not FeatureStatus.STOPPED:
+            raise StateError(
+                "feature-not-stopped",
+                f"{slug} is {feature.status.value}; only a feature the night stopped is carried on",
+            )
+        return [self._to_build_again(feature).slug] + self._give_back_the_dependants(slug)
+
+    def _to_build_again(self, feature: FeatureState) -> FeatureState:
+        """Back to pending, and it keeps its reason: it says where the feature stands."""
+        feature.status = FeatureStatus.PENDING
+        feature.started_at = None
+        feature.ended_at = None
+        return self._touch(feature)
+
+    def _give_back_the_dependants(self, slug: str) -> list[str]:
+        given: list[str] = []
+        for feature in self.features:
+            if feature.status is not FeatureStatus.STOPPED or feature.reason != f"needed-{slug}":
+                continue
+            self._to_build_again(feature)
+            given.append(feature.slug)
+            given += self._give_back_the_dependants(feature.slug)
+        return given
+
     def _take_the_dependants(self, slug: str, status: FeatureStatus) -> list[str]:
         taken: list[str] = []
         for feature in self.features:

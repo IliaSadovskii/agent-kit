@@ -126,6 +126,12 @@ def build_parser() -> argparse.ArgumentParser:
     batch_skip.add_argument("feature")
     batch_skip.add_argument("reason")
 
+    batch_reopen = batch_what.add_parser(
+        "reopen", help="build this feature after all, and whatever it took down with it"
+    )
+    batch_reopen.add_argument("name")
+    batch_reopen.add_argument("feature")
+
     tree = commands.add_parser("tree", help="the working copies this project's runs build in")
     tree_what = tree.add_subparsers(dest="what", metavar="WHAT")
     tree_what.add_parser("list", help="every tree, and the branch it is on")
@@ -647,7 +653,9 @@ def _batch(args: argparse.Namespace, paths: Paths) -> int:
     store = BatchStore(root)
     what = args.what
     if what is None:
-        raise UsageError("missing-command", "batch needs one of: new, list, show, go, stop, skip")
+        raise UsageError(
+            "missing-command", "batch needs one of: new, list, show, go, stop, skip, reopen"
+        )
 
     if what == "new":
         declaration = read_declaration(Path(args.file))
@@ -713,6 +721,32 @@ def _batch(args: argparse.Namespace, paths: Paths) -> int:
         # Said at the moment it is typed: a person who wanted one feature
         # dropped and got three must hear it now, not in a report afterwards.
         print(f"{args.name}: skipping {', '.join(taken)} — {args.reason}")
+        return int(ExitCode.OK)
+
+    if what == "reopen":
+        # Not posted to a running driver, the way a skip is: that driver read
+        # the record when it started, and a night already under way is not
+        # where a person decides what last night's stop is worth.
+        driving = _driving_batch(root, args.name)
+        if driving:
+            raise StateError(
+                "batch-held-elsewhere",
+                f"{args.name} is being run by process {driving[0].pid} since {driving[0].taken_at};"
+                " a feature is carried on between nights, not during one",
+                hint=f"agent-kit batch stop {args.name} '<why>' asks that driver to stop",
+            )
+        batch = store.load(args.name)
+        given = batch.reopen(args.feature)
+        # The run as well as the record: `batch go` reads a child's ending off
+        # its run, so a feature whose run is still stopped comes straight back
+        # stopped without a session being run at all.
+        runs = RunStore(root)
+        for slug in given:
+            if runs.exists(slug) and runs.load(slug).status is RunStatus.STOPPED:
+                runs.reopen(slug)
+        store.save(batch)
+        # Said now rather than in a report, for the reason a skip says it now.
+        print(f"{args.name}: to build again — {', '.join(given)}")
         return int(ExitCode.OK)
 
     raise UsageError("unknown-command", f"batch {what}")
