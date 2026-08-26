@@ -20,6 +20,13 @@ DEFAULT_MAX_SESSIONS = 4
 #: and says so. Longer than a limit's reset, shorter than a night.
 DEFAULT_WAIT = 2 * 60 * 60
 
+#: Сколько драйвер ждёт, прежде чем попробовать отказавший шаг ещё раз, и
+#: число удваивается с каждым отказом: 30 секунд, потом 60, потом 120. Провайдер,
+#: которого на минуту завалило, отвечает ровно так же и через секунду, а цепь без
+#: паузы тратит все свои попытки за то время, за которое стартуют три сессии.
+#: Потолка у удвоения нет и не нужно: попыток три на провайдера, и они его и держат.
+DEFAULT_BACKOFF = 30
+
 #: Where the daemon's page answers. Loopback, because the server's own proxy is
 #: what puts it in the tailnet, and the tailnet is the only way in from outside.
 #: Port 8080 is this project's block in the machine's registry.
@@ -32,7 +39,7 @@ DEFAULT_PORT = 8080
 #: answer the same question about different things, and the table says which.
 DEFAULT_ANSWER_WAIT = 20 * 60
 
-_MACHINE_KEYS = {"max_sessions", "wait"}
+_MACHINE_KEYS = {"max_sessions", "wait", "backoff"}
 _DAEMON_KEYS = {"host", "port"}
 _PROVIDER_KEYS = {"enabled", "model", "effort", "max_sessions", "account"}
 _ROLE_KEYS = {"provider", "fallback", "model", "effort"}
@@ -44,6 +51,7 @@ _TOP_KEYS = {"machine", "daemon", "owner", "providers", "roles"}
 class MachineConfig:
     max_sessions: int = DEFAULT_MAX_SESSIONS
     wait: int = DEFAULT_WAIT
+    backoff: int = DEFAULT_BACKOFF
 
 
 @dataclass(frozen=True)
@@ -186,6 +194,9 @@ def _machine(table: dict[str, Any]) -> MachineConfig:
         max_sessions=_positive_int(table.get("max_sessions", DEFAULT_MAX_SESSIONS), "machine.max_sessions"),
         # Zero is a real answer: it means refuse rather than wait.
         wait=_whole(table.get("wait", DEFAULT_WAIT), "machine.wait"),
+        # And here it means try again at once, which is what every kit did
+        # before this number existed.
+        backoff=_whole(table.get("backoff", DEFAULT_BACKOFF), "machine.backoff"),
     )
 
 

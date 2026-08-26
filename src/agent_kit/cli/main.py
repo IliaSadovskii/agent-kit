@@ -1080,6 +1080,7 @@ def _runner(store: RunStore, registry, provider: str | None, options: list[str],
         ceilings=_ceilings(config),
         accounts=_accounts(config),
         wait=config.machine.wait if wait is None else wait,
+        backoff=config.machine.backoff,
         say=print,
         owner=_owner_of(config, paths, ledger, silent=silent),
     )

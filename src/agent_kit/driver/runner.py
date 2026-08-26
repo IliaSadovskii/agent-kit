@@ -5,6 +5,10 @@ role's provider, each enclosing why the last was refused, then the fallback
 provider gets one, then the run stops and says which step, which provider, and
 what the output was missing. Never silent, never infinite, and never a nudge —
 typing "continue" at a stuck session is a guess wearing the clothes of a recovery.
+
+Between attempts there is a pause, and it grows: a provider having a bad minute
+is answered by waiting it out, and a chain with no pause in it spends all four
+of its attempts in the time four cold starts take.
 """
 
 from __future__ import annotations
@@ -15,7 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
-from ..config import DEFAULT_WAIT, RoleConfig
+from ..config import DEFAULT_BACKOFF, DEFAULT_WAIT, RoleConfig
 from ..errors import ConfigError, KitError, ProviderError, StateError
 from ..hook import write_pre_push
 from ..knowledge import DEFAULT_DIR as KNOWLEDGE_DIR, Knowledge
@@ -32,6 +36,11 @@ from .executor import Executor, ExecutorFailed, ExecutorResult, StepRequest
 from .workspace import StepWorkspace
 
 ATTEMPTS_PER_PROVIDER = 3
+
+#: How long a refused step waits before it is tried again, doubling with each
+#: refusal. The machine may name its own — `machine.backoff` — and zero means
+#: what every kit before this number did: straight back round the chain.
+BACKOFF = DEFAULT_BACKOFF
 
 #: How often a waiting driver asks the ledger again. There is no signal and no
 #: socket: a poll of a local file is cheaper than a protocol to get wrong.
@@ -53,6 +62,11 @@ class AttemptRecord:
     refusal: str | None = None
     #: False when asking this provider again is guaranteed to fail the same way.
     retryable: bool = True
+    #: True when it was the tool that refused — a session that died, timed out,
+    #: crashed — rather than the answer failing the contract. The pause between
+    #: attempts reads it: waiting mends a provider having a bad minute, and
+    #: mends nothing about a model that wrote the wrong JSON.
+    from_the_tool: bool = False
     #: True when this was the method working rather than the kit breaking.
     expected: bool = False
     #: Set when the machine said no before any session was started: the ceiling
@@ -99,6 +113,7 @@ class StepRunner:
         roles: Mapping[str, RoleConfig] | None = None,
         default_provider: str | None = None,
         attempts_per_provider: int = ATTEMPTS_PER_PROVIDER,
+        backoff: int = BACKOFF,
         continuations_allowed: int = CONTINUATIONS_ALLOWED,
         ledger: Ledger | None = None,
         ceilings: Ceilings | None = None,
@@ -114,6 +129,7 @@ class StepRunner:
         self.roles = dict(roles or {})
         self.default_provider = default_provider
         self.attempts = attempts_per_provider
+        self.backoff = backoff
         self.continuations = continuations_allowed
         # There is no driver without a ledger. A ceiling that can be left out is
         # a ceiling that is off wherever somebody forgot it, which is the shape
@@ -309,6 +325,27 @@ class StepRunner:
             self.ledger.gives_up(want)
         return got
 
+    def _breathe(self, run: Run, definition: StepDefinition, attempts: list[AttemptRecord]) -> None:
+        """Wait before the next attempt, and wait longer the more of them there have been.
+
+        A provider that is briefly overloaded answers a session started a second
+        later exactly as it answered this one, so a chain with no pause in it
+        spends every attempt it has inside the minute the trouble lasts. The
+        doubling needs no ceiling of its own: what bounds the waiting is the
+        ceiling on attempts, which is three on a provider and one on each spare.
+
+        Only the tool's own refusals are waited out. An answer that failed the
+        contract is a model that wrote the wrong JSON, and what mends that is the
+        reason enclosed in the next input, not a minute of nothing.
+        """
+        refusals = sum(1 for one in attempts if one.refusal is not None and one.busy is None)
+        seconds = self.backoff * 2 ** max(refusals - 1, 0)
+        if seconds <= 0:
+            return
+        self.say(f"{run.slug}: backing-off {seconds}s — {definition.name} was refused by the tool")
+        log.info("%s: backing-off %ss before %s is tried again", run.slug, seconds, definition.name)
+        self.pause(seconds)
+
     @staticmethod
     def _ask_somebody_else(got: Busy, others_left: bool) -> bool:
         """Waiting hours for a reset while a free account stands by is not waiting, it is idling.
@@ -485,6 +522,8 @@ class StepRunner:
                 # with a real provider each try is a session, and a session is
                 # money. This provider has said its piece; ask the next one.
                 remaining = [name for name in remaining if name != provider]
+            elif remaining and record.from_the_tool:
+                self._breathe(run, definition, outcome.attempts)
 
         last = outcome.attempts[-1]
         if last.busy is not None:
@@ -714,13 +753,15 @@ class StepRunner:
                 {"provider": provider, "attempt": attempt, "step": definition.name, **failure.facts.as_dict()},
                 retryable=failure.retryable,
                 expected=failure.expected,
+                from_the_tool=True,
             )
         except Exception as crash:
             # An adapter is somebody else's code around somebody else's CLI. A
             # surprise from it is an attempt that did not work, not a run that
             # cannot continue — and the type is written down, so it is fixable.
             return self._refused(
-                workspace, attempt, on_provider, provider, f"provider-crashed: {_named(crash)}", {}
+                workspace, attempt, on_provider, provider, f"provider-crashed: {_named(crash)}", {},
+                from_the_tool=True,
             )
 
         result = result if isinstance(result, ExecutorResult) else ExecutorResult(raw=str(result))
@@ -755,6 +796,7 @@ class StepRunner:
         meta: dict,
         retryable: bool = True,
         expected: bool = False,
+        from_the_tool: bool = False,
     ) -> AttemptRecord:
         workspace.write_refusal(attempt, reason)
         if meta:
@@ -766,6 +808,7 @@ class StepRunner:
             refusal=reason,
             retryable=retryable,
             expected=expected,
+            from_the_tool=from_the_tool,
             meta=meta,
         )
 

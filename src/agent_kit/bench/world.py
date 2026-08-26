@@ -37,6 +37,14 @@ BASELINE = {
     ),
 }
 
+#: What the machine a case runs on has chosen, and it chooses one thing: no
+#: pause between attempts. The pause is the kit's, not the case's, and a case
+#: about something else would sit through it for nothing — three refused
+#: sessions in a case about a feature that does not land would cost minutes of
+#: waiting to measure something that has nothing to do with waiting. The case
+#: that *is* about the pause plants its own number over this file.
+MACHINE = "[machine]\nbackoff = 0\n"
+
 #: A `gh` that answers the two things delivery asks it, and writes down every
 #: call so a judge can read what it was asked.
 #: Who a case's commits are by. Written into the environment as well as the
@@ -92,6 +100,7 @@ def make_world(case: Case, into: Path) -> World:
 
     env = _environment(into, home, binaries, repo)
     _write_gh(binaries / "gh")
+    _write(home / ".config/agent-kit/config.toml", MACHINE)
 
     _lay_out(repo, case)
     _make_repository(repo, origin, env)

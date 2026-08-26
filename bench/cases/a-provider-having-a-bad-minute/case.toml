@@ -1,0 +1,10 @@
+# a provider that turns two sessions away and then answers
+
+[case]
+title = "the tool refuses twice in a row and then works again"
+fires = "the kit waits between attempts, waits longer the second time, and the run still lands"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { design = "passed", deliver = "passed" }
