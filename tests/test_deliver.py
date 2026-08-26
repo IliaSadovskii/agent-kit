@@ -737,3 +737,76 @@ def test_a_verify_that_said_nothing_about_where_it_stood_is_delivered_as_before(
     said = json.loads(deliver(repo).raw)
 
     assert said["commit"]
+
+
+# --- открытая половина не бесконечна ----------------------------------------
+#
+# Отчёт — единственный выход ночи, а непрочитанный отчёт это несмёрженная
+# ветка. Вторая версия намеряла 4000 знаков на всю открытую половину; здесь то
+# же число делится между её разделами, и режется, а не отказывается: работа
+# ночи не выбрасывается из-за длины своего описания.
+
+def an_essay(words: str = "слово", times: int = 4000) -> str:
+    return " ".join([words] * times)
+
+
+def test_a_summary_longer_than_the_ceiling_is_cut_and_the_whole_of_it_is_folded(repo):
+    from agent_kit.programs.deliver import OPEN, compose_body
+
+    essay = an_essay()
+    text = compose_body(request(repo, whole()), DESIGN, {**BUILD, "summary": essay}, VERIFY, REVIEW_PASSED)
+    open_part, _, folded = text.partition("<details>")
+
+    assert len(open_part) < OPEN * 5  # открытая половина ограничена, а не «как получится»
+    assert essay[:200] in open_part  # начало читается там же, где читалось всегда
+    assert essay in folded  # и ни одного знака не потеряно
+    assert essay not in open_part
+
+
+def test_an_essay_in_one_section_does_not_push_the_others_out(repo):
+    """Потолок у каждого раздела свой: иначе проза съедает то, ради чего отчёт открыт."""
+    from agent_kit.programs.deliver import compose_body
+
+    asked = {
+        **DESIGN,
+        "asks": [{"question": "Ставка одна на всё или своя на страну?", "default": "одна на всё"}],
+    }
+    blocked = {"verdict": "blocked", "findings": [{"severity": "blocking", "what": "отрицательная ставка"}]}
+
+    text = compose_body(request(repo, whole()), asked, {**BUILD, "summary": an_essay()}, VERIFY, blocked)
+    open_part, _, _ = text.partition("<details>")
+
+    assert "отрицательная ставка" in open_part
+    assert "Ставка одна на всё" in open_part
+    assert "одна на всё" in open_part
+
+
+def test_a_list_longer_than_the_ceiling_is_folded_the_same_way(repo):
+    from agent_kit.programs.deliver import compose_body
+
+    many = {
+        **DESIGN,
+        "assumptions": [
+            {"what": f"допущение номер {number}", "expensive": True, "because": an_essay(times=20)}
+            for number in range(40)
+        ],
+    }
+
+    text = compose_body(request(repo, whole()), many, BUILD, VERIFY, REVIEW_PASSED)
+    open_part, _, folded = text.partition("<details>")
+
+    assert "допущение номер 0" in open_part
+    assert "допущение номер 39" not in open_part
+    assert "допущение номер 39" in folded
+
+
+def test_a_report_that_fits_is_left_exactly_as_it_was(repo):
+    """Потолок, который режет короткий отчёт, — это потолок, который врёт про длину."""
+    from agent_kit.programs.deliver import compose_body
+
+    text = compose_body(request(repo, whole()), DESIGN, BUILD, VERIFY, REVIEW_PASSED)
+    open_part, _, _ = text.partition("<details>")
+
+    assert "…" not in open_part
+    assert "не поместилось" not in text
+    assert BUILD["summary"] in open_part
