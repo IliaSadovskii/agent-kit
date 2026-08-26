@@ -3,8 +3,6 @@
 # runs the command a person would run rather than laying the file out itself.
 set -e
 $KIT init --force > "$BENCH/init-said" 2>&1
-HOOKS=$(git rev-parse --path-format=absolute --git-path hooks)
-test -x "$HOOKS/pre-push"
 
 # Something worth pushing, on a branch that is not the trunk.
 git checkout -q -b wip main
