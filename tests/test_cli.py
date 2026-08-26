@@ -417,7 +417,9 @@ def test_run_go_refuses_a_run_that_is_already_over(machine, capsys, tmp_path):
     run(["run", "new", "add-vat", "--brief", "VAT", "--steps", "probe"], capsys)
     run(["run", "stop", "add-vat", "the owner said so"], capsys)
 
-    code, _, err = run(["run", "go", "add-vat", "--provider", "fake"], capsys)
+    code, _, err = run(
+        ["run", "go", "add-vat", "--provider", "fake", *scripted(tmp_path, BUILD_REPLY)], capsys
+    )
 
     assert code == ExitCode.STATE
     assert "run-finished" in err
@@ -459,6 +461,60 @@ def test_a_run_the_method_refused_is_stopped_and_not_failed(machine, capsys, tmp
     assert state["status"] == "stopped"
     assert state["steps"][2]["status"] == "passed"  # verify did its work: it recorded the truth
     assert "passed" in state["reason"]
+
+
+def test_a_run_the_method_stopped_is_carried_on_from_where_it_stopped(machine, capsys, tmp_path):
+    """The morning after: the owner fixes the suite by hand and the night goes on.
+
+    Without this the only way forward is a new run, which pays for `design` and
+    `build` a second time — and inside a batch cannot be attached to the branch
+    the other features are based on.
+    """
+    declare(tmp_path, '[commands]\ntest = "exit 1"\n')
+    run(["run", "new", "add-vat", "--brief", "VAT", "--steps", "design,build,verify"], capsys)
+    run(
+        ["run", "go", "add-vat", "--provider", "fake", *scripted(tmp_path, DESIGN_REPLY, BUILD_REPLY)],
+        capsys,
+    )
+
+    declare(tmp_path, '[commands]\ntest = "true"\n')  # the two tests, fixed by hand
+    reopened, _, _ = run(["run", "reopen", "add-vat"], capsys)
+    # The fake provider is answered from files whether it is asked or not, and
+    # nothing left in this run is a session: `verify` is a program.
+    code, _, _ = run(["run", "go", "add-vat", "--provider", "fake", *scripted(tmp_path, BUILD_REPLY)], capsys)
+
+    assert reopened == ExitCode.OK
+    assert code == ExitCode.OK
+    state = json.loads(run(["run", "show", "add-vat", "--json"], capsys)[1])
+    assert state["status"] == "done"
+    # The step that stopped it ran again; the two sessions before it did not.
+    assert [step["attempts"] for step in state["steps"]] == [1, 1, 2]
+
+
+def test_a_failed_run_is_not_reopened_from_the_command_line(machine, capsys, tmp_path):
+    run(["run", "new", "add-vat", "--brief", "VAT", "--steps", "design"], capsys)
+    run(["run", "go", "add-vat", "--provider", "fake", *scripted(tmp_path, "not json at all")], capsys)
+
+    code, _, err = run(["run", "reopen", "add-vat"], capsys)
+
+    assert code == ExitCode.STATE
+    assert "run-not-stopped" in err
+
+
+def test_go_on_a_stopped_run_says_what_carries_it_on(machine, capsys, tmp_path):
+    """It still refuses — going on after a stop is a decision, and it has an author."""
+    declare(tmp_path, '[commands]\ntest = "exit 1"\n')
+    run(["run", "new", "add-vat", "--brief", "VAT", "--steps", "design,build,verify"], capsys)
+    run(
+        ["run", "go", "add-vat", "--provider", "fake", *scripted(tmp_path, DESIGN_REPLY, BUILD_REPLY)],
+        capsys,
+    )
+
+    code, _, err = run(["run", "go", "add-vat", "--provider", "fake"], capsys)
+
+    assert code == ExitCode.STATE
+    assert "run-finished" in err
+    assert "run reopen add-vat" in err
 
 
 def test_a_provider_that_will_not_answer_still_fails_the_run(machine, capsys, tmp_path):

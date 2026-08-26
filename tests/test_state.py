@@ -261,6 +261,95 @@ def test_a_run_can_be_stopped_and_says_why(store):
     assert run.steps[0].status is StepStatus.PENDING
 
 
+# --- a stopped run, and the morning after ----------------------------------
+
+
+def test_a_stopped_run_goes_on_from_the_step_it_stopped_on(store):
+    """`stopped` is where an ordinary night ends, and a person puts it right."""
+    store.create("add-login", steps=["design", "build"])
+    store.start_step("add-login")
+    store.pass_step("add-login")
+    store.start_step("add-login")
+    store.stop("add-login", "asked by the owner")
+
+    run = store.reopen("add-login")
+
+    assert run.status is RunStatus.RUNNING
+    assert run.finished_at is None
+    assert not run.finished
+    assert run.steps[0].status is StepStatus.PASSED
+    assert run.steps[1].status is StepStatus.PENDING
+    assert store.start_step("add-login").current.name == "build"
+
+
+def test_a_gate_that_closed_is_the_step_the_run_goes_on_from(store):
+    """`halt` leaves the gating step `passed` — it did its work — and stops the run.
+
+    What the owner then changes by hand is exactly what that step recorded, so
+    the run has to measure it again. Going on from the step after it would
+    carry the red suite forward and stop on it a second time.
+    """
+    store.create("add-login", steps=["design", "verify", "deliver"])
+    store.start_step("add-login")
+    store.pass_step("add-login")
+    store.start_step("add-login")
+    store.pass_step("add-login")
+    store.halt("add-login", "gate-closed: verify passed and recorded passed as false")
+
+    run = store.reopen("add-login")
+
+    assert run.steps[0].status is StepStatus.PASSED
+    assert run.steps[1].status is StepStatus.PENDING
+    assert run.next_pending() == 1
+
+
+def test_the_step_a_reopened_run_stands_on_says_why_it_had_stopped(store):
+    store.create("add-login", steps=["design", "build"])
+    store.start_step("add-login")
+    store.stop("add-login", "stopped-by-request: the owner said so")
+
+    run = store.reopen("add-login")
+
+    assert "stopped-by-request: the owner said so" in run.steps[0].reason
+
+
+def test_a_run_stopped_before_anything_started_reopens_at_its_first_step(store):
+    store.create("add-login", steps=["design", "build"])
+    store.stop("add-login", "asked by the owner")
+
+    run = store.reopen("add-login")
+
+    assert run.next_pending() == 0
+    assert all(step.status is StepStatus.PENDING for step in run.steps)
+
+
+def test_a_failed_run_stays_final(store):
+    """The one status this refuses, and it was argued for: `failed` does not resume."""
+    store.create("add-login", steps=["design", "build"])
+    store.start_step("add-login")
+    store.fail_step("add-login", "output-missing-field: seams")
+
+    with pytest.raises(StateError) as caught:
+        store.reopen("add-login")
+
+    assert caught.value.code == "run-not-stopped"
+    assert store.load("add-login").status is RunStatus.FAILED
+
+
+@pytest.mark.parametrize("bring_it_to", ["created", "running", "done"])
+def test_only_a_stopped_run_is_reopened(store, bring_it_to):
+    store.create("add-login", steps=["design"])
+    if bring_it_to != "created":
+        store.start_step("add-login")
+    if bring_it_to == "done":
+        store.pass_step("add-login")
+
+    with pytest.raises(StateError) as caught:
+        store.reopen("add-login")
+
+    assert caught.value.code == "run-not-stopped"
+
+
 # --- what may not be written ----------------------------------------------
 
 
