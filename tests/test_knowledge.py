@@ -472,3 +472,63 @@ def test_the_identifier_is_pinned_to_a_value_and_not_only_to_itself():
     """
     assert identifier("add-vat", "the rate is a whole percent") == "kmw26z"
     assert identifier("add-vat", "the rate is a whole percent", salt=1) == "2zgszb"
+
+
+# --- what the parser was reading that is not there ---------------------------
+
+#: What the second version's templates ship, and all six of them ship it: the
+#: example record lives inside an HTML comment, so a project that has started
+#: its knowledge and not filled it in has a `key:` no renderer ever shows.
+TEMPLATE = """<!--
+Сущности — то, что живёт дольше одного вызова.
+-->
+
+# Сущности
+
+<!--
+### Оффер
+`key: offer`
+
+**Что это:** ответ разработчика на запрос покупателя
+
+> **[assumed 2026-08-01 · kit/example · id: cmmmm7]** пример блока, а не блок
+-->
+
+### Деньги
+`key: money`
+
+**Что это:** сумма в копейках
+"""
+
+
+def test_a_record_inside_a_comment_is_not_an_address(knowledge):
+    (knowledge.root / "entities.md").write_text(TEMPLATE, encoding="utf-8")
+
+    assert "entities.md#offer" not in knowledge.index()
+    assert "offer" not in [anchor.anchor for anchor in knowledge.anchors()]
+    with pytest.raises(KnowledgeError) as refused:
+        knowledge.resolve("entities.md#offer")
+
+    assert refused.value.code == "no-such-record"
+
+
+def test_a_block_inside_a_comment_is_not_a_block(knowledge):
+    (knowledge.root / "entities.md").write_text(TEMPLATE, encoding="utf-8")
+
+    assert "cmmmm7" not in [block.id for block in knowledge.blocks()]
+
+
+def test_what_stands_below_a_closed_comment_is_read(knowledge):
+    (knowledge.root / "entities.md").write_text(TEMPLATE, encoding="utf-8")
+
+    assert "money" in [anchor.anchor for anchor in knowledge.anchors()]
+
+
+def test_a_comment_that_opens_and_closes_on_one_line_hides_only_itself(knowledge):
+    """The real knowledge has four of these, and none of them ends a file."""
+    (knowledge.root / "stack.md").write_text(
+        STACK + "\n<!-- ниже — чем это меряется -->\n\n## Чем меряем\n\nодной командой.\n",
+        encoding="utf-8",
+    )
+
+    assert "Чем меряем" in [anchor.anchor for anchor in knowledge.anchors()]
