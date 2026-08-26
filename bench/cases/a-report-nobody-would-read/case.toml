@@ -1,0 +1,10 @@
+# a build that answers with an essay where a summary was asked for
+
+[case]
+title = "the build answers with an essay, and the pull request is the night's only output"
+fires = "the open half is cut to its ceiling and every word of the essay is under the spoiler"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { build = "passed", deliver = "passed" }

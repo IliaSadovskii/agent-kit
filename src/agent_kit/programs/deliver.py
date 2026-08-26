@@ -44,6 +44,16 @@ DEFAULT_TIMEOUT = 300
 #: What git's own tooling wraps a subject at, near enough.
 SUBJECT = 72
 
+#: Сколько знаков открытая половина отдаёт одному своему разделу.
+#:
+#: Отчёт — единственный выход ночи, и непрочитанный отчёт это несмёрженная
+#: ветка. Документ, которому не назвали длину, растёт: вторая версия намеряла
+#: тело в 45 000 знаков там, где о краткости просили прозой. Она же намеряла и
+#: число — 4000 знаков на всю открытую половину. Разделов здесь четыре, и число
+#: делится между ними поровну: один потолок на всех даёт прозе «Что сделано»
+#: съесть место у того, ради чего отчёт открыт, — у блокеров и у вопросов.
+OPEN = 1000
+
 log = get_logger("programs.deliver")
 
 
@@ -398,11 +408,48 @@ def subject_line(design: dict, request: StepRequest) -> str:
     mid-word: a subject ending in half a word reads as a broken tool.
     """
     written = (design.get("title") or design.get("summary") or request.brief or request.slug).strip()
-    first = written.split("\n")[0].rstrip(".")
-    if len(first) <= SUBJECT:
-        return first
-    cut = first[:SUBJECT].rsplit(" ", 1)[0].rstrip(" ,;:—-")
-    return (cut or first[:SUBJECT]) + "…"
+    return at_a_word(written.split("\n")[0].rstrip("."), SUBJECT)
+
+
+def at_a_word(text: str, limit: int) -> str:
+    """Не длиннее `limit`, и обрублено по слову: половина слова читается как сломанный инструмент."""
+    if len(text) <= limit:
+        return text
+    cut = text[:limit].rsplit(" ", 1)[0].rstrip(" ,;:—-")
+    return (cut or text[:limit]) + "…"
+
+
+def _open_section(title: str, lines: list[str], spilled: list[str]) -> list[str]:
+    """Раздел открытой половины, укороченный до потолка. Остаток уезжает под спойлер.
+
+    Свой потолок у каждого раздела, а не один на всю открытую половину: с общим
+    потолком проза «Что сделано» съедает место у того, ради чего отчёт вообще
+    открыт — у блокеров и у вопросов владельцу.
+    """
+    kept, cut = _fold_at(lines, OPEN)
+    if cut:
+        spilled += [f"### {title}", "", *cut, ""]
+        # Пустая строка перед указателем: без неё markdown приклеит его к
+        # обрубленному абзацу или к последнему пункту списка.
+        kept += ["", f"Дальше не поместилось — под спойлером, раздел «{title}».", ""]
+    return [f"## {title}", "", *kept]
+
+
+def _fold_at(lines: list[str], budget: int) -> tuple[list[str], list[str]]:
+    """Что помещается в потолок, и что с этого места идёт под спойлер целиком."""
+    kept: list[str] = []
+    spent = 0
+    for index, line in enumerate(lines):
+        if spent + len(line) <= budget:
+            kept.append(line)
+            spent += len(line)
+            continue
+        if not kept:
+            # Одна строка длиннее всего потолка — так выглядит сочинение вместо
+            # сводки. Читателю показывается начало, целое лежит под спойлером.
+            kept.append(at_a_word(line, budget))
+        return kept, list(lines[index:])
+    return kept, []
 
 
 def _questions(design: dict) -> list[tuple[str, str]]:
@@ -436,22 +483,29 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
     what was done, what is wanted of them, and anything blocking. Everything
     else is the record — true, worth keeping, and folded away, because a body
     that opens with all of it is one nobody reads to the end.
+
+    Каждый открытый раздел кончается на `OPEN` знаках, и остаток уезжает под
+    тот же спойлер. Режется, а не отказывается: длинный отчёт хуже прочитанного,
+    но куда лучше ночи, забракованной за длину своего описания.
     """
     findings = review.get("findings") or []
     blocking = [item for item in findings if item.get("severity") == BLOCKING]
     expensive = expensive_of(design)
     recorded = recorded or {}
 
-    open_part = [
-        "## Что сделано", "",
+    # Что не поместилось в открытую половину. Не отказ: ночь, забракованная на
+    # последнем шаге за длину своего отчёта, — исход хуже длинного отчёта.
+    spilled: list[str] = []
+
+    open_part = _open_section("Что сделано", [
         (build.get("summary") or "").strip(), "",
         "**Задача:** " + (request.brief or "не записана").strip(), "",
-    ]
+    ], spilled)
 
     if blocking:
-        open_part += ["## Что мешает выпуску", ""]
-        open_part += [f"- {_where(item)}" for item in blocking]
-        open_part.append("")
+        open_part += _open_section(
+            "Что мешает выпуску", [f"- {_where(item)}" for item in blocking] + [""], spilled
+        )
 
     # A question that was asked and not answered is folded into the assumptions
     # by the driver, word for word. Printing both would say the same thing
@@ -459,18 +513,19 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
     asked = _questions(design)
     expensive = [item for item in expensive if str(item.get("what")) not in {taken for _, taken in asked}]
 
-    open_part += ["## Что нужно от владельца", ""]
+    wanted: list[str] = []
     if asked:
-        open_part += ["Вопросы, на которые может ответить только владелец:", ""]
-        open_part += [f"- {said}" for said, _ in asked]
-        open_part.append("")
+        wanted += ["Вопросы, на которые может ответить только владелец:", ""]
+        wanted += [f"- {said}" for said, _ in asked]
+        wanted.append("")
     if expensive:
-        open_part.append("Дорогие допущения — если хоть одно неверно, работа сделана не та:")
-        open_part.append("")
-        open_part += [f"- **{item.get('what')}** — {item.get('because')}" for item in expensive]
-        open_part.append("")
+        wanted.append("Дорогие допущения — если хоть одно неверно, работа сделана не та:")
+        wanted.append("")
+        wanted += [f"- **{item.get('what')}** — {item.get('because')}" for item in expensive]
+        wanted.append("")
     if not asked and not expensive:
-        open_part += ["Ничего: вопросов нет, дорогих допущений нет, ревью ничего не заблокировало.", ""]
+        wanted += ["Ничего: вопросов нет, дорогих допущений нет, ревью ничего не заблокировало.", ""]
+    open_part += _open_section("Что нужно от владельца", wanted, spilled)
 
     green = [f"`{item.get('command')}`" for item in (verify.get("commands") or []) if item.get("passed")]
     red = [
@@ -478,26 +533,24 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
         for item in (verify.get("commands") or [])
         if not item.get("passed")
     ]
-    open_part += [
-        "## Проверка", "",
-        "Зелено: " + ", ".join(green) if green else "Ничего не запускалось",
-        "",
-    ]
+    checked = ["Зелено: " + ", ".join(green) if green else "Ничего не запускалось", ""]
     if red:
-        open_part += ["Не зелено: " + ", ".join(red), ""]
+        checked += ["Не зелено: " + ", ".join(red), ""]
     # Что мерили и чего в ветке нет. Открыто, а не под спойлером: если это
     # файл самой фичи, которую сборка изменила и не назвала, ветка не та
     # работа, что прошла проверку, — и до сих пор об этом не говорил никто.
     outside = left_behind(verify, _files(build, recorded))
     if outside:
-        open_part += [
+        checked += [
             "Команды шли по изменениям, которых нет в коммите: "
             + ", ".join(f"`{name}`" for name in outside)
             + ". Если это файлы фичи — ветка не та работа, что прошла проверку.",
             "",
         ]
+    open_part += _open_section("Проверка", checked, spilled)
 
-    folded = ["## Замысел", "", (design.get("summary") or "").strip(), ""]
+    folded = ["## Что не поместилось", "", *spilled] if spilled else []
+    folded += ["## Замысел", "", (design.get("summary") or "").strip(), ""]
     folded += _list("Что меняется", design.get("changes"))
     folded += _list("Швы", design.get("seams"))
     folded += _list("Чем это доказано — решено до кода", design.get("verification"))
