@@ -1,4 +1,4 @@
 #!/bin/sh
 printf 'RATE = 20\n' >> money.py
-# And the declared command itself, which the build never names.
-printf '# the rate is checked here too\n' >> check.sh
+# And the note beside it, which the build never names.
+printf '\nThe rate is 20 percent.\n' >> notes.md
