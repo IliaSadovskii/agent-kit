@@ -47,8 +47,14 @@ class FeatureStatus(str, Enum):
     SKIPPED = "skipped"
 
 
-#: What a run's own status becomes when the batch reads it back.
-OF_A_RUN = {
+#: What a run's own status becomes when the batch reads it back. Every status a
+#: run has, and `None` for the two that are not an ending at all: a child that
+#: came back leaving its run `created` or `running` said what happened in its
+#: exit code instead, and reading that as a build that failed is how a machine
+#: with no room became a feature the owner is told could not be built.
+OF_A_RUN: dict[RunStatus, FeatureStatus | None] = {
+    RunStatus.CREATED: None,
+    RunStatus.RUNNING: None,
     RunStatus.DONE: FeatureStatus.DONE,
     RunStatus.FAILED: FeatureStatus.FAILED,
     RunStatus.STOPPED: FeatureStatus.STOPPED,
@@ -174,6 +180,8 @@ class Batch:
         feature.tree = tree
         feature.started_at = now()
         feature.ended_at = None
+        # Whatever stopped it last time is not true of it now. It is being built.
+        feature.reason = None
         return self._touch(feature)
 
     def ended(
@@ -181,6 +189,14 @@ class Batch:
         pull_request: str | None = None, cascade: bool = True,
     ) -> FeatureState:
         feature = self.feature(slug)
+        if status is not FeatureStatus.DONE and not (reason or "").strip():
+            # The run store refuses this by the same name and for the same
+            # reason: a feature recorded `failed` with nothing in `reason` is a
+            # night the owner reads in the morning and cannot act on.
+            raise StateError(
+                "reason-required",
+                f"{slug} does not end {status.value} without a reason anybody can read",
+            )
         feature.status = status
         feature.ended_at = now()
         feature.reason = reason
@@ -198,6 +214,22 @@ class Batch:
             self._take_the_dependants(
                 slug, status if status is FeatureStatus.SKIPPED else FeatureStatus.STOPPED
             )
+        return self._touch(feature)
+
+    def never_started(self, slug: str, reason: str) -> FeatureState:
+        """Nobody is building it and its run did not move: it is still to build.
+
+        Two writers and one meaning: the machine had no agent to give it, or
+        the driver that started it never came back. Either way nobody is
+        building it and its run is where it was left, so the feature goes back
+        to pending, the batch is not over, and `batch go` again carries on with
+        it. The reason is kept, so the report says why it stands where it does.
+        """
+        feature = self.feature(slug)
+        feature.status = FeatureStatus.PENDING
+        feature.started_at = None
+        feature.ended_at = None
+        feature.reason = reason
         return self._touch(feature)
 
     def skip(self, slug: str, reason: str) -> list[str]:

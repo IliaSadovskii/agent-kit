@@ -728,6 +728,12 @@ def _batch_go(args: argparse.Namespace, paths: Paths, root: Path, store) -> int:
     # meaning that code already has. A batch does not invent one for "some of
     # it worked": that is what the report above is for.
     print(f"{outcome.batch.name}: {behind.slug} — {behind.reason or behind.status.value}", file=sys.stderr)
+    if behind.status is FeatureStatus.PENDING:
+        # Nothing was attempted for it: the machine had no room, or no agent
+        # could be run at all. That is the code a lone run leaves for the same
+        # thing, and `batch go` again is what answers it — not a person looking
+        # for a state that refused something.
+        return int(ExitCode.PROVIDER)
     return int(ExitCode.STATE)
 
 
