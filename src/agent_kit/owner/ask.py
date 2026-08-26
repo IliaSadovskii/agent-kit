@@ -282,6 +282,15 @@ class Owner:
                     # what was read once is never read onto a later question.
                     log.info("the owner said something that answers nothing: %r", one.text[:80])
                     continue
+                if not one.text.strip():
+                    # Сообщение пришло, а ответа в нём нет: стикер, фотография,
+                    # голосовое, `/a <id>` без слов. Записать его ответом — это
+                    # вторая сессия шага за пустую строку и pull request,
+                    # который говорит владельцу, что тот всё решил. Вопрос
+                    # остаётся открытым, поэтому следующее сообщение — уже
+                    # словами — ещё может на него ответить.
+                    log.info("%s was answered with a message that carries no text", id)
+                    continue
                 if not self.ledger.answered(id, one.text):
                     log.info("%s was already answered, or is not a question here", id)
             self.ledger.remember_offset(offset)
