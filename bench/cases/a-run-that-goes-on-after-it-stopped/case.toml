@@ -1,0 +1,11 @@
+# прогон, который остановил метод, и утро после него
+
+[case]
+title = "a red suite stops the run, the owner puts it right and carries it on"
+fires = "the stopped run goes on from the step that stopped it, and nothing that passed is paid for twice"
+
+[expect]
+exit_code = 5
+status = "stopped"
+refusal = "gate-closed:"
+steps = { design = "passed", build = "passed", verify = "passed", deliver = "pending" }

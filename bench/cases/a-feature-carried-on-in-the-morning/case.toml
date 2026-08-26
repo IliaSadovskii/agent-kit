@@ -1,0 +1,16 @@
+# фича, которую остановили ночью, и утро после неё
+
+[case]
+title = "a person stops one feature mid-night, and carries it on in the morning"
+fires = "the feature and what needed it are pickable again, and the batch builds both without paying for what passed"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+  { slug = "quote", brief = "A price quoted with VAT on it", needs = ["rates"] },
+]
+
+[expect]
+exit_code = 3
+features = { rates = "stopped", quote = "stopped" }
