@@ -40,7 +40,11 @@ ASSUMED = "assumed"
 _HEADER = re.compile(r"^\s*>\s*\*\*\[(?P<kind>[a-z]+) (?P<date>\d{4}-\d{2}-\d{2})(?P<rest>[^\]]*)\]\*\*")
 _QUOTED = re.compile(r"^\s*>")
 _PAIR = re.compile(r"^(?P<key>[a-z_]+):\s*(?P<value>.+)$")
-_HEADING = re.compile(r"^(?P<hashes>#{1,6}) (?P<text>.+?)\s*$")
+#: Whatever separates the hashes from the words, and the words without it.
+#: One space was the rule, so `###  Оффер` kept its second space in the
+#: anchor — an address the index printed and `resolve`, which strips what it
+#: is given, then refused — and `###\tОффер` was not a heading at all.
+_HEADING = re.compile(r"^(?P<hashes>#{1,6})[ \t]+(?P<text>\S.*?)\s*$")
 _FENCE = re.compile(r"^\s*(```|~~~)")
 _COMMENT_OPEN = "<!--"
 _COMMENT_CLOSE = "-->"

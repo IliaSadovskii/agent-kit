@@ -1,0 +1,10 @@
+# a knowledge file whose headings are spaced by hand
+
+[case]
+title = "a block addressed to a heading spaced with more than one space"
+fires = "the address the index prints is the address the program resolves"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { record = "passed" }
