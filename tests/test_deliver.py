@@ -609,9 +609,11 @@ def test_two_assumptions_worded_the_same_owe_two_blocks_not_one(repo):
 # --- what was verified, and what is being delivered -------------------------
 #
 # `verify` records the commit its commands stood on and every change the tree
-# held that the commit did not. Delivery refuses a commit that is not that: a
-# build that changed six files and named four used to ship a green record and a
-# branch missing two of them, and no artefact of the run said otherwise.
+# held that the commit did not. Delivery refuses a commit carrying what those
+# commands never ran over, and a tree that has moved since. The other direction
+# — measured, and not in the commit — is a line in the pull request instead: a
+# build that changed six files and named four leaves a branch missing two of
+# them, and nothing anywhere used to say so.
 
 
 def verified(root):
