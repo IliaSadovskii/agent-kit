@@ -1,0 +1,11 @@
+# a reviewer that fixes what it found, after the commands have run
+
+[case]
+title = "a fix made after the tests ran"
+fires = "delivery refuses: the commit carries what no command ran over"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "not-what-was-verified"
+steps = { verify = "passed", deliver = "failed" }

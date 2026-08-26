@@ -265,3 +265,90 @@ def test_verify_waits_as_long_as_the_project_said_and_no_longer(tmp_path):
 
     assert said["passed"] is False
     assert "2 seconds" in said["commands"][0]["output"]
+
+
+# --- what verify stood on ---------------------------------------------------
+#
+# The commands come back green over some working copy, and until this the record
+# said nothing about which one. `deliver` is the reader: a commit that is not
+# what was measured is refused there, and it can only be refused if verify wrote
+# down what it measured.
+
+
+def a_repository(root):
+    import subprocess
+
+    def git(*argv):
+        subprocess.run(["git", *argv], cwd=root, check=True, capture_output=True, text=True)
+
+    git("init", "-b", "main")
+    git("config", "user.email", "kit@example.com")
+    git("config", "user.name", "kit")
+    (root / "money.py").write_text("AMOUNT = 1000\n")
+    git("add", "-A")
+    git("commit", "-m", "first")
+    return root
+
+
+def test_verify_writes_down_the_commit_the_tree_stood_on(tmp_path):
+    a_repository(tmp_path)
+    declare(tmp_path, '[commands]\ntest = "echo green"\n')
+
+    said = answer(build_program("program:verify", tmp_path).execute(request(tmp_path)))
+
+    import subprocess
+
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=tmp_path, capture_output=True, text=True
+    ).stdout.strip()
+    assert said["proved_at"] == head
+
+
+def test_verify_writes_down_every_change_the_commit_did_not_hold(tmp_path):
+    a_repository(tmp_path)
+    declare(tmp_path, '[commands]\ntest = "echo green"\n')
+    (tmp_path / "money.py").write_text("AMOUNT = 1200\n")
+    (tmp_path / "gross.py").write_text("def gross(): ...\n")
+
+    said = answer(build_program("program:verify", tmp_path).execute(request(tmp_path)))
+
+    named = {line.rsplit(" ", 1)[-1] for line in said["proved_over"]}
+    assert "money.py" in named  # tracked, and changed
+    assert "gross.py" in named  # not tracked at all, and there
+
+
+def test_a_changed_file_is_written_down_by_its_content_and_not_only_its_name(tmp_path):
+    a_repository(tmp_path)
+    declare(tmp_path, '[commands]\ntest = "echo green"\n')
+    (tmp_path / "money.py").write_text("AMOUNT = 1200\n")
+
+    first = answer(build_program("program:verify", tmp_path).execute(request(tmp_path)))
+    (tmp_path / "money.py").write_text("AMOUNT = 1300\n")
+    second = answer(build_program("program:verify", tmp_path).execute(request(tmp_path)))
+
+    assert first["proved_over"] != second["proved_over"]
+
+
+def test_a_tree_that_is_no_repository_proves_nothing_and_says_so(tmp_path):
+    """No commit to stand on is not a failure: the commands still ran."""
+    declare(tmp_path, '[commands]\ntest = "echo green"\n')
+
+    said = answer(build_program("program:verify", tmp_path).execute(request(tmp_path)))
+
+    assert said["passed"] is True
+    assert said["proved_at"] is None
+    assert said["proved_over"] == []
+
+
+def test_what_verify_stood_on_satisfies_the_step_it_belongs_to(tmp_path):
+    a_repository(tmp_path)
+    declare(tmp_path, '[commands]\ntest = "echo ok"\n')
+    (tmp_path / "money.py").write_text("AMOUNT = 1200\n")
+
+    from agent_kit.steps.contract import parse_output
+
+    raw = build_program("program:verify", tmp_path).execute(request(tmp_path)).raw
+    checked = builtin_registry().get("verify").contract.check(parse_output(raw))
+
+    assert checked["proved_at"]
+    assert checked["proved_over"]

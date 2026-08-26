@@ -1,0 +1,10 @@
+# the build changes a file and names another
+
+[case]
+title = "the build changes a file and does not name it"
+fires = "the pull request names what the commands ran over and the branch does not carry"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { verify = "passed", deliver = "passed" }

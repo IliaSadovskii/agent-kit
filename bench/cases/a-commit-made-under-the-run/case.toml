@@ -1,0 +1,11 @@
+# somebody commits in the working copy after the commands have run
+
+[case]
+title = "a commit made under the run"
+fires = "delivery refuses: the tree is not the one the commands ran over"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "tree-moved-since-verify"
+steps = { verify = "passed", deliver = "failed" }

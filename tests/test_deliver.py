@@ -604,3 +604,134 @@ def test_two_assumptions_worded_the_same_owe_two_blocks_not_one(repo):
         deliver(repo, {"design": twice, "record": RECORD})
 
     assert refused.value.code == "assumption-with-no-block"
+
+
+# --- what was verified, and what is being delivered -------------------------
+#
+# `verify` records the commit its commands stood on and every change the tree
+# held that the commit did not. Delivery refuses a commit that is not that: a
+# build that changed six files and named four used to ship a green record and a
+# branch missing two of them, and no artefact of the run said otherwise.
+
+
+def verified(root):
+    """The verify output a real run leaves behind: measured over this tree."""
+    from agent_kit.programs.proved import stood_on
+
+    head, held = stood_on(root)
+    return {**VERIFY, "proved_at": head, "proved_over": held}
+
+
+def tracked(root, name, text):
+    (root / name).write_text(text)
+    git(root, "add", "-A")
+    git(root, "commit", "-m", f"{name}, as it stood")
+
+
+def test_a_commit_that_is_what_the_commands_ran_over_is_delivered(repo):
+    worked_on(repo)
+
+    said = json.loads(deliver(repo, {"verify": verified(repo)}).raw)
+
+    assert said["commit"]
+
+
+def test_a_change_the_commands_ran_over_and_the_build_did_not_name_is_in_the_report(repo):
+    """The six files the build changed and the four it named, where the owner reads.
+
+    Not a refusal: a working copy holds what the feature is not about — an
+    `init --force` nobody committed, a suite the owner repaired before carrying
+    the run on — and a night is worth more than the sentence one would save.
+    """
+    tracked(repo, "check.sh", "#!/bin/sh\nexit 0\n")
+    worked_on(repo)
+    (repo / "check.sh").write_text("#!/bin/sh\nexit 1\n")
+
+    said = json.loads(deliver(repo, {"verify": verified(repo)}).raw)
+
+    body = (repo / ".agent-kit/v3/runs/add-vat/pull-request.md").read_text()
+    assert said["commit"]
+    assert "check.sh" in body.split("<details>")[0]  # open, not folded away
+    assert "check.sh" not in git(repo, "show", "--name-only", "--format=").stdout
+
+
+def test_a_working_copy_dirty_with_what_the_feature_is_not_about_still_delivers(repo):
+    """`agent-kit init --force` rewrites a tracked file and commits nothing."""
+    (repo / ".agent-kit/v3/project.toml").write_text(
+        '[project]\ndefault_branch = "main"\n\n[commands]\ntest = "true"\nlint = "true"\n'
+    )
+    worked_on(repo)
+
+    said = json.loads(deliver(repo, {"verify": verified(repo)}).raw)
+
+    assert said["commit"]
+
+
+def test_a_file_the_commands_never_ran_over_is_not_delivered_as_verified(repo):
+    worked_on(repo)
+    measured = verified(repo)
+    (repo / "late.py").write_text("late = True\n")  # written after the commands ran
+
+    with pytest.raises(ExecutorFailed) as refused:
+        deliver(repo, {"verify": measured, "build": {**BUILD, "files": ["money.py", "late.py"]}})
+
+    assert refused.value.code == "not-what-was-verified"
+    assert "late.py" in refused.value.detail
+    assert git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
+
+
+def test_a_file_edited_after_the_commands_ran_is_not_delivered_as_verified(repo):
+    worked_on(repo)
+    measured = verified(repo)
+    (repo / "money.py").write_text("amount = 1300\n")  # the same file, another content
+
+    with pytest.raises(ExecutorFailed) as refused:
+        deliver(repo, {"verify": measured})
+
+    assert refused.value.code == "not-what-was-verified"
+    assert "money.py" in refused.value.detail
+
+
+def test_a_tree_that_moved_since_the_commands_ran_is_not_delivered(repo):
+    worked_on(repo)
+    measured = verified(repo)
+    tracked(repo, "elsewhere.py", "elsewhere = True\n")  # a commit landed underneath
+
+    with pytest.raises(ExecutorFailed) as refused:
+        deliver(repo, {"verify": measured})
+
+    assert refused.value.code == "tree-moved-since-verify"
+    assert git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
+
+
+def test_the_knowledge_written_after_the_commands_ran_is_not_a_change_they_never_saw(repo):
+    """The one move the tree makes between the two steps, and the program names it."""
+    with_knowledge(repo)
+    worked_on(repo)
+    measured = verified(repo)
+    wrote_a_block(repo)
+
+    said = json.loads(deliver(repo, {"verify": measured, "record": RECORD}).raw)
+
+    assert said["commit"]
+    assert "docs/knowledge/entities.md" in git(repo, "show", "--name-only", "--format=").stdout
+
+
+def test_a_stray_file_beside_the_work_is_not_a_change_left_out_of_the_commit(repo):
+    """Untracked is not measured work: it is a .env, a log, a half-written experiment."""
+    worked_on(repo)
+    (repo / ".env").write_text("TOKEN=hunter2\n")
+
+    said = json.loads(deliver(repo, {"verify": verified(repo)}).raw)
+
+    assert said["commit"]
+    assert (repo / ".env").read_text() == "TOKEN=hunter2\n"
+
+
+def test_a_verify_that_said_nothing_about_where_it_stood_is_delivered_as_before(repo):
+    """A run from an older kit, or one whose steps hold no verify at all."""
+    worked_on(repo)
+
+    said = json.loads(deliver(repo).raw)
+
+    assert said["commit"]
