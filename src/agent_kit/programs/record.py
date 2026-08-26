@@ -89,7 +89,7 @@ class Record:
             # copy nobody will look at again, and that is worse than a run that
             # wrote nothing at all.
             for id in closing:
-                knowledge.find(id)
+                knowledge.closable(id)
             for item in owing:
                 knowledge.resolve(str(item["at"]))
 

@@ -1,0 +1,11 @@
+# a run closing a block that is not an assumption
+
+[case]
+title = "a run closing a block that belongs to somebody else"
+fires = "record refuses by the kind rather than deleting a frame that is still in force"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "not-closable-kind"
+steps = { record = "failed" }

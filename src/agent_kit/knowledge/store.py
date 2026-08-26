@@ -163,8 +163,28 @@ class Knowledge:
         _write_lines(path, lines[:end] + [""] + block + lines[end:])
         return [held for held in dict.fromkeys([*touched, path]) if held is not None]
 
+    def closable(self, id: str) -> Block:
+        """The block, if it is one a run may close, and a named refusal if it is not.
+
+        Only `assumed`. A `frame` is in force while it stands and its batch may
+        not have merged; a `found` belongs to the review that wrote it and a
+        `stale` to whoever noticed. Asked here as well as in `close`, because
+        `record` resolves everything before it edits anything: a run that closed
+        one block and then refused the next leaves the owner's knowledge
+        half-edited.
+        """
+        block = self.find(id)
+        if block.kind != ASSUMED:
+            raise KnowledgeError(
+                "not-closable-kind",
+                f"{id} is a {block.kind} block, and a run closes only {ASSUMED}: "
+                f"{block.kind} is not this step's to delete",
+            )
+        return block
+
     def close(self, id: str) -> Path:
         """Closing is deletion, and deletion needs an address. That is the identifier's second reason."""
+        self.closable(id)
         return self._remove(id, missing_ok=False)
 
     def _remove(self, id: str, missing_ok: bool) -> Path | None:
