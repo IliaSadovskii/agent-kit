@@ -485,8 +485,8 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
     that opens with all of it is one nobody reads to the end.
 
     Каждый открытый раздел кончается на `OPEN` знаках, и остаток уезжает под
-    тот же спойлер. Режется, а не отказывается: длинный отчёт хуже прочитанного,
-    но куда лучше ночи, забракованной за длину своего описания.
+    тот же спойлер. Режется, а не отказывается: длинный отчёт — это плохо, а
+    ночь, забракованная на последнем шаге за длину своего отчёта, — хуже.
     """
     findings = review.get("findings") or []
     blocking = [item for item in findings if item.get("severity") == BLOCKING]
