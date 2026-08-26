@@ -644,3 +644,41 @@ def test_a_key_line_the_kit_cannot_read_is_refused_rather_than_dropped(knowledge
 
     assert refused.value.code == "unreadable-knowledge"
     assert "foreign.md" in refused.value.detail
+
+
+def test_a_heading_spaced_differently_is_still_a_heading(knowledge):
+    (knowledge.root / "stack.md").write_text(
+        STACK + "\n##  Чем меряем\n\nодной командой.\n\n##\tЧем платим\n\nодной подпиской.\n",
+        encoding="utf-8",
+    )
+
+    anchors = [anchor.anchor for anchor in knowledge.anchors()]
+    assert "Чем меряем" in anchors
+    assert "Чем платим" in anchors
+
+
+def test_every_address_the_index_prints_is_one_the_program_resolves(knowledge):
+    """The index is what a model copies from, and it copied an address the
+
+    program then refused: the anchor kept the space after the hashes and
+    `resolve` strips what it is given. Four sessions were paid for before
+    `record` said no.
+    """
+    (knowledge.root / "stack.md").write_text(
+        STACK + "\n##  Чем меряем\n\nодной командой.\n\n##\tЧем платим\n\nодной подпиской.\n",
+        encoding="utf-8",
+    )
+
+    index = knowledge.index()
+    printed = [f"{anchor.file}#{anchor.anchor}" for anchor in knowledge.anchors()]
+
+    assert printed
+    for address in printed:
+        assert address in index
+        assert knowledge.resolve(address)
+
+
+def test_hashes_with_nothing_after_them_are_not_an_address(knowledge):
+    (knowledge.root / "stack.md").write_text(STACK + "\n###   \n\nтело\n", encoding="utf-8")
+
+    assert all(anchor.anchor.strip() for anchor in knowledge.anchors())
