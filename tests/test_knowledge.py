@@ -585,3 +585,62 @@ def test_a_file_that_closes_what_it_opens_is_read(knowledge):
     )
 
     assert "Чем меряем" in [anchor.anchor for anchor in knowledge.anchors()]
+
+
+#: A project whose keys are not English. The second version's `KEY_RE` took
+#: everything up to the closing backtick; this version's took ASCII words, and
+#: what it could not read it dropped without a word — the record then answered
+#: to its heading instead, which is a different addressing scheme and nobody
+#: was told.
+FOREIGN = """# Сущности
+
+### Платёж
+`key: платёж`
+
+**Что это:** списание с карты
+
+### Запрос на оффер
+`key: offer request`
+
+**Что это:** то, на что отвечают оффером
+
+### Строка заказа
+`key: order/line`
+
+**Что это:** одна позиция заказа
+"""
+
+
+def test_a_key_outside_ascii_is_the_address_of_its_record(knowledge):
+    (knowledge.root / "foreign.md").write_text(FOREIGN, encoding="utf-8")
+
+    assert knowledge.resolve("foreign.md#платёж").heading == "Платёж"
+
+
+def test_a_key_with_a_space_or_a_slash_is_the_address_of_its_record(knowledge):
+    (knowledge.root / "foreign.md").write_text(FOREIGN, encoding="utf-8")
+
+    anchors = [anchor.anchor for anchor in knowledge.anchors()]
+    assert "offer request" in anchors
+    assert "order/line" in anchors
+
+
+def test_a_record_with_a_key_is_never_addressed_by_its_heading(knowledge):
+    """Falling back is the silence: two schemes, and no state saying which."""
+    (knowledge.root / "foreign.md").write_text(FOREIGN, encoding="utf-8")
+
+    assert "Платёж" not in [anchor.anchor for anchor in knowledge.anchors()]
+    with pytest.raises(KnowledgeError) as refused:
+        knowledge.resolve("foreign.md#Платёж")
+
+    assert refused.value.code == "no-such-record"
+
+
+def test_a_key_line_the_kit_cannot_read_is_refused_rather_than_dropped(knowledge):
+    (knowledge.root / "foreign.md").write_text("# Сущности\n\n### Платёж\n`key: платёж\n", encoding="utf-8")
+
+    with pytest.raises(KnowledgeError) as refused:
+        knowledge.anchors()
+
+    assert refused.value.code == "unreadable-knowledge"
+    assert "foreign.md" in refused.value.detail
