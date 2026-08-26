@@ -194,3 +194,57 @@ def test_a_path_that_names_no_field_is_a_defect_in_the_kit_not_a_refused_step():
         ASSUMPTIONS.requiring("assumptions.ghost", when="expensive")
 
     assert refused.value.code == "bad-contract"
+
+
+# --- an empty answer, where empty cannot be an answer ------------------------
+#
+# Required means "not None", so `verification: []` satisfies its contract and a
+# design that will prove nothing passes. Most lists are not like that: an empty
+# `assumptions` is a step that considered the question and had nothing, which is
+# a real answer and the distinction the second version could not make. So it is
+# the field that says which it is, and no program special-cases a name.
+
+
+ANSWERS = Contract(
+    fields=(
+        TextList("verification", empty_is_an_answer=False, help="what will prove it works"),
+        TextList("assumptions", help="what you took as true; empty when there was nothing"),
+    )
+)
+
+
+def test_an_empty_list_where_empty_is_no_answer_is_refused_by_name():
+    with pytest.raises(ContractRefusal) as caught:
+        ANSWERS.check({"verification": [], "assumptions": []})
+
+    assert caught.value.code == "output-empty-field: verification"
+
+
+def test_the_field_that_was_never_returned_is_still_the_missing_one():
+    with pytest.raises(ContractRefusal) as caught:
+        ANSWERS.check({"assumptions": []})
+
+    assert caught.value.code == "output-missing-field: verification"
+
+
+def test_an_empty_list_that_is_a_real_answer_comes_back_empty():
+    output = ANSWERS.check({"verification": ["the suite comes back green"], "assumptions": []})
+
+    assert output["assumptions"] == []
+
+
+def test_the_agent_is_told_which_of_its_lists_may_not_be_empty():
+    described = ANSWERS.describe()
+
+    assert "empty" in described.split("\n")[0]
+
+
+def test_a_record_list_can_be_asked_for_the_same_way():
+    contract = Contract(
+        fields=(Records("changes", empty_is_an_answer=False, shape=(Text("what"),)),)
+    )
+
+    with pytest.raises(ContractRefusal) as caught:
+        contract.check({"changes": []})
+
+    assert caught.value.code == "output-empty-field: changes"

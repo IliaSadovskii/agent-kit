@@ -7,6 +7,7 @@
   "seams": [
     "AMOUNT keeps its meaning: the price before tax"
   ],
+  "verification": [],
   "asks": [],
   "assumptions": [
     {
