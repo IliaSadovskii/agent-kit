@@ -742,3 +742,60 @@ def test_a_kit_that_does_not_know_a_tree_refuses_the_file(store, tmp_path, monke
         store.load("quote")
 
     assert refused.value.code == "schema-too-new"
+
+
+# --- the order of the steps is an argument ----------------------------------
+#
+# A `verify` before `build` runs the project's suite over a tree with no new
+# code. It comes back green by construction, and every later reader — the
+# review, the pull request, the owner — sees `passed: true`. The order a run
+# holds is a claim about what measured what, so it is checked where a run is
+# made and not left to whoever typed it.
+
+
+def test_a_verify_before_the_build_it_would_measure_is_refused(store):
+    with pytest.raises(StateError) as refused:
+        store.create("add-vat", steps=["design", "verify", "build", "review", "record", "deliver"])
+
+    assert refused.value.code == "steps-out-of-order"
+    assert "verify" in refused.value.detail and "build" in refused.value.detail
+
+
+def test_a_step_asked_for_twice_is_refused(store):
+    with pytest.raises(StateError) as refused:
+        store.create("add-vat", steps=["verify", "verify"])
+
+    assert refused.value.code == "step-twice"
+    assert "verify" in refused.value.detail
+
+
+def test_a_run_refused_at_its_creation_leaves_nothing_behind(store):
+    with pytest.raises(StateError):
+        store.create("add-vat", steps=["deliver", "design"])
+
+    assert store.exists("add-vat") is False
+
+
+def test_the_steps_the_kit_runs_by_itself_are_in_an_order_that_means_something(store):
+    run = store.create("add-vat")
+
+    assert [step.name for step in run.steps] == list(DEFAULT_STEPS)
+
+
+def test_some_of_the_steps_in_their_own_order_is_a_run(store):
+    """A run of a few steps is ordinary — a design and a build, and no more."""
+    run = store.create("add-vat", steps=["design", "build"])
+
+    assert [step.name for step in run.steps] == ["design", "build"]
+
+
+def test_a_step_outside_the_sequence_is_not_placed_in_it(store):
+    """`probe` measures a provider rather than building a feature.
+
+    It is a step the kit ships and no part of the method's order: two of them
+    is two sessions asked what they can see, which is what `provider check`
+    and the bench's slot cases do.
+    """
+    run = store.create("add-vat", steps=["probe", "probe"])
+
+    assert [step.name for step in run.steps] == ["probe", "probe"]

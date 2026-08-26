@@ -1,0 +1,10 @@
+# a run asked for in an order that cannot mean anything
+
+[case]
+title = "a run whose steps cannot mean anything"
+fires = "a verify before its build, and a step asked for twice, are refused at creation"
+
+[expect]
+exit_code = 0
+status = "done"
+steps = { deliver = "passed" }
