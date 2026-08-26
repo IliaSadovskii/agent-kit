@@ -670,3 +670,288 @@ step, not a sentence of prose.
 
 AoE stays what it is: the optional launcher that makes sessions visible and typeable when you open
 it yourself.
+
+---
+
+# The layer this plan missed, 26 August 2026
+
+Written four days after the plan, against S0–S8 built. It adds steps rather than arguments: what
+follows belongs in the build order above and was absent from it.
+
+## How it was missed
+
+The conversation that produced this plan ran on 21–22 August and never reached the command surface.
+It settled the kind of application, the providers, the daemon, the prompt in place of skills, the
+refusal of hooks, the repository layout and the order of work. Asked, near the end, to predict what
+had not been discussed, it produced §7 — thirteen open questions, every one of them about
+execution: a failing step, the ceiling inside a step, the reviewer's verdict, the owner's channel,
+stop and skip. Then the session ended and S0 began the next morning.
+
+§5 named the defect of the second version — nine doors, each with its own checks — and promised
+**one door instead of nine**. No step in the order builds that door, and nothing records what
+became of the other eight. The promise was read as an answer.
+
+So the second version's two halves came across unevenly. The half that **builds a feature** is here
+and is better than it was: a step is a contract, the driver composes the input, the program writes
+the knowledge, a trap proves each mechanism. The half that **says what the product is and what to
+build next** is not here at all.
+
+## What has no writer and no reader today
+
+Measured over `src/`, not remembered:
+
+| The second version held | The third |
+|---|---|
+| `blueprint` — the product's own description, dictated by the owner and sorted into records | nothing |
+| `next` — where the project stands, one command named with its reason | nothing; §5 promised its replacement and no step owns it |
+| `audit` — six lenses, code against the description, a work list | nothing |
+| the composing sitting of `sprint` — the whole batch in front of one person, the night's questions pre-answered | the owner writes a TOML by hand |
+| the catalogue of kinds of verification, answered per project with a command or a dated refusal | `[commands]` in `project.toml`, and nothing that asks about a kind nobody declared |
+| a feature's record of what will prove it, walked again by Verify | `design.verification`, whose only reader prints it into the pull request |
+| `docs/technical_debt.md` — where *works, but badly* went | nothing |
+| `stack.md`, `product.md`, parts marked `walked:` or `derived` | nothing |
+| block kinds `assumed`, `frame`, `stale`, `found` | `assumed` alone |
+
+Two of those are worse than omissions.
+
+**The newest mechanism of the second version never crossed.** The catalogue of kinds shipped on 20
+August at 01:23; this plan was written on the 22nd at 01:46. The measurement the plan rests on ran
+over runs made before it, which is why the inventory in this very document files `verified` under
+*checked at the end only* — true until two days before the plan, and false after.
+
+**And S6 made a promise to S8 that S8 did not keep.** `frame` — what the features of one batch must
+build alike — was to arrive with batches. Batches arrived; the word appears nowhere in S8's note or
+its code. In the second version it was the second most written kind of block: 197 of them.
+
+## Two sessions, and why they break no rule
+
+*The control surface* above says there is no control **session**, and the reason it gives is narrow:
+the second version made configuration require a live model. That rule is about providers, roles and
+limits — it is not about talking to the owner.
+
+Two interactive sessions are therefore legitimate, and both are missing:
+
+- **the knowledge session** — the owner says whatever they came to say about their product, and it
+  is sorted into records;
+- **the composing sitting** — the whole evening in front of one person before any of it runs.
+
+Neither configures the machine. Both are the kit's oldest shape: *ask where somebody is standing,
+never in the night where nobody is.* The twenty-minute window of S7a is what happens when the night
+has a question anyway; it is not a substitute for the hour before it.
+
+## What the restoration is held to
+
+Not the second version as it stood — the second version **minus the defects already found in it**.
+The map of 21 August carries 58 findings over the whole kit; this plan, written the next day, used
+three of them, all about the command surface. The rest were never read, and a third of them are
+about exactly this layer. Each step below cites the ones it closes by number.
+
+## The recovered steps
+
+Numbered after S8 rather than after S11, the way S7a was inserted: their dependencies are the
+knowledge store (S6), the step contract (S2), `asks` (S7a) and the batch (S8), all of which exist.
+Whether the adapters of S9 run before or after them is a choice about what to spend a night on, not
+a dependency.
+
+**S8a · The knowledge that has a writer.** An interactive session, and the only shape that fits what
+it does: the owner talks, at any length and in any order, and nothing about that is sorted for them.
+
+- **The reading goes up before anything is written** — *new, refines, contradicts, unchanged* — and
+  the last row may not be dropped. Comparing one telling against fifty records means reading fifty
+  records, and the cheap way to look thorough is to read a third and report three differences
+  confidently. A line per record touched, including the ones that did not move, is what a third of
+  the reading cannot produce.
+- **Only contradictions are asked.** Everything else is stated and written.
+- **The parts of the product, not the slots of the kit.** Nobody holds their product as actors and
+  entities; they hold it as sign-in, the lesson, the account. The slots are what the answers are
+  written into, never the route the questions walk.
+- **Each part carries `walked: <date>` or `derived`** — what the owner told, against what the kit
+  worked out from the code and they have never confirmed. Without that mark a description cannot
+  admit that half of it was written by an agent, and every later run reads both halves as equally
+  true.
+- **Three destinations, one test between them**: this changes what the product must do — the record;
+  it does what it should and does it badly — the ledger of S8f; it does not work at all — the ledger,
+  saying so. Say the counts back, because the second number is the one nobody can see anywhere else.
+- **A template may not state a check no program performs** (finding 53). Prose promising a
+  cross-check nobody runs is the defect this whole plan exists against, and it is sitting in the
+  second version's own templates.
+- **The absence of a description is a named state, never silence** (findings 9, 10, 25). The second
+  version answered zero, quietly, on a project with no `docs/knowledge/`; the third inverted the same
+  mistake — `design`'s contract is *stricter* for a project that keeps knowledge, so the kit asks
+  least of the project it knows least about. Both are one defect: missing is not the same as fine,
+  and only one of them can be said out loud.
+
+*Done when* a repository with no `docs/knowledge/` ends one sitting with a description the design
+step can read; every record is traceable to a line the owner said or is marked `derived`; the same
+telling run twice rewrites rather than duplicates; and a bench trap proves that a project with no
+description is refused by name rather than passed in silence.
+
+**S8b · An evening composed with the owner.** What `batch new <file>` does today, done in front of
+somebody. Two things a child cannot supply: the whole batch is visible at once, and the owner is
+here. So the sitting **pre-answers the questions the night will have nobody to ask**, and then gets
+out of the way.
+
+- **The declaration stays the artefact.** The sitting fills it; `batch new` still reads it. One door.
+- **The `frame` block** — what every feature of this batch must build alike — is written here, where
+  the whole batch is visible at once. This pays S6's promise to S8.
+- **The gate, and it is the only place that stops anything.** A batch does not start while a kind of
+  verification is unanswered (S8e), while the MVP bounds are unwritten, or while the scenarios have
+  no endings. Dozens of features run afterwards with nobody watching, so the class of defect nothing
+  catches is asked about while the owner is still standing. The second version refused to start an
+  epic without a declared way to run and to test the product, and that refusal was fatal by design.
+- **The MVP bounds and the scenarios** are read from the description where it has them and filled
+  here where it does not (findings 41, 42: one was a hard-coded English string, the other dead code).
+
+*Done when* a batch can be composed without anybody writing TOML by hand; the graph it produces is
+the shape `batch new` already accepts; a `frame` block reaches the knowledge with a named writer; and
+a bench trap proves the gate refuses an unanswered kind rather than starting the night anyway.
+
+**S8c · The audit: lenses whose output is work.** Six lenses over the code against the description —
+tests, dependencies, scenarios, security, performance, conventions — each writing its own report and
+changing nothing. It is read-only by construction: the moment an audit starts fixing what it finds it
+loses its stopping condition.
+
+- **It runs the same preflight every other command runs** (finding 34: in the second version the
+  audit was the one command that checked nothing before starting).
+- **As a child of a batch** it takes its area from its own record, leaves a commit on the branch that
+  record already names, and closes itself — never a branch it chose alone, because a branch nobody
+  can account for later is what 51 of 99 measured branches were.
+- **Its output is the candidate list S8b composes from.** That is what closes the loop: today the
+  work list exists only in the owner's head, and the TOML is the owner typing it out.
+
+*Done when* one lens over a project produces a report and a candidate list a sitting can compose
+from, and a bench trap proves a lens that found nothing says so rather than inventing a finding.
+
+**S8d · The door.** A program, not a session: it reads the runs, the batches, the open blocks, the
+red commands, the unanswered kinds and the open pull requests, and names one command with the reason.
+Everything it needs is already on disk. This is §5's promise, and it is one program rather than two:
+the raw view of where a project stands and the ranked recommendation are the same data, and the
+second version kept them in two places that had to agree.
+
+*Done when* a project after a week's silence gets one named command and the sentence behind it, and
+every part of that answer is derived from state rather than from anybody's word.
+
+**S8e · What proves a feature, and what a project checks itself for.** The largest of these, and the
+one the third version regressed rather than merely omitted. Two levels, one catalogue.
+
+*The project's level.*
+
+- **The catalogue lives in the kit**: suite, end-to-end, mutation, types, lint, static analysis,
+  architecture, visual, contract, performance, accessibility, security — and `screen`, which S13
+  adds. Each says **what it catches** (the defect, never a tool: tools differ per ecosystem and this
+  list may not), which session runs it — `feature` or `epic` — and the shape of project it does not
+  apply to. **A kind added here starts being asked of every project on its next check**, where a list
+  copied into each project would have to be remembered into all of them by hand.
+- **One home, and nothing holds a copy** (finding 30: the second version kept the same list in two
+  places with nothing to make them agree).
+- **The project answers every kind: a command, or a refusal carrying a date and a reason.** Never a
+  word. A command is held to *starting*, because `yes` is a claim no program can test — and it is
+  also a real binary on every Unix, which is how the second version's own gate was once opened by it.
+  The date, because *there is no front end* stops being true the week there is one. The reason,
+  because twelve lines of `no <today>` would clear every check here while recording that nobody
+  thought about anything.
+- **The answers are proposed from the repository, never from prose.** Read the dependency manifests,
+  the test directories, the CI workflows, the scripts. Measured on three live projects: one said
+  mutation testing was not installed while the plugin was a hard dependency of its test runner;
+  another carried two hundred lines of a browser runner walking every screen and asserting nothing,
+  named in no document. **On two of the three the cheapest finding was an instrument installed,
+  configured and never declared** — one line, and every run afterwards starts using it.
+- **What is offered is the decision, never the work.** Standing an instrument up is a task of its
+  own, at most one at a time, cheapest first. An interview that turned into an installation is an
+  interview nobody finishes.
+- **An answer goes stale on evidence, not only on a date**: a dependency manifest whose hash has
+  moved is a stack that changed under a decision taken about a different one.
+- **One parser** (finding 52: a hand-rolled YAML subset in which a `#` inside a quoted value
+  truncated the line). TOML, and the reader the rest of the kit already uses.
+
+*The feature's level, and this is what is missing from the code today.*
+
+- **A feature decides what will prove it before it writes any code.** `design` returns one record per
+  kind whose `runs` is `feature`: the command this change owes, or the `why` it cannot apply here.
+  Chosen after the code, that list is written by somebody who already knows what they built and is
+  looking for a reason to be finished. It also makes *write the test before the code* mean more than
+  the suite — a screen this feature changes owes its comparison in the same commit as the screen.
+- **`verify` walks that list rather than deciding again.** Each record is completed with the command
+  as it was actually run and its result. **Silence about a kind is a refusal, not a pass** — a record
+  with neither a result nor a `why` is what a test written in the build and never started looks like.
+  A result with no command behind it is refused. A kind the catalogue marks never-skippable cannot be
+  excused at all.
+- **The review step checks the claims against the diff** — the one thing no record can do for itself.
+  A `why` saying *no screen here* on a diff that edits a template is the cheapest way there is to skip
+  a kind of test, and every other pass reads the record rather than the change.
+- **The kit prints what a feature of this project owes**, with the command for each, rather than
+  leaving a model to join two files six times a night.
+
+Today `design.verification` and `build.tests` exist and their only reader is the printer that folds
+them into the pull request — `programs/deliver.py`. A field whose reader is a printer is prose with a
+green tick, which rule 5 forbids and which this step ends.
+
+*Done when* a project is asked about every kind the kit knows and answers each with a command that
+starts or a dated refusal with a reason; a feature's design returns a record per kind it owes;
+`verify` refuses a run that is silent about one, and refuses a result with no command behind it; the
+review step refuses a `why` the diff contradicts; and the bench carries a trap for each of those four
+refusals.
+
+**S8f · The kinds of block that have no writer, and the ledger.** S6 wrote that the kit writes
+`assumed` alone and named who the others were waiting for. Two are still waiting:
+
+- **`found`** — a review's findings reach the knowledge not at all. A blocking one stops the run, and
+  the rest ride along in a pull request nobody reads twice.
+- **`stale`** — nobody marks a sentence of the description untrue when a feature makes it so. In the
+  second version 35 of these were written and all 35 closed, which is what a healthy one looks like.
+- **`docs/technical_debt.md`** — the ledger. Without it the three destinations of S8a are two, and
+  *works, but badly* has nowhere to go except a conversation that ends when the session does.
+
+*Done when* a review's finding reaches the knowledge with an identifier, a feature that outdates a
+sentence marks it where it stands, the ledger has a writer and a reader, and each of the three has a
+trap.
+
+**S8g · Manual actions, with a proof that runs.** The one class of work an autonomous night cannot
+do for itself — place a secret, apply a migration, create an account, point a domain — and the one
+with no home in the third version at all. `manual` appears nowhere in `src/` or `method/`.
+
+- **A file in the repository**, shaped like the ledger of S8f: a run appends a line, whoever does
+  the work deletes it in the same commit. The second version kept these in a run file that is
+  git-ignored and dies with the machine, and its only reader composed them out of a pull request
+  body nobody opens again after the merge.
+- **`proof` is an executable command, never prose.** It exits zero once the action has been done —
+  the key is in the environment, the migration is applied, the endpoint answers — and then the
+  program deletes the line itself. Nobody has to remember to tick anything, and *done* is not a
+  claim anybody makes about their own work.
+- **Where no check can be written**, because it truly needs a person holding a phone, the line stays
+  and says so. That list is short, which is the point: on one measured run, nineteen items held six
+  that needed a person.
+- **A stage decides what is shown.** On a project still in development, the lines due before a
+  release are not work anybody is doing this week, and showing them teaches the owner to scroll past
+  the list.
+
+*Done when* a run that needs a human action records it where it survives the machine; a proof that
+passes deletes its own line; a line with no possible proof says so in its own words; and the door of
+S8d names what is due rather than leaving it to be found.
+
+## Deferred by the owner, and still deferred
+
+Neither forgotten nor dropped — refused with a reason that has not expired:
+
+- **a merge policy that merges by program**, refused until findings carry codes and levels, which
+  they now do: the day this is taken up, the reason is spent and it needs deciding again;
+- **the ranked backlog** — the door of S8d widened from one recommendation to the whole queue;
+- **a schedule**, living wherever the project's own declaration lives;
+- **a continuous mode** — when a run finishes, take the next thing off the queue until the owner
+  switches it off. Parallel building was the fourth of these and S8 built it.
+
+## What stays dropped, and this is the record of it
+
+Not forgotten — decided, and each with its evidence:
+
+- **the `accepted` block**: a template, a block and a closing rule, and no writer in the whole life
+  of a measured project;
+- **`accept` as a command**: the pull request is the report — three things open, the rest folded —
+  which is where its work went. The map found it on neither preflight list, and found that the
+  command writing its input never named it (findings 33, 55);
+- **native hooks and skill packages**: §4, replaced one by one;
+- **`deferred`, `closed_debt`, `seams` as fields**: written into nothing, and rule 5 deletes rather
+  than documents.
+
+`advise` is neither: it was never discussed. It stays out until somebody names a writer for what it
+would produce — the same test that dropped `accepted`.
