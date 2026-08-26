@@ -267,11 +267,18 @@ def test_the_case_runs_against_a_gh_that_is_a_script_and_a_remote_that_is_a_dire
 # --- the cases the kit ships ------------------------------------------------
 
 
+#: How many cases the kit ships. Exact, and not a floor: with `>= 15` under it
+#: sixty-two cases could have vanished and this file would have stayed green.
+#: Changing this number is how a case is added or retired — deliberately, in a
+#: commit that says so.
+SHIPPED = 77
+
+
 def test_every_shipped_case_is_readable_and_says_what_must_fire(capsys):
     root = cases_root()
     shipped = [read_case(root, name) for name in case_names(root)]
 
-    assert len(shipped) >= 15
+    assert len(shipped) == SHIPPED, f"the kit ships {len(shipped)} cases, not {SHIPPED}"
     for case in shipped:
         assert case.fires.strip(), f"{case.name} does not say what mechanism it plants"
         assert case.title.strip()
