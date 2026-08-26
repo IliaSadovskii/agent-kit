@@ -303,6 +303,25 @@ def test_a_gate_that_closed_is_the_step_the_run_goes_on_from(store):
     assert run.next_pending() == 1
 
 
+def test_a_stop_read_between_steps_leaves_what_passed_alone(store):
+    """A person's stop is read at a step boundary, so the step before it passed.
+
+    That step is not what stopped the run and nobody changed what it recorded:
+    sending it back would buy a second session and nothing else. Only a gate
+    that closed makes the step it is on worth measuring again.
+    """
+    store.create("add-login", steps=["design", "build"])
+    store.start_step("add-login")
+    store.pass_step("add-login")
+    store.stop("add-login", "stopped-by-request: enough for tonight")
+
+    run = store.reopen("add-login")
+
+    assert run.steps[0].status is StepStatus.PASSED
+    assert run.steps[0].attempts == 1
+    assert run.next_pending() == 1
+
+
 def test_the_step_a_reopened_run_stands_on_says_why_it_had_stopped(store):
     store.create("add-login", steps=["design", "build"])
     store.start_step("add-login")
