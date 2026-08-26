@@ -23,7 +23,7 @@ from ..logs import get_logger
 from ..machine import Busy, Ceilings, Lease, Ledger, Want, ledger_path
 from ..owner import ANSWERED, HAD_ROUND, NOBODY, Owner, Question, Settled, as_assumption, questions_of
 from ..paths import Paths
-from ..project import DEFAULT_BRANCH, read_project
+from ..project import DEFAULT_BRANCH, read_project, refuse_commands_that_start_nothing
 from ..state import DEFAULT_STEPS, Run, RunStore, StepStatus
 from ..steps import Registry, StepDefinition
 from ..steps.contract import ContractRefusal, parse_output
@@ -227,6 +227,28 @@ class StepRunner:
             return DEFAULT_BRANCH
         return project.default_branch if project else DEFAULT_BRANCH
 
+    def _can_be_verified_at_all(self, run: Run) -> None:
+        """The project's own commands, asked about before the first session.
+
+        `verify` is the only reader of them, so a run without that step is not
+        held to them. The question is the cheapest there is — does the first
+        word of each name anything this machine can start — and it is asked
+        once, before the first step: a project declaring `make test` where
+        there is no make used to pass design and build, at a session each, and
+        fail at verify, and do it again every night until somebody noticed.
+        """
+        if run.next_pending() != 0 or not any(step.name == "verify" for step in run.steps):
+            return
+        try:
+            project = read_project(self._where(run))
+        except ConfigError as unreadable:
+            # The step that needs the declaration refuses it and names the
+            # field. Refusing here would name the wrong place.
+            log.info("%s could not be read: %s", run.slug, unreadable)
+            return
+        if project is not None:
+            refuse_commands_that_start_nothing(project)
+
     def _stop_asked(self, run: Run) -> StepOutcome | None:
         """A person's stop, read where the run's own driver can act on it.
 
@@ -309,6 +331,7 @@ class StepRunner:
         if run.finished:
             raise StateError("run-finished", f"{slug} is {run.status.value}; there is no next step")
 
+        self._can_be_verified_at_all(run)
         self._hold(run)
 
         stopped = self._stop_asked(run)

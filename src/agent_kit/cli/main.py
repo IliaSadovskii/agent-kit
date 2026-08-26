@@ -336,6 +336,8 @@ def _doctor(paths: Paths, project: Path) -> int:
     print(f"  root        {project.resolve()}")
     print(f"  kit         {project_dirs.kit_dir}  {_present(project_dirs.kit_dir)}")
     print(f"  runs        {len(RunStore(project).list())}")
+    for index, line in enumerate(_commands_declared(project.resolve())):
+        print(f"  {'commands' if index == 0 else '':<12}{line}")
     print()
     print("the method")
     registry = builtin_registry()
@@ -355,6 +357,32 @@ def _doctor(paths: Paths, project: Path) -> int:
 
 def _present(path: Path) -> str:
     return "ok" if path.exists() else "missing"
+
+
+def _commands_declared(root: Path) -> list[str]:
+    """What `verify` would run here, and which of it this machine cannot start.
+
+    The same question the driver refuses on, printed where somebody is already
+    looking for what is missing — and printed before a night rather than after
+    two sessions have been paid for.
+    """
+    from ..project import commands_that_start_nothing, read_project, starts_nothing
+
+    try:
+        declared = read_project(root)
+    except ConfigError as unreadable:
+        return [f"unreadable — {unreadable.code}"]
+    if declared is None:
+        return ["none — this project has not been declared to the kit yet"]
+    if not declared.commands:
+        return ["none — `verify` refuses a project that cannot say how it is tested"]
+    lost = {command.name for command in commands_that_start_nothing(declared)}
+    return [
+        f"{command.name:8}{command.command}"
+        + (f"  ← {starts_nothing(command.command)} is not here, so verify cannot run it"
+           if command.name in lost else "")
+        for command in declared.commands
+    ]
 
 
 # --- init ------------------------------------------------------------------

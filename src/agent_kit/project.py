@@ -18,6 +18,8 @@ already says rather than from an interview.
 
 from __future__ import annotations
 
+import os
+import shutil
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -81,6 +83,70 @@ class Project:
     def keeps_knowledge(self) -> bool:
         """A project that keeps none owes no block, and is not made to invent one."""
         return self.knowledge_dir.is_dir()
+
+
+#: Words a declared command can begin with that are not a program to be found:
+#: the shell's own, and the ones that open a compound command. `which` finds
+#: none of them, and a project whose lint command is `:` declares a real thing.
+SHELL_WORDS = frozenset(
+    """
+    : . source alias bg break builtin cd command continue echo eval exec exit export false fg
+    getopts hash jobs kill let local printf pwd read readonly return set shift test time times
+    trap true type typeset ulimit umask unalias unset wait
+    if then else elif fi for while until do done case esac function select
+    """.split()
+)
+
+#: A first word the kit cannot read as the name of a program: the shell will
+#: expand or interpret it before it looks for one. `MODE=ci make test` is a
+#: declaration somebody wrote on purpose, and guessing at it would refuse a
+#: project that is perfectly well.
+UNREADABLE = tuple("$`(){}[]<>|&;*?\"'=!~\\")
+
+
+def starts_nothing(command: str) -> str:
+    """The first word of a declared command, when nothing here answers to it.
+
+    Empty when it does, and empty when the kit cannot tell — which is the honest
+    answer for a line the shell will do something to first. What this does not
+    catch is a program that is there and cannot do the job: `make` on a machine
+    with no makefile is on PATH, and it is `verify` that finds that out.
+    """
+    words = command.strip().split()
+    first = words[0] if words else ""
+    if not first or first in SHELL_WORDS or any(character in first for character in UNREADABLE):
+        return ""
+    if "/" in first:
+        # A path is looked for where it says, not on PATH: that is what writing
+        # one means.
+        found = Path(first)
+        return "" if found.is_file() and os.access(found, os.X_OK) else first
+    return "" if shutil.which(first) else first
+
+
+def commands_that_start_nothing(project: "Project") -> list[Command]:
+    """Every declared command whose first word this machine cannot start."""
+    return [command for command in project.commands if starts_nothing(command.command)]
+
+
+def refuse_commands_that_start_nothing(project: "Project") -> None:
+    """Asked before a session is paid for, and never by running anything.
+
+    The second version refused before spending and this one did not: a project
+    declaring `make test` where there is no make passed `init`, passed `design`,
+    passed `build`, and failed at `verify` — two sessions gone, and the same
+    again the next night.
+    """
+    lost = commands_that_start_nothing(project)
+    if not lost:
+        return
+    named = "; ".join(f"{command.name} — {starts_nothing(command.command)!r} is not here" for command in lost)
+    raise ConfigError(
+        "no-such-command",
+        f"{project.source or project.root} declares commands this machine cannot start, and "
+        f"`verify` would run them: {named}",
+        hint="agent-kit init --force, or edit the declaration by hand",
+    )
 
 
 def project_file(root: Path | str) -> Path:
