@@ -32,15 +32,35 @@ class Field:
     #: `Contract.requiring`, never by hand at a step: it is what a *project*
     #: makes of a field, and the kit ships no project.
     required_when: str = ""
+    #: Whether nothing is a thing this field can say. For most lists it is: an
+    #: empty `assumptions` is a step that considered the question and had
+    #: nothing, and that is not a step which did not answer — the second
+    #: version could not tell the two apart and 14% of its assumptions were
+    #: neither. For a few it is not: a design that will prove nothing has not
+    #: decided what will prove it, and a build that wrote no file did not
+    #: build. Which of the two a field is belongs to the field, so that no
+    #: program has to carry a list of names.
+    empty_is_an_answer: bool = True
 
     kind = "value"
 
     def needed(self, beside: dict[str, Any]) -> bool:
         return bool(beside.get(self.required_when)) if self.required_when else self.required
 
+    def answered(self, value: Any) -> bool:
+        """Whether what came back says anything.
+
+        Everything says something unless it is empty and empty is no answer.
+        A `Text` is already refused when it is blank, so in practice this is
+        about the lists.
+        """
+        return self.empty_is_an_answer or bool(value)
+
     def _need(self) -> str:
         if self.required_when:
             return f"required when `{self.required_when}`"
+        if not self.empty_is_an_answer:
+            return "required, and an empty one is not an answer"
         return "required" if self.required else "optional"
 
     def check(self, value: Any, where: str) -> Any:  # pragma: no cover - overridden
@@ -221,6 +241,11 @@ def _check_fields(fields: Sequence[Field], data: Any, where: str) -> dict[str, A
             checked[name] = None
             continue
         checked[name] = field.check(data[name], at)
+        if not field.answered(checked[name]):
+            raise ContractRefusal(
+                f"output-empty-field: {at}",
+                "the contract requires it and what came back answers nothing",
+            )
     return checked  # what the contract did not ask for is dropped, not refused
 
 

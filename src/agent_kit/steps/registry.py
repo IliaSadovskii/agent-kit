@@ -62,6 +62,11 @@ PROBE = StepDefinition(
 #: caught the second version on exactly that gap — 14% of assumptions with
 #: `expensive` unanswered, and nobody able to tell which were which.
 #:
+#: Four others say `empty_is_an_answer=False`, because for them nothing is not
+#: something to have found: `changes` and `verification` here, `files` and
+#: `tests` in the build. A design that will prove nothing has not decided what
+#: will prove it, and a build that wrote no test wrote no test.
+#:
 #: design: what changes, where it meets what is already there, and — before any
 #: code exists — what will prove it. The second version prescribed all three in
 #: prose and checked none of them.
@@ -93,10 +98,15 @@ DESIGN = StepDefinition(
                      "subject and the pull request's title, so no full stop and no essay",
             ),
             LongText("summary", help="what changes and why, in a few sentences the owner could read"),
-            TextList("changes", help="each place that changes, one line each: the file and what happens to it"),
+            TextList(
+                "changes",
+                empty_is_an_answer=False,
+                help="each place that changes, one line each: the file and what happens to it",
+            ),
             TextList("seams", help="where this meets what is already there, and what must not break"),
             TextList(
                 "verification",
+                empty_is_an_answer=False,
                 help="what will prove it works — decided here, before the code, never after",
             ),
             Records(
@@ -173,8 +183,8 @@ BUILD = StepDefinition(
         fields=(
             Bool("complete", help="true only when nothing of this feature is left to write"),
             LongText("summary", help="what you did, in a few sentences"),
-            TextList("files", help="every file you changed or added"),
-            TextList("tests", help="the tests you wrote, by name"),
+            TextList("files", empty_is_an_answer=False, help="every file you changed or added"),
+            TextList("tests", empty_is_an_answer=False, help="the tests you wrote, by name"),
             Records(
                 "deviations",
                 help="anywhere you did not do what the design said; empty when you followed it",
