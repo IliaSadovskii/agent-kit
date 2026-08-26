@@ -265,6 +265,53 @@ def test_a_run_lease_is_not_a_session_and_does_not_fill_the_machine(ledger):
     assert ledger.take(want(), one(machine=1)).granted
 
 
+# --- one writer per working copy --------------------------------------------
+
+
+def test_a_working_copy_is_held_by_one_run(ledger):
+    ledger.hold_checkout("/projects/thing", "quote", pid=_a_pid_that_is_alive())
+
+    busy = ledger.hold_checkout("/projects/thing", "add-vat", pid=_another_pid_that_is_alive())
+
+    assert busy.code == "checkout-held-elsewhere"
+    assert "quote" in busy.detail
+
+
+def test_the_same_driver_asking_twice_holds_the_checkout_it_already_holds(ledger):
+    first = ledger.hold_checkout("/projects/thing", "add-vat")
+
+    again = ledger.hold_checkout("/projects/thing", "add-vat")
+
+    assert again.granted
+    assert again.id == first.id
+
+
+def test_a_working_copy_held_by_a_driver_that_died_is_free(ledger):
+    ledger.hold_checkout("/projects/thing", "quote", pid=_a_pid_that_is_gone())
+
+    assert ledger.hold_checkout("/projects/thing", "add-vat").granted
+
+
+def test_another_project_s_working_copy_is_another_one(ledger):
+    ledger.hold_checkout("/projects/one", "add-vat", pid=_a_pid_that_is_alive())
+
+    assert ledger.hold_checkout("/projects/two", "quote", pid=_another_pid_that_is_alive()).granted
+
+
+def test_a_checkout_lease_is_not_a_session_and_does_not_fill_the_machine(ledger):
+    ledger.hold_checkout("/projects/thing", "add-vat")
+
+    assert ledger.take(want(), one(machine=1)).granted
+
+
+def test_what_holds_the_working_copies_can_be_read_back(ledger):
+    ledger.hold_checkout("/projects/thing", "add-vat")
+
+    assert [(lease.project, lease.slug) for lease in ledger.checkouts()] == [
+        ("/projects/thing", "add-vat")
+    ]
+
+
 # --- stop -------------------------------------------------------------------
 
 

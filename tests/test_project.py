@@ -303,3 +303,40 @@ def test_an_absolute_knowledge_directory_is_refused_by_name(tmp_path):
         read_project(tmp_path)
 
     assert refused.value.code == "bad-field: project.knowledge"
+
+
+# --- and the pre-push hook, which is where a project becomes known ----------
+
+
+def test_init_writes_the_pre_push_hook(repo):
+    from agent_kit.hook import hooks_dir
+
+    main(["-C", str(repo), "init"])
+
+    hook = hooks_dir(repo) / "pre-push"
+    assert hook.is_file()
+    assert hook.stat().st_mode & 0o111
+
+
+def test_init_writes_the_hook_against_the_branch_the_project_declared(repo):
+    from agent_kit.hook import hooks_dir
+
+    git(repo, "checkout", "-b", "trunk")
+    declare(repo, '[project]\ndefault_branch = "trunk"\n\n[commands]\ntest = "pytest"\n')
+
+    main(["-C", str(repo), "init", "--force"])
+
+    assert "trunk" in (hooks_dir(repo) / "pre-push").read_text()
+
+
+def test_init_says_what_it_found_rather_than_overwriting_a_hook(repo, capsys):
+    from agent_kit.hook import hooks_dir
+
+    theirs = hooks_dir(repo) / "pre-push"
+    theirs.write_text("#!/bin/sh\nexit 0\n")
+
+    main(["-C", str(repo), "init"])
+
+    assert theirs.read_text() == "#!/bin/sh\nexit 0\n"
+    said = capsys.readouterr()
+    assert "pre-push" in said.out + said.err

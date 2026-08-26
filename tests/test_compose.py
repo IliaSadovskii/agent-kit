@@ -111,3 +111,18 @@ def test_the_input_tells_a_session_the_branch_is_not_its_business(tmp_path):
     )
 
     assert "do not create it" in text
+
+
+# --- the refusal a pre-push hook cannot see ---------------------------------
+
+
+def test_every_role_is_told_that_the_kit_does_not_merge(tmp_path):
+    """`gh pr merge` is not a push, so no hook sees it. Every role is told in prose."""
+    registry = builtin_registry()
+    run = RunStore(tmp_path).create("add-login", steps=["probe"], project=str(tmp_path))
+    for name in registry.names():
+        definition = registry.get(name)
+        if not definition.by_agent:
+            continue
+        text = compose_input(run=run, definition=definition, attempt=1, provider="fake")
+        assert "gh pr merge" in text, name
