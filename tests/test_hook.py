@@ -211,3 +211,50 @@ def test_a_run_writes_the_hook_into_a_project_that_never_had_one(repo):
     ).run_next("add-vat")
 
     assert (hooks_dir(repo) / "pre-push").is_file()
+
+
+def test_a_declaration_the_kit_cannot_read_does_not_stop_the_run(repo):
+    """The step that needs the file refuses it and names the field. Not this."""
+    from agent_kit.driver import StepRunner, create_run
+    from agent_kit.providers.fake import FakeExecutor
+    from agent_kit.state import RunStore
+    from agent_kit.steps import builtin_registry
+
+    declared = repo / ".agent-kit/v3/project.toml"
+    declared.parent.mkdir(parents=True, exist_ok=True)
+    declared.write_text("[project]\nwhat_is_this = 1\n", encoding="utf-8")
+
+    store = RunStore(repo)
+    create_run(store, builtin_registry(), "add-vat", steps=["probe"], project=str(repo))
+    reply = '```json\n{"branch": "kit/add-vat", "can_write": true, "notes": []}\n```'
+    outcome = StepRunner(
+        store=store, registry=builtin_registry(),
+        executors={"fake": FakeExecutor(name="fake", replies=[reply])},
+        default_provider="fake",
+    ).run_next("add-vat")
+
+    assert outcome.passed
+    assert "trunk='main'" in (hooks_dir(repo) / "pre-push").read_text()
+
+
+def test_a_hook_the_project_owns_is_named_in_the_log_and_not_on_every_step(repo, caplog):
+    theirs = hooks_dir(repo) / "pre-push"
+    theirs.write_text("#!/bin/sh\nexit 0\n")
+    said = []
+
+    from agent_kit.driver import StepRunner, create_run
+    from agent_kit.providers.fake import FakeExecutor
+    from agent_kit.state import RunStore
+    from agent_kit.steps import builtin_registry
+
+    store = RunStore(repo)
+    create_run(store, builtin_registry(), "add-vat", steps=["probe"], project=str(repo))
+    reply = '```json\n{"branch": "kit/add-vat", "can_write": true, "notes": []}\n```'
+    StepRunner(
+        store=store, registry=builtin_registry(),
+        executors={"fake": FakeExecutor(name="fake", replies=[reply])},
+        default_provider="fake", say=said.append,
+    ).run_next("add-vat")
+
+    assert theirs.read_text() == "#!/bin/sh\nexit 0\n"
+    assert not [line for line in said if "pre-push" in line]
