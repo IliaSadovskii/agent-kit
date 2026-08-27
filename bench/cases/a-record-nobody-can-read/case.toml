@@ -1,0 +1,10 @@
+# one run's record is not JSON any more. The door has to name it and go on:
+# a file broken since the spring may not silence the whole screen.
+
+[case]
+title = "a run's record that will not parse, beside a run that is fine"
+fires = "the door names `unreadable-run` with the run it belongs to, and still answers about the one that is whole"
+
+[expect]
+exit_code = 0
+status = "done"

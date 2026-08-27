@@ -1,0 +1,11 @@
+# the same night, merged with a squash — which is what the kit's own rules
+# allow and what leaves the branch an ancestor of nothing. The door has to stop
+# naming it, and the only reader that can tell is `git cherry`.
+
+[case]
+title = "a delivered run whose branch was squashed into the trunk"
+fires = "the door stops naming its pull request, having asked the repository rather than the forge"
+
+[expect]
+exit_code = 0
+status = "done"

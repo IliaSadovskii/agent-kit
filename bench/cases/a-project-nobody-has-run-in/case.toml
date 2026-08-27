@@ -1,0 +1,11 @@
+# a described project with a command and no history at all — a week's silence,
+# which is the state the plan's own *done when* is written about. The door has
+# to answer it with a command rather than with nothing.
+
+[case]
+title = "a whole project in which nothing has ever been run"
+fires = "the door answers `nothing-is-due` and names the evening where the owner says what is next"
+
+[expect]
+exit_code = 0
+status = "done"

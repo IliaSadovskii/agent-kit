@@ -1,0 +1,10 @@
+# a night that landed. Its pull request is the report to the owner, and until
+# the work is in the trunk the door keeps naming it.
+
+[case]
+title = "a run that delivered, whose branch is not in the trunk"
+fires = "the door answers `pull-request-waiting` and names the address the owner reads"
+
+[expect]
+exit_code = 0
+status = "done"

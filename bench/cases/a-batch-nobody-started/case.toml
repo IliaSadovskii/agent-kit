@@ -1,0 +1,11 @@
+# an evening was composed and never started. The batch is what carries its
+# features on, so the door names the batch — and says nothing about the
+# feature standing under it, because `batch go` is what would start that one.
+
+[case]
+title = "a batch created and never run, holding a feature nobody has started"
+fires = "the door answers `batch-unfinished` and never names the feature it owns as a run of its own"
+
+[expect]
+exit_code = 0
+status = "done"

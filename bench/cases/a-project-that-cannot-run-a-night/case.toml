@@ -1,0 +1,10 @@
+# the declared command's first word is not on this machine, and the door says so
+# in the words the refusal would have used — before anybody types the command
+
+[case]
+title = "a project whose declared command nothing here can start"
+fires = "the door answers `no-such-command` and names the word, ahead of the night"
+
+[expect]
+exit_code = 2
+status = "created"

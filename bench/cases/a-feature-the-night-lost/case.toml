@@ -1,0 +1,17 @@
+# a feature that failed inside a batch that is, by its own rule, finished:
+# nothing is running and nothing may start. The night lost a feature, and the
+# door has to say so rather than call the project quiet.
+
+[case]
+title = "a batch that is over, having lost the one feature it had"
+fires = "the door answers `run-failed`, names the batch beside the feature, and does not say the project is quiet"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "add-vat", brief = "Money quotes a price with VAT" },
+]
+
+[expect]
+exit_code = 3
+features = { add-vat = "failed" }
