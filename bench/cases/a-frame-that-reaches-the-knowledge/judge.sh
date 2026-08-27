@@ -18,8 +18,12 @@ grep -q 'ставка живёт одной константой' "$KNOWLEDGE" |
 
 # Under the record it addressed, and not at the foot of the file: an address
 # nobody resolved is a block that lands wherever the writer guessed.
-awk '/^## Части/{seen=1} seen && /\*\*\[frame /{found=1} END{exit !found}' "$KNOWLEDGE" ||
+# `Части` is neither the first record of this file nor the last, so "somewhere
+# below it" is not the same sentence as "somewhere in the file".
+awk '/^## Части/{seen=1; next} /^## /{seen=0} seen && /\*\*\[frame /{found=1} END{exit !found}' "$KNOWLEDGE" ||
   { echo "the frame did not land under the record it named"; exit 1; }
+grep -q '^## Чего мы не делаем' "$KNOWLEDGE" ||
+  { echo "the record after the addressed one is gone"; exit 1; }
 
 # And the declaration names the same block, so the evening can close it later.
 grep -q "id = \"$ID\"" "$DECLARED" || { echo "the declaration does not name the block that was written"; exit 1; }

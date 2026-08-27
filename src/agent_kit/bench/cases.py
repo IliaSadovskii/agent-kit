@@ -46,7 +46,7 @@ _FRAME_KEYS = {"what", "id"}
 KNOWLEDGE = "knowledge"
 A_BATCH = "batch"
 _ABOUT = (KNOWLEDGE, A_BATCH)
-_SITTING_KEYS = {"telling", "answers", "about"}
+_SITTING_KEYS = {"telling", "answers", "about", "name"}
 _FEATURE_KEYS = {"slug", "brief", "needs"}
 
 _STATUSES = ("created", "running", "done", "failed", "stopped")
@@ -295,6 +295,7 @@ def _sitting(block: Any) -> SittingCase | None:
         telling=_text(block.get("telling"), "sitting.telling"),
         answers=tuple(_text(one, "sitting.answers[]") for one in answers),
         about=_one_of(block.get("about", KNOWLEDGE), _ABOUT, "sitting.about"),
+        name=_text(block.get("name", "an-evening"), "sitting.name"),
     )
 
 

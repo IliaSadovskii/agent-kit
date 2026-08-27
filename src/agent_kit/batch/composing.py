@@ -80,20 +80,20 @@ class ComposingSitting(Held):
 
         opened = self._open(telling)
         knowledge = opened.knowledge
-        keeps = knowledge.declared
-        outcome = Composing(name=self.name, blocks_had_nowhere_to_go=not keeps)
+        # The directory and not the declaration: a project that declares knowledge
+        # and never wrote any gets no block either, and it is the same silence to
+        # say nothing about.
+        outcome = Composing(name=self.name, blocks_had_nowhere_to_go=not knowledge.exists)
 
         enclosures = [
             ("what the owner said, with a number on every line", telling.numbered()),
             ("the project's knowledge, as an index", knowledge.index()),
         ]
-        contract = COMPOSING.contract_in(keeps)
         composed = self._turn(
             opened, COMPOSING, 0, enclosures,
-            judge=lambda output: read(output, telling, self.name, keeps),
-            contract=contract,
+            judge=lambda output: read(output, telling, self.name, knowledge),
         )
-        declaration = read(composed, telling, self.name, keeps)
+        declaration = read(composed, telling, self.name, knowledge)
         self._print(declaration)
 
         asked = self.ask(
@@ -111,10 +111,9 @@ class ComposingSitting(Held):
                         "\n".join(f"{slug}: {answer}" for slug, answer in asked),
                     ),
                 ],
-                judge=lambda output: _settled(output, telling, self.name, keeps),
-                contract=SETTLING.contract_in(keeps),
+                judge=lambda output: _settled(output, telling, self.name, knowledge),
             )
-            declaration = _settled(settled, telling, self.name, keeps)
+            declaration = _settled(settled, telling, self.name, knowledge)
             self._print(declaration)
 
         # The gate over what came out. It cannot fire against a contract that
@@ -142,8 +141,6 @@ class ComposingSitting(Held):
         touched: list[Path] = []
         frames = list(declaration.frames)
         if knowledge.exists:
-            for frame in frames:
-                knowledge.resolve(frame.at)
             claimed: set[str] = set()
             settled: list[Frame] = []
             for frame in frames:
@@ -160,6 +157,7 @@ class ComposingSitting(Held):
                 )
                 settled.append(Frame(what=frame.what, at=frame.at, id=id))
             frames = settled
+            self._take_away_what_it_no_longer_names(knowledge, claimed, touched)
 
         declaration = Declaration(
             name=declaration.name,
@@ -174,6 +172,31 @@ class ComposingSitting(Held):
         write_whole(path, render_declaration(declaration))
         log.info("%s composed: %s features, %s frames", self.name, len(declaration.features), len(frames))
         return declaration, [path, *dict.fromkeys(touched)]
+
+    def _take_away_what_it_no_longer_names(
+        self, knowledge: Knowledge, claimed: set[str], touched: list[Path]
+    ) -> None:
+        """The frames this evening wrote before and has just stopped saying.
+
+        Composed a second time with different words, a frame derives a different
+        identifier, and `write` replaces only its own — so the first one would
+        stand for ever, and the declaration already names the new one, so nothing
+        would ever come back for it. That orphan is the whole reason this kind
+        was given a closer at all.
+
+        Only this evening's own, by the name in the block's own header. Another
+        evening's frames are somebody else's work and are left where they stand.
+        """
+        for block in knowledge.blocks():
+            if block.kind != FRAME or block.run != self.name or block.id in claimed:
+                continue
+            if not block.id:
+                # Written before the kit could address one, so there is nothing
+                # to close it by. It is said out loud rather than guessed at.
+                self.say(f"  рамка без идентификатора осталась стоять: {block.file}")
+                continue
+            touched.append(knowledge.close_frame(block.id, self.name))
+            log.info("%s: %s taken away — this evening no longer says it", self.name, block.id)
 
     # --- what the person standing here is shown ---------------------------
 
@@ -206,7 +229,7 @@ class ComposingSitting(Held):
 # --- what an answer has to be before it is one ------------------------------
 
 
-def read(output: dict[str, Any], telling: Telling, name: str, keeps_knowledge: bool) -> Declaration:
+def read(output: dict[str, Any], telling: Telling, name: str, knowledge: Knowledge) -> Declaration:
     """The composition, judged and turned into the declaration a program writes.
 
     The graph is refused by the same three names `batch new` refuses it by, and
@@ -235,13 +258,13 @@ def read(output: dict[str, Any], telling: Telling, name: str, keeps_knowledge: b
             _scenario(one, index, telling) for index, one in enumerate(output.get("scenarios") or [])
         ),
         frames=tuple(
-            _frame(one, index, telling, keeps_knowledge)
+            _frame(one, index, telling, knowledge)
             for index, one in enumerate(output.get("frames") or [])
         ),
     )
 
 
-def _settled(output: dict[str, Any], telling: Telling, name: str, keeps_knowledge: bool) -> Declaration:
+def _settled(output: dict[str, Any], telling: Telling, name: str, knowledge: Knowledge) -> Declaration:
     """The second turn, and it may not ask anything.
 
     One round, and a settling that asks again is a settling that did not settle.
@@ -255,7 +278,7 @@ def _settled(output: dict[str, Any], telling: Telling, name: str, keeps_knowledg
             "the owner has answered and there is no second round; these still carry a question: "
             + ", ".join(str(one) for one in still),
         )
-    return read(output, telling, name, keeps_knowledge)
+    return read(output, telling, name, knowledge)
 
 
 def _questions(output: dict[str, Any]):
@@ -288,17 +311,29 @@ def _scenario(one: dict[str, Any], index: int, telling: Telling) -> Scenario:
     return Scenario(what=_text(one.get("what"), f"{where}.what"), ends=_text(one.get("ends"), f"{where}.ends"))
 
 
-def _frame(one: dict[str, Any], index: int, telling: Telling, keeps_knowledge: bool) -> Frame:
+def _frame(one: dict[str, Any], index: int, telling: Telling, knowledge: Knowledge) -> Frame:
+    """The frame, and its address resolved here rather than at writing time.
+
+    Here, because this is inside the chain of attempts: an address that names no
+    record is a mistake of the same kind as a range that names no line, and the
+    kit mends those by enclosing the refusal in the next input. Resolved at
+    writing time it killed the sitting after both turns were paid for.
+    """
     where = f"frames[{index}]"
     telling.said(str(one.get("said") or "").strip(), where)
     at = " ".join(str(one.get("at") or "").split())
-    if keeps_knowledge and not at:
-        # Where the project keeps knowledge the block has to go somewhere a
-        # person can find again, and an address the writer guessed is the thing
-        # an address exists to prevent.
-        raise SittingRefusal(
-            "no-address", f"{where} names no record of the knowledge to stand under"
-        )
+    if knowledge.exists:
+        if not at:
+            # Where there is knowledge the block has to go somewhere a person
+            # can find again, and an address the writer guessed is the thing an
+            # address exists to prevent.
+            raise SittingRefusal(
+                "no-address", f"{where} names no record of the knowledge to stand under"
+            )
+        try:
+            knowledge.resolve(at)
+        except KnowledgeError as refused:
+            raise SittingRefusal(refused.code, f"{where}: {refused.detail}") from refused
     return Frame(what=_text(one.get("what"), f"{where}.what"), at=at)
 
 

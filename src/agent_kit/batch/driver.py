@@ -93,6 +93,14 @@ class BatchDriver:
 
     def go(self, name: str) -> BatchOutcome:
         batch = self.store.load(name)
+        # Before the refusal, and that is the whole of why it is here. Closing
+        # used to stand after the `try/finally` and run once: a night whose
+        # process was killed, or whose knowledge could not be read that minute,
+        # left its frames standing with nothing able to come back for them,
+        # because `batch go` refuses a finished batch on the way in. Asked here
+        # it is idempotent — a frame the batch no longer holds an identifier for
+        # is not asked about again — and `batch go` is the way back.
+        self._close_the_frames(batch)
         if batch.finished:
             raise StateError(
                 "batch-finished", f"{name}: nothing is running and nothing is ready to start"
@@ -428,6 +436,9 @@ class BatchDriver:
             try:
                 knowledge.close_frame(frame.id, batch.name)
             except KnowledgeError as could_not:
+                # Kept, not cleared: the identifier is what the next `batch go`
+                # comes back with. And said where the owner will see it — a line
+                # in a log nobody opens is the same as no line at all.
                 log.info("%s: %s stays where it is — %s", batch.name, frame.id, could_not.code)
                 self.say(f"{batch.name}: рамку {frame.id} закрыть не вышло — {could_not.code}")
                 continue
@@ -475,4 +486,11 @@ def said(batch: Batch, conflicts: list[Conflict], interrupted: bool = False) -> 
         lines.append("")
         lines.append("These will not merge as they are:")
         lines += [f"- {conflict.said()}" for conflict in conflicts]
+    # A frame the night could not take away is an edit waiting in the owner's own
+    # working copy. It reaches them here rather than in a log they never open.
+    standing = [frame for frame in batch.frames if frame.id]
+    if standing:
+        lines.append("")
+        lines.append("Эти рамки остались стоять в знании — `agent-kit batch go` придёт за ними ещё раз:")
+        lines += [f"- {frame.id} — {frame.what}" for frame in standing]
     return "\n".join(lines)

@@ -33,12 +33,20 @@ BASELINE = {
     # knowledge in a project that declares it keeps none. The case about a
     # project nobody described takes this file away in its own `plant.sh`, so
     # what the disarm gives back is the ordinary world.
+    # Two records and not one. With a single heading, a judge asking whether a
+    # block landed *under the record it addressed* is green for a block anywhere
+    # in the file — the end of the section and the end of the file are the same
+    # line — and a judge that cannot fail is not a judge.
     "docs/knowledge/product.md": (
         "# Продукт\n"
         "\n"
         "## Части\n"
         "\n"
         "- деньги — сумма и ставка, из которых считается цена — `key: money` · `walked: 2026-08-20`\n"
+        "\n"
+        "## Чего мы не делаем\n"
+        "\n"
+        "Ничего, кроме денег.\n"
     ),
     ".agent-kit/v3/project.toml": (
         "[project]\n"

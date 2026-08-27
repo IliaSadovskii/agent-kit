@@ -73,11 +73,17 @@ _FRAMES = Records(
             help="the thing, and where the pattern already stands, so a feature reading it has "
                  "something to copy rather than something to interpret",
         ),
+        # Required by the judge and not by the contract, and it is one or the
+        # other: with both, the contract fires first and the judge's own refusal
+        # is a branch nothing reaches. The judge is the one that can tell a
+        # project which keeps knowledge from one which does not *and* say
+        # whether the address resolves — one fault, one code, one place.
         Text(
             "at",
             required=False,
             help="where in the project's knowledge this belongs, as `file.md#anchor` — one of the "
-                 "addresses the enclosed index prints, and nothing else",
+                 "addresses the enclosed index prints, and nothing else. Required wherever the "
+                 "project keeps knowledge at all",
         ),
         Text("said", help="the lines of the telling this comes from"),
     ),
@@ -93,18 +99,12 @@ _OUTSIDE = TextList(
          "that keeps a session at 03:00 from widening its own brief. «And so on» is not a bound",
 )
 
-#: What a project that keeps knowledge asks of a composing, and a project that
-#: keeps none does not. A frame owes an address for the same reason an expensive
-#: assumption does: a block nobody can find again is a block nobody closes.
-_WHERE_THE_BLOCK_GOES = (("frames.at", ""),)
-
 COMPOSING = StepDefinition(
     name="composing",
     role="composing",
     method="roles/composing.md",
     title="turn what the owner said into an evening's work",
     needs_knowledge=True,
-    knowledge_requires=_WHERE_THE_BLOCK_GOES,
     contract=Contract(fields=(_FEATURES, _INSIDE, _OUTSIDE, _SCENARIOS, _FRAMES)),
 )
 
@@ -114,6 +114,5 @@ SETTLING = StepDefinition(
     method="roles/settling-a-batch.md",
     title="compose the evening again, with what the owner answered",
     needs_knowledge=True,
-    knowledge_requires=_WHERE_THE_BLOCK_GOES,
     contract=Contract(fields=(_FEATURES, _INSIDE, _OUTSIDE, _SCENARIOS, _FRAMES)),
 )
