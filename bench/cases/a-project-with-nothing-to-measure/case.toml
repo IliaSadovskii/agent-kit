@@ -1,0 +1,13 @@
+# finding 34: in the second version the audit was the one command that checked
+# nothing before it started
+
+[case]
+title = "a lens pointed at a commit it has nothing to read"
+fires = "it is refused by name before a session is started, and no room is made"
+
+[audit]
+lens = "dependencies"
+
+[expect]
+exit_code = 2
+refusal = "nothing-to-measure"

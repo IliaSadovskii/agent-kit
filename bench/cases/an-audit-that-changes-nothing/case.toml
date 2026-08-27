@@ -1,0 +1,13 @@
+# read-only by construction: the session stands in an unpacked commit with no
+# repository around it, so writing, committing and branching are gone rather
+# than forbidden
+
+[case]
+title = "a session that writes into the tree it was given"
+fires = "the working copy is untouched, and no branch and no commit appeared"
+
+[audit]
+lens = "dependencies"
+
+[expect]
+exit_code = 0

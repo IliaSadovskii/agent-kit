@@ -1,0 +1,13 @@
+# the escape hatch, and what it costs: a dependency nothing imports may be
+# needed, and saying so without a reason is how every hard row becomes a plugin
+
+[case]
+title = "a dependency called used-without-importing and left unexplained"
+fires = "the row is refused for having no reason, so the hatch cannot be a silent one"
+
+[audit]
+lens = "dependencies"
+
+[expect]
+exit_code = 3
+refusal = "no-reason-to-remove"

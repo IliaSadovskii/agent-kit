@@ -1,0 +1,18 @@
+# the other half of the done-when: a lens over a project with nothing wrong has
+# to say so, and saying so is a report with a zero in it rather than silence
+
+[case]
+title = "a lens over a project where every dependency is used"
+fires = "it writes a report saying nothing was found, and no candidate list at all"
+no_disarm = """
+Мир, в котором линза ничего не находит, и есть базовый мир этого случая: у него нет
+ни `plant.sh`, ни `repo/`, а ответ, которым разоружение заменяет `replies/`, — тот же
+самый честный ответ. Отнять нечего: ловушка здесь это отсутствие находок, и случай,
+у которого её отняли, — это он сам.
+"""
+
+[audit]
+lens = "dependencies"
+
+[expect]
+exit_code = 0

@@ -1,0 +1,12 @@
+# what closes the loop: the work a lens found, in the shape the hour with the
+# owner reads
+
+[case]
+title = "a dependency that is declared and imported nowhere"
+fires = "the candidate list names it on a line of its own, and the report names the commit"
+
+[audit]
+lens = "dependencies"
+
+[expect]
+exit_code = 0

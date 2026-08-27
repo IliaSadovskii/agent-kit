@@ -1,0 +1,6 @@
+{
+  "declared": [
+    {"name": "PyYAML", "verdict": "imported", "imports": ["yaml"]}
+  ],
+  "undeclared": []
+}

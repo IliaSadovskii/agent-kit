@@ -1,0 +1,13 @@
+# the half of the done-when that is about inventing: a lens may not manufacture
+# work out of a project that has none
+
+[case]
+title = "a lens that calls an imported dependency unused"
+fires = "the row is refused against the inventory that measured it, and no report is written"
+
+[audit]
+lens = "dependencies"
+
+[expect]
+exit_code = 3
+refusal = "verdict-against-the-inventory"

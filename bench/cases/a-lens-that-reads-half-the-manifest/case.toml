@@ -1,0 +1,12 @@
+# the cheap way to look thorough is to answer for the interesting third
+
+[case]
+title = "a lens that answers for one dependency and leaves the other"
+fires = "the missing one is named, and the answer is refused rather than counted"
+
+[audit]
+lens = "dependencies"
+
+[expect]
+exit_code = 3
+refusal = "not-accounted-for"
