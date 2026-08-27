@@ -323,3 +323,161 @@ def test_the_batch_is_not_repository_content(tmp_path, batch):
     ignore = tmp_path / ".agent-kit/v3/batches/.gitignore"
 
     assert ignore.read_text().strip().splitlines()[-1] == "*"
+
+
+# --- S8b: what the composing sitting fills in, and the gate over it ----------
+
+COMPOSED = """
+name = "2026-08-27-vat"
+
+[mvp]
+inside = ["a price quoted with VAT on it"]
+outside = ["VAT registration numbers"]
+
+[[scenarios]]
+what = "a Russian customer buys at 20%"
+ends = "the quote reads 1200 for 1000 and the receipt names 200"
+
+[[frames]]
+what = "the rate lives in one place and no feature declares its own"
+id = "fr4me1"
+
+[features.rates]
+brief = "A table of VAT rates, one row per country"
+"""
+
+
+def declared(tmp_path, text):
+    path = tmp_path / "batch.toml"
+    path.write_text(text, encoding="utf-8")
+    return read_declaration(path)
+
+
+def test_a_declaration_carries_the_bounds_the_scenarios_and_the_frames(tmp_path):
+    declaration = declared(tmp_path, COMPOSED)
+
+    assert declaration.inside == ["a price quoted with VAT on it"]
+    assert declaration.outside == ["VAT registration numbers"]
+    assert [one.ends for one in declaration.scenarios] == [
+        "the quote reads 1200 for 1000 and the receipt names 200"
+    ]
+    assert [one.what for one in declaration.frames] == [
+        "the rate lives in one place and no feature declares its own"
+    ]
+    assert declaration.frames[0].id == "fr4me1"
+
+
+def test_a_declaration_written_by_hand_may_name_a_frame_with_no_block(tmp_path):
+    """`batch compose` writes the identifier; a person writing TOML has no block to name."""
+    declaration = declared(tmp_path, COMPOSED.replace('id = "fr4me1"\n', ""))
+
+    assert declaration.frames[0].id == ""
+
+
+def test_a_batch_with_nothing_of_the_kind_still_reads(tmp_path):
+    """The three tables are the gate's, not the parser's: S8's own declaration still reads."""
+    declaration = declared(tmp_path, WRITTEN)
+
+    assert declaration.inside == []
+    assert declaration.scenarios == ()
+    assert declaration.frames == ()
+
+
+# --- the gate ---------------------------------------------------------------
+
+
+def project_that_declares(tmp_path, commands='[commands]\ntest = "sh check.sh"\n'):
+    from agent_kit.project import read_project
+
+    (tmp_path / ".agent-kit/v3").mkdir(parents=True, exist_ok=True)
+    (tmp_path / ".agent-kit/v3/project.toml").write_text(
+        f'[project]\ndefault_branch = "main"\n\n{commands}', encoding="utf-8"
+    )
+    return read_project(tmp_path)
+
+
+def test_the_gate_lets_a_composed_batch_through(tmp_path):
+    from agent_kit.batch import unanswered
+
+    assert unanswered(declared(tmp_path, COMPOSED), project_that_declares(tmp_path)) == []
+
+
+def test_the_gate_refuses_bounds_nobody_wrote(tmp_path):
+    from agent_kit.batch import unanswered
+
+    without = COMPOSED.replace('outside = ["VAT registration numbers"]', "outside = []")
+    said = unanswered(declared(tmp_path, without), project_that_declares(tmp_path))
+
+    assert [one.code for one in said] == ["bounds-unwritten"]
+
+
+def test_the_gate_refuses_a_batch_with_no_scenarios(tmp_path):
+    from agent_kit.batch import unanswered
+
+    head, _, tail = COMPOSED.partition("[[scenarios]]")
+    without = head + tail.partition("[[frames]]")[1] + tail.partition("[[frames]]")[2]
+    said = unanswered(declared(tmp_path, without), project_that_declares(tmp_path))
+
+    assert [one.code for one in said] == ["no-scenarios"]
+
+
+def test_the_gate_refuses_a_scenario_with_no_ending(tmp_path):
+    from agent_kit.batch import unanswered
+
+    without = COMPOSED.replace(
+        'ends = "the quote reads 1200 for 1000 and the receipt names 200"', 'ends = ""'
+    )
+    said = unanswered(declared(tmp_path, without), project_that_declares(tmp_path))
+
+    assert [one.code for one in said] == ["scenario-with-no-ending"]
+    assert "a Russian customer buys at 20%" in said[0].detail
+
+
+def test_the_gate_refuses_a_project_that_declares_no_command(tmp_path):
+    """The second version's own refusal: no declared way to run and to test the product."""
+    from agent_kit.batch import unanswered
+
+    said = unanswered(declared(tmp_path, COMPOSED), project_that_declares(tmp_path, ""))
+
+    assert [one.code for one in said] == ["no-commands"]
+
+
+def test_the_gate_says_every_thing_it_found_and_not_only_the_first(tmp_path):
+    from agent_kit.batch import unanswered
+
+    bare = COMPOSED.replace("inside = [\"a price quoted with VAT on it\"]", "inside = []")
+    said = unanswered(declared(tmp_path, bare), project_that_declares(tmp_path, ""))
+
+    assert sorted(one.code for one in said) == ["bounds-unwritten", "no-commands"]
+
+
+# --- batch.json holds the frames, because `batch go` builds runs from it -----
+
+
+def test_the_batch_file_holds_the_frames(tmp_path):
+    store = BatchStore(tmp_path)
+    batch = store.create(declared(tmp_path, COMPOSED))
+
+    assert [one.what for one in batch.frames] == [
+        "the rate lives in one place and no feature declares its own"
+    ]
+    assert store.load(batch.name).frames[0].id == "fr4me1"
+
+
+def test_a_batch_written_before_frames_reads_as_having_none(tmp_path):
+    """Schema 1 knew nothing of a frame, and no batch it wrote had one."""
+    store = BatchStore(tmp_path)
+    store.create(declared(tmp_path, COMPOSED))
+    path = store.path_for("2026-08-27-vat")
+    held = json.loads(path.read_text())
+    held["schema"] = 1
+    held.pop("frames")
+    path.write_text(json.dumps(held))
+
+    assert store.load("2026-08-27-vat").frames == []
+
+
+def test_the_batch_schema_is_two(tmp_path):
+    from agent_kit.batch.state import SCHEMA_VERSION
+
+    assert SCHEMA_VERSION == 2

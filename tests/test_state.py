@@ -799,3 +799,49 @@ def test_a_step_outside_the_sequence_is_not_placed_in_it(store):
     run = store.create("add-vat", steps=["probe", "probe"])
 
     assert [step.name for step in run.steps] == ["probe", "probe"]
+
+
+# --- S8b: a run carries the frame of the work it belongs to -----------------
+
+
+def test_a_run_started_by_hand_carries_no_frame(store):
+    """A frame is what several features build alike, and one run alone has none."""
+    run = store.create("add-vat")
+
+    assert run.frame == []
+
+
+def test_a_run_carries_the_frame_it_was_created_with(store):
+    run = store.create("add-vat", frame=["the rate lives in one place"])
+
+    assert store.load("add-vat").frame == ["the rate lives in one place"]
+
+
+def test_a_frame_must_be_lines_of_text(store, tmp_path):
+    store.create("add-vat")
+    path = tmp_path / ".agent-kit/v3/runs/add-vat/run.json"
+    held = json.loads(path.read_text())
+    held["frame"] = [{"what": "not a line"}]
+    path.write_text(json.dumps(held))
+
+    with pytest.raises(StateError) as refused:
+        store.load("add-vat")
+    assert refused.value.code == "bad-field: frame"
+
+
+def test_a_run_written_before_frames_reads_as_having_none(store, tmp_path):
+    """Schema 4 knew nothing of a frame, and none of its runs had one."""
+    store.create("add-vat")
+    path = tmp_path / ".agent-kit/v3/runs/add-vat/run.json"
+    held = json.loads(path.read_text())
+    held["schema"] = 4
+    held.pop("frame")
+    path.write_text(json.dumps(held))
+
+    run = store.load("add-vat")
+    assert run.frame == []
+    assert run.schema == SCHEMA_VERSION
+
+
+def test_the_schema_is_five(store):
+    assert SCHEMA_VERSION == 5
