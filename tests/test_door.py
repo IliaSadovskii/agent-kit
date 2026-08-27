@@ -99,11 +99,11 @@ def test_a_bare_directory_gets_an_answer_rather_than_a_stack_trace(tmp_path, cap
     assert "agent-kit knowledge tell" in out
 
 
-def test_a_root_that_is_not_a_directory_is_the_one_refusal_the_door_has(tmp_path, capsys):
+def test_a_path_that_is_not_a_directory_is_the_one_refusal_the_door_has(tmp_path, capsys):
     code, _, err = door(tmp_path / "nowhere", capsys)
 
-    assert code == ExitCode.STATE
-    assert "no-project-here" in err
+    assert code == ExitCode.USAGE
+    assert "not-a-directory" in err
 
 
 def test_a_project_that_says_nobody_describes_it_goes_past_the_description(tmp_path, capsys, monkeypatch, machine_home):

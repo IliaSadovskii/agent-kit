@@ -277,6 +277,26 @@ class Ask:
 
 
 @dataclass(frozen=True)
+class Standing:
+    """What one project has alive on this machine, and one reader: the door.
+
+    Not `Picture`, which is the machine's whole screen across every project.
+    This is one project's slice and it is the only thing the door asks the
+    ledger for — is anything of mine being written right now, and is a question
+    of mine standing against somebody's phone.
+    """
+
+    runs: list[Lease]
+    batches: list[Lease]
+    checkouts: list[Lease]
+    asks: list[Ask]
+
+    @property
+    def anything(self) -> bool:
+        return bool(self.runs or self.batches or self.checkouts)
+
+
+@dataclass(frozen=True)
 class Picture:
     """The three the page and `agent-kit machine` both show, from one read.
 
@@ -927,6 +947,49 @@ class Ledger:
     def runs(self) -> list[Lease]:
         """Which runs have a driver on them right now."""
         return self.held(kind=RUN)
+
+    def standing(self, project: str) -> "Standing":
+        """What of one project is alive right now, read without changing anything.
+
+        Every other reader here goes through `_writing`, which opens a
+        transaction and sweeps the dead before it answers. That is right for
+        everybody who is about to act on what they read. The door is not: it
+        reports, it is run by somebody standing in a project while a night may
+        be going on in another, and a reader that takes `BEGIN IMMEDIATE` to
+        print a screen is a reader that can block a driver.
+
+        So the three conditions `_reap` deletes on are applied in memory
+        instead: this boot, a live process, and a lease that has not expired. A
+        row that fails them is dead and is not counted — it is simply left for
+        whoever writes next to delete.
+        """
+        this_boot = boot_id()
+        this_moment = now()
+
+        def alive(row: sqlite3.Row) -> bool:
+            return (
+                row["boot"] == this_boot
+                and is_alive(row["pid"])
+                and str(row["expires_at"]) > this_moment
+            )
+
+        with self._saying_why():
+            leases = self._db.execute(
+                "SELECT * FROM leases WHERE project = ? AND kind IN (?, ?, ?) ORDER BY id",
+                (project, RUN, BATCH, CHECKOUT),
+            ).fetchall()
+            asks = self._db.execute(
+                "SELECT * FROM asks WHERE project = ? AND answer IS NULL ORDER BY asked_at, id",
+                (project,),
+            ).fetchall()
+
+        held = [_lease(row) for row in leases if alive(row)]
+        return Standing(
+            runs=[one for one in held if one.kind == RUN],
+            batches=[one for one in held if one.kind == BATCH],
+            checkouts=[one for one in held if one.kind == CHECKOUT],
+            asks=[_ask(row) for row in asks if str(row["until"]) > after(-ASK_GRACE)],
+        )
 
 
 # --- rows into what the rest of the kit reads -------------------------------

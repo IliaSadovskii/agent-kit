@@ -45,7 +45,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("-C", "--project", metavar="DIR", default=".", help="the project to work in (default: here)")
     commands = parser.add_subparsers(dest="command", metavar="COMMAND")
 
-    commands.add_parser("doctor", help="what is configured, what is missing, in one screen")
+    commands.add_parser(
+        "next", help="where this project stands, and the one thing to do about it"
+    )
+    commands.add_parser("doctor", help="what this machine is configured with, and what is missing")
 
     init = commands.add_parser("init", help="write what this project declares, from what it already says")
     init.add_argument("--force", action="store_true", help="overwrite a declaration that is already there")
@@ -342,6 +345,8 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace, paths: 
         print(f"{PROGRAM}: a command is required; try `{PROGRAM} --help`", file=sys.stderr)
         return int(ExitCode.USAGE)
 
+    if args.command == "next":
+        return _next(Path(args.project), paths)
     if args.command == "doctor":
         return _doctor(paths, Path(args.project))
     if args.command == "init":
@@ -487,6 +492,19 @@ def _lines_typed():
 
 
 # --- doctor ----------------------------------------------------------------
+
+
+def _next(project: Path, paths: Paths) -> int:
+    """The door: one pass over what is on disk, one thing to do, exit zero.
+
+    It exits zero whatever it finds, including a project nothing can be run
+    in. Its answer is its output: a door that refuses is a door somebody can
+    miss, which is the defect §5 of the plan is written against.
+    """
+    from ..door import what_now
+
+    print(what_now(project, paths))
+    return int(ExitCode.OK)
 
 
 def _doctor(paths: Paths, project: Path) -> int:
