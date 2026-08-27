@@ -6,11 +6,18 @@ removes a possibility beats a change that adds a check — so the session never
 stands in the working copy at all. It stands in `git archive HEAD`, unpacked
 into a directory the kit deletes afterwards.
 
-There is no `.git` in it. So the session cannot commit, cannot open a branch,
-cannot push, and cannot touch a file anybody will read again. A worktree was
-the obvious alternative and it is the weaker one: a worktree can commit, and
-the pre-push hook lets a *new* branch through — which is exactly the branch
-nobody can account for later that the plan measured 51 of.
+There is no `.git` in it, and — this is the half a bench trap caught and no
+amount of reading would have — there is none *above* it either. git looks for a
+repository by walking up, so an unpacked copy inside `.agent-kit/` finds the
+project's own `.git` two directories away and every one of those possibilities
+comes back. It is unpacked outside the repository, and that it really is
+outside is asked rather than assumed.
+
+So the session cannot commit, cannot open a branch, cannot push, and cannot
+touch a file anybody will read again. A worktree was the obvious alternative and
+it is the weaker one: a worktree can commit, and the pre-push hook lets a *new*
+branch through — which is exactly the branch nobody can account for later that
+the plan measured 51 of.
 
 What this costs, and it is said out loud rather than discovered: the audit
 measures the last commit. Work that is only in the working copy is not in the
@@ -85,6 +92,18 @@ def unpack_head(root: Path | str, into: Path) -> Unpacked:
         with tarfile.open(archive.name) as held:
             members = [one for one in held.getmembers() if one.isfile()]
             _extract(held, into)
+
+    above = _asked(into, "rev-parse", "--git-dir")
+    if above is not None:
+        # The one thing the location has to be true about, asked rather than
+        # trusted: a `TMPDIR` inside somebody's checkout would put the session
+        # back inside a repository without a word.
+        raise ConfigError(
+            "tree-inside-a-repository",
+            f"the commit was unpacked at {into}, and git finds a repository at {above} from "
+            "there — an audit that stands inside one can commit, branch and push",
+            hint="TMPDIR указывает внутрь git-репозитория",
+        )
 
     branch = _asked(root, "rev-parse", "--abbrev-ref", "HEAD") or "HEAD"
     dirty = bool(_asked(root, "status", "--porcelain"))

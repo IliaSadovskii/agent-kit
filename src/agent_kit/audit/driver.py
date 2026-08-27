@@ -110,7 +110,12 @@ class Audit:
         self.audits.mkdir(parents=True, exist_ok=True)
         keep_audits_out_of_git(self.audits)
 
-        tree = Path(tempfile.mkdtemp(prefix=".tree-", dir=self.audits))
+        # Outside the project, and that is not tidiness. git looks for a
+        # repository by walking up: a copy under `.agent-kit/` sits two
+        # directories below the project's own `.git`, and a session standing in
+        # it could commit to the repository the audit is supposed to be unable
+        # to touch. `unpack_head` asks whether this really is outside one.
+        tree = Path(tempfile.mkdtemp(prefix="agent-kit-audit-"))
         try:
             unpacked = unpack_head(self.root, tree)
             # Raises `nothing-to-measure` where this lens has nothing to look
