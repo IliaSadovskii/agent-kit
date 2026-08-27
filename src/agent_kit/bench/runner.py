@@ -106,6 +106,8 @@ def _run_and_judge(case: Case, where: Path) -> Verdict:
     try:
         if case.sitting is not None:
             went = _drive_a_sitting(case, world)
+        elif case.audit is not None:
+            went = _drive_an_audit(case, world)
         elif case.batch is not None:
             went = _drive_a_batch(case, world)
         else:
@@ -149,6 +151,16 @@ def _drive_a_sitting(case: Case, world: World):
     return _kit(
         world, [*argv, "--from", str(told), "--provider", "fake", *_replies(case)], feed=typed
     )
+
+
+def _drive_an_audit(case: Case, world: World):
+    """One lens over the commit the world just made.
+
+    One command and no state to seed: an audit reads a commit and writes two
+    files. Which lens it is comes out of the case; the world, the fake provider
+    and the judge are the same ones every other case uses.
+    """
+    return _kit(world, ["audit", case.audit.lens, "--provider", "fake", *_replies(case)])
 
 
 def _drive_a_batch(case: Case, world: World):
@@ -259,8 +271,8 @@ def _judge(case: Case, world: World, went: subprocess.CompletedProcess) -> Verdi
     if went.returncode != expect.exit_code:
         return did_not(f"it exited {went.returncode} and the case wants {expect.exit_code}: {_said(went)}")
 
-    if case.sitting is not None:
-        return _judge_a_sitting(case, world, went)
+    if case.sitting is not None or case.audit is not None:
+        return _judge_what_it_said(case, world, went)
     if case.batch is not None:
         return _judge_a_batch(case, world, went)
 
@@ -284,8 +296,8 @@ def _judge(case: Case, world: World, went: subprocess.CompletedProcess) -> Verdi
     return _judge_script(case, world, went.returncode)
 
 
-def _judge_a_sitting(case: Case, world: World, went: subprocess.CompletedProcess) -> Verdict:
-    """A sitting leaves no `run.json`, so the refusal is read where it was printed.
+def _judge_what_it_said(case: Case, world: World, went: subprocess.CompletedProcess) -> Verdict:
+    """A sitting and an audit leave no `run.json`, so the refusal is read where it was printed.
 
     `kit-said` is written for exactly this: a refusal that never reaches a run's
     record leaves a judge nothing but an exit code, and two refusals share one.
@@ -351,6 +363,21 @@ def _judge_script(case: Case, world: World, exit_code: int) -> Verdict:
             DECLARED=str(
                 world.repo / ".agent-kit/v3/declarations" / f"{case.sitting.name}.toml"
             ),
+        )
+    if case.audit is not None:
+        # The room is named for the lens and the day, so the judge is handed the
+        # one that was just made rather than made to work out today's date in
+        # shell. Empty where the audit refused before it made one, which is
+        # itself something a judge asks about.
+        audits = world.repo / ".agent-kit/v3/audits"
+        rooms = sorted(audits.glob(f"{case.audit.lens}-*")) if audits.is_dir() else []
+        room = rooms[-1] if rooms else None
+        env.update(
+            AUDITS=str(audits),
+            ROOM=str(room) if room else "",
+            REPORT=str(room / "report.md") if room else "",
+            CANDIDATES=str(room / "candidates.md") if room else "",
+            INVENTORY=str(room / "inventory.json") if room else "",
         )
     if case.batch is not None:
         env.update(

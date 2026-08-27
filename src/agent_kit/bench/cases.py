@@ -35,7 +35,7 @@ CASE_FILE = "case.toml"
 DEFAULT_SLUG = "add-vat"
 DEFAULT_BRIEF = "Money should be able to quote a price with VAT on it"
 
-_TOP_KEYS = {"case", "expect", "batch", "sitting"}
+_TOP_KEYS = {"case", "expect", "batch", "sitting", "audit"}
 _CASE_KEYS = {"title", "fires", "slug", "brief", "wait", "no_disarm"}
 _EXPECT_KEYS = {"exit_code", "status", "refusal", "steps", "features"}
 _BATCH_KEYS = {"name", "features", "frames"}
@@ -48,6 +48,7 @@ A_BATCH = "batch"
 _ABOUT = (KNOWLEDGE, A_BATCH)
 _SITTING_KEYS = {"telling", "answers", "about", "name"}
 _FEATURE_KEYS = {"slug", "brief", "needs"}
+_AUDIT_KEYS = {"lens"}
 
 _STATUSES = ("created", "running", "done", "failed", "stopped")
 _STEP_STATUSES = ("pending", "running", "asking", "passed", "failed")
@@ -156,6 +157,39 @@ class BatchCase:
 
 
 @dataclass(frozen=True)
+class AuditCase:
+    """A case that drives one lens over a commit rather than a run.
+
+    The one thing the bench learns for S8c, and it is the same kind of thing it
+    learned for S8 and S8a: another way in, and nothing below it changes.
+
+    The world it needs — a manifest and a file that imports from it — is laid
+    down for a case that declares one and for no other, exactly as a batch
+    case's declaration is. A case about something else must not pay for it, and
+    a change to what every case starts from is a change that can quietly disarm
+    ninety others.
+    """
+
+    lens: str = "dependencies"
+
+    def world(self) -> dict[str, str]:
+        """The least a dependency lens can measure, and one honest difficulty.
+
+        `PyYAML` is imported as `yaml`, so the join between a package name and
+        a module name — the one thing in this lens no arithmetic can do — is in
+        every audit case's world rather than in none of them.
+        """
+        return {
+            "pyproject.toml": (
+                "[project]\n"
+                'name = "money"\n'
+                'dependencies = ["PyYAML", "tabulate"]\n'
+            ),
+            "reporting.py": "import yaml\nimport tabulate\n\nROWS = []\n",
+        }
+
+
+@dataclass(frozen=True)
 class Case:
     name: str
     root: Path
@@ -171,6 +205,8 @@ class Case:
     batch: BatchCase | None = None
     #: The sitting this case drives, where it drives one instead of a run.
     sitting: SittingCase | None = None
+    #: The audit this case drives, where it drives one instead of a run.
+    audit: AuditCase | None = None
     #: Why nothing can honestly be taken away from this case, where that is so.
     #: Empty means the mechanical disarm applies — see `disarm.py`. A case that
     #: fills this in is exempt from being measured, so it is printed every time
@@ -240,12 +276,15 @@ def read_case(root: Path, name: str) -> Case:
         raise CaseError("unreadable-case", f"{path} could not be read: {error}") from error
 
     _refuse_unknown(document, _TOP_KEYS, "")
-    if "batch" in document and "sitting" in document:
-        # Two ways in, and the runner picks one. A case declaring both would be
-        # measuring whichever the runner happens to try first, which is a case
-        # that cannot say what it measures.
+    ways = [way for way in ("batch", "sitting", "audit") if way in document]
+    if len(ways) > 1:
+        # Several ways in, and the runner picks one. A case declaring two would
+        # be measuring whichever the runner happens to try first, which is a
+        # case that cannot say what it measures.
         raise CaseError(
-            "two-ways-in", "a case drives a batch or a sitting, and a case declaring both drives neither"
+            "two-ways-in",
+            "a case drives one of a batch, a sitting or an audit, and this one declares "
+            + " and ".join(ways),
         )
     block = _table(document.get("case", {}), "case")
     _refuse_unknown(block, _CASE_KEYS, "case.")
@@ -263,11 +302,12 @@ def read_case(root: Path, name: str) -> Case:
         no_disarm=_prose(block.get("no_disarm"), "case.no_disarm"),
         batch=_batch(document.get("batch")),
         sitting=_sitting(document.get("sitting")),
+        audit=_audit(document.get("audit")),
         expect=Expect(
             exit_code=_number(wanted.get("exit_code"), "expect.exit_code"),
             status=(
                 ""
-                if ("batch" in document or "sitting" in document) and "status" not in wanted
+                if ways and "status" not in wanted
                 else _one_of(wanted.get("status"), _STATUSES, "expect.status")
             ),
             refusal=_optional_text(wanted.get("refusal"), "expect.refusal"),
@@ -297,6 +337,14 @@ def _sitting(block: Any) -> SittingCase | None:
         about=_one_of(block.get("about", KNOWLEDGE), _ABOUT, "sitting.about"),
         name=_text(block.get("name", "an-evening"), "sitting.name"),
     )
+
+
+def _audit(block: Any) -> AuditCase | None:
+    if block is None:
+        return None
+    block = _table(block, "audit")
+    _refuse_unknown(block, _AUDIT_KEYS, "audit.")
+    return AuditCase(lens=_text(block.get("lens", "dependencies"), "audit.lens"))
 
 
 def _batch(block: Any) -> BatchCase | None:

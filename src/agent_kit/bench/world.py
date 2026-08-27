@@ -192,9 +192,20 @@ def _write_gh(path: Path) -> None:
 
 
 def _lay_out(repo: Path, case: Case) -> None:
-    """The baseline, then whatever the case lays over it."""
+    """The baseline, then what the way in needs, then whatever the case lays over it.
+
+    The middle one is for a case that declares an audit, and for no other. A
+    lens needs something to measure, and putting a manifest into the baseline
+    would put it into ninety cases that are about something else — and a change
+    to what every case starts from is a change that can quietly disarm the ones
+    that were reading it. `BatchCase.declaration()` is the precedent, word for
+    word.
+    """
     for relative, text in BASELINE.items():
         _write(repo / relative, text)
+    if case.audit is not None:
+        for relative, text in case.audit.world().items():
+            _write(repo / relative, text)
     overlay = case.overlay
     if overlay is not None:
         shutil.copytree(overlay, repo, dirs_exist_ok=True)

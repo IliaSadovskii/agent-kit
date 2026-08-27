@@ -143,6 +143,26 @@ NOTHING_COMPOSED: dict[str, str] = {
 }
 
 
+#: What a lens says when it found nothing: every dependency of the audit world
+#: accounted for, imported under the module name it really uses, and nothing
+#: imported that nobody declared. It is the whole of a correct answer over a
+#: project with nothing wrong — which is what a disarmed case is left standing
+#: in.
+NOTHING_FOUND: dict[str, str] = {
+    "01-reply.json": json.dumps(
+        {
+            "declared": [
+                {"name": "PyYAML", "verdict": "imported", "imports": ["yaml"]},
+                {"name": "tabulate", "verdict": "imported", "imports": ["tabulate"]},
+            ],
+            "undeclared": [],
+        },
+        indent=2,
+    )
+    + "\n",
+}
+
+
 @dataclass(frozen=True)
 class Armed:
     """What the check found out about one case."""
@@ -177,6 +197,8 @@ def disarm(case: Case, into: Path) -> Case:
             room / "replies",
             NOTHING_COMPOSED if case.sitting.about == A_BATCH else NOTHING_TOLD,
         )
+    elif case.audit is not None:
+        _laid_out(room / "replies", NOTHING_FOUND)
     elif case.batch is None:
         _nothing_wrong(room / "replies")
     else:
