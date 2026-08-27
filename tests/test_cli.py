@@ -98,14 +98,24 @@ def test_a_run_is_created_advanced_and_read_back(machine, capsys):
     assert state["steps"][0]["status"] == "passed"
 
 
-def test_run_list_shows_what_the_project_holds(machine, capsys):
+def test_the_door_shows_what_the_project_holds(machine, capsys):
+    """What `run list` used to answer, in the one place that answers it now."""
     run(["run", "new", "add-login", "--steps", "probe"], capsys)
     run(["run", "new", "fix-clock", "--steps", "probe"], capsys)
 
-    code, out, _ = run(["run", "list"], capsys)
+    code, out, _ = run(["next"], capsys)
 
     assert code == ExitCode.OK
     assert "add-login" in out and "fix-clock" in out
+
+
+def test_run_list_is_gone_into_the_door(machine, capsys):
+    """One place where a project's runs are listed, so there is nothing to keep in step."""
+    with pytest.raises(SystemExit) as caught:
+        main(["run", "list"])
+
+    assert caught.value.code == ExitCode.USAGE
+    assert "list" in capsys.readouterr().err
 
 
 def test_an_unknown_run_is_a_state_error_with_a_named_reason(machine, capsys):
@@ -629,3 +639,22 @@ def test_run_show_names_the_tree_and_what_it_is_built_on(machine, capsys, tmp_pa
     assert "/trees/quote" in out
     assert "kit/rates" in out
     assert "rates" in out
+
+
+def test_doctor_is_the_machine_and_no_longer_half_the_project(machine, capsys):
+    """One question per screen: `doctor` answers about this machine.
+
+    It used to print the project's run count and its declared commands as well,
+    which made it a third place that had to agree with the door and with
+    `machine`. It keeps the ledger's path, because nothing else prints it and
+    the hour it is wanted is the hour the file is not there.
+    """
+    run(["run", "new", "add-login", "--steps", "probe"], capsys)
+
+    code, out, _ = run(["doctor"], capsys)
+
+    assert code == ExitCode.OK
+    assert "daemon.sqlite" in out
+    assert "the project" not in out
+    assert "add-login" not in out
+    assert "right now" not in out

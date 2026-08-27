@@ -77,11 +77,17 @@ def test_a_declaration_that_cannot_run_is_refused_before_anything_is_made(projec
     assert not (project / ".agent-kit/v3/batches").exists()
 
 
-def test_batch_list_and_show_say_where_every_feature_got_to(project, capsys):
+def test_the_door_lists_the_batches_and_show_says_where_a_feature_got_to(project, capsys):
+    """`batch list` is the door's line now; `batch show` is still one batch in detail."""
     run(["batch", "new", "batch.toml"], capsys)
 
-    code, out, _ = run(["batch", "list"], capsys)
+    code, out, _ = run(["-C", str(project), "next"], capsys)
     assert code == ExitCode.OK and "vat" in out
+
+    with pytest.raises(SystemExit) as caught:
+        main(["batch", "list"])
+    assert caught.value.code == ExitCode.USAGE
+    assert "list" in capsys.readouterr().err
 
     code, out, _ = run(["batch", "show", "vat"], capsys)
     assert code == ExitCode.OK
