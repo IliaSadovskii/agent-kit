@@ -1,0 +1,13 @@
+# a module accounted for twice is a module found once, and the second claim is
+# the room where a finding goes to disappear
+
+[case]
+title = "two dependencies that both say they provide one measured module"
+fires = "the second claim is refused by name, and nothing is written"
+
+[audit]
+lens = "dependencies"
+
+[expect]
+exit_code = 3
+refusal = "named-twice"

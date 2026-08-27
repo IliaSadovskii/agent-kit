@@ -1,0 +1,7 @@
+{
+  "declared": [
+    {"name": "PyYAML", "verdict": "imported", "imports": ["yaml"], "why": "PyYAML ставит модуль под именем yaml"},
+    {"name": "tabulate", "verdict": "imported", "imports": ["tabulate", "yaml"], "why": "и yaml тоже как будто отсюда"}
+  ],
+  "undeclared": []
+}

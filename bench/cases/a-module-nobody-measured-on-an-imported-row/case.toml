@@ -1,0 +1,13 @@
+# an `imported` row is about modules that really are imported; a name here that
+# nobody measured does no work and cannot be checked
+
+[case]
+title = "an imported row padded with a module the inventory never saw"
+fires = "the name is refused against the inventory, and nothing is written"
+
+[audit]
+lens = "dependencies"
+
+[expect]
+exit_code = 3
+refusal = "not-declared"
