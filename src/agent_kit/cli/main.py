@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -241,6 +242,24 @@ def build_parser() -> argparse.ArgumentParser:
     owner_say.add_argument("text")
     owner_what.add_parser("set-token", help="прочитать токен бота с ввода и записать его 600")
 
+    knowledge = commands.add_parser(
+        "knowledge", help="что проект знает о себе — и час, за который он это рассказывает"
+    )
+    knowledge_what = knowledge.add_subparsers(dest="what", metavar="WHAT")
+    tell = knowledge_what.add_parser(
+        "tell", help="сеанс с владельцем: он рассказывает, кит сортирует и пишет описание"
+    )
+    tell.add_argument(
+        "--from", dest="telling", metavar="FILE",
+        help="файл с рассказом; `-` читает его с потока ввода, и тогда спросить будет некого. "
+             "Без этого открывается $EDITOR, как у `git commit`",
+    )
+    tell.add_argument("--provider", help="кто исполняет два хода сеанса; без этого решает таблица ролей")
+    tell.add_argument("--option", action="append", default=[], metavar="KEY=VALUE",
+                      help="настройка провайдера, как описано в его блоке; можно повторять")
+    tell.add_argument("--wait", type=int, metavar="SECONDS",
+                      help="сколько ждать слота; 0 отказывает вместо ожидания")
+
     daemon = commands.add_parser("daemon", help="the process that serves the page and sweeps up")
     daemon_what = daemon.add_subparsers(dest="what", metavar="WHAT")
     daemon_start = daemon_what.add_parser("start", help="raise it")
@@ -314,10 +333,95 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace, paths: 
         return _limit(args, paths)
     if args.command == "owner":
         return _owner(args, paths)
+    if args.command == "knowledge":
+        return _knowledge(args, paths)
     if args.command == "daemon":
         return _daemon(args, paths)
 
     raise UsageError("unknown-command", args.command)
+
+
+# --- the sitting -----------------------------------------------------------
+
+
+def _knowledge(args: argparse.Namespace, paths: Paths) -> int:
+    if args.what != "tell":
+        raise UsageError("no-what", "knowledge tell is the one thing this command does")
+    return _tell(args, paths)
+
+
+def _tell(args: argparse.Namespace, paths: Paths) -> int:
+    """The owner talks; the kit sorts, asks only what contradicts, and writes.
+
+    Two sources and they are two on purpose. The telling comes from a file or
+    from an editor, because it is long and nobody types a paragraph into a
+    prompt. The answers come from the terminal and from nowhere else, because a
+    sitting is with somebody: if the telling is coming from the standard input,
+    there is nobody to answer, and that is printed before the first session
+    rather than discovered by a refusal halfway through.
+    """
+    from ..sitting import Sitting, Telling
+
+    root = Path(args.project).resolve()
+    sessions = _sessions(root, args.provider, args.option, args.wait)
+
+    told, from_the_stream = _told(args.telling)
+    if from_the_stream:
+        print("рассказ читается с потока ввода: ответить на противоречие будет некому.")
+
+    sitting = Sitting(
+        root=root,
+        sessions=sessions,
+        say=print,
+        answers=None if from_the_stream else _lines_typed(),
+    )
+    sitting.hold(Telling(told))
+    return int(ExitCode.OK)
+
+
+def _told(where: str | None) -> tuple[str, bool]:
+    if where == "-":
+        return sys.stdin.read(), True
+    if where:
+        try:
+            return Path(where).read_text(encoding="utf-8"), False
+        except OSError as unreadable:
+            raise UsageError("no-telling", f"{where} could not be read: {unreadable}") from unreadable
+    return _from_an_editor(), False
+
+
+def _from_an_editor() -> str:
+    """What `git commit` does, for the same reason: a paragraph is not typed at a prompt."""
+    import subprocess
+    import tempfile
+
+    editor = os.environ.get("EDITOR") or os.environ.get("VISUAL")
+    if not editor:
+        raise UsageError(
+            "no-telling",
+            "nothing was given to read and no $EDITOR is set",
+            hint="agent-kit knowledge tell --from <файл>",
+        )
+    with tempfile.NamedTemporaryFile("w+", suffix=".md", delete=False, encoding="utf-8") as held:
+        held.write(TELLING_HINT)
+        path = Path(held.name)
+    subprocess.run([*editor.split(), str(path)], check=False)
+    text = path.read_text(encoding="utf-8")
+    path.unlink(missing_ok=True)
+    return "\n".join(line for line in text.splitlines() if not line.startswith("#"))
+
+
+TELLING_HINT = """# Расскажите про свой продукт — как рассказали бы человеку.
+# В любом порядке и любой длины: сортировать будет кит, а не вы.
+# Строки, начинающиеся с #, выброшены.
+
+"""
+
+
+def _lines_typed():
+    """One line per question, from the terminal, and nothing buffered ahead."""
+    for line in sys.stdin:
+        yield line
 
 
 # --- doctor ----------------------------------------------------------------
@@ -903,12 +1007,23 @@ def _step(args: argparse.Namespace, paths: Paths) -> int:
         if index is None:
             raise StateError("no-step-pending", f"{args.slug}: no step is waiting to run")
         definition = registry.get(run.steps[index].name)
+        # What the *driver* would enclose, which is what this command says it
+        # prints. It used to compose with no enclosures at all, so a person
+        # reading it was shown neither what earlier steps returned nor the index
+        # of the knowledge — the two things the driver puts in front of a
+        # session so that nobody has to go looking. A command that answers a
+        # different question from the one in its own help is the shape of defect
+        # this plan is written against.
+        driver = StepRunner(store=store, registry=registry, executors={})
+        enclosures, _ = driver.enclosures(run, index, definition)
         print(
             compose_input(
                 run=run,
                 definition=definition,
                 attempt=1,
                 provider=args.provider,
+                enclosures=enclosures,
+                contract=definition.contract_in(driver.keeps_knowledge(run)),
             )
         )
         return int(ExitCode.OK)
@@ -1062,6 +1177,19 @@ def _bench_list(root: Path, names: list[str], read_case, CaseError) -> int:
         print(f"{name:38}  {case.title}")
         print(f"{'':38}  fires: {case.fires}")
     return int(ExitCode.BROKEN_BENCH if broken else ExitCode.OK)
+
+
+def _sessions(root: Path, provider: str | None, options: list[str], wait: int | None = None):
+    """The chain, the slot and the pause, configured the way a run configures them.
+
+    The same object a driver holds, built from the same machine and the same
+    role table: a sitting must not be able to slip past a ceiling a run cannot,
+    and a second way of building one is a second place for that to be true.
+    """
+    from ..driver.session import Sessions
+
+    runner = _runner(RunStore(root), builtin_registry(), provider, options, wait=wait, silent=True)
+    return runner.sessions
 
 
 def _runner(store: RunStore, registry, provider: str | None, options: list[str],

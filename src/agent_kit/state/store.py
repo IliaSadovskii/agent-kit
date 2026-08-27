@@ -155,6 +155,26 @@ def keep_runs_out_of_git(runs_dir: Path) -> None:
     write_whole(ignore, "# The kit's own state. Not repository content — see docs/runs/ for what is.\n*\n")
 
 
+def keep_sittings_out_of_git(sittings_dir: Path) -> None:
+    """An hour of somebody's speech, verbatim, is not repository content either.
+
+    The same shape as `runs/` and for a sharper reason: the room holds
+    `telling.txt` — what the owner said, word for word — every answer they
+    typed, and the raw text of every attempt. The kit ends a sitting by asking
+    them to read the diff and commit it, so anything left uncovered here is a
+    thing they will commit without meaning to.
+    """
+    ignore = sittings_dir / ".gitignore"
+    if ignore.exists():
+        return
+    sittings_dir.mkdir(parents=True, exist_ok=True)
+    write_whole(
+        ignore,
+        "# The kit's own paperwork for an hour with the owner: what they said, what they\n"
+        "# answered, and what each attempt returned. Not repository content.\n*\n",
+    )
+
+
 def write_whole(path: Path, text: str) -> None:
     """Write beside, rename over: a writer that dies leaves the previous file whole."""
     handle = tempfile.NamedTemporaryFile(

@@ -287,6 +287,7 @@ class Sessions:
         on_busy: Callable[[str, Busy], bool] | None = None,
         stop_pending: Callable[[str, str], Any] | None = None,
         attempt_now: Callable[[], int] | None = None,
+        judge: Callable[[dict[str, Any]], Any] | None = None,
         parts_done: int = 0,
         providers: list[str] | None = None,
     ) -> Turn:
@@ -349,8 +350,20 @@ class Sessions:
             walked.attempts.append(record)
 
             if record.passed:
-                walked.record = record
-                return walked
+                # Satisfying the contract is not the same as being an answer.
+                # Where a caller has a second question — is this range really in
+                # what the owner said, is every standing part accounted for — a
+                # no is a refused attempt like any other: the reason goes into
+                # the next input and the chain carries on. A caller that judges
+                # nothing passes nothing here, which is every step of a run.
+                trouble = None if judge is None else _asked(judge, workspace)
+                if trouble is None:
+                    walked.record = record
+                    return walked
+                record = self.refused(
+                    workspace, record.attempt, seen[provider], provider, trouble, record.meta
+                )
+                walked.attempts[-1] = record
 
             refusal = record.refusal
             if on_refusal is not None:
@@ -495,6 +508,17 @@ class Sessions:
             from_the_tool=from_the_tool,
             meta=meta,
         )
+
+
+def _asked(judge: Callable[[dict[str, Any]], Any], workspace: StepWorkspace) -> str | None:
+    """The caller's own question about an output that already satisfied the contract."""
+    from ..errors import KitError
+
+    try:
+        judge(workspace.read_output() or {})
+    except KitError as refused:
+        return f"{refused.code}: {refused.detail}"
+    return None
 
 
 def named(error: BaseException) -> str:

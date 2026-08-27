@@ -43,7 +43,11 @@ def compose_input(
         f"# {definition.name} — {definition.title or definition.role}",
         "",
         f"run: {run.slug}",
-        f"branch: {run.branch} — the program puts the work there at the end; do not create it",
+        # A sitting with the owner has no branch and puts no work anywhere. The
+        # line about one is not decoration: it is an instruction, and an
+        # instruction that is untrue here is the defect this plan is against.
+        *([f"branch: {run.branch} — the program puts the work there at the end; do not create it"]
+          if run.branch else []),
         f"working copy: {run.tree or run.project or 'unstated'} — you are in it already",
         *([f"built on: {run.base}"] if run.base else []),
         *([f"after: {', '.join(run.needs)} — what they built is enclosed below"] if run.needs else []),
