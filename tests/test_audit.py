@@ -156,6 +156,26 @@ def test_the_standard_library_and_the_project_itself_are_not_asked_about(tmp_pat
     assert "money" not in held.modules and "money" in held.own
 
 
+def test_a_module_beside_the_file_that_imports_it_is_this_project_own(tmp_path):
+    """Measured on the kit itself, where it was wrong the first time.
+
+    `tests/` carries no `__init__.py`, so `import conftest` and `import
+    test_bench` were read as two packages nobody declared. They are files lying
+    beside the file that imports them, which is how Python resolves them — so
+    the name of any module in the tree is this project's own.
+    """
+    root = repository(tmp_path, code="import yaml\n")
+    (root / "tests").mkdir()
+    (root / "tests/conftest.py").write_text("HOME = 1\n", encoding="utf-8")
+    (root / "tests/test_money.py").write_text("import conftest\nimport yaml\n", encoding="utf-8")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-qm", "a test directory that is not a package")
+
+    held = inventory_of(tmp_path, root)
+    assert "conftest" not in held.modules and "conftest" in held.own
+    assert "yaml" in held.modules
+
+
 def test_a_relative_import_names_no_dependency(tmp_path):
     root = repository(tmp_path, code="from . import money\nfrom .money import AMOUNT\n")
     assert inventory_of(tmp_path, root).imports == ()
