@@ -16,6 +16,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..state.store import write_whole
+from .parts import LEDGER, PARTS_HEADING, PRODUCT, Part, read_parts, render_part
 from .format import (
     ASSUMED,
     Anchor,
@@ -44,17 +45,25 @@ SALTS = 64
 class Knowledge:
     """One directory of markdown files, and the blocks standing in them."""
 
-    def __init__(self, root: Path | str) -> None:
-        self.root = Path(root)
+    def __init__(self, root: Path | str | None) -> None:
+        #: None is a project that said out loud it is not being described. It
+        #: answers every question the way an empty directory does, so nothing
+        #: above has to ask twice — and, unlike a directory, it cannot be made
+        #: true by somebody creating a folder the owner never declared.
+        self.root = Path(root) if root is not None else None
 
     # --- reading ----------------------------------------------------------
 
     @property
+    def declared(self) -> bool:
+        return self.root is not None
+
+    @property
     def exists(self) -> bool:
-        return self.root.is_dir()
+        return self.root is not None and self.root.is_dir()
 
     def files(self) -> list[Path]:
-        return sorted(self.root.glob("*.md")) if self.exists else []
+        return sorted(self.root.glob("*.md")) if self.exists and self.root else []
 
     def _lines(self, path: Path) -> list[str]:
         """A file that cannot be read is a named refusal, not a stack trace.
@@ -74,6 +83,72 @@ class Knowledge:
 
     def blocks(self) -> list[Block]:
         return [block for path in self.files() for block in read_blocks(path.name, self._lines(path))]
+
+    def parts(self) -> list[Part]:
+        """Every part of the product this project has written down.
+
+        A key that two lines claim is refused rather than resolved to the first:
+        the whole use of a key is that a second telling finds the same line
+        again, and two lines answering to one key is a rewrite that lands
+        wherever the reader happened to look.
+        """
+        found = [part for path in self.files() for part in read_parts(path.name, self._lines(path))]
+        seen: dict[str, Part] = {}
+        for part in found:
+            held = seen.get(part.key)
+            if held is not None:
+                raise KnowledgeError(
+                    "two-parts-one-key",
+                    f"{part.key} names two parts of this product: {held.name!r} in {held.file} "
+                    f"line {held.line + 1} and {part.name!r} in {part.file} line {part.line + 1}",
+                )
+            seen[part.key] = part
+        return found
+
+    def blocks_beside(self, part: Part) -> int:
+        """How many blocks stand in the section this part's line is in.
+
+        A part is a list item and a block is addressed to a heading, so a block
+        is never *under* a part in the way a reader would mean. What is true and
+        useful is the section: rewriting a line under which four runs have
+        already written down what they assumed is a different act from
+        rewriting one nothing has touched, and the person doing it should be
+        told before they do it, not after.
+        """
+        path = self.root / part.file if self.root else None
+        if path is None or not path.is_file():
+            return 0
+        lines = self._lines(path)
+        above = [one for one in read_anchors(part.file, lines) if one.line < part.line]
+        if not above:
+            return 0
+        anchor = above[-1]
+        end = section_end(lines, anchor)
+        return sum(1 for block in read_blocks(part.file, lines) if anchor.line < block.start < end)
+
+    def part(self, key: str) -> Part:
+        for part in self.parts():
+            if part.key == key:
+                return part
+        raise KnowledgeError("no-such-part", f"no part of this product carries the key {key!r}")
+
+    @property
+    def described(self) -> bool:
+        """Whether anybody has written this project down at all.
+
+        An addressable record is the measure — not a part with a mark. A project
+        described the way the second version described one has 155 of them and
+        no parts, and refusing that project would be the kit calling a
+        description missing because it is not the shape this step writes.
+
+        **The ledger does not count.** Its headings are records like any other,
+        so an hour spent entirely on what is broken would otherwise leave a
+        project the gate calls described and nobody has described — which is the
+        exact defect this whole step exists against. It can be named here
+        without naming anybody's language, because `debt.md` is the kit's own
+        file name and not a word the project chose.
+        """
+        return any(anchor.file != LEDGER for anchor in self.anchors())
 
     def resolve(self, at: str) -> Anchor:
         """`file#anchor`, resolved against the file rather than trusted.
@@ -139,6 +214,13 @@ class Knowledge:
 
     # --- writing ----------------------------------------------------------
 
+    def _must_be_declared(self) -> None:
+        if self.root is None:
+            raise KnowledgeError(
+                "no-knowledge-declared",
+                "this project's declaration says it keeps no knowledge, so there is nowhere to write one",
+            )
+
     def write(self, at: str, run: str, body: str, id: str, date: str) -> list[Path]:
         """Put the block at the end of the record it addresses, replacing its own.
 
@@ -149,6 +231,7 @@ class Knowledge:
         Every file it touched comes back, not only the destination — a move
         edits two, and the one it left had to reach the commit as well.
         """
+        self._must_be_declared()
         anchor = self.resolve(at)  # before anything is removed: a bad address changes nothing
         touched = [self._remove(id, missing_ok=True)]
 
@@ -162,6 +245,44 @@ class Knowledge:
         block = render(ASSUMED, date, run, id, body)
         _write_lines(path, lines[:end] + [""] + block + lines[end:])
         return [held for held in dict.fromkeys([*touched, path]) if held is not None]
+
+    def write_part(self, key: str, name: str, says: str, mark: str) -> Path:
+        """One line: the part's own, replaced where it stands or laid beside the last.
+
+        Replaced *by key*, which is why the key is written into the line rather
+        than derived from the name every time: a second telling that renames a
+        part must move its line, not lay a second one under a second name.
+
+        Nothing else in the file is touched. A part the sitting never mentioned
+        keeps the line somebody wrote by hand, down to its spacing.
+        """
+        self._must_be_declared()
+        line = render_part(key, name, says, mark)
+        standing = [part for part in self.parts() if part.key == key]
+        if standing:
+            held = standing[0]
+            path = self.root / held.file
+            lines = self._lines(path)
+            lines[held.line] = line
+            _write_lines(path, lines)
+            return path
+
+        every = self.parts()
+        if every:
+            path = self.root / every[-1].file
+            lines = self._lines(path)
+            at = every[-1].line + 1
+            _write_lines(path, lines[:at] + [line] + lines[at:])
+            return path
+
+        # No parts anywhere: the file is made, or the heading is added to the
+        # one that is already there. This is the only place the kit writes a
+        # heading of its own, and it is the only place a project can have none.
+        self.root.mkdir(parents=True, exist_ok=True)
+        path = self.root / PRODUCT
+        lines = self._lines(path) if path.is_file() else ["# Продукт"]
+        _write_lines(path, lines + ["", PARTS_HEADING, "", line])
+        return path
 
     def closable(self, id: str) -> Block:
         """The block, if it is one a run may close, and a named refusal if it is not.
@@ -221,6 +342,11 @@ class Knowledge:
         and not an enclosure. The files are on disk where the session stands,
         exactly like the code.
         """
+        if not self.declared:
+            return (
+                "This project keeps no knowledge, and says so: `knowledge` is empty in its own\n"
+                "declaration. Nothing can be addressed, and no assumption owes a block."
+            )
         if not self.exists:
             return (
                 f"This project keeps no knowledge: there is no {self.root.name}/ directory under it.\n"
@@ -241,6 +367,21 @@ class Knowledge:
             for anchor in read_anchors(path.name, own):
                 address = f"{path.name}#{anchor.anchor}"
                 lines.append(f"   {address:<{width}}   {anchor.heading}")
+
+        parts = self.parts()
+        if parts:
+            lines += [
+                "",
+                "## the parts of the product",
+                "   Each is one line of the file it stands in. `walked` is a date the owner told it",
+                "   themselves; `derived` is what was worked out from the code and never confirmed.",
+            ]
+            width = max(len(part.key) for part in parts)
+            for part in parts:
+                lines.append(
+                    f"   {part.key:<{width}}  {part.mark:<16}  {part.file}  {part.name}"
+                    + (f" — {part.says[:GLIMPSE]}" if part.says else "")
+                )
 
         lines += ["", "## the blocks standing now"]
         # The run is a column and not part of the glimpse: it is the only thing

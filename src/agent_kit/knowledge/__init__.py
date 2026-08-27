@@ -6,6 +6,7 @@ claim it did.
 """
 
 from .format import ALPHABET, ASSUMED, Anchor, Block, identifier
+from .parts import DERIVED, Part, part_key, read_parts, render_part
 from .store import DEFAULT_DIR, Knowledge, KnowledgeError
 
 __all__ = [
@@ -13,6 +14,11 @@ __all__ = [
     "ASSUMED",
     "Anchor",
     "Block",
+    "DERIVED",
+    "Part",
+    "part_key",
+    "read_parts",
+    "render_part",
     "DEFAULT_DIR",
     "Knowledge",
     "KnowledgeError",
