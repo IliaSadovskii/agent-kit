@@ -27,6 +27,17 @@ the present, and that is the only ordering there is. What does read a clock is
 the ledger, which is asked whether a lease has expired — a question about now
 by its nature, and the only one here.
 
+**What no trap holds, said here rather than only in a note.** Three of the
+rules above are held by `tests/test_door.py` alone, and each was broken by hand
+to prove it: the trunk being asked as well as the base — the bench cannot make
+a stacked run, because a base is set by the batch driver and no command surface
+sets one, and a judge that merged a branch itself would plant a world the
+disarm cannot take away; `batch reopen` being the command where a batch owns a
+stopped run — no case leaves a finished batch holding one; and an unreadable
+batch hiding no run but its own. So is `ledger-too-new` against
+`unreadable-ledger`, and so is `doctor` not building the ledger it then calls
+missing.
+
 **It refuses once, and not about a project.** `not-a-directory` is a path
 somebody typed wrong; every state it actually finds — including a project
 nothing can be run in — is its output rather than its exit code, because a door
