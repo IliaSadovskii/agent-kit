@@ -1,0 +1,16 @@
+# the kind S6 promised S8 and S8 did not deliver, written by the hour that can see the whole night
+
+[case]
+title = "an evening composed with the owner, and the frame it leaves in the knowledge"
+fires = "the frame stands under the record it addressed, with the identifier the kit derives"
+
+[sitting]
+about = "batch"
+telling = """
+Сегодня строим НДС.
+Сначала таблица ставок по странам, потом цена со ставкой поверх.
+Ставка должна лежать в одном месте, своей никто не заводит.
+"""
+
+[expect]
+exit_code = 0

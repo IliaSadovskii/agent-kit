@@ -39,7 +39,14 @@ _TOP_KEYS = {"case", "expect", "batch", "sitting"}
 _CASE_KEYS = {"title", "fires", "slug", "brief", "wait", "no_disarm"}
 _EXPECT_KEYS = {"exit_code", "status", "refusal", "steps", "features"}
 _BATCH_KEYS = {"name", "features", "frames"}
-_SITTING_KEYS = {"telling", "answers"}
+_FRAME_KEYS = {"what", "id"}
+
+#: What a sitting can be about. The hour in which somebody says what their
+#: product is, and the hour in which they say what tonight builds.
+KNOWLEDGE = "knowledge"
+A_BATCH = "batch"
+_ABOUT = (KNOWLEDGE, A_BATCH)
+_SITTING_KEYS = {"telling", "answers", "about"}
 _FEATURE_KEYS = {"slug", "brief", "needs"}
 
 _STATUSES = ("created", "running", "done", "failed", "stopped")
@@ -80,6 +87,19 @@ class SittingCase:
 
     telling: str
     answers: tuple[str, ...] = ()
+    #: Which hour this is. Not a third way in: the same telling, the same
+    #: scripted terminal and the same two turns — only the command differs, and
+    #: which command it is has to come from somewhere.
+    about: str = KNOWLEDGE
+    name: str = "an-evening"
+
+
+@dataclass(frozen=True)
+class BatchFrame:
+    """One frame of a case's batch, and the block it claims in the knowledge."""
+
+    what: str
+    id: str = ""
 
 
 @dataclass(frozen=True)
@@ -103,7 +123,7 @@ class BatchCase:
     #: What every feature of this batch builds alike. A case that is about the
     #: frame declares one; every other case declares none, and the declaration
     #: says nothing about frames at all.
-    frames: tuple[str, ...] = ()
+    frames: tuple[BatchFrame, ...] = ()
 
     def declaration(self) -> str:
         """The file a person would have composed, written out for the case.
@@ -125,7 +145,9 @@ class BatchCase:
             'ends = "the declared command comes back green"',
         ]
         for frame in self.frames:
-            lines += ["", "[[frames]]", f'what = "{frame}"']
+            lines += ["", "[[frames]]", f'what = "{frame.what}"']
+            if frame.id:
+                lines.append(f'id = "{frame.id}"')
         for feature in self.features:
             lines += ["", f"[features.{feature.slug}]", f'brief = "{feature.brief}"']
             if feature.needs:
@@ -272,6 +294,7 @@ def _sitting(block: Any) -> SittingCase | None:
     return SittingCase(
         telling=_text(block.get("telling"), "sitting.telling"),
         answers=tuple(_text(one, "sitting.answers[]") for one in answers),
+        about=_one_of(block.get("about", KNOWLEDGE), _ABOUT, "sitting.about"),
     )
 
 
@@ -300,7 +323,16 @@ def _batch(block: Any) -> BatchCase | None:
     return BatchCase(
         name=_text(block.get("name"), "batch.name"),
         features=tuple(features),
-        frames=tuple(_text(one, "batch.frames[]") for one in _list(block.get("frames", []), "batch.frames")),
+        frames=tuple(_frame(one) for one in _list(block.get("frames", []), "batch.frames")),
+    )
+
+
+def _frame(block: Any) -> BatchFrame:
+    block = _table(block, "batch.frames[]")
+    _refuse_unknown(block, _FRAME_KEYS, "batch.frames[].")
+    return BatchFrame(
+        what=_text(block.get("what"), "batch.frames[].what"),
+        id=_optional_text(block.get("id"), "batch.frames[].id"),
     )
 
 

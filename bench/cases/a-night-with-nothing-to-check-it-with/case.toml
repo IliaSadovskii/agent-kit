@@ -1,0 +1,14 @@
+# an evening in a project that declares no way to run its own checks
+
+[case]
+title = "a batch in a project that declares no command"
+fires = "the night is refused by name before anything is created — no batch, no run, no tree"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+]
+
+[expect]
+exit_code = 2

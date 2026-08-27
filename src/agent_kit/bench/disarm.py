@@ -43,7 +43,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..errors import KitError
-from .cases import CASE_FILE, Case, read_case
+from .cases import A_BATCH, CASE_FILE, Case, read_case
 from .runner import run_case
 
 #: What the four answers are called, in the one place they are spelled.
@@ -115,6 +115,34 @@ NOTHING_TOLD: dict[str, str] = {
 }
 
 
+#: What a composing sitting says when nothing is wrong: one feature out of the
+#: first line of whatever the case's telling is, both bounds, one scenario with
+#: an ending, and one frame — every field of the contract, filled with the least
+#: a real answer could be. Its address is the one record the baseline world's
+#: knowledge has, so a case whose own knowledge is taken away still composes.
+NOTHING_COMPOSED: dict[str, str] = {
+    "01-reply.json": json.dumps(
+        {
+            "features": [
+                {"slug": "the-work", "brief": "то, о чём рассказали", "said": "L1"},
+            ],
+            "inside": ["то, что назвали"],
+            "outside": ["всё, чего не называли"],
+            "scenarios": [
+                {"what": "проход по тому, что построили", "ends": "объявленная команда зелёная",
+                 "said": "L1"}
+            ],
+            "frames": [
+                {"what": "все части строятся одинаково", "at": "product.md#Части", "said": "L1"}
+            ],
+        },
+        indent=2,
+        ensure_ascii=False,
+    )
+    + "\n",
+}
+
+
 @dataclass(frozen=True)
 class Armed:
     """What the check found out about one case."""
@@ -145,7 +173,10 @@ def disarm(case: Case, into: Path) -> Case:
         shutil.copy2(case.judge, room / "judge.sh")
 
     if case.sitting is not None:
-        _laid_out(room / "replies", NOTHING_TOLD)
+        _laid_out(
+            room / "replies",
+            NOTHING_COMPOSED if case.sitting.about == A_BATCH else NOTHING_TOLD,
+        )
     elif case.batch is None:
         _nothing_wrong(room / "replies")
     else:

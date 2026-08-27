@@ -23,7 +23,7 @@ from pathlib import Path
 from ..errors import ExitCode, KitError
 from ..logs import get_logger
 from ..shell import kill_group
-from .cases import Case, read_case
+from .cases import A_BATCH, Case, read_case
 from .world import World, make_world
 
 #: A case is a handful of shell scripts and a provider that answers from files.
@@ -139,10 +139,15 @@ def _drive_a_sitting(case: Case, world: World):
     told = Path(world.env["BENCH"]) / "telling.txt"
     told.write_text(case.sitting.telling, encoding="utf-8")
     typed = "".join(f"{line}\n" for line in case.sitting.answers)
+    # Two commands and one way in. Which hour it is comes out of the case; the
+    # telling, the terminal, the fake provider and the judge are the same.
+    argv = (
+        ["batch", "compose", case.sitting.name]
+        if case.sitting.about == A_BATCH
+        else ["knowledge", "tell"]
+    )
     return _kit(
-        world,
-        ["knowledge", "tell", "--from", str(told), "--provider", "fake", *_replies(case)],
-        feed=typed,
+        world, [*argv, "--from", str(told), "--provider", "fake", *_replies(case)], feed=typed
     )
 
 
@@ -343,6 +348,9 @@ def _judge_script(case: Case, world: World, exit_code: int) -> Verdict:
         env.update(
             TELLING=str(Path(world.env["BENCH"]) / "telling.txt"),
             SITTINGS=str(world.repo / ".agent-kit/v3/sittings"),
+            DECLARED=str(
+                world.repo / ".agent-kit/v3/declarations" / f"{case.sitting.name}.toml"
+            ),
         )
     if case.batch is not None:
         env.update(

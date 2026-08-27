@@ -1,0 +1,25 @@
+# what every feature of one evening must build alike, in each of their inputs
+
+[case]
+title = "two features of one batch, and the frame both are held to"
+fires = "each feature's design is handed the frame, enclosed rather than looked up"
+no_disarm = """
+the frame is the declaration itself, and a batch whose declaration names no frame is a
+different case, so there is nothing to take away. The mechanism under it — the frame
+reaching a step's composed input — is broken by hand instead, and this is the case that
+reddens when it is.
+"""
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+  { slug = "quote", brief = "Money quotes a price with VAT" },
+]
+frames = [
+  { what = "ставка живёт одной константой, своей никто не заводит" },
+]
+
+[expect]
+exit_code = 0
+features = { rates = "done", quote = "done" }

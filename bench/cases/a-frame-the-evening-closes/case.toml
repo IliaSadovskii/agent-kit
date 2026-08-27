@@ -1,0 +1,18 @@
+# a frame is choreography, and the work it framed is over
+
+[case]
+title = "an evening whose features have all ended, and the frame it wrote"
+fires = "the batch closes its own frame and leaves the record it stood under alone"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+]
+frames = [
+  { what = "ставка живёт одной константой", id = "fr4me1" },
+]
+
+[expect]
+exit_code = 0
+features = { rates = "done" }
