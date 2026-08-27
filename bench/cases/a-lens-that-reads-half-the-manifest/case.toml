@@ -1,8 +1,8 @@
-# the cheap way to look thorough is to answer for the interesting third
+# the cheap way to look thorough is to answer for the interesting two thirds
 
 [case]
-title = "a lens that answers for one dependency and leaves the other"
-fires = "the missing one is named, and the answer is refused rather than counted"
+title = "a lens that leaves one of the manifest's dependencies unanswered"
+fires = "the one it left out is named, and the answer is refused rather than counted"
 
 [audit]
 lens = "dependencies"
