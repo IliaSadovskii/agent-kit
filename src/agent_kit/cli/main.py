@@ -16,7 +16,7 @@ from .. import __version__
 from ..config import Config, load_config
 from ..errors import ConfigError, ExitCode, KitError, ProviderError, StateError, UsageError
 from ..logs import get_logger, setup_logging
-from ..paths import Paths, project_paths
+from ..paths import Paths
 from ..driver import StepRunner, create_run
 from ..driver.compose import compose_input
 from ..providers import registry as providers
@@ -66,7 +66,6 @@ def build_parser() -> argparse.ArgumentParser:
     new.add_argument("--brief", help="what this run is for, in your own words; every step's input encloses it")
     new.add_argument("--steps", help="comma-separated step names (default: what `step list` calls the default)")
 
-    run_what.add_parser("list", help="the runs this project holds")
 
     go = run_what.add_parser("go", help="run every step that is left, and stop at the first that will not pass")
     go.add_argument("slug")
@@ -128,7 +127,6 @@ def build_parser() -> argparse.ArgumentParser:
     batch_new = batch_what.add_parser("new", help="create a batch from the file you wrote")
     batch_new.add_argument("file", help="the declaration: features, briefs, and what needs what")
 
-    batch_what.add_parser("list", help="the batches this project holds")
 
     batch_show = batch_what.add_parser("show", help="a batch, as it stands")
     batch_show.add_argument("name")
@@ -348,7 +346,7 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace, paths: 
     if args.command == "next":
         return _next(Path(args.project), paths)
     if args.command == "doctor":
-        return _doctor(paths, Path(args.project))
+        return _doctor(paths)
     if args.command == "init":
         return _init(Path(args.project).resolve(), args.force)
     if args.command == "config":
@@ -507,9 +505,19 @@ def _next(project: Path, paths: Paths) -> int:
     return int(ExitCode.OK)
 
 
-def _doctor(paths: Paths, project: Path) -> int:
+def _doctor(paths: Paths) -> int:
+    """What this machine is configured with, and what is missing from it.
+
+    One question per screen. It used to answer three — the machine's
+    configuration, the ledger's live picture, and half of whichever project it
+    was standing in — which made it a third place that had to agree with
+    `agent-kit machine` and with the door. The live picture is `machine`'s and
+    the project is `next`'s; what is left here has no other home.
+
+    The ledger's **path** stays, and only the path: nothing else prints it, and
+    the hour somebody wants it is the hour the file is not there.
+    """
     config = load_config(paths.config_file)
-    project_dirs = project_paths(project.resolve())
 
     print("the machine")
     print(f"  config      {paths.config_file}  {_present(paths.config_file)}")
@@ -518,15 +526,6 @@ def _doctor(paths: Paths, project: Path) -> int:
     print(f"  secrets     {paths.secrets_file}  {_present(paths.secrets_file)}")
     ledger = _ledger(paths)
     print(f"  ledger      {ledger.path}  {_present(ledger.path)}")
-    picture = ledger.picture()
-    print(f"  right now   {len(picture.held)} running, {len(picture.queue)} queued, {len(picture.limits)} limited")
-    print()
-    print("the project")
-    print(f"  root        {project.resolve()}")
-    print(f"  kit         {project_dirs.kit_dir}  {_present(project_dirs.kit_dir)}")
-    print(f"  runs        {len(RunStore(project).list())}")
-    for index, line in enumerate(_commands_declared(project.resolve())):
-        print(f"  {'commands' if index == 0 else '':<12}{line}")
     print()
     print("the method")
     registry = builtin_registry()
@@ -546,32 +545,6 @@ def _doctor(paths: Paths, project: Path) -> int:
 
 def _present(path: Path) -> str:
     return "ok" if path.exists() else "missing"
-
-
-def _commands_declared(root: Path) -> list[str]:
-    """What `verify` would run here, and which of it this machine cannot start.
-
-    The same question the driver refuses on, printed where somebody is already
-    looking for what is missing — and printed before a night rather than after
-    two sessions have been paid for.
-    """
-    from ..project import commands_that_start_nothing, read_project, starts_nothing
-
-    try:
-        declared = read_project(root)
-    except ConfigError as unreadable:
-        return [f"unreadable — {unreadable.code}"]
-    if declared is None:
-        return ["none — this project has not been declared to the kit yet"]
-    if not declared.commands:
-        return ["none — `verify` refuses a project that cannot say how it is tested"]
-    lost = {command.name for command in commands_that_start_nothing(declared)}
-    return [
-        f"{command.name:8}{command.command}"
-        + (f"  ← {starts_nothing(command.command)} is not here, so verify cannot run it"
-           if command.name in lost else "")
-        for command in declared.commands
-    ]
 
 
 # --- init ------------------------------------------------------------------
@@ -663,22 +636,13 @@ def _run(args: argparse.Namespace) -> int:
     what = args.what
     if what is None:
         raise UsageError(
-            "missing-command", "run needs one of: new, list, go, show, start, pass, fail, stop, reopen"
+            "missing-command", "run needs one of: new, go, show, start, pass, fail, stop, reopen"
         )
 
     if what == "new":
         steps = [name.strip() for name in args.steps.split(",")] if args.steps else None
         run = create_run(store, registry, args.slug, steps=steps, brief=args.brief)
         print(f"{run.slug}: created on {run.branch} with {len(run.steps)} steps")
-        return int(ExitCode.OK)
-
-    if what == "list":
-        slugs = store.list()
-        if not slugs:
-            print("no runs yet")
-        for slug in slugs:
-            run = store.load(slug)
-            print(f"{slug:24} {run.status.value:9} {_where(run)}")
         return int(ExitCode.OK)
 
     if what == "show":
@@ -873,7 +837,7 @@ def _batch(args: argparse.Namespace, paths: Paths) -> int:
     if what is None:
         raise UsageError(
             "missing-command",
-            "batch needs one of: compose, new, list, show, go, stop, skip, reopen",
+            "batch needs one of: compose, new, show, go, stop, skip, reopen",
         )
 
     if what == "compose":
@@ -894,16 +858,6 @@ def _batch(args: argparse.Namespace, paths: Paths) -> int:
         for feature in batch.features:
             waits = f" — after {', '.join(feature.needs)}" if feature.needs else ""
             print(f"  {feature.slug}{waits}")
-        return int(ExitCode.OK)
-
-    if what == "list":
-        names = store.list()
-        if not names:
-            print("no batches yet")
-        for name in names:
-            batch = store.load(name)
-            landed = sum(1 for feature in batch.features if feature.status is FeatureStatus.DONE)
-            print(f"{name:24} {landed}/{len(batch.features)} landed")
         return int(ExitCode.OK)
 
     if what == "show":
