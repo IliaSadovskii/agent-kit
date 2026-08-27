@@ -4,11 +4,15 @@ from .check import CheckReport, check_provider
 from .compose import compose_input
 from .executor import Executor, ExecutorFailed, ExecutorResult, StepRequest
 from .runner import ATTEMPTS_PER_PROVIDER, AttemptRecord, StepOutcome, StepRunner, create_run
+from .session import Sessions, Standing, Turn
 from .workspace import StepWorkspace
 
 __all__ = [
     "ATTEMPTS_PER_PROVIDER",
     "AttemptRecord",
+    "Sessions",
+    "Standing",
+    "Turn",
     "Executor",
     "ExecutorFailed",
     "ExecutorResult",
