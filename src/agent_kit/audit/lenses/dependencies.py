@@ -140,12 +140,11 @@ class Inventory:
 def measure(tree: Path, commit: str = "", branch: str = "", dirty: bool = False, files: int = 0) -> Inventory:
     """Both lists, from the unpacked commit and from nothing else."""
     declared = _declared(tree)
-    found, unreadable = _every_import(tree)
-    mine = _own(tree)
+    found, unreadable, mine = _every_import(tree)
     imports = tuple(
         Imported(module=name, count=count, first_seen=first)
         for name, (count, first) in sorted(found.items())
-        if name not in sys.stdlib_module_names and name not in mine
+        if name not in sys.stdlib_module_names
     )
     return Inventory(
         commit=commit,
@@ -156,13 +155,19 @@ def measure(tree: Path, commit: str = "", branch: str = "", dirty: bool = False,
         declared=declared,
         imports=imports,
         stdlib=tuple(sorted(name for name in found if name in sys.stdlib_module_names)),
-        own=tuple(sorted(name for name in found if name in mine and name not in sys.stdlib_module_names)),
+        own=tuple(sorted(mine)),
         unreadable=tuple(unreadable),
     )
 
 
 def _declared(tree: Path) -> tuple[Declared, ...]:
     """Every requirement of the one manifest the kit reads, with its group.
+
+    `[build-system].requires` is deliberately not among them, and this is where
+    that is written down: what builds a wheel is installed by whoever builds
+    one, and nothing in the project's own code can import it — so every entry
+    of it would be measured as imported nowhere, and every one would be a
+    finding that is not work.
 
     One parser and one file. The second version hand-rolled a YAML subset and a
     `#` inside a quoted value truncated a line; the answer to that is not a
@@ -222,10 +227,25 @@ def _declared(tree: Path) -> tuple[Declared, ...]:
     )
 
 
-def _every_import(tree: Path) -> tuple[dict[str, tuple[int, str]], list[str]]:
-    """Every top-level module the code imports, with a count and a first sighting."""
+def _every_import(tree: Path) -> tuple[dict[str, tuple[int, str]], list[str], set[str]]:
+    """Every top-level module the code imports, with a count and a first sighting.
+
+    A name is this project's own when it really would resolve to a file of this
+    project *from the file that imports it*: a module beside it, or one at a
+    root Python puts on the path — the top of the tree and `src/`. Asked per
+    occurrence, because that is how the language answers it.
+
+    The first form of this was the stem of any `.py` file anywhere, and it was
+    too wide by exactly the amount that matters: `tests/yaml.py` does not shadow
+    `yaml` for `src/pkg/foo.py`, but it took `yaml` out of the inventory — and
+    the declared `PyYAML` then had nothing importing it, which is an invented
+    *remove PyYAML* going straight into the candidate list. The narrow rule is
+    the rule, and what it filtered is printed by name either way.
+    """
     found: dict[str, tuple[int, str]] = {}
     unreadable: list[str] = []
+    mine: set[str] = set()
+    roots = [where for where in (tree, tree / "src") if where.is_dir()]
     for path in sorted(tree.rglob("*.py")):
         relative = path.relative_to(tree).as_posix()
         try:
@@ -245,50 +265,20 @@ def _every_import(tree: Path) -> tuple[dict[str, tuple[int, str]], list[str]]:
                 # it names no module to look up.
                 names = [node.module.split(".")[0]]
             for name in names:
+                if _resolves_locally(name, [path.parent, *roots]):
+                    mine.add(name)
+                    continue
                 count, first = found.get(name, (0, f"{relative}:{getattr(node, 'lineno', 0)}"))
                 found[name] = (count + 1, first)
-    return found, unreadable
+    return found, unreadable, mine
 
 
-def _own(tree: Path) -> set[str]:
-    """Names that are this project's, so importing one is not a dependency.
-
-    Every directory holding an `__init__.py`, every directory at the top of the
-    tree or under `src/`, the name of every module anywhere in it, and whatever
-    the manifest calls the project.
-
-    **Every module anywhere**, because that is how Python resolves one: a file
-    beside the file importing it wins, and `tests/` with no `__init__.py` in it
-    is the ordinary case rather than an odd one — measured on the kit itself,
-    where `import conftest` came out as a package nobody declared. A repository
-    that really does carry `requests.py` shadows the package of that name too,
-    and calling that its own is not a mistake: the import resolves to the file.
-
-    Printed afterwards, because a filter that is wrong about one name turns a
-    real dependency into silence, and silence is what this layer exists against.
-    """
-    mine: set[str] = set()
-    for path in tree.rglob("*.py"):
-        mine.add(path.stem)
-        if path.name == "__init__.py":
-            mine.add(path.parent.name)
-    for where in (tree, tree / "src"):
-        if not where.is_dir():
-            continue
-        for path in where.iterdir():
-            if path.is_dir():
-                mine.add(path.name)
-    manifest = tree / MANIFEST
-    if manifest.is_file():
-        try:
-            document = tomllib.loads(manifest.read_text(encoding="utf-8"))
-        except (tomllib.TOMLDecodeError, UnicodeDecodeError, OSError):
-            document = {}
-        project = document.get("project") if isinstance(document.get("project"), dict) else {}
-        name = project.get("name")
-        if isinstance(name, str) and name.strip():
-            mine.add(re.sub(r"[-.]+", "_", name.strip()))
-    return mine
+def _resolves_locally(name: str, where: list[Path]) -> bool:
+    """Whether an import of `name` from here lands on a file of this project."""
+    return any(
+        (place / f"{name}.py").is_file() or (place / name / "__init__.py").is_file()
+        for place in where
+    )
 
 
 # --- what the session is shown ----------------------------------------------
@@ -361,6 +351,10 @@ class Judged:
     #: findings, and counted anyway: an audit that called everything a plugin
     #: must not read as an audit that found nothing.
     unimported: list[dict] = field(default_factory=list)
+    #: Rows holding a measured module under a name that is not the package's
+    #: own. The second thing no program can check, and the one that can hide a
+    #: finding rather than invent one — so it is counted beside the first.
+    attached: list[dict] = field(default_factory=list)
 
 
 def judge(output: dict, inventory: Inventory) -> Judged:
@@ -372,7 +366,8 @@ def judge(output: dict, inventory: Inventory) -> Judged:
 
     judged = Judged()
     seen: set[str] = set()
-    claimed: set[str] = set()
+    #: Measured module -> the dependency that says it provides it.
+    claimed: dict[str, str] = {}
 
     for index, row in enumerate(rows):
         where = f"declared[{index}]"
@@ -392,14 +387,43 @@ def judge(output: dict, inventory: Inventory) -> Judged:
 
         names = [str(one).strip() for one in (row.get("imports") or []) if str(one).strip()]
         occurring = [modules[name] for name in names if name in modules]
-        claimed.update(names)
         verdict = str(row.get("verdict") or "")
-        if verdict == IMPORTED and not occurring:
-            raise AuditRefusal(
-                "verdict-against-the-inventory",
-                f"{where}: {standing.name} is called {IMPORTED}, and none of {', '.join(names)} "
-                "is imported anywhere the inventory measured",
-            )
+
+        # A measured module belongs to one dependency. Two rows claiming one
+        # module is a module accounted for twice and found once.
+        for name in names:
+            if name in modules and name in claimed:
+                raise AuditRefusal(
+                    "named-twice",
+                    f"{where}.imports: {name} is already claimed by {claimed[name]} above, and a "
+                    "module the inventory measured comes from one dependency",
+                )
+        if verdict == IMPORTED:
+            # An `imported` row is about modules that really are imported. A
+            # name here that the inventory never measured does no work and
+            # cannot be checked, so it is not a place to put one.
+            unmeasured = [name for name in names if name not in modules]
+            if unmeasured:
+                raise AuditRefusal(
+                    "not-declared",
+                    f"{where}.imports: {', '.join(unmeasured)} — {standing.name} is called "
+                    f"{IMPORTED}, and these are not among the {len(modules)} modules the "
+                    "inventory measured",
+                )
+        claimed.update({name: standing.name for name in names if name in modules})
+
+        # What the program cannot check, printed instead of hidden. A module
+        # whose name is the package's own needs nobody's word — `tabulate`
+        # comes from `tabulate`. A module under another name is the session
+        # saying so: `PyYAML` really does arrive as `yaml`, and an undeclared
+        # `requests` attached to `PyYAML` would look exactly the same and would
+        # vanish from the findings. It owes a reason and it is counted openly.
+        attached = [one.module for one in occurring if normalise(one.module) != standing.key]
+        # There is no second refusal for `imported` with nothing occurring: the
+        # check above already requires every name on such a row to be a
+        # measured module, and the contract requires at least one name. Two
+        # codes for one error leave one of them unreachable, which is what a
+        # review caught in S8b and what a test then cannot tell apart.
         if verdict != IMPORTED and occurring:
             first = occurring[0]
             raise AuditRefusal(
@@ -407,15 +431,19 @@ def judge(output: dict, inventory: Inventory) -> Judged:
                 f"{where}: {standing.name} is called {verdict}, and {first.module} is imported "
                 f"{first.count} time(s), first at {first.first_seen}",
             )
-        if verdict != IMPORTED and not str(row.get("why") or "").strip():
+        if (verdict != IMPORTED or attached) and not str(row.get("why") or "").strip():
             raise AuditRefusal(
                 "no-reason-to-remove",
-                f"{where}: {standing.name} is called {verdict} and gives no reason, so the line "
-                "about it would say nothing to the person who has to act on it",
+                f"{where}: {standing.name} gives no reason for "
+                + (f"holding {', '.join(attached)}" if attached else f"being called {verdict}")
+                + ", so the line about it would stand in the report on nobody's word",
             )
 
-        row = {**row, "name": standing.name, "where": standing.where, "imports": names}
+        row = {**row, "name": standing.name, "where": standing.where, "imports": names,
+               "attached": attached}
         judged.declared.append(row)
+        if attached:
+            judged.attached.append(row)
         if verdict == UNUSED:
             judged.findings.append(
                 Finding(kind="remove", name=standing.name, why=str(row.get("why")), where=standing.where)
@@ -457,7 +485,7 @@ def judge(output: dict, inventory: Inventory) -> Judged:
             )
         )
 
-    unanswered = [one.module for one in inventory.imports if one.module not in claimed | named]
+    unanswered = [one.module for one in inventory.imports if one.module not in set(claimed) | named]
     if unanswered:
         raise AuditRefusal(
             "not-accounted-for",
@@ -549,7 +577,8 @@ def render_report(inventory: Inventory, judged: Judged, name: str) -> str:
         denominator(inventory),
         "",
         f"**Найдено: {len(judged.findings)}** — убрать {len(remove)}, объявить {len(declare)}. "
-        f"Используется без импорта: {len(judged.unimported)}.",
+        f"Используется без импорта: {len(judged.unimported)}. "
+        f"Привязано по слову сессии: {sum(len(row.get('attached') or []) for row in judged.attached)}.",
     ]
     lines += _warnings(inventory)
 
@@ -572,6 +601,21 @@ def render_report(inventory: Inventory, judged: Judged, name: str) -> str:
             for row in judged.unimported
         ]
 
+    if judged.attached:
+        lines += [
+            "",
+            "## Привязано по слову сессии",
+            "",
+            "Модуль, чьё имя расходится с именем пакета. Программа этого не проверяет — и именно "
+            "так находку можно спрятать, а не выдумать: чужой импорт, подвешенный к чужому пакету, "
+            "выглядит отсюда так же, как настоящий `PyYAML` → `yaml`.",
+            "",
+        ]
+        lines += [
+            f"- `{row.get('name')}` → {', '.join(row.get('attached') or [])} — {row.get('why')}"
+            for row in judged.attached
+        ]
+
     accounted = [row for row in judged.declared if row.get("verdict") == IMPORTED]
     lines += [
         "",
@@ -583,6 +627,24 @@ def render_report(inventory: Inventory, judged: Judged, name: str) -> str:
         for row in accounted
     ] or ["Ни одной."]
     lines += ["", "</details>", ""]
+
+    # The names, not the number. A filter that is wrong about one of them turns
+    # a real dependency into silence, and a count cannot be argued with.
+    lines += [
+        "",
+        f"<details><summary>Не спрашивали ({len(inventory.stdlib) + len(inventory.own)})</summary>",
+        "",
+        f"Стандартная библиотека: {', '.join(f'`{one}`' for one in inventory.stdlib) or '—'}",
+        "",
+        f"Своё — модуль лежит рядом с тем, кто его импортирует, или в корне пакета: "
+        f"{', '.join(f'`{one}`' for one in inventory.own) or '—'}",
+        "",
+        "`[build-system].requires` эта линза не читает: сборочные зависимости ставит не тот, "
+        "кто запускает проект, и импортов у них здесь быть не может.",
+        "",
+        "</details>",
+        "",
+    ]
     return "\n".join(lines)
 
 

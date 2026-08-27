@@ -29,7 +29,7 @@ from ..paths import project_paths
 from ..shell import kill_group
 from ..project import require_project
 from ..providers.base import ExecutorFailed, ExecutorResult, StepRequest
-from ..state.store import keep_runs_out_of_git
+from ..state.store import keep_out_of_git
 from .deliverable import BLOCKING, expensive_of, read, refuse_unless_deliverable
 from .deliverable import where as _where
 from .proved import (
@@ -95,7 +95,9 @@ class Deliver:
         # It goes beside the run's own state, which means it must be kept out
         # of the commit this step is about to make.
         runs_dir = project_paths(root).runs_dir
-        keep_runs_out_of_git(runs_dir)
+        keep_out_of_git(
+            runs_dir, "The kit's own state. Not repository content — see docs/runs/ for what is."
+        )
         body_file = runs_dir / request.slug / "pull-request.md"
         body_file.parent.mkdir(parents=True, exist_ok=True)
         body_file.write_text(body, encoding="utf-8")

@@ -88,7 +88,10 @@ class RunStore:
 
         directory = self.paths.run_dir(run.slug)
         directory.mkdir(parents=True, exist_ok=True)
-        keep_runs_out_of_git(self.paths.runs_dir)
+        keep_out_of_git(
+            self.paths.runs_dir,
+            "The kit's own state. Not repository content — see docs/runs/ for what is.",
+        )
         write_whole(directory / RUN_FILE, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
         return run
 
@@ -140,40 +143,26 @@ class RunStore:
         return self.update(slug, lambda run: run.reopen())
 
 
-def keep_runs_out_of_git(runs_dir: Path) -> None:
-    """A run's state is not repository content, and the project should not have to say so.
+def keep_out_of_git(where: Path, *why: str) -> None:
+    """The kit's own paperwork is not repository content, and the project should not have to say so.
 
-    It covers `runs/` and not the whole of `.agent-kit/v3/`, because what the
-    project *declares* about itself is repository content and belongs in the
-    history beside the code. Writing this beside the state rather than into the
-    project's own `.gitignore` leaves the project's files alone: removing the
-    kit removes every trace of it.
+    Three directories want this and they wanted it in three copies of one
+    six-line function. It covers `runs/`, `sittings/` or `audits/` and never
+    the whole of `.agent-kit/v3/`, because what the project *declares* about
+    itself is repository content and belongs in the history beside the code.
+    Writing it beside the paperwork rather than into the project's own
+    `.gitignore` leaves the project's files alone: removing the kit removes
+    every trace of it.
+
+    `why` is what the directory holds, in the words of whoever writes there —
+    a run's state, an hour of the owner's speech, what one lens measured — so
+    a person opening the file is told what they are not committing.
     """
-    ignore = runs_dir / ".gitignore"
+    ignore = where / ".gitignore"
     if ignore.exists():
         return
-    runs_dir.mkdir(parents=True, exist_ok=True)
-    write_whole(ignore, "# The kit's own state. Not repository content — see docs/runs/ for what is.\n*\n")
-
-
-def keep_sittings_out_of_git(sittings_dir: Path) -> None:
-    """An hour of somebody's speech, verbatim, is not repository content either.
-
-    The same shape as `runs/` and for a sharper reason: the room holds
-    `telling.txt` — what the owner said, word for word — every answer they
-    typed, and the raw text of every attempt. The kit ends a sitting by asking
-    them to read the diff and commit it, so anything left uncovered here is a
-    thing they will commit without meaning to.
-    """
-    ignore = sittings_dir / ".gitignore"
-    if ignore.exists():
-        return
-    sittings_dir.mkdir(parents=True, exist_ok=True)
-    write_whole(
-        ignore,
-        "# The kit's own paperwork for an hour with the owner: what they said, what they\n"
-        "# answered, and what each attempt returned. Not repository content.\n*\n",
-    )
+    where.mkdir(parents=True, exist_ok=True)
+    write_whole(ignore, "".join(f"# {line}\n" for line in why) + "*\n")
 
 
 def write_whole(path: Path, text: str) -> None:
@@ -193,4 +182,4 @@ def write_whole(path: Path, text: str) -> None:
         raise
 
 
-__all__ = ["RunStore", "Run", "Step", "RUN_FILE", "keep_runs_out_of_git", "write_whole"]
+__all__ = ["RunStore", "Run", "Step", "RUN_FILE", "keep_out_of_git", "write_whole"]

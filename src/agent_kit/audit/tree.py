@@ -46,7 +46,6 @@ log = get_logger("audit.tree")
 class Unpacked:
     """The commit, where it was put, and what the person should know about it."""
 
-    where: Path
     commit: str
     #: What this repository calls the commit's branch. `HEAD` where it is
     #: detached, which is a true answer and not a missing one.
@@ -56,10 +55,6 @@ class Unpacked:
     #: mid-work is entitled to audit what is committed.
     dirty: bool
     files: int
-
-    @property
-    def short(self) -> str:
-        return self.commit[:7]
 
 
 def unpack_head(root: Path | str, into: Path) -> Unpacked:
@@ -78,6 +73,18 @@ def unpack_head(root: Path | str, into: Path) -> Unpacked:
         )
 
     into.mkdir(parents=True, exist_ok=True)
+    above = _asked(into, "rev-parse", "--git-dir")
+    if above is not None:
+        # Before the archive is written, not after. A refusal that unpacked a
+        # whole repository into somebody else's checkout and then swept it up
+        # is a refusal that did the thing it is refusing.
+        raise ConfigError(
+            "tree-inside-a-repository",
+            f"the commit would be unpacked at {into}, and git finds a repository at {above} "
+            "from there — an audit that stands inside one can commit, branch and push",
+            hint="TMPDIR указывает внутрь git-репозитория",
+        )
+
     with tempfile.NamedTemporaryFile(suffix=".tar", dir=into.parent) as archive:
         done = subprocess.run(
             ["git", "-C", str(root), "archive", "--format=tar", "-o", archive.name, commit],
@@ -93,22 +100,10 @@ def unpack_head(root: Path | str, into: Path) -> Unpacked:
             members = [one for one in held.getmembers() if one.isfile()]
             _extract(held, into)
 
-    above = _asked(into, "rev-parse", "--git-dir")
-    if above is not None:
-        # The one thing the location has to be true about, asked rather than
-        # trusted: a `TMPDIR` inside somebody's checkout would put the session
-        # back inside a repository without a word.
-        raise ConfigError(
-            "tree-inside-a-repository",
-            f"the commit was unpacked at {into}, and git finds a repository at {above} from "
-            "there — an audit that stands inside one can commit, branch and push",
-            hint="TMPDIR указывает внутрь git-репозитория",
-        )
-
     branch = _asked(root, "rev-parse", "--abbrev-ref", "HEAD") or "HEAD"
     dirty = bool(_asked(root, "status", "--porcelain"))
     log.info("%s unpacked at %s: %s files", commit[:7], into, len(members))
-    return Unpacked(where=into, commit=commit, branch=branch, dirty=dirty, files=len(members))
+    return Unpacked(commit=commit, branch=branch, dirty=dirty, files=len(members))
 
 
 def _extract(held: tarfile.TarFile, into: Path) -> None:

@@ -2,7 +2,7 @@
 
 from .migrations import MIGRATIONS, migrate
 from .schema import BRANCH_PREFIX, DEFAULT_STEPS, SCHEMA_VERSION, Run, RunStatus, Step, StepStatus
-from .store import RUN_FILE, RunStore, keep_sittings_out_of_git
+from .store import RUN_FILE, RunStore, keep_out_of_git
 
 __all__ = [
     "BRANCH_PREFIX",
@@ -15,6 +15,6 @@ __all__ = [
     "RunStore",
     "Step",
     "StepStatus",
-    "keep_sittings_out_of_git",
+    "keep_out_of_git",
     "migrate",
 ]

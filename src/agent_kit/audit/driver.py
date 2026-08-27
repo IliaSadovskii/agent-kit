@@ -30,7 +30,7 @@ from ..driver.workspace import StepWorkspace
 from ..errors import ProviderError, StateError
 from ..logs import get_logger
 from ..paths import project_paths
-from ..state.store import write_whole
+from ..state.store import keep_out_of_git, write_whole
 from .lens import Lens
 from .tree import unpack_head
 
@@ -46,7 +46,6 @@ log = get_logger("audit")
 class Outcome:
     """What one lens came to, for the person who typed the command."""
 
-    name: str
     room: Path
     report: Path
     #: None where the lens found no work. An empty file saying *nothing to do*
@@ -108,7 +107,11 @@ class Audit:
         # anybody ran `init`. A refusal with no reader is one rule 5 deletes
         # rather than documents.
         self.audits.mkdir(parents=True, exist_ok=True)
-        keep_audits_out_of_git(self.audits)
+        keep_out_of_git(
+            self.audits,
+            "The kit's own paperwork for one lens over one commit: what was measured, what",
+            "each attempt returned, and the report. Not repository content.",
+        )
 
         # Outside the project, and that is not tidiness. git looks for a
         # repository by walking up: a copy under `.agent-kit/` sits two
@@ -189,7 +192,6 @@ class Audit:
         findings = len(getattr(judged, "findings", []) or [])
         log.info("%s: %s finding(s), report at %s", room.name, findings, report)
         return Outcome(
-            name=room.name,
             room=room,
             report=report,
             candidates=candidates,
@@ -209,25 +211,6 @@ class Audit:
         self.say(f"  {outcome.candidates}")
         self.say("")
         self.say(f"  Дальше: agent-kit batch compose <имя> --from {outcome.candidates}")
-
-
-def keep_audits_out_of_git(audits: Path) -> None:
-    """A lens's paperwork is not repository content.
-
-    The same shape `runs/` and `sittings/` have. It holds the raw text of every
-    attempt and a report the kit regenerates on demand, and the audit's whole
-    claim is that it leaves the working copy exactly as it found it — a claim a
-    directory of untracked files would spoil.
-    """
-    ignore = audits / ".gitignore"
-    if ignore.exists():
-        return
-    audits.mkdir(parents=True, exist_ok=True)
-    write_whole(
-        ignore,
-        "# The kit's own paperwork for one lens over one commit: what was measured, what\n"
-        "# each attempt returned, and the report. Not repository content.\n*\n",
-    )
 
 
 def _as_json(data: dict) -> str:

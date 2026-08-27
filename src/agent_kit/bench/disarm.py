@@ -152,7 +152,8 @@ NOTHING_FOUND: dict[str, str] = {
     "01-reply.json": json.dumps(
         {
             "declared": [
-                {"name": "PyYAML", "verdict": "imported", "imports": ["yaml"]},
+                {"name": "PyYAML", "verdict": "imported", "imports": ["yaml"],
+                 "why": "PyYAML ставит модуль под именем yaml"},
                 {"name": "tabulate", "verdict": "imported", "imports": ["tabulate"]},
             ],
             "undeclared": [],

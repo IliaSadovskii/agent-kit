@@ -26,7 +26,7 @@ from ..errors import ChannelError, StateError, UsageError
 from ..knowledge import Knowledge
 from ..machine import Ledger
 from ..project import require_project
-from ..state.store import keep_sittings_out_of_git
+from ..state.store import keep_out_of_git
 from .telling import Telling
 
 SITTINGS = "sittings"
@@ -128,7 +128,11 @@ class Sitting:
         # Before the first word of it is written down. The room holds an hour of
         # the owner's own speech, and the kit ends by asking them to commit a
         # diff — so nothing here may be waiting in it when they do.
-        keep_sittings_out_of_git(room.parent)
+        keep_out_of_git(
+            room.parent,
+            "The kit's own paperwork for an hour with the owner: what they said, what they",
+            "answered, and what each attempt returned. Not repository content.",
+        )
         (room / TELLING).write_text(telling.text, encoding="utf-8")
         return Opened(
             name=name,
