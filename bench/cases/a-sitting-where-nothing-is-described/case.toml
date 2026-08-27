@@ -1,0 +1,15 @@
+# a sitting in a project that said out loud it is not being described
+
+[case]
+title = "a sitting where the project says it keeps no knowledge"
+fires = "the sitting refuses by name before a session is spent, and nothing is written"
+
+[sitting]
+telling = """
+Продукт — тренажёр английского.
+Вход через Google и Apple, и почтой можно.
+"""
+
+[expect]
+exit_code = 2
+refusal = "no-knowledge-declared"

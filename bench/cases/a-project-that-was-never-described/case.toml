@@ -1,0 +1,10 @@
+# a project whose declaration says it is described, and which never was
+
+[case]
+title = "a run of a project nobody ever described"
+fires = "the run is refused by name before the first session, and the state is untouched"
+
+[expect]
+exit_code = 2
+status = "created"
+steps = { design = "pending", verify = "pending" }

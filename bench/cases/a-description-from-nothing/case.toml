@@ -1,0 +1,16 @@
+# a repository with no description, and one hour with the owner
+
+[case]
+title = "a repository with no knowledge ends one sitting with a description"
+fires = "the description is on disk, marked with today's date, and the design step reads it"
+
+[sitting]
+telling = """
+Продукт — тренажёр английского.
+Вход через Google и Apple, и почтой можно.
+Уведомления вечером, окно человек выбирает сам.
+Импорт словаря еле ползёт на больших файлах.
+"""
+
+[expect]
+exit_code = 0

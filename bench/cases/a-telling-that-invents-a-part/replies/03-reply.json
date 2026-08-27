@@ -1,0 +1,8 @@
+{
+  "parts": [
+    {"key": "money", "verdict": "unchanged"},
+    {"verdict": "new", "name": "оплата подписки",
+     "says": "карта, счёт и корпоративный договор", "said": "L40-L44"}
+  ],
+  "ledger": []
+}

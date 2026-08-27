@@ -1,0 +1,8 @@
+{
+  "parts": [
+    {"key": "money", "verdict": "unchanged"},
+    {"key": "sign-in", "verdict": "refines", "name": "вход",
+     "says": "Google, Apple и почта", "said": "L2"}
+  ],
+  "ledger": [{"what": "импорт словаря еле ползёт", "kind": "badly", "said": "L4"}]
+}

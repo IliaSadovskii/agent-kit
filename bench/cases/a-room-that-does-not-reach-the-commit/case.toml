@@ -1,0 +1,9 @@
+# what an hour with the owner leaves behind, and what the owner commits
+
+[case]
+title = "the room of a sitting, when the owner commits the diff"
+fires = "the description reaches the commit and the hour of their own speech does not"
+
+[expect]
+exit_code = 0
+status = "done"

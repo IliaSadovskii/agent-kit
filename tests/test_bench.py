@@ -25,6 +25,9 @@ DESIGN = {
     "seams": ["AMOUNT stays where it is"],
     "verification": ["a check that 1000 at 20% is 1200"],
     "asks": [],
+    # The baseline world is a described project, like the ordinary one, and a
+    # described project asks a design what this feature makes untrue.
+    "closes": [],
     "assumptions": [
         {"what": "the rate is a whole percent", "expensive": False, "because": "nothing here uses fractions"}
     ],
@@ -271,7 +274,7 @@ def test_the_case_runs_against_a_gh_that_is_a_script_and_a_remote_that_is_a_dire
 #: sixty-two cases could have vanished and this file would have stayed green.
 #: Changing this number is how a case is added or retired — deliberately, in a
 #: commit that says so.
-SHIPPED = 79
+SHIPPED = 89
 
 
 def test_every_shipped_case_is_readable_and_says_what_must_fire(capsys):
@@ -399,12 +402,12 @@ def test_a_kit_that_crashed_is_not_reported_as_a_mechanism_that_did_not_fire(cas
 
     real = runner._group
 
-    def crashing(argv, cwd, env):
+    def crashing(argv, cwd, env, feed=None):
         if "go" in argv:
             return subprocess.CompletedProcess(
                 argv, 70, stdout="", stderr="agent-kit: internal-error: TypeError: nope"
             )
-        return real(argv, cwd, env)
+        return real(argv, cwd, env, feed)
 
     monkeypatch.setattr(runner, "_group", crashing)
 
@@ -523,6 +526,22 @@ def test_a_reply_that_acts_reaches_the_working_copy_through_the_bench(cases, cap
 # --- S6: the four knowledge cases, and their judges ---------------------------
 
 
+def _keeps_none(case: Path) -> None:
+    """Lay a declaration over the case saying this project keeps no knowledge.
+
+    The baseline world is described, so removing what a case planted leaves the
+    baseline's own description standing. Saying it out loud is the only way a
+    project keeps none, which is the whole of S8a's named state.
+    """
+    declared = case / "repo" / ".agent-kit" / "v3" / "project.toml"
+    declared.parent.mkdir(parents=True, exist_ok=True)
+    declared.write_text(
+        '[project]\ndefault_branch = "main"\ncommand_timeout = 20\nknowledge = ""\n'
+        '\n[commands]\ntest = "sh check.sh"\n',
+        encoding="utf-8",
+    )
+
+
 def test_a_knowledge_case_whose_project_keeps_none_does_not_fire(tmp_path, capsys):
     """Take the knowledge away and every mechanism about it must go quiet.
 
@@ -545,6 +564,10 @@ def test_a_knowledge_case_whose_project_keeps_none_does_not_fire(tmp_path, capsy
         room.mkdir(parents=True)
         shutil.copytree(cases_root() / name, room / name)
         shutil.rmtree(room / name / "repo" / "docs")  # the trap is not laid
+        # And the baseline's own description with it: since S8a the world every
+        # case starts from is a described project, so taking away what the case
+        # laid over it is no longer enough to leave a project keeping none.
+        _keeps_none(room / name)
 
         main(["bench", "run", "--cases", str(room), "--case", name])
         said = next(line for line in capsys.readouterr().out.splitlines() if line.startswith(name))
@@ -568,6 +591,7 @@ def test_the_judge_of_the_green_case_proves_its_own_trap_was_laid(tmp_path, caps
     room.mkdir()
     shutil.copytree(cases_root() / name, room / name)
     shutil.rmtree(room / name / "repo" / "docs")
+    _keeps_none(room / name)
 
     design = room / name / "replies" / "01-reply.json"
     written = json.loads(design.read_text(encoding="utf-8"))
@@ -714,3 +738,24 @@ def test_a_batch_case_judge_reads_the_batch_and_the_branches(cases, capsys):
 
     assert "fired" in printed.out
     assert code == int(ExitCode.OK)
+
+
+def test_a_case_that_declares_two_ways_in_is_refused_rather_than_run(tmp_path):
+    """A case drives a batch or a sitting. One declaring both drives whichever
+    the runner tries first, which is a case that cannot say what it measures."""
+    from agent_kit.bench.cases import CaseError, read_case
+
+    room = tmp_path / "cases" / "both"
+    room.mkdir(parents=True)
+    (room / "case.toml").write_text(
+        '[case]\ntitle = "t"\nfires = "f"\n\n'
+        '[sitting]\ntelling = "что-то"\n\n'
+        '[batch]\nname = "b"\nfeatures = [{ slug = "one" }]\n\n'
+        "[expect]\nexit_code = 0\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CaseError) as refused:
+        read_case(tmp_path / "cases", "both")
+
+    assert refused.value.code == "two-ways-in"

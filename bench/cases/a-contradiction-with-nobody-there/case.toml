@@ -1,0 +1,17 @@
+# a contradiction to settle, and an empty stream where the owner would be
+
+[case]
+title = "a contradiction and nobody at the terminal"
+fires = "the sitting refuses by its own code and writes nothing at all"
+
+[sitting]
+telling = """
+Продукт — тренажёр английского.
+Вход через Google и Apple, и почтой можно.
+Уведомления вечером, окно человек выбирает сам.
+Импорт словаря еле ползёт на больших файлах.
+"""
+
+[expect]
+exit_code = 8
+refusal = "nobody-to-ask"

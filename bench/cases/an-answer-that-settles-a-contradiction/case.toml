@@ -1,0 +1,16 @@
+# a contradiction, one question, one answer, and that is the round
+
+[case]
+title = "the owner answers the one contradiction they were asked about"
+fires = "the settled wording is what is written, and no second round is opened"
+
+[sitting]
+telling = """
+Продукт — тренажёр английского.
+Деньги считаются с валютой, а не одной суммой.
+Уведомления вечером, окно человек выбирает сам.
+"""
+answers = ["да, валюта есть — запись устарела"]
+
+[expect]
+exit_code = 0

@@ -1,0 +1,16 @@
+# the same hour, told twice
+
+[case]
+title = "the same telling, told a second time"
+fires = "the parts are rewritten where they stand, and nothing is laid beside them"
+
+[sitting]
+telling = """
+Продукт — тренажёр английского.
+Вход через Google и Apple, и почтой можно.
+Уведомления вечером, окно человек выбирает сам.
+Импорт словаря еле ползёт на больших файлах.
+"""
+
+[expect]
+exit_code = 0

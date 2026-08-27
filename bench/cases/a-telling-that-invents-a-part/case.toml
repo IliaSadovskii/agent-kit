@@ -1,0 +1,17 @@
+# a reading that points at lines nobody said
+
+[case]
+title = "a reading that points at lines the telling does not have"
+fires = "the sitting is refused by name and nothing is written into the owner's description"
+
+[sitting]
+telling = """
+Продукт — тренажёр английского.
+Вход через Google и Apple, и почтой можно.
+Уведомления вечером, окно человек выбирает сам.
+Импорт словаря еле ползёт на больших файлах.
+"""
+
+[expect]
+exit_code = 3
+refusal = "no-such-lines"

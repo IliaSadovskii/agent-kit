@@ -1,0 +1,7 @@
+[project]
+default_branch = "main"
+command_timeout = 20
+knowledge = ""
+
+[commands]
+test = "sh check.sh"

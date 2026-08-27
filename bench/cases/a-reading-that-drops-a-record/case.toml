@@ -1,0 +1,17 @@
+# a reading that answers for some of what is written down
+
+[case]
+title = "a reading that leaves a standing part with no line"
+fires = "the sitting is refused by name: the last row may not be dropped"
+
+[sitting]
+telling = """
+Продукт — тренажёр английского.
+Вход через Google и Apple, и почтой можно.
+Уведомления вечером, окно человек выбирает сам.
+Импорт словаря еле ползёт на больших файлах.
+"""
+
+[expect]
+exit_code = 3
+refusal = "reading-misses-a-part"

@@ -1,0 +1,14 @@
+# an hour spent entirely on what is broken
+
+[case]
+title = "a telling that is nothing but what is wrong"
+fires = "the ledger is written and the project is still one nobody has described"
+
+[sitting]
+telling = """
+Импорт словаря еле ползёт на больших файлах.
+Экспорт падает совсем, если в имени есть кавычка.
+"""
+
+[expect]
+exit_code = 0

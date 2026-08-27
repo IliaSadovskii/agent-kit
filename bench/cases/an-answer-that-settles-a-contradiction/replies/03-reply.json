@@ -1,0 +1,6 @@
+{
+  "parts": [
+    {"key": "money", "verdict": "contradicts", "name": "деньги",
+     "says": "и снова про валюту", "said": "L2", "question": "а точно?"}
+  ]
+}

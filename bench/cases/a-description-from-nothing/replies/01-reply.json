@@ -1,0 +1,7 @@
+{
+  "parts": [
+    {"verdict": "new", "name": "вход", "says": "Google, Apple и почта", "said": "L2"},
+    {"verdict": "new", "name": "уведомления", "says": "вечером, окно выбирает человек", "said": "L3"}
+  ],
+  "ledger": [{"what": "импорт словаря еле ползёт на больших файлах", "kind": "badly", "said": "L4"}]
+}
