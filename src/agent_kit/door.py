@@ -37,7 +37,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .errors import ConfigError, StateError, UsageError
+from .errors import ConfigError, KitError, StateError, UsageError
 from .knowledge import ASSUMED, FRAME, Knowledge, KnowledgeError
 from .paths import Paths, project_paths
 
@@ -230,7 +230,12 @@ class Door:
             return None, None
         try:
             return Ledger(where).standing(str(self.root)), None
-        except Exception as unreadable:  # noqa: BLE001 - every failure is named below
+        except (KitError, OSError) as unreadable:
+            # The ledger's own words, not a synonym of them: it has two codes
+            # here — one for a file that is not a database and one for a
+            # schema this kit is too old for — and they want different things
+            # done about them. Nothing wider is caught: a defect inside the
+            # read is a defect, and printing it as a state would hide it.
             code = getattr(unreadable, "code", "unreadable-ledger")
             return None, Line(code, str(where), why=str(getattr(unreadable, "detail", unreadable)))
 
@@ -321,7 +326,7 @@ class Door:
                 )
         return lines + _in_order(unreadable_batches)
 
-    def _is_described(self, project, knowledge) -> bool:  # noqa: D401
+    def _is_described(self, project, knowledge) -> bool:
         """The driver's own question, asked the way the driver asks it.
 
         A project that says `knowledge = ""` has said out loud that nobody is
