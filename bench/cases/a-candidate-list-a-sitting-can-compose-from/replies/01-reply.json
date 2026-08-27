@@ -1,8 +1,9 @@
 {
   "declared": [
-    {"name": "PyYAML", "verdict": "imported", "imports": ["yaml"]},
+    {"name": "PyYAML", "verdict": "imported", "imports": ["yaml"], "why": "PyYAML ставит модуль под именем yaml"},
     {"name": "tabulate", "verdict": "imported", "imports": ["tabulate"]},
-    {"name": "requests", "verdict": "unused", "imports": ["requests"], "why": "по сети здесь никто не ходит"}
+    {"name": "requests", "verdict": "unused", "imports": ["requests"], "why": "по сети здесь никто не ходит"},
+    {"name": "ruff", "verdict": "used-without-importing", "imports": ["ruff"], "why": "им линтуют, импортировать его незачем"}
   ],
   "undeclared": []
 }

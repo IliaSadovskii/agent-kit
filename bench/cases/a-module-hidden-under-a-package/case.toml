@@ -1,0 +1,12 @@
+# the other way to lie about a commit: not inventing a finding, but hiding one
+# under a package that legitimately arrives under another name
+
+[case]
+title = "an undeclared import attached to a dependency that is imported under another name"
+fires = "the attachment is refused for having no reason, and the mended attempt finds the import"
+
+[audit]
+lens = "dependencies"
+
+[expect]
+exit_code = 0

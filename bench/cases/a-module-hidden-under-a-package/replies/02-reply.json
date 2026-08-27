@@ -1,0 +1,9 @@
+{
+  "declared": [
+    {"name": "PyYAML", "verdict": "imported", "imports": ["yaml"], "why": "PyYAML ставит модуль под именем yaml"},
+    {"name": "tabulate", "verdict": "imported", "imports": ["tabulate"]}
+  ],
+  "undeclared": [
+    {"module": "requests", "why": "им ходят по сети в net.py, а объявлен он нигде"}
+  ]
+}

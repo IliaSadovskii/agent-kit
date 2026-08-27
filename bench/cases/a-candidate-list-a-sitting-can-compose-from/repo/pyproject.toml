@@ -1,3 +1,6 @@
 [project]
 name = "money"
 dependencies = ["PyYAML", "tabulate", "requests"]
+
+[dependency-groups]
+dev = ["ruff"]
