@@ -104,7 +104,12 @@ def _run_and_judge(case: Case, where: Path) -> Verdict:
         return unjudgeable(f"the world could not be made: {broken}")
 
     try:
-        went = _drive_a_batch(case, world) if case.batch else _drive_a_run(case, world)
+        if case.sitting is not None:
+            went = _drive_a_sitting(case, world)
+        elif case.batch is not None:
+            went = _drive_a_batch(case, world)
+        else:
+            went = _drive_a_run(case, world)
     except subprocess.SubprocessError as broken:
         return unjudgeable(f"the kit did not come back: {broken}")
     if isinstance(went, Verdict):
@@ -120,6 +125,25 @@ def _drive_a_run(case: Case, world: World):
         return unjudgeable(f"the run could not be created: {_said(created)}")
     waiting = [] if case.wait is None else ["--wait", str(case.wait)]
     return _kit(world, ["run", "go", case.slug, "--provider", "fake", *waiting, *_replies(case)])
+
+
+def _drive_a_sitting(case: Case, world: World):
+    """The hour with the owner, with the owner scripted.
+
+    Two channels and they are two on purpose, exactly as they are for a person:
+    the telling arrives as a file, the answers come down the standard input. A
+    case with no answers is the world where nobody is at the terminal, and the
+    stream closing is what says so — there is no terminal to detect and none is
+    looked for.
+    """
+    told = Path(world.env["BENCH"]) / "telling.txt"
+    told.write_text(case.sitting.telling, encoding="utf-8")
+    typed = "".join(f"{line}\n" for line in case.sitting.answers)
+    return _kit(
+        world,
+        ["knowledge", "tell", "--from", str(told), "--provider", "fake", *_replies(case)],
+        feed=typed,
+    )
 
 
 def _drive_a_batch(case: Case, world: World):
@@ -169,7 +193,7 @@ def _write_down(world: World, went: subprocess.CompletedProcess) -> None:
 # --- running the kit, as a command and not as an import ---------------------
 
 
-def _kit(world: World, argv: list[str]) -> subprocess.CompletedProcess:
+def _kit(world: World, argv: list[str], feed: str | None = None) -> subprocess.CompletedProcess:
     """The kit as somebody would run it, in the world the case made.
 
     Not an import: a case is a run of the command, so the exit code a judge
@@ -181,19 +205,28 @@ def _kit(world: World, argv: list[str]) -> subprocess.CompletedProcess:
     running against a world this function is about to delete.
     """
     return _group(
-        [sys.executable, "-m", "agent_kit", "-C", str(world.repo), *argv], world.repo, world.env
+        [sys.executable, "-m", "agent_kit", "-C", str(world.repo), *argv], world.repo, world.env, feed
     )
 
 
-def _group(argv: list[str], cwd: Path, env: dict[str, str]) -> subprocess.CompletedProcess:
-    """One command, and everything it started dies with it."""
+def _group(
+    argv: list[str], cwd: Path, env: dict[str, str], feed: str | None = None
+) -> subprocess.CompletedProcess:
+    """One command, and everything it started dies with it.
+
+    `feed` is what somebody would have typed. It is a pipe that closes when the
+    lines run out, which is the same thing a terminal does when the person walks
+    away — so a case about nobody being there needs no terminal to pretend at.
+    """
     child = subprocess.Popen(
-        argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+        argv, cwd=cwd, env=env,
+        stdin=subprocess.PIPE if feed is not None else subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
         stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
         start_new_session=True,
     )
     try:
-        stdout, stderr = child.communicate(timeout=TIMEOUT)
+        stdout, stderr = child.communicate(input=feed, timeout=TIMEOUT)
     except subprocess.TimeoutExpired:
         kill_group(child)
         raise
@@ -221,6 +254,8 @@ def _judge(case: Case, world: World, went: subprocess.CompletedProcess) -> Verdi
     if went.returncode != expect.exit_code:
         return did_not(f"it exited {went.returncode} and the case wants {expect.exit_code}: {_said(went)}")
 
+    if case.sitting is not None:
+        return _judge_a_sitting(case, world, went)
     if case.batch is not None:
         return _judge_a_batch(case, world, went)
 
@@ -241,6 +276,19 @@ def _judge(case: Case, world: World, went: subprocess.CompletedProcess) -> Verdi
         if steps.get(name) != wanted:
             return did_not(f"step {name} is {steps.get(name)!r} and the case wants {wanted!r}")
 
+    return _judge_script(case, world, went.returncode)
+
+
+def _judge_a_sitting(case: Case, world: World, went: subprocess.CompletedProcess) -> Verdict:
+    """A sitting leaves no `run.json`, so the refusal is read where it was printed.
+
+    `kit-said` is written for exactly this: a refusal that never reaches a run's
+    record leaves a judge nothing but an exit code, and two refusals share one.
+    What is looked for there is the code, never the sentence.
+    """
+    said = (Path(world.env["BENCH"]) / "kit-said").read_text(encoding="utf-8")
+    if case.expect.refusal and case.expect.refusal not in said:
+        return did_not(f"the kit said {_said(went)!r}, which does not name {case.expect.refusal!r}")
     return _judge_script(case, world, went.returncode)
 
 
@@ -291,6 +339,11 @@ def _judge_script(case: Case, world: World, exit_code: int) -> Verdict:
         RUN_DIR=str(world.run_dir / case.slug),
         EXIT_CODE=str(exit_code),
     )
+    if case.sitting is not None:
+        env.update(
+            TELLING=str(Path(world.env["BENCH"]) / "telling.txt"),
+            SITTINGS=str(world.repo / ".agent-kit/v3/sittings"),
+        )
     if case.batch is not None:
         env.update(
             BATCH=case.batch.name,

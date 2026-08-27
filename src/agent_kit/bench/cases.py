@@ -35,10 +35,11 @@ CASE_FILE = "case.toml"
 DEFAULT_SLUG = "add-vat"
 DEFAULT_BRIEF = "Money should be able to quote a price with VAT on it"
 
-_TOP_KEYS = {"case", "expect", "batch"}
+_TOP_KEYS = {"case", "expect", "batch", "sitting"}
 _CASE_KEYS = {"title", "fires", "slug", "brief", "wait", "no_disarm"}
 _EXPECT_KEYS = {"exit_code", "status", "refusal", "steps", "features"}
 _BATCH_KEYS = {"name", "features"}
+_SITTING_KEYS = {"telling", "answers"}
 _FEATURE_KEYS = {"slug", "brief", "needs"}
 
 _STATUSES = ("created", "running", "done", "failed", "stopped")
@@ -63,6 +64,22 @@ class Expect:
     #: Feature name -> the status it must have ended on. A batch case only:
     #: several runs have no one status between them.
     features: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class SittingCase:
+    """A case that drives an hour with the owner rather than a run.
+
+    The one thing the bench learns for S8a, and it is the same kind of thing it
+    learned for S8: a second way in, and nothing below it changes. The telling
+    comes from a file, because that is where a telling comes from; the answers
+    come down the standard input, because that is where an answer comes from and
+    a sitting is with somebody. Empty answers is a real case — it is the world
+    in which there is nobody to ask.
+    """
+
+    telling: str
+    answers: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -107,6 +124,8 @@ class Case:
     wait: int | None = None
     #: The batch this case drives, where it drives one instead of a single run.
     batch: BatchCase | None = None
+    #: The sitting this case drives, where it drives one instead of a run.
+    sitting: SittingCase | None = None
     #: Why nothing can honestly be taken away from this case, where that is so.
     #: Empty means the mechanical disarm applies — see `disarm.py`. A case that
     #: fills this in is exempt from being measured, so it is printed every time
@@ -176,6 +195,13 @@ def read_case(root: Path, name: str) -> Case:
         raise CaseError("unreadable-case", f"{path} could not be read: {error}") from error
 
     _refuse_unknown(document, _TOP_KEYS, "")
+    if "batch" in document and "sitting" in document:
+        # Two ways in, and the runner picks one. A case declaring both would be
+        # measuring whichever the runner happens to try first, which is a case
+        # that cannot say what it measures.
+        raise CaseError(
+            "two-ways-in", "a case drives a batch or a sitting, and a case declaring both drives neither"
+        )
     block = _table(document.get("case", {}), "case")
     _refuse_unknown(block, _CASE_KEYS, "case.")
     wanted = _table(document.get("expect", {}), "expect")
@@ -191,11 +217,12 @@ def read_case(root: Path, name: str) -> Case:
         wait=None if "wait" not in block else _number(block["wait"], "case.wait"),
         no_disarm=_prose(block.get("no_disarm"), "case.no_disarm"),
         batch=_batch(document.get("batch")),
+        sitting=_sitting(document.get("sitting")),
         expect=Expect(
             exit_code=_number(wanted.get("exit_code"), "expect.exit_code"),
             status=(
                 ""
-                if "batch" in document and "status" not in wanted
+                if ("batch" in document or "sitting" in document) and "status" not in wanted
                 else _one_of(wanted.get("status"), _STATUSES, "expect.status")
             ),
             refusal=_optional_text(wanted.get("refusal"), "expect.refusal"),
@@ -208,6 +235,20 @@ def read_case(root: Path, name: str) -> Case:
                 for name, value in _table(wanted.get("features", {}), "expect.features").items()
             },
         ),
+    )
+
+
+def _sitting(block: Any) -> SittingCase | None:
+    if block is None:
+        return None
+    block = _table(block, "sitting")
+    _refuse_unknown(block, _SITTING_KEYS, "sitting.")
+    answers = block.get("answers", [])
+    if not isinstance(answers, list):
+        raise CaseError("bad-value", "sitting.answers must be a list of lines the owner types")
+    return SittingCase(
+        telling=_text(block.get("telling"), "sitting.telling"),
+        answers=tuple(_text(one, "sitting.answers[]") for one in answers),
     )
 
 
