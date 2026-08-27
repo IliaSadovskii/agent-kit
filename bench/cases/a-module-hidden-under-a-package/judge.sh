@@ -13,7 +13,11 @@ test -f "$ROOM"/steps/0-dependencies/attempt-1/refusal.txt || { echo "the first 
 grep -q "no-reason-to-remove" "$ROOM"/steps/0-dependencies/attempt-1/refusal.txt || {
   echo "the first attempt was refused for something else: $(cat "$ROOM"/steps/0-dependencies/attempt-1/refusal.txt)"; exit 1; }
 
-# Then the mechanism: the hidden import is work, in the list a sitting reads.
-test -s "$CANDIDATES" || { echo "no candidate list was written"; exit 1; }
-grep -q '^- Объявить `requests`' "$CANDIDATES" || { echo "requests did not reach the findings"; cat "$CANDIDATES"; exit 1; }
+# Then the mechanism: the hidden import is a finding. Read in the report and
+# not in the candidate list, because whether a candidate list gets written at
+# all is somebody else's mechanism, and a judge that reddens for a neighbour's
+# break is a judge that cannot say what it measures.
+test -s "$REPORT" || { echo "no report was written"; exit 1; }
+grep -q "^## Объявить" "$REPORT" || { echo "the report found nothing to declare"; exit 1; }
+grep -q '^- `requests`' "$REPORT" || { echo "requests did not reach the findings"; cat "$REPORT"; exit 1; }
 exit 0
