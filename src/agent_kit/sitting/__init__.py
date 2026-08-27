@@ -6,7 +6,8 @@ sorted for them. The kit sorts it afterwards, prints what it read, asks only
 what contradicts what is already written down, and writes the files itself.
 """
 
-from .driver import Sitting, Outcome
+from .driver import Outcome, Sitting
+from .room import Opened, Sitting as Held
 from .read import Entry, Reading, Row, read, settle
 from .steps import BADLY, BROKEN, CONTRADICTS, NEW, READING, REFINES, SETTLING, UNCHANGED
 from .telling import SittingRefusal, Telling
@@ -17,8 +18,10 @@ __all__ = [
     "BROKEN",
     "CONTRADICTS",
     "Entry",
+    "Held",
     "LEDGER",
     "NEW",
+    "Opened",
     "Outcome",
     "READING",
     "REFINES",
