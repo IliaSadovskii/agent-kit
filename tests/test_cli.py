@@ -658,3 +658,22 @@ def test_doctor_is_the_machine_and_no_longer_half_the_project(machine, capsys):
     assert "the project" not in out
     assert "add-login" not in out
     assert "right now" not in out
+
+
+def test_doctor_does_not_create_the_ledger_it_then_calls_missing(machine, capsys):
+    """The screen that says what is missing must not make it while looking.
+
+    Building a `Ledger` creates the file, so asking it for its own path made
+    `missing` unreachable and the line a lie in every case it existed for.
+    """
+    from agent_kit.machine import ledger_path
+    from agent_kit.paths import Paths
+
+    where = ledger_path(Paths.from_env())
+    assert not where.exists()
+
+    code, out, _ = run(["doctor"], capsys)
+
+    assert code == ExitCode.OK
+    assert f"{where}  missing" in out
+    assert not where.exists()

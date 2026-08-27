@@ -69,17 +69,19 @@ def failed(root, slug, reason="contract-not-satisfied: build said nothing", **kw
     return store.load(slug)
 
 
-def delivered(root, slug, branch=None, commit=None, url="https://github.com/o/p/pull/7"):
+def delivered(root, slug, branch=None, commit=None, base="main",
+              url="https://github.com/o/p/pull/7"):
     """A run that got all the way through, with the papers `deliver` leaves."""
     store = RunStore(root)
-    run = a_run(root, slug, steps=("design", "deliver"), branch=branch)
+    run = a_run(root, slug, steps=("design", "deliver"), branch=branch,
+                base="" if base == "main" else base)
     for _ in run.steps:
         store.start_step(slug, provider="fake")
         store.pass_step(slug)
     where = store.run_root(slug) / "steps/1-deliver"
     where.mkdir(parents=True, exist_ok=True)
     (where / "output.json").write_text(
-        json.dumps({"branch": run.branch, "base": "main", "commit": commit or "", "pull_request": url}),
+        json.dumps({"branch": run.branch, "base": base, "commit": commit or "", "pull_request": url}),
         encoding="utf-8",
     )
     return store.load(slug)
@@ -243,6 +245,26 @@ def test_a_live_driver_stands_above_everything_else(project, capsys):
 
     assert answered(out) == "a-night-is-running"
     assert "agent-kit machine" in out
+    # And nothing below names the same run again with a command the lease would
+    # refuse: `run go` on a run somebody is driving is `run-held-elsewhere`.
+    assert "agent-kit run go add-vat" not in out
+    assert "run-running" not in out
+    # One line for one run, though a run with no tree holds two leases.
+    assert out.count("a-night-is-running") == 1
+
+
+def test_a_batch_somebody_is_driving_is_not_offered_to_be_started(project, capsys):
+    from agent_kit.machine import Ledger, ledger_path
+    from agent_kit.paths import Paths
+
+    batch_of(project, rates="A table of rates", quote="Money quotes a price")
+    Ledger(ledger_path(Paths.from_env())).hold_batch(str(project.resolve()), "vat")
+
+    _, out, _ = door(project, capsys)
+
+    assert answered(out) == "a-night-is-running"
+    assert "agent-kit batch go vat" not in out
+    assert "batch-unfinished" not in out
 
 
 def test_a_lease_of_another_project_is_not_this_project_running(project, capsys):
@@ -518,3 +540,146 @@ def test_a_report_that_is_not_in_the_trunk_says_that_and_not_the_other(project, 
     assert answered(out) == "pull-request-waiting"
     assert "does not have it in main" in out
     assert "could not be asked" not in out
+
+
+# --- a feature in a stack, and the trunk it really lands in ------------------
+
+
+def test_a_stacked_feature_stops_waiting_when_the_stack_reaches_the_trunk(project, capsys):
+    """A feature that needs another is based on that one's branch, and that branch
+    never receives the merge: the owner merges the stack into the trunk. Asking
+    only against the base would keep naming the report for ever.
+    """
+    git(project, "checkout", "-b", "kit/rates")
+    (project / "rates.py").write_text("RATES = {}\n", encoding="utf-8")
+    git(project, "add", "-A")
+    git(project, "commit", "-m", "the rates")
+    git(project, "checkout", "-b", "kit/quote")
+    (project / "quote.py").write_text("QUOTE = 1\n", encoding="utf-8")
+    git(project, "add", "-A")
+    git(project, "commit", "-m", "the quote")
+    head = git(project, "rev-parse", "HEAD").stdout.strip()
+    git(project, "checkout", "main")
+    git(project, "merge", "--no-ff", "-m", "the stack", "kit/quote")
+
+    delivered(project, "quote", branch="kit/quote", commit=head, base="kit/rates")
+
+    _, out, _ = door(project, capsys)
+
+    assert answered(out) == "nothing-is-due"
+
+
+def test_a_stacked_feature_still_waiting_is_still_named(project, capsys):
+    """The other direction, so the question above is not merely never asked."""
+    git(project, "checkout", "-b", "kit/rates")
+    (project / "rates.py").write_text("RATES = {}\n", encoding="utf-8")
+    git(project, "add", "-A")
+    git(project, "commit", "-m", "the rates")
+    git(project, "checkout", "-b", "kit/quote")
+    (project / "quote.py").write_text("QUOTE = 1\n", encoding="utf-8")
+    git(project, "add", "-A")
+    git(project, "commit", "-m", "the quote")
+    head = git(project, "rev-parse", "HEAD").stdout.strip()
+    git(project, "checkout", "main")
+
+    delivered(project, "quote", branch="kit/quote", commit=head, base="kit/rates")
+
+    _, out, _ = door(project, capsys)
+
+    assert answered(out) == "pull-request-waiting"
+
+
+def test_a_report_whose_branches_are_gone_is_answered_by_the_trunk(project, capsys):
+    """Merged and tidied up: both branches deleted, the commit still in the trunk."""
+    git(project, "checkout", "-b", "kit/add-vat")
+    (project / "money.py").write_text("RATE = 20\n", encoding="utf-8")
+    git(project, "add", "-A")
+    git(project, "commit", "-m", "the rate")
+    head = git(project, "rev-parse", "HEAD").stdout.strip()
+    git(project, "checkout", "main")
+    git(project, "merge", "--no-ff", "-m", "merged", "kit/add-vat")
+    delivered(project, "add-vat", commit=head)
+    git(project, "branch", "-D", "kit/add-vat")
+
+    _, out, _ = door(project, capsys)
+
+    assert answered(out) == "nothing-is-due"
+
+
+# --- what a batch carries on, and what it does not --------------------------
+
+
+def test_a_feature_of_a_batch_that_is_over_is_carried_on_by_its_batch(project, capsys):
+    """`run reopen` is not what continues a feature; `batch reopen` is.
+
+    A feature of a batch that is still going is left to `batch go` and gets no
+    line of its own. This is the other case: the batch is over — nothing
+    running and nothing that may start — and the feature it stopped is a real
+    thing to carry on, by the name its batch knows it under.
+    """
+    from agent_kit.batch import BatchStore, FeatureStatus
+
+    batch = batch_of(project, rates="A table of rates", quote="Money quotes a price")
+    store = BatchStore(project)
+    batch.ended("rates", FeatureStatus.STOPPED, reason="a gate closed on verify")
+    batch.ended("quote", FeatureStatus.SKIPPED, reason="it is not for tonight")
+    store.save(batch)
+    assert batch.finished
+
+    runs = RunStore(project)
+    a_run(project, "rates")
+    runs.start_step("rates", provider="fake")
+    runs.stop("rates", "a gate closed on verify")
+
+    _, out, _ = door(project, capsys)
+
+    assert "agent-kit run reopen rates" not in out
+    assert "agent-kit batch reopen vat rates" in out
+
+
+def test_a_batch_that_cannot_be_read_hides_no_run_but_its_own(project, capsys):
+    """One unreadable source hides none of the rest — including the runs beside it."""
+    batch_of(project, rates="A table of rates")
+    (project / ".agent-kit/v3/batches/vat/batch.json").write_text("{no", encoding="utf-8")
+    a_run(project, "somebody-elses")
+
+    _, out, _ = door(project, capsys)
+
+    assert answered(out) == "unreadable-batch"
+    assert "run-created" in out and "somebody-elses" in out
+
+
+# --- the ledger's two codes -------------------------------------------------
+
+
+def test_a_ledger_from_a_newer_kit_is_named_by_its_own_code(project, capsys):
+    import sqlite3
+
+    from agent_kit.machine import ledger_path
+    from agent_kit.paths import Paths
+
+    where = ledger_path(Paths.from_env())
+    where.parent.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(str(where))
+    db.execute("PRAGMA user_version=9999")
+    db.close()
+    a_run(project, "add-vat")
+
+    code, out, _ = door(project, capsys)
+
+    assert code == ExitCode.OK
+    assert "ledger-too-new" in out
+    assert "unreadable-ledger" not in out
+
+
+def test_the_door_does_not_bring_a_ledger_into_being(project, capsys):
+    """It reads what is true right now; a machine nothing has run on has no ledger."""
+    from agent_kit.machine import ledger_path
+    from agent_kit.paths import Paths
+
+    where = ledger_path(Paths.from_env())
+    assert not where.exists()
+
+    door(project, capsys)
+
+    assert not where.exists()
