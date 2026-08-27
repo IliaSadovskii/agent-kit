@@ -606,3 +606,31 @@ def test_a_block_that_is_gone_does_not_fail_a_night_that_landed(repo):
     outcome = held.go("vat")
 
     assert all(feature.status is FeatureStatus.DONE for feature in outcome.batch.features)
+
+
+def test_frames_left_standing_are_closed_by_the_next_batch_go(repo):
+    """Closing had one attempt: it stood after the `try/finally`, and `go` refuses a
+    finished batch on the way in. A night that died, or a knowledge that could not be
+    read, left the blocks standing with nothing able to come back for them."""
+    held, store, _, _, _ = driver(repo, text=FRAMED)
+    held.go("vat")  # no knowledge at all: nothing to close, and the ids are kept
+    assert store.load("vat").frames[0].id == "fr4me1"
+
+    path = knowledge_holding_a_frame(repo)
+    again, store, _, _, _ = another_driver(repo, store)
+    with pytest.raises(StateError) as refused:
+        again.go("vat")
+
+    assert refused.value.code == "batch-finished"
+    assert "id: fr4me1" not in path.read_text(encoding="utf-8")
+    assert store.load("vat").frames[0].id == ""
+
+
+def test_a_frame_that_could_not_be_closed_reaches_the_owner(repo):
+    knowledge_holding_a_frame(repo, run="last-week")
+    spoke = Spoke()
+    held, store, _, _, _ = driver(repo, text=FRAMED, spoke=spoke)
+
+    held.go("vat")
+
+    assert any("fr4me1" in line for line in spoke.said), spoke.said

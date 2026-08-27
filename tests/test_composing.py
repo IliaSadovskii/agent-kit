@@ -182,6 +182,19 @@ def test_composing_the_same_evening_twice_rewrites_its_own_frame(tmp_path):
     assert text.count("ставка живёт одной константой") == 1
 
 
+def test_a_project_that_declares_knowledge_it_never_wrote_says_no_block_was_written(tmp_path):
+    """Declared and absent is not the same as declared: measured on the directory,
+    which is what the writing is measured on."""
+    root = project(tmp_path, knowledge=None)
+    without = composed(frames=[{"what": "одно на всех", "said": "L2"}])
+    held, said = sitting(root, [without])
+
+    outcome = held.hold(Telling(TOLD))
+
+    assert outcome.blocks_had_nowhere_to_go
+    assert any("знания не держит" in line for line in said)
+
+
 def test_a_project_that_keeps_no_knowledge_composes_and_writes_no_block(tmp_path):
     root = project(tmp_path, knowledge=None, declares="")
     without = composed(frames=[{"what": "одно на всех", "said": "L2"}])
@@ -253,7 +266,9 @@ def test_a_need_that_names_no_feature_of_this_evening_is_refused(tmp_path):
     assert "no-such-feature" in str(refused.value)
 
 
-def test_a_frame_with_no_address_is_refused_where_the_project_keeps_knowledge(tmp_path):
+def test_a_frame_with_no_address_is_refused_by_one_name(tmp_path):
+    """One sentinel, not two. The contract used to require the field as well, so
+    this fault had two codes and the one the judge raised was never reached."""
     root = project(tmp_path)
     nowhere = composed(frames=[{"what": "одно на всех", "said": "L2"}])
     held, _ = sitting(root, [nowhere] * 3)
@@ -261,20 +276,70 @@ def test_a_frame_with_no_address_is_refused_where_the_project_keeps_knowledge(tm
     with pytest.raises(StateError) as refused:
         held.hold(Telling(TOLD))
 
-    assert "output-missing-field" in str(refused.value) or "no-address" in str(refused.value)
+    assert "no-address" in str(refused.value)
+    assert "output-missing-field" not in str(refused.value)
 
 
-def test_a_frame_addressed_at_a_record_nobody_has_is_refused_and_writes_nothing(tmp_path):
+def test_a_frame_addressed_at_a_record_nobody_has_is_refused_by_name(tmp_path):
     root = project(tmp_path)
     astray = composed(frames=[{"what": "одно на всех", "at": "product.md#Нет такого", "said": "L2"}])
-    held, _ = sitting(root, [astray])
+    held, _ = sitting(root, [astray] * 3)
 
-    with pytest.raises(Exception) as refused:
+    with pytest.raises(StateError) as refused:
         held.hold(Telling(TOLD))
 
     assert "no-such-record" in str(refused.value)
     assert "одно на всех" not in (root / "docs/knowledge/product.md").read_text(encoding="utf-8")
     assert not (root / ".agent-kit/v3/declarations").exists()
+
+
+def test_an_address_that_resolves_at_nothing_is_mended_by_the_next_attempt(tmp_path):
+    """It is a model's mistake like any other, so the chain of attempts mends it:
+    the refusal goes into the next input and the sitting carries on."""
+    root = project(tmp_path)
+    astray = composed(frames=[{"what": "одно на всех", "at": "product.md#Нет такого", "said": "L2"}])
+    held, _ = sitting(root, [astray, composed()])
+
+    outcome = held.hold(Telling(TOLD))
+
+    assert outcome.declaration.frames[0].id
+    assert (root / ".agent-kit/v3/declarations/2026-08-27-vat.toml").is_file()
+
+
+# --- nothing of this evening's is left standing that it no longer names ------
+
+
+def test_composing_again_takes_away_the_frame_this_evening_no_longer_names(tmp_path):
+    """The orphan this whole kind was given a closer for.
+
+    A second composing of the same evening derives a new identifier from new
+    words; `write` replaces only its own, so the block from the first composing
+    would stand for ever — and the declaration already names the new one, so
+    nothing would ever come back for it.
+    """
+    root = project(tmp_path)
+    sitting(root, [composed()])[0].hold(Telling(TOLD))
+    again = composed(
+        frames=[{"what": "ставка приходит из конфига, а не из кода", "at": "product.md#tax", "said": "L2"}]
+    )
+    sitting(root, [again])[0].hold(Telling(TOLD))
+
+    text = (root / "docs/knowledge/product.md").read_text(encoding="utf-8")
+    assert "ставка живёт одной константой" not in text
+    assert "ставка приходит из конфига" in text
+    assert text.count("**[frame ") == 1
+
+
+def test_composing_again_leaves_another_evening_s_frames_where_they_stand(tmp_path):
+    root = project(tmp_path)
+    (root / "docs/knowledge/product.md").write_text(
+        STANDING + "\n> **[frame 2026-08-20 · last-week · id: fr4me1]** чужая рамка\n",
+        encoding="utf-8",
+    )
+    sitting(root, [composed()])[0].hold(Telling(TOLD))
+
+    text = (root / "docs/knowledge/product.md").read_text(encoding="utf-8")
+    assert "чужая рамка" in text
 
 
 # --- the one round of questions --------------------------------------------
