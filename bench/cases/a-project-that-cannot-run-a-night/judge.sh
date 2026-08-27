@@ -14,3 +14,4 @@ case "$FIRST" in
 esac
 printf '%s\n' "$SAID" | grep -q flibbertigibbet ||
   { echo "the door did not name the word nothing can start"; exit 1; }
+exit 0

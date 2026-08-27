@@ -19,6 +19,9 @@ FIRST=$(printf '%s\n' "$SAID" | head -1)
 case "$FIRST" in
   unreadable*) echo "a record nobody can read became the whole answer"; exit 1 ;;
 esac
-printf '%s\n' "$SAID" | grep -q "where this project stands" ||
+# Not the screen's heading — that is prose and a judge that reads prose measures
+# a sentence. This is the project's own declared command, which the door prints
+# only after it has been all the way through the runs.
+printf '%s\n' "$SAID" | grep -q "sh check.sh" ||
   { echo "one unreadable record stopped the door before it read anything else"; exit 1; }
 exit 0

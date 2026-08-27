@@ -1,0 +1,11 @@
+# a driver is holding a run of this project right now. The door has to say so
+# above everything else — and, more than that, must not print that same run
+# again below with a command the lease would refuse by name.
+
+[case]
+title = "a run somebody's driver is holding while the door is asked"
+fires = "the door answers `a-night-is-running` and never offers `run go` for the run being driven"
+
+[expect]
+exit_code = 0
+status = "done"

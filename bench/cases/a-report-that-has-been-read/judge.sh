@@ -12,6 +12,11 @@ test -z "$(git -C "$REPO" cherry main kit/old-work | grep '^+')" ||
   { echo "the trap was not planted: the work is not in the trunk"; exit 1; }
 
 SAID=$($KIT -C "$REPO" next) || { echo "the door did not answer"; exit 1; }
+# One line that says the rung is alive at all. A judge that only ever says
+# *not this one* is green when the rung has died altogether, which is the same
+# green it gives when the rung works.
+printf '%s\n' "$SAID" | grep -q "pull-request-waiting.*add-vat" ||
+  { echo "the rung is not naming anything, so nothing was measured about old-work"; exit 1; }
 printf '%s\n' "$SAID" | grep -q "pull-request-waiting.*old-work" &&
   { echo "the door still names a report whose work is already in the trunk"; exit 1; }
 exit 0
