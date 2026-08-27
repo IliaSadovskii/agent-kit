@@ -84,7 +84,8 @@ def inventory_of(tmp_path, root) -> Inventory:
 def answer(**over):
     one = {
         "declared": [
-            {"name": "PyYAML", "verdict": "imported", "imports": ["yaml"]},
+            {"name": "PyYAML", "verdict": "imported", "imports": ["yaml"],
+             "why": "PyYAML ставит модуль yaml, имя пакета с ним не совпадает"},
             {"name": "tabulate", "verdict": "imported", "imports": ["tabulate"]},
             {"name": "flask", "verdict": "imported", "imports": ["flask"]},
             {"name": "requests", "verdict": "unused", "imports": ["requests"], "why": "по сети никто не ходит"},
@@ -176,6 +177,43 @@ def test_a_module_beside_the_file_that_imports_it_is_this_project_own(tmp_path):
     assert "yaml" in held.modules
 
 
+def test_a_file_that_shadows_nothing_leaves_the_module_in_the_inventory(tmp_path):
+    """The narrow rule, and why the wide one was wrong.
+
+    `tests/yaml.py` does not shadow `yaml` for a file under `src/`. Counting it
+    as this project's own took `yaml` out of the inventory, and the declared
+    `PyYAML` then had nothing importing it — an invented *remove PyYAML* in the
+    candidate list, which is the same manipulation from the other side.
+    """
+    root = repository(tmp_path, manifest='[project]\nname = "money"\ndependencies = ["PyYAML"]\n',
+                      code=None)
+    (root / "src/pkg").mkdir(parents=True)
+    (root / "src/pkg/__init__.py").write_text("", encoding="utf-8")
+    (root / "src/pkg/foo.py").write_text("import yaml\n", encoding="utf-8")
+    (root / "tests").mkdir()
+    (root / "tests/yaml.py").write_text("FAKE = 1\n", encoding="utf-8")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-qm", "a file that shadows nothing")
+
+    held = inventory_of(tmp_path, root)
+    assert "yaml" in held.modules
+
+
+def test_what_was_not_asked_about_is_printed_by_name(tmp_path):
+    root = repository(tmp_path, code="import os\nimport yaml\nimport money\n")
+    held, _, _ = audit(root, [answer(declared=[
+        {"name": "PyYAML", "verdict": "imported", "imports": ["yaml"], "why": "ставит модуль yaml"},
+        {"name": "tabulate", "verdict": "unused", "imports": ["tabulate"], "why": "не нужен"},
+        {"name": "flask", "verdict": "unused", "imports": ["flask"], "why": "не нужен"},
+        {"name": "pytest", "verdict": "used-without-importing", "imports": ["pytest"], "why": "плагин"},
+        {"name": "requests", "verdict": "unused", "imports": ["requests"], "why": "не нужен"},
+    ])])
+    report = held.run().report.read_text(encoding="utf-8")
+    # The names, not the number: a filter that is wrong about one of them turns
+    # a real dependency into silence, and a count cannot be argued with.
+    assert "Не спрашивали" in report and "`os`" in report and "`money`" in report
+
+
 def test_a_relative_import_names_no_dependency(tmp_path):
     root = repository(tmp_path, code="from . import money\nfrom .money import AMOUNT\n")
     assert inventory_of(tmp_path, root).imports == ()
@@ -261,6 +299,71 @@ def test_a_complete_answer_is_judged_into_findings(tmp_path):
     assert [row["name"] for row in judged.unimported] == ["pytest"]
 
 
+def test_a_measured_module_belongs_to_one_dependency(tmp_path):
+    held = inventory_of(tmp_path, repository(tmp_path))
+    rows = [
+        dict(one, imports=["tabulate", "yaml"]) if one["name"] == "tabulate" else one
+        for one in answer()["declared"]
+    ]
+    with pytest.raises(AuditRefusal) as refused:
+        judge(answer(declared=rows), held)
+    assert refused.value.code == "named-twice"
+    assert "yaml" in refused.value.detail
+
+
+def test_an_imported_row_may_not_name_a_module_nobody_measured(tmp_path):
+    held = inventory_of(tmp_path, repository(tmp_path))
+    rows = [
+        dict(one, imports=["yaml", "pkg_resources"]) if one["name"] == "PyYAML" else one
+        for one in answer()["declared"]
+    ]
+    with pytest.raises(AuditRefusal) as refused:
+        judge(answer(declared=rows), held)
+    assert refused.value.code == "not-declared"
+    assert "pkg_resources" in refused.value.detail
+
+
+def test_a_module_held_under_another_name_owes_a_reason(tmp_path):
+    """The way a finding is hidden rather than invented.
+
+    `requests` is imported and nobody declares it. Attach it to `PyYAML` and it
+    is claimed, so it stops being an unanswered module — and with no reason
+    required it would leave no trace anywhere a person looks.
+    """
+    root = repository(tmp_path, code=CODE + "import requests\n")
+    held = inventory_of(tmp_path, root)
+    rows = [
+        dict(one, imports=["yaml", "requests"]) if one["name"] == "PyYAML" else one
+        for one in answer()["declared"]
+    ]
+    rows = [{k: v for k, v in one.items() if k != "why"} if one["name"] == "PyYAML" else one
+            for one in rows]
+    with pytest.raises(AuditRefusal) as refused:
+        judge(answer(declared=rows), held)
+    assert refused.value.code == "no-reason-to-remove"
+    assert "requests" in refused.value.detail
+
+
+def test_a_module_held_under_another_name_is_counted_in_the_open(tmp_path):
+    root = repository(tmp_path)
+    held, _, _ = audit(root, [answer()])
+    report = held.run().report.read_text(encoding="utf-8")
+    # Beside the other thing no program can check, and not in the spoiler: this
+    # is the one that can make a finding disappear.
+    assert "Привязано по слову сессии: 1" in report
+    assert "## Привязано по слову сессии" in report
+    assert "`PyYAML` → yaml" in report
+
+
+def test_the_count_of_what_is_used_without_importing_reaches_the_report(tmp_path):
+    root = repository(tmp_path)
+    held, _, _ = audit(root, [answer()])
+    report = held.run().report.read_text(encoding="utf-8")
+    assert "Используется без импорта: 1" in report
+    assert "## Используется без импорта" in report
+    assert "`pytest`" in report
+
+
 def test_a_row_may_not_name_a_dependency_nobody_declared(tmp_path):
     held = inventory_of(tmp_path, repository(tmp_path))
     rows = answer()["declared"] + [
@@ -333,6 +436,9 @@ def test_calling_an_imported_dependency_unused_is_refused_with_the_line(tmp_path
 
 
 def test_calling_a_dependency_imported_when_nothing_imports_it_is_refused(tmp_path):
+    # One enforcer: the row names a module the inventory never measured, and
+    # that is the whole of what "imported" cannot be here. A second refusal for
+    # "imported and nothing occurring" would be a branch nothing can reach.
     held = inventory_of(tmp_path, repository(tmp_path))
     rows = [
         dict(one, verdict="imported") if one["name"] == "requests" else one
@@ -341,7 +447,8 @@ def test_calling_a_dependency_imported_when_nothing_imports_it_is_refused(tmp_pa
     rows = [{k: v for k, v in one.items() if k != "why"} if one["name"] == "requests" else one for one in rows]
     with pytest.raises(AuditRefusal) as refused:
         judge(answer(declared=rows), held)
-    assert refused.value.code == "verdict-against-the-inventory"
+    assert refused.value.code == "not-declared"
+    assert "requests" in refused.value.detail
 
 
 @pytest.mark.parametrize("verdict", ["unused", "used-without-importing"])
@@ -455,17 +562,23 @@ def test_an_unpacked_tree_that_lands_inside_a_repository_is_refused(tmp_path):
     # repository without a word, so the one thing the location has to be true
     # about is asked rather than trusted.
     root = repository(tmp_path)
+    where = root / "somewhere" / "under" / "it"
     with pytest.raises(ConfigError) as refused:
-        unpack_head(root, root / "somewhere" / "under" / "it")
+        unpack_head(root, where)
     assert refused.value.code == "tree-inside-a-repository"
     assert refused.value.exit_code == ExitCode.CONFIG
+    # And nothing was written first: a refusal that unpacked a whole repository
+    # into somebody else's checkout and then swept it up did the thing it is
+    # refusing.
+    assert list(where.iterdir()) == []
 
 
 def test_a_lens_that_found_nothing_writes_no_candidate_list(tmp_path):
     root = repository(tmp_path, manifest='[project]\nname = "money"\ndependencies = ["PyYAML"]\n',
                       code="import yaml\n")
-    held, said, _ = audit(root, [{"declared": [{"name": "PyYAML", "verdict": "imported", "imports": ["yaml"]}],
-                                  "undeclared": []}])
+    held, said, _ = audit(root, [{"declared": [
+        {"name": "PyYAML", "verdict": "imported", "imports": ["yaml"], "why": "ставит модуль yaml"}
+    ], "undeclared": []}])
     outcome = held.run()
     assert outcome.findings == 0
     # A file saying *nothing to do* in prose is not an answer a script can read.

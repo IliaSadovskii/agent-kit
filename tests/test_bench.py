@@ -274,7 +274,7 @@ def test_the_case_runs_against_a_gh_that_is_a_script_and_a_remote_that_is_a_dire
 #: sixty-two cases could have vanished and this file would have stayed green.
 #: Changing this number is how a case is added or retired — deliberately, in a
 #: commit that says so.
-SHIPPED = 100
+SHIPPED = 101
 
 
 def test_every_shipped_case_is_readable_and_says_what_must_fire(capsys):
@@ -767,7 +767,8 @@ def test_a_case_that_declares_two_ways_in_is_refused_rather_than_run(tmp_path):
 #: imported as `yaml`, which is the join the case is really about.
 FOUND_NOTHING = {
     "declared": [
-        {"name": "PyYAML", "verdict": "imported", "imports": ["yaml"]},
+        {"name": "PyYAML", "verdict": "imported", "imports": ["yaml"],
+         "why": "PyYAML ставит модуль под именем yaml"},
         {"name": "tabulate", "verdict": "imported", "imports": ["tabulate"]},
     ],
     "undeclared": [],
@@ -815,7 +816,7 @@ def test_the_world_a_lens_measures_is_laid_only_for_a_case_that_asks_for_one(cas
 
     code, printed = bench(cases, capsys=capsys)
 
-    assert "did not fire" not in printed.out, printed.out
+    assert "fired" in printed.out and "did not fire" not in printed.out, printed.out
     assert code == int(ExitCode.OK)
 
 

@@ -270,7 +270,8 @@ def test_an_audit_case_is_disarmed_with_an_answer_that_found_nothing(cases, tmp_
         replies=[
             {
                 "declared": [
-                    {"name": "PyYAML", "verdict": "imported", "imports": ["yaml"]},
+                    {"name": "PyYAML", "verdict": "imported", "imports": ["yaml"],
+                     "why": "PyYAML ставит модуль под именем yaml"},
                     {"name": "tabulate", "verdict": "unused", "imports": ["tabulate"],
                      "why": "кажется, лишний"},
                 ],
