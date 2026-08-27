@@ -784,7 +784,8 @@ def _where(run) -> str:
 
 def _batch(args: argparse.Namespace, paths: Paths) -> int:
     """An evening's work: several features, and what waits for what."""
-    from ..batch import BatchStore, FeatureStatus, read_declaration
+    from ..batch import BatchStore, FeatureStatus, read_declaration, refuse_unless_answered
+    from ..project import read_project
 
     root = Path(args.project).resolve()
     store = BatchStore(root)
@@ -795,7 +796,15 @@ def _batch(args: argparse.Namespace, paths: Paths) -> int:
         )
 
     if what == "new":
+        # Three acts in one order: the gate, then the batch, then the file it
+        # is written to. Nothing is created while anything is unanswered — no
+        # batch, no run, no tree — because a half-made night is a graph
+        # somebody has to repair by hand. The write itself is whole or not at
+        # all: `BatchStore.save` validates the shape and then replaces the file
+        # in one act, so a batch.json half-written by a machine that died is
+        # not a state this has to recover from.
         declaration = read_declaration(Path(args.file))
+        refuse_unless_answered(declaration, read_project(root))
         batch = store.create(declaration)
         print(f"{batch.name}: created with {len(batch.features)} features")
         for feature in batch.features:

@@ -38,7 +38,7 @@ DEFAULT_BRIEF = "Money should be able to quote a price with VAT on it"
 _TOP_KEYS = {"case", "expect", "batch", "sitting"}
 _CASE_KEYS = {"title", "fires", "slug", "brief", "wait", "no_disarm"}
 _EXPECT_KEYS = {"exit_code", "status", "refusal", "steps", "features"}
-_BATCH_KEYS = {"name", "features"}
+_BATCH_KEYS = {"name", "features", "frames"}
 _SITTING_KEYS = {"telling", "answers"}
 _FEATURE_KEYS = {"slug", "brief", "needs"}
 
@@ -100,9 +100,32 @@ class BatchCase:
 
     name: str
     features: tuple[BatchFeature, ...]
+    #: What every feature of this batch builds alike. A case that is about the
+    #: frame declares one; every other case declares none, and the declaration
+    #: says nothing about frames at all.
+    frames: tuple[str, ...] = ()
 
     def declaration(self) -> str:
-        lines = [f'name = "{self.name}"']
+        """The file a person would have composed, written out for the case.
+
+        The bounds and the one scenario are here for the reason the baseline
+        world declares `test = "sh check.sh"`: they are what an ordinary
+        project has, and a case about something else must not pay for them. A
+        case that *is* about the gate takes them away in its own `repo/`.
+        """
+        lines = [
+            f'name = "{self.name}"',
+            "",
+            "[mvp]",
+            'inside = ["what this batch builds"]',
+            'outside = ["everything the owner did not name"]',
+            "",
+            "[[scenarios]]",
+            'what = "the money is quoted and the quote is read back"',
+            'ends = "the declared command comes back green"',
+        ]
+        for frame in self.frames:
+            lines += ["", "[[frames]]", f'what = "{frame}"']
         for feature in self.features:
             lines += ["", f"[features.{feature.slug}]", f'brief = "{feature.brief}"']
             if feature.needs:
@@ -274,7 +297,11 @@ def _batch(block: Any) -> BatchCase | None:
                 needs=tuple(_text(one, "batch.features[].needs") for one in needs),
             )
         )
-    return BatchCase(name=_text(block.get("name"), "batch.name"), features=tuple(features))
+    return BatchCase(
+        name=_text(block.get("name"), "batch.name"),
+        features=tuple(features),
+        frames=tuple(_text(one, "batch.frames[]") for one in _list(block.get("frames", []), "batch.frames")),
+    )
 
 
 # --- field checks, each naming what it refused ------------------------------
@@ -296,6 +323,12 @@ def _text(value: Any, where: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise CaseError("bad-value", f"{where} must be a non-empty string")
     return value.strip()
+
+
+def _list(value: Any, where: str) -> list[Any]:
+    if not isinstance(value, list):
+        raise CaseError("bad-value", f"{where} must be a list")
+    return value
 
 
 def _optional_text(value: Any, where: str) -> str:

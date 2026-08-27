@@ -27,7 +27,7 @@ from ..state.store import write_whole
 from .declaration import Declaration
 
 BATCH_FILE = "batch.json"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 log = get_logger("batch")
 
@@ -110,9 +110,43 @@ class FeatureState:
 
 
 @dataclass
+class FrameState:
+    """One frame of this work, as the batch holds it.
+
+    It is here and not only in the declaration because `batch go` builds its
+    children out of this file: a batch carried on in the morning must hand the
+    same lines to the features it has left as it handed the ones that ran last
+    night, and the declaration is a file the owner may have edited since.
+
+    `id` names the block `batch compose` wrote into the knowledge, and it is
+    what the batch closes when the work is over. Empty where the declaration
+    was written by hand: there is no block, so there is nothing to close.
+    """
+
+    what: str
+    id: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"what": self.what, "id": self.id}
+
+    @classmethod
+    def from_dict(cls, data: Any) -> "FrameState":
+        if not isinstance(data, dict):
+            raise StateError("bad-field: frames", "a frame must be a table")
+        what = data.get("what")
+        if not isinstance(what, str) or not what.strip():
+            raise StateError("bad-field: frames", "a frame says what every feature builds alike")
+        return cls(what=what.strip(), id=str(data.get("id") or ""))
+
+
+@dataclass
 class Batch:
     name: str
     features: list[FeatureState]
+    #: What every feature of this work builds alike. Read by the driver twice:
+    #: once to hand each child its lines, and once at the end to close the
+    #: blocks the composing sitting wrote.
+    frames: list[FrameState] = field(default_factory=list)
     project: str | None = None
     created_at: str = field(default_factory=now)
     updated_at: str = field(default_factory=now)
@@ -314,6 +348,7 @@ class Batch:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "reason": self.reason,
+            "frames": [frame.to_dict() for frame in self.frames],
             "features": [feature.to_dict() for feature in self.features],
         }
 
@@ -340,6 +375,12 @@ class Batch:
         return cls(
             name=check_slug(data.get("name")),
             features=[FeatureState.from_dict(feature) for feature in features],
+            # Absent is empty, and that is the whole of what this kit does with
+            # a batch file schema 1 wrote: there were no frames then, so a
+            # batch written by that kit had none. There is no migration table
+            # here and this is why one is not needed — said in words rather
+            # than left for somebody to find out.
+            frames=[FrameState.from_dict(frame) for frame in (data.get("frames") or [])],
             project=_optional(data.get("project")),
             created_at=str(data.get("created_at") or now()),
             updated_at=str(data.get("updated_at") or now()),
@@ -378,6 +419,7 @@ class BatchStore:
         batch = Batch(
             name=check_slug(declaration.name),
             project=project or str(self.paths.root.resolve()),
+            frames=[FrameState(what=frame.what, id=frame.id) for frame in declaration.frames],
             features=[
                 FeatureState(slug=feature.slug, brief=feature.brief, needs=list(feature.needs))
                 for feature in declaration.features

@@ -11,6 +11,14 @@ from agent_kit.errors import ExitCode
 DECLARED = """
 name = "vat"
 
+[mvp]
+inside = ["a price with VAT on it"]
+outside = ["registration numbers"]
+
+[[scenarios]]
+what = "a customer is quoted and then invoiced"
+ends = "the quote and the receipt name the same tax"
+
 [features.rates]
 brief = "A table of VAT rates"
 
@@ -206,3 +214,70 @@ def test_a_run_can_be_told_that_somebody_else_speaks_for_it(project, capsys):
     parsed = build_parser().parse_args(["run", "go", "add-vat", "--silent"])
 
     assert parsed.silent is True
+
+
+# --- S8b: the gate, at the one place a batch is made ------------------------
+
+
+def test_a_night_whose_scenarios_have_no_ending_is_refused_before_anything_is_made(project, capsys):
+    (project / "batch.toml").write_text(
+        DECLARED.replace(
+            'ends = "the quote and the receipt name the same tax"', 'ends = ""'
+        ),
+        encoding="utf-8",
+    )
+
+    code, _, err = run(["batch", "new", "batch.toml"], capsys)
+
+    assert code == ExitCode.CONFIG
+    assert "scenario-with-no-ending" in err
+    assert not (project / ".agent-kit/v3/batches").exists()
+    assert not (project / ".agent-kit/v3/runs").exists()
+    assert not (project / ".agent-kit/v3/trees").exists()
+
+
+def test_a_night_with_no_bounds_is_refused(project, capsys):
+    (project / "batch.toml").write_text(
+        DECLARED.replace('outside = ["registration numbers"]', "outside = []"), encoding="utf-8"
+    )
+
+    code, _, err = run(["batch", "new", "batch.toml"], capsys)
+
+    assert code == ExitCode.CONFIG and "bounds-unwritten" in err
+
+
+def test_a_project_with_no_way_to_check_anything_does_not_start_a_night(project, capsys):
+    (project / ".agent-kit/v3/project.toml").write_text(
+        '[project]\ndefault_branch = "main"\n', encoding="utf-8"
+    )
+
+    code, _, err = run(["batch", "new", "batch.toml"], capsys)
+
+    assert code == ExitCode.CONFIG
+    assert "no-commands" in err
+    assert not (project / ".agent-kit/v3/batches").exists()
+
+
+def test_the_refusal_names_everything_it_found_and_not_only_the_first(project, capsys):
+    (project / ".agent-kit/v3/project.toml").write_text(
+        '[project]\ndefault_branch = "main"\n', encoding="utf-8"
+    )
+    (project / "batch.toml").write_text(
+        DECLARED.replace('outside = ["registration numbers"]', "outside = []"), encoding="utf-8"
+    )
+
+    code, _, err = run(["batch", "new", "batch.toml"], capsys)
+
+    assert code == ExitCode.CONFIG
+    assert "bounds-unwritten" in err and "no-commands" in err
+
+
+def test_a_frame_the_declaration_names_reaches_the_batch_file(project, capsys):
+    (project / "batch.toml").write_text(
+        DECLARED + '\n[[frames]]\nwhat = "the rate lives in one place"\n', encoding="utf-8"
+    )
+    run(["batch", "new", "batch.toml"], capsys)
+
+    held = json.loads((project / ".agent-kit/v3/batches/vat/batch.json").read_text())
+    assert [frame["what"] for frame in held["frames"]] == ["the rate lives in one place"]
+    assert held["frames"][0]["id"] == ""

@@ -7,8 +7,11 @@ layer above it.
 """
 
 from .driver import BatchDriver, BatchOutcome
-from .declaration import Declaration, Feature, read_declaration
-from .state import Batch, BatchStore, FeatureState, FeatureStatus
+from .declaration import (
+    Declaration, Feature, Frame, Scenario, read_declaration, render_declaration,
+)
+from .gate import Unanswered, refuse_unless_answered, unanswered
+from .state import Batch, BatchStore, FeatureState, FeatureStatus, FrameState
 
 __all__ = [
     "Batch",
@@ -19,5 +22,12 @@ __all__ = [
     "Feature",
     "FeatureState",
     "FeatureStatus",
+    "Frame",
+    "FrameState",
+    "Scenario",
+    "Unanswered",
     "read_declaration",
+    "refuse_unless_answered",
+    "render_declaration",
+    "unanswered",
 ]

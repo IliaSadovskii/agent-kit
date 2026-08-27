@@ -347,17 +347,13 @@ brief = "A table of VAT rates, one row per country"
 """
 
 
-def declared(tmp_path, text):
-    path = tmp_path / "batch.toml"
-    path.write_text(text, encoding="utf-8")
-    return read_declaration(path)
 
 
 def test_a_declaration_carries_the_bounds_the_scenarios_and_the_frames(tmp_path):
     declaration = declared(tmp_path, COMPOSED)
 
-    assert declaration.inside == ["a price quoted with VAT on it"]
-    assert declaration.outside == ["VAT registration numbers"]
+    assert declaration.inside == ("a price quoted with VAT on it",)
+    assert declaration.outside == ("VAT registration numbers",)
     assert [one.ends for one in declaration.scenarios] == [
         "the quote reads 1200 for 1000 and the receipt names 200"
     ]
@@ -378,7 +374,7 @@ def test_a_batch_with_nothing_of_the_kind_still_reads(tmp_path):
     """The three tables are the gate's, not the parser's: S8's own declaration still reads."""
     declaration = declared(tmp_path, WRITTEN)
 
-    assert declaration.inside == []
+    assert declaration.inside == ()
     assert declaration.scenarios == ()
     assert declaration.frames == ()
 

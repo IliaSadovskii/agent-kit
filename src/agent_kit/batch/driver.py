@@ -184,6 +184,11 @@ class BatchDriver:
                 self.runs, self.registry, slug,
                 project=str(self.project), brief=feature.brief,
                 base=base, tree=str(tree), needs=list(feature.needs),
+                # Out of the batch's own file and not the declaration: a batch
+                # carried on in the morning hands its remaining features the
+                # same lines it handed the ones that ran last night, whatever
+                # the owner has edited since.
+                frame=[frame.what for frame in batch.frames],
             )
 
         batch.starting(slug, tree=str(tree))
