@@ -150,6 +150,12 @@ def test_a_verdict_that_is_not_one_of_the_two_is_refused():
 
 
 def test_each_step_is_handed_what_the_one_before_it_returned(tmp_path):
+    # This project is not being described, and since S8a it says so rather than
+    # leaving the kit to infer it from a directory that is not there.
+    (tmp_path / ".agent-kit/v3").mkdir(parents=True, exist_ok=True)
+    (tmp_path / ".agent-kit/v3/project.toml").write_text(
+        '[project]\nknowledge = ""\n', encoding="utf-8"
+    )
     store = RunStore(tmp_path)
     registry = builtin_registry()
     create_run(

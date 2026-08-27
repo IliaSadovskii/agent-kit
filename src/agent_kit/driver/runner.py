@@ -233,6 +233,53 @@ class StepRunner:
         if project is not None:
             refuse_commands_that_start_nothing(project)
 
+    def _is_described_at_all(self, run: Run) -> None:
+        """Missing is not the same as fine, and only one of them can be said out loud.
+
+        Asked once, before the first session, and only of a run that carries the
+        step which reads a description — `design`, whose input encloses the
+        index of it. The same shape as the question about the project's own
+        commands, and for the same reason: a night spent designing against
+        nothing is a night nobody gets back.
+
+        Three states, not two. Described: the declared directory holds at least
+        one addressable record. Not described, said out loud: `knowledge = ""`,
+        which a person typed into a file git carries. And silence — a project
+        that never declared anything and never wrote anything — which is what is
+        refused here, because it is the one the second version answered zero to.
+        """
+        if run.next_pending() != 0 or not any(step.name == "design" for step in run.steps):
+            return
+        where = self._where(run)
+        try:
+            project = read_project(where)
+        except ConfigError as unreadable:
+            # The step that needs the declaration refuses it and names the
+            # field, exactly as it does for the commands. Refusing here would
+            # name the wrong place.
+            log.info("%s could not be read: %s", where, unreadable)
+            return
+        if project is not None and (
+            not project.declares_knowledge or Knowledge(project.knowledge_dir).described
+        ):
+            return
+        # One code and three doors. A project that declared nothing at all and a
+        # project that declared a description it never wrote are the same state
+        # to a run about to be designed — nothing to design against — and giving
+        # them two codes would make a caller tell them apart to do the same
+        # thing about both.
+        said = "declares no description" if project is None else f"{project.knowledge}/ holds no record"
+        raise ConfigError(
+            "no-description",
+            f"this project {said} of what the product is, so there is nothing for a design to be "
+            "designed against",
+            hint=(
+                "write the declaration — `agent-kit init` — then sit down with it — "
+                '`agent-kit knowledge tell` — or say out loud that nobody is describing this '
+                'project: `knowledge = ""` in .agent-kit/v3/project.toml'
+            ),
+        )
+
     def _stop_asked(self, run: Run) -> StepOutcome | None:
         """A person's stop, read where the run's own driver can act on it.
 
@@ -264,6 +311,7 @@ class StepRunner:
             raise StateError("run-finished", f"{slug} is {run.status.value}; there is no next step")
 
         self._can_be_verified_at_all(run)
+        self._is_described_at_all(run)
         self._hold(run)
 
         stopped = self._stop_asked(run)

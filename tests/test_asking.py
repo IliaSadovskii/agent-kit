@@ -70,6 +70,14 @@ def machine(tmp_path, wait=60, channel=True):
 
 
 def runner(tmp_path, replies, wait=60, channel=True):
+    # These runs are about the owner's twenty minutes, not about a description.
+    # Since S8a a run carrying `design` is asked what its project says about
+    # being described, and a project that says nothing at all is refused before
+    # the first session — so this one says it is not being described.
+    (tmp_path / ".agent-kit/v3").mkdir(parents=True, exist_ok=True)
+    (tmp_path / ".agent-kit/v3/project.toml").write_text(
+        '[project]\nknowledge = ""\n', encoding="utf-8"
+    )
     store = RunStore(tmp_path)
     create_run(
         store, builtin_registry(), "add-vat", steps=["design"], project=str(tmp_path),

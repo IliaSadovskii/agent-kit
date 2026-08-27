@@ -27,6 +27,19 @@ from .cases import Case
 BASELINE = {
     "money.py": "AMOUNT = 1000\n",
     "check.sh": "#!/bin/sh\nexit 0\n",
+    # A described project, because that is the ordinary one. A baseline with no
+    # description would make every case run in a world the kit refuses, and a
+    # baseline that said `knowledge = ""` would measure every mechanism about
+    # knowledge in a project that declares it keeps none. The case about a
+    # project nobody described takes this file away in its own `plant.sh`, so
+    # what the disarm gives back is the ordinary world.
+    "docs/knowledge/product.md": (
+        "# Продукт\n"
+        "\n"
+        "## Части\n"
+        "\n"
+        "- деньги — сумма и ставка, из которых считается цена — `key: money` · `walked: 2026-08-20`\n"
+    ),
     ".agent-kit/v3/project.toml": (
         "[project]\n"
         'default_branch = "main"\n'

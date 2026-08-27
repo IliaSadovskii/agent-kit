@@ -2,7 +2,7 @@
   "title": "quote learns what it is for",
   "summary": "quote: what this feature is, decided before the code.",
   "changes": [
-    "money.py \u2014 the whole of it"
+    "money.py — the whole of it"
   ],
   "seams": [
     "nothing else in the project reads it yet"
@@ -11,6 +11,7 @@
     "the project's own check command"
   ],
   "asks": [],
+  "closes": [],
   "assumptions": [
     {
       "what": "the sandbox is what it looks like",

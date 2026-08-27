@@ -14,13 +14,18 @@
     {
       "question": "one VAT rate for everything, or one per country?",
       "default": "one rate for everything",
-      "because": "nothing in this project has a second country in it yet"
+      "because": "nothing in this project has a second country in it yet",
+      "at": "product.md#Части",
+      "block": "Никто не ответил, и умолчание взято без подтверждения: об этом стоит знать тому, кто будет читать это через месяц."
     },
     {
       "question": "and what about rounding?",
       "default": "down",
-      "because": "так считает касса"
+      "because": "так считает касса",
+      "at": "product.md#Части",
+      "block": "Никто не ответил, и умолчание взято без подтверждения: об этом стоит знать тому, кто будет читать это через месяц."
     }
   ],
+  "closes": [],
   "assumptions": []
 }

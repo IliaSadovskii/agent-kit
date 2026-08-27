@@ -8,6 +8,7 @@
     "AMOUNT keeps its meaning: the price before tax"
   ],
   "asks": [],
+  "closes": [],
   "assumptions": [
     {
       "what": "the rate is a whole percent",

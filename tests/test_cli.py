@@ -380,8 +380,18 @@ def scripted(tmp_path, *bodies):
 
 
 def declare(tmp_path, text):
+    """What the project says about itself, and what it says about being described.
+
+    Every project here is one nobody has described, and since S8a that is a
+    state a project says out loud rather than one the kit infers from a missing
+    directory. A test that left it silent would be measuring the refusal for
+    silence instead of the thing it is about.
+    """
     path = tmp_path / "project/.agent-kit/v3/project.toml"
     path.parent.mkdir(parents=True, exist_ok=True)
+    if "knowledge" not in text:
+        text = '[project]\nknowledge = ""\n\n' + text if not text.startswith("[project]") \
+            else text.replace("[project]\n", '[project]\nknowledge = ""\n', 1)
     path.write_text(text, encoding="utf-8")
 
 
@@ -519,6 +529,7 @@ def test_go_on_a_stopped_run_says_what_carries_it_on(machine, capsys, tmp_path):
 
 def test_a_provider_that_will_not_answer_still_fails_the_run(machine, capsys, tmp_path):
     """The other half of the same distinction: this one really is a breakage."""
+    declare(tmp_path, '[commands]\ntest = "true"\n')
     run(["run", "new", "add-vat", "--brief", "VAT", "--steps", "design"], capsys)
 
     code, _, err = run(

@@ -89,8 +89,17 @@ def repo(tmp_path, monkeypatch):
 
 
 def declare(root, text):
+    """What the project says, and what it says about being described.
+
+    A project that declares a description owes `record` the step that writes
+    one, so every project here that is not about knowledge says out loud that
+    nobody is describing it — the state, not the missing directory.
+    """
     path = root / ".agent-kit/v3/project.toml"
     path.parent.mkdir(parents=True, exist_ok=True)
+    if "knowledge" not in text:
+        text = text.replace("[project]\n", '[project]\nknowledge = ""\n', 1) \
+            if text.startswith("[project]") else '[project]\nknowledge = ""\n\n' + text
     path.write_text(text, encoding="utf-8")
 
 
@@ -504,6 +513,10 @@ RECORD = {
 
 
 def with_knowledge(root):
+    # The declaration is what says a project keeps knowledge, so a project that
+    # keeps one takes back the `knowledge = ""` the fixture writes for the rest.
+    declare(root, '[project]\ndefault_branch = "main"\nknowledge = "docs/knowledge"\n'
+                  '\n[commands]\ntest = "true"\n')
     (root / "docs/knowledge").mkdir(parents=True, exist_ok=True)
     (root / "docs/knowledge/entities.md").write_text(ENTITIES, encoding="utf-8")
     git(root, "add", "-A")
@@ -659,9 +672,7 @@ def test_a_change_the_commands_ran_over_and_the_build_did_not_name_is_in_the_rep
 
 def test_a_working_copy_dirty_with_what_the_feature_is_not_about_still_delivers(repo):
     """`agent-kit init --force` rewrites a tracked file and commits nothing."""
-    (repo / ".agent-kit/v3/project.toml").write_text(
-        '[project]\ndefault_branch = "main"\n\n[commands]\ntest = "true"\nlint = "true"\n'
-    )
+    declare(repo, '[project]\ndefault_branch = "main"\n\n[commands]\ntest = "true"\nlint = "true"\n')
     worked_on(repo)
 
     said = json.loads(deliver(repo, {"verify": verified(repo)}).raw)

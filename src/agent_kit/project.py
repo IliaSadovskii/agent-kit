@@ -61,28 +61,56 @@ class Project:
     #: Where this project keeps its knowledge, relative to its root. The
     #: default is where the second version left it, because the owner's answer
     #: of 22 August is that the format — and the place — do not change.
+    #:
+    #: **Empty is a state, not a path.** It says, in a file a person wrote and
+    #: git carries, that this project is not being described — which is the one
+    #: way a project may have no description and not be refused for it. Nothing
+    #: is inferred from whether a directory happens to be there: that inference
+    #: *was* the silence, and a project the kit knew least about was asked
+    #: least. Where it is empty, `knowledge_dir` is None and nothing joins it
+    #: to a path.
     knowledge: str = KNOWLEDGE_DIR
     commands: tuple[Command, ...] = ()
     roles: dict[str, RoleConfig] = field(default_factory=dict)
     source: Path | None = None
 
-    def knowledge_in(self, where: Path | str) -> Path:
+    @property
+    def declares_knowledge(self) -> bool:
+        """Whether this project says it is described at all.
+
+        The declaration, not the directory. A project that says `knowledge = ""`
+        has said out loud that nobody is describing it; one that says nothing
+        gets the default and is held to it.
+        """
+        return bool(self.knowledge.strip())
+
+    def knowledge_in(self, where: Path | str) -> Path | None:
         """Where the knowledge stands in a working copy of this project.
 
         A run builds in a worktree of its own, and the knowledge is repository
         content like the code beside it: the same relative place, in whichever
-        checkout the run holds.
+        checkout the run holds. None where the project declares none — and never
+        `Path(where) / ""`, which is the checkout itself and would make every
+        file in the repository part of the owner's knowledge.
         """
-        return Path(where) / self.knowledge
+        return Path(where) / self.knowledge if self.declares_knowledge else None
 
     @property
-    def knowledge_dir(self) -> Path:
+    def knowledge_dir(self) -> Path | None:
         return self.knowledge_in(self.root)
 
     @property
     def keeps_knowledge(self) -> bool:
-        """A project that keeps none owes no block, and is not made to invent one."""
-        return self.knowledge_dir.is_dir()
+        """A project that keeps none owes no block, and is not made to invent one.
+
+        The declaration and nothing else. It used to be whether the directory
+        happened to be there, and that inference was the silence: a project that
+        declared a description and had not written one was quietly held to the
+        looser contract — the kit asking least of the project it knew least
+        about. A project that declares one and has written nothing is refused
+        before its first session, so no run reaches a step under this.
+        """
+        return self.declares_knowledge
 
 
 #: Words a declared command can begin with that are not a program to be found:
@@ -237,7 +265,9 @@ def render(project: Project) -> str:
         f'default_branch = "{project.default_branch}"',
         "# How long `verify` waits for one command before killing it and its children.",
         f"command_timeout = {project.command_timeout}",
-        "# Where this project keeps its knowledge. A project that keeps none owes no block.",
+        "# Where this project keeps its knowledge. Empty says out loud that nobody is",
+        "# describing this project — and is the only way a run of it is not refused for",
+        "# having no description. `agent-kit knowledge tell` is the other way.",
         f'knowledge = "{project.knowledge}"',
         "",
         "[commands]",
@@ -370,6 +400,10 @@ def _inside(value: Any, where: str) -> str:
     a block somewhere no run can find again and takes the kit out with an
     unnamed crash on the way.
     """
+    if isinstance(value, str) and not value.strip():
+        # Said out loud: this project is not being described. The one value that
+        # is a state rather than a path, and a person has to type it.
+        return ""
     text = _text(value, where)
     if Path(text).is_absolute() or ".." in Path(text).parts:
         raise ConfigError("bad-field: project.knowledge", f"{where} must be a path inside the project, not {text!r}")

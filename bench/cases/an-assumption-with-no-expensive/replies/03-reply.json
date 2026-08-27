@@ -11,6 +11,7 @@
     "the declared command comes back green with RATE in place"
   ],
   "asks": [],
+  "closes": [],
   "assumptions": [
     {
       "what": "the rate is a whole percent",

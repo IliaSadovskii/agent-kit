@@ -66,6 +66,7 @@ NOTHING_WRONG: dict[str, str] = {
             "seams": ["AMOUNT keeps its meaning: the price before tax"],
             "verification": ["the declared command comes back green with RATE in place"],
             "asks": [],
+            "closes": [],
             "assumptions": [],
         },
         indent=2,
@@ -85,6 +86,32 @@ NOTHING_WRONG: dict[str, str] = {
     + "\n",
     "02-reply.sh": "#!/bin/sh\nprintf 'RATE = 20\\n' >> money.py\n",
     "03-reply.json": json.dumps({"verdict": "pass", "findings": []}, indent=2) + "\n",
+}
+
+
+#: What a sitting says when nothing is wrong: the baseline world's one part is
+#: accounted for and unchanged, and one part is added from the first line of
+#: whatever the case's telling is. It points at a real range, because `said` is
+#: required and there is no `derived` for a session to hide behind — and L1 is a
+#: range every telling has.
+NOTHING_TOLD: dict[str, str] = {
+    "01-reply.json": json.dumps(
+        {
+            "parts": [
+                {"key": "money", "verdict": "unchanged"},
+                {
+                    "verdict": "new",
+                    "name": "то, что рассказали",
+                    "says": "первая строка рассказа",
+                    "said": "L1",
+                },
+            ],
+            "ledger": [],
+        },
+        indent=2,
+        ensure_ascii=False,
+    )
+    + "\n",
 }
 
 
@@ -117,7 +144,9 @@ def disarm(case: Case, into: Path) -> Case:
     if case.judge is not None:
         shutil.copy2(case.judge, room / "judge.sh")
 
-    if case.batch is None:
+    if case.sitting is not None:
+        _laid_out(room / "replies", NOTHING_TOLD)
+    elif case.batch is None:
         _nothing_wrong(room / "replies")
     else:
         for feature in case.batch.features:
@@ -127,8 +156,12 @@ def disarm(case: Case, into: Path) -> Case:
 
 
 def _nothing_wrong(folder: Path) -> None:
+    _laid_out(folder, NOTHING_WRONG)
+
+
+def _laid_out(folder: Path, files: dict[str, str]) -> None:
     folder.mkdir(parents=True, exist_ok=True)
-    for name, text in NOTHING_WRONG.items():
+    for name, text in files.items():
         path = folder / name
         path.write_text(text, encoding="utf-8")
         if path.suffix == ".sh":

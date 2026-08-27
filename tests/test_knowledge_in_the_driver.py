@@ -46,8 +46,11 @@ def reply(design):
 
 def project(tmp_path, knowledge: bool):
     (tmp_path / ".agent-kit/v3").mkdir(parents=True)
+    # A project that keeps none says so out loud since S8a: silence is a third
+    # state and it is refused before the first session.
+    said = "" if knowledge else 'knowledge = ""\n'
     (tmp_path / ".agent-kit/v3/project.toml").write_text(
-        '[project]\ndefault_branch = "main"\n\n[commands]\ntest = "true"\n', encoding="utf-8"
+        f'[project]\ndefault_branch = "main"\n{said}\n[commands]\ntest = "true"\n', encoding="utf-8"
     )
     if knowledge:
         (tmp_path / "docs/knowledge").mkdir(parents=True)

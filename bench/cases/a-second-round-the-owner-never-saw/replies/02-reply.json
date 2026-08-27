@@ -14,8 +14,11 @@
     {
       "question": "should a negative rate be refused, or clamped to zero?",
       "default": "refused",
-      "because": "every other bad amount in this project is refused rather than repaired"
+      "because": "every other bad amount in this project is refused rather than repaired",
+      "at": "product.md#Части",
+      "block": "Никто не ответил, и умолчание взято без подтверждения: об этом стоит знать тому, кто будет читать это через месяц."
     }
   ],
+  "closes": [],
   "assumptions": []
 }
