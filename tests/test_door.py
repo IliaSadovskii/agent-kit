@@ -480,3 +480,41 @@ def test_the_door_always_leaves_zero_behind_it(project, capsys):
     code, _, _ = door(project, capsys)
 
     assert code == ExitCode.OK
+
+
+def test_a_checkout_git_cannot_answer_in_says_so_rather_than_no(tmp_path, capsys, monkeypatch, machine_home):
+    """git could not be asked, and that is not the same answer as *not yet*.
+
+    A directory that is no repository answers 128 to both questions, and 128 is
+    not a *no*. The pull request keeps standing and the sentence says which of
+    the three answers this is.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    root = tmp_path / "loose"
+    (root / ".agent-kit/v3").mkdir(parents=True)
+    (root / "docs/knowledge").mkdir(parents=True)
+    (root / ".agent-kit/v3/project.toml").write_text(DECLARED, encoding="utf-8")
+    (root / "docs/knowledge/product.md").write_text(DESCRIBED, encoding="utf-8")
+    delivered(root, "add-vat", commit="0" * 40)
+
+    _, out, _ = door(root, capsys)
+
+    assert answered(out) == "pull-request-waiting"
+    assert "could not be asked" in out
+
+
+def test_a_report_that_is_not_in_the_trunk_says_that_and_not_the_other(project, capsys):
+    """And the *no* is a no, said in different words from the *do not know*."""
+    git(project, "checkout", "-b", "kit/add-vat")
+    (project / "money.py").write_text("RATE = 20\n", encoding="utf-8")
+    git(project, "add", "-A")
+    git(project, "commit", "-m", "the rate")
+    head = git(project, "rev-parse", "HEAD").stdout.strip()
+    git(project, "checkout", "main")
+    delivered(project, "add-vat", commit=head)
+
+    _, out, _ = door(project, capsys)
+
+    assert answered(out) == "pull-request-waiting"
+    assert "does not have it in main" in out
+    assert "could not be asked" not in out
