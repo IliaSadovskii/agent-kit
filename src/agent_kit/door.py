@@ -482,16 +482,19 @@ class Door:
             if not url:
                 continue
             base = run.base or (project.default_branch if project else "main")
-            if self._has_landed(run.branch, str(output.get("commit") or ""), base):
+            landed = self._has_landed(run.branch, str(output.get("commit") or ""), base)
+            if landed is True:
                 continue
+            told = (
+                f"this checkout does not have it in {base}"
+                if landed is False
+                else f"git could not be asked whether it is in {base}"
+            )
             lines.append(
                 Line(
                     "pull-request-waiting",
                     f"{self._named(slug, owner_of)} — {url}",
-                    why=(
-                        f"the work is on {run.branch} and this checkout does not have it in {base}; "
-                        "the forge was not asked"
-                    ),
+                    why=f"the work is on {run.branch} and {told}; the forge was not asked",
                     command=f"gh pr view {url}",
                     at=run.updated_at,
                     name=slug,
@@ -538,26 +541,37 @@ class Door:
         answered = self._git("rev-parse", "--verify", "--quiet", f"refs/heads/{run.branch}")
         return answered is None or answered[0] != 1
 
-    def _has_landed(self, branch: str, commit: str, base: str) -> bool:
-        """Two questions of the same price, and both may only answer *yes*.
+    def _has_landed(self, branch: str, commit: str, base: str) -> bool | None:
+        """Two questions of the same price, and three answers.
 
         `merge-base --is-ancestor` sees a merge commit and nothing else: the
         kit's own rules allow `gh pr merge --squash`, and a squashed branch is
         an ancestor of nothing. `git cherry` compares patches instead and marks
         a change already upstream with `-`, which survives both a squash and a
-        rebase. Either saying yes is enough; neither saying yes means the door
-        keeps naming the pull request.
+        rebase.
+
+        Either saying yes is *landed*. Both being asked and neither saying yes
+        is *not yet*. Neither being answerable at all — no git, no repository —
+        is `None`, and it is printed as itself: the pull request keeps standing,
+        because a question that could not be put is not a no.
         """
+        answered_at_all = False
         if commit:
-            answered = self._git("merge-base", "--is-ancestor", commit, base)
-            if answered is not None and answered[0] == 0:
-                return True
-        answered = self._git("cherry", base, branch)
-        if answered is not None and answered[0] == 0:
-            marks = [line[:1] for line in answered[1].splitlines() if line.strip()]
+            # 0 is yes and 1 is no; anything else — 128 for a commit this
+            # repository has never heard of, or for no repository at all — is
+            # not an answer and may not be read as one.
+            said = self._git("merge-base", "--is-ancestor", commit, base)
+            if said is not None and said[0] in (0, 1):
+                answered_at_all = True
+                if said[0] == 0:
+                    return True
+        said = self._git("cherry", base, branch)
+        if said is not None and said[0] == 0:
+            answered_at_all = True
+            marks = [line[:1] for line in said[1].splitlines() if line.strip()]
             if marks and all(mark == "-" for mark in marks):
                 return True
-        return False
+        return False if answered_at_all else None
 
     def _git(self, *argv: str):
         """git's own exit code and output, or None where it could not be asked."""
