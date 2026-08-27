@@ -759,3 +759,78 @@ def test_a_case_that_declares_two_ways_in_is_refused_rather_than_run(tmp_path):
         read_case(tmp_path / "cases", "both")
 
     assert refused.value.code == "two-ways-in"
+
+
+# --- the third way in: one lens over a commit -------------------------------
+
+#: What a lens says about the audit world when nothing is wrong. `PyYAML` is
+#: imported as `yaml`, which is the join the case is really about.
+FOUND_NOTHING = {
+    "declared": [
+        {"name": "PyYAML", "verdict": "imported", "imports": ["yaml"]},
+        {"name": "tabulate", "verdict": "imported", "imports": ["tabulate"]},
+    ],
+    "undeclared": [],
+}
+
+
+def audit_case(root, name, expect, replies=(FOUND_NOTHING,), judge=None, plant=None, overlay=None):
+    case = write_case(root, name, expect, replies=replies, judge=judge, plant=plant, overlay=overlay)
+    text = (case / "case.toml").read_text(encoding="utf-8")
+    (case / "case.toml").write_text(
+        text.replace("\n[expect]", '\n[audit]\nlens = "dependencies"\n\n[expect]'), encoding="utf-8"
+    )
+    return case
+
+
+def test_a_case_may_drive_an_audit_and_the_judge_is_handed_its_room(cases, capsys):
+    audit_case(
+        cases,
+        "one-lens-over-a-commit",
+        {"exit_code": 0},
+        judge=(
+            'test -s "$INVENTORY" || { echo "no inventory"; exit 1; }\n'
+            'test -s "$REPORT" || { echo "no report"; exit 1; }\n'
+            'grep -q "Найдено: 0" "$REPORT" || exit 1\n'
+        ),
+    )
+
+    code, printed = bench(cases, capsys=capsys)
+
+    assert "fired" in printed.out and "did not fire" not in printed.out
+    assert code == int(ExitCode.OK)
+
+
+def test_the_world_a_lens_measures_is_laid_only_for_a_case_that_asks_for_one(cases, capsys):
+    """A manifest in the baseline would be a manifest in ninety cases about
+    something else — and a change to what every case starts from is a change
+    that can quietly disarm the ones that were reading it."""
+    write_case(
+        cases,
+        "an-ordinary-run",
+        {"exit_code": 0, "status": "done"},
+        judge='test ! -f pyproject.toml || { echo "the baseline grew a manifest"; exit 1; }\n',
+    )
+
+    code, printed = bench(cases, capsys=capsys)
+
+    assert "fired" in printed.out
+    assert code == int(ExitCode.OK)
+
+
+def test_a_case_that_drives_an_audit_and_a_sitting_drives_neither(tmp_path):
+    from agent_kit.bench.cases import CaseError, read_case
+
+    room = tmp_path / "cases" / "both"
+    room.mkdir(parents=True)
+    (room / "case.toml").write_text(
+        '[case]\ntitle = "t"\nfires = "f"\n\n'
+        '[sitting]\ntelling = "что-то"\n\n'
+        '[audit]\nlens = "dependencies"\n\n'
+        "[expect]\nexit_code = 0\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CaseError) as refused:
+        read_case(tmp_path / "cases", "both")
+    assert refused.value.code == "two-ways-in"

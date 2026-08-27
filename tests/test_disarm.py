@@ -256,3 +256,29 @@ def test_every_shipped_case_is_armed_or_says_why_it_cannot_be(capsys):
     assert STILL_FIRES not in printed.out, printed.out
     assert UNCHECKABLE not in printed.out, printed.out
     assert code == int(ExitCode.OK)
+
+
+def test_an_audit_case_is_disarmed_with_an_answer_that_found_nothing(cases, tmp_path):
+    """What is left when a lens's trap is taken away is a project with nothing
+    wrong — so the answer it is given is the one a correct lens returns there."""
+    from test_bench import audit_case
+
+    audit_case(
+        cases,
+        "a-finding-nobody-measured",
+        {"exit_code": 3, "refusal": "verdict-against-the-inventory"},
+        replies=[
+            {
+                "declared": [
+                    {"name": "PyYAML", "verdict": "imported", "imports": ["yaml"]},
+                    {"name": "tabulate", "verdict": "unused", "imports": ["tabulate"],
+                     "why": "кажется, лишний"},
+                ],
+                "undeclared": [],
+            }
+        ] * 3,
+    )
+
+    said = check_named(cases, "a-finding-nobody-measured", tmp_path / "check")
+
+    assert said.state == ARMED, said.said

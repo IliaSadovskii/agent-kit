@@ -406,11 +406,39 @@ def test_the_room_is_not_repository_content(tmp_path):
     assert (root / ".agent-kit/v3/audits/.gitignore").read_text(encoding="utf-8").endswith("*\n")
 
 
-def test_the_unpacked_tree_does_not_outlive_the_audit(tmp_path):
+def test_the_session_stands_outside_the_repository_it_is_measuring(tmp_path):
+    """The half no reading found and a bench trap did.
+
+    git looks for a repository by walking *up*. An unpacked copy under
+    `.agent-kit/` is two directories below the project's own `.git`, so the
+    session would stand inside the very repository it must not be able to
+    touch — and committing, branching and pushing all come back.
+    """
     root = repository(tmp_path)
-    held, _, _ = audit(root, [answer()])
-    outcome = held.run()
-    assert [one.name for one in outcome.room.parent.iterdir() if one.name.startswith(".tree-")] == []
+    stood: list[Path] = []
+
+    def reply(request):
+        stood.append(Path(request.where))
+        return json.dumps(answer(), ensure_ascii=False)
+
+    _driving(root, [reply]).run()
+    where = stood[0]
+    assert root not in where.parents
+    assert _said(where, "rev-parse", "--git-dir") == ""
+    # And it does not outlive the audit: everything the session was worth is in
+    # the room, and the tree is a copy of a commit.
+    assert not where.exists()
+
+
+def test_an_unpacked_tree_that_lands_inside_a_repository_is_refused(tmp_path):
+    # A `TMPDIR` inside somebody's checkout would put the session back inside a
+    # repository without a word, so the one thing the location has to be true
+    # about is asked rather than trusted.
+    root = repository(tmp_path)
+    with pytest.raises(ConfigError) as refused:
+        unpack_head(root, root / "somewhere" / "under" / "it")
+    assert refused.value.code == "tree-inside-a-repository"
+    assert refused.value.exit_code == ExitCode.CONFIG
 
 
 def test_a_lens_that_found_nothing_writes_no_candidate_list(tmp_path):
@@ -465,11 +493,15 @@ def test_an_audit_refused_every_time_writes_no_report(tmp_path):
 
 def test_a_refused_audit_leaves_no_tree_behind(tmp_path):
     root = repository(tmp_path)
-    lying = answer(declared=[])
-    held, _, _ = audit(root, [lying, lying, lying])
+    stood: list[Path] = []
+
+    def reply(request):
+        stood.append(Path(request.where))
+        return json.dumps(answer(declared=[]), ensure_ascii=False)
+
     with pytest.raises(StateError):
-        held.run()
-    assert [one.name for one in (root / ".agent-kit/v3/audits").iterdir() if one.name.startswith(".tree-")] == []
+        _driving(root, [reply, reply, reply]).run()
+    assert stood and not stood[0].exists()
 
 
 def test_a_project_with_nothing_to_measure_spends_no_session(tmp_path):
@@ -504,6 +536,17 @@ def test_a_lens_the_kit_does_not_have_is_refused_by_name():
         lens_named("security")
     assert refused.value.code == "unknown-lens"
     assert sorted(lenses()) == ["dependencies"]
+
+
+def _driving(root: Path, replies, today: str = "2026-08-27"):
+    """An audit whose provider is a callable, so a test can see where it stood."""
+    fake = FakeExecutor(name="fake", replies=list(replies))
+    sessions = Sessions(
+        executors={"fake": fake}, root=root, ledger=Ledger(ledger_path(Paths.from_env())),
+        default_provider="fake", backoff=0,
+    )
+    return Audit(root=root, lens=lens_named("dependencies"), sessions=sessions, today=today,
+                 say=lambda line: None)
 
 
 def _said(root: Path, *argv: str) -> str:
