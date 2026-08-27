@@ -68,13 +68,14 @@ class RunStore:
 
     def create(self, slug: str, steps: list[str] | tuple[str, ...] | None = None, project: str | None = None,
                branch: str | None = None, brief: str | None = None, base: str | None = None,
-               tree: str | None = None, needs: list[str] | None = None) -> Run:
+               tree: str | None = None, needs: list[str] | None = None,
+               frame: list[str] | None = None) -> Run:
         check_slug(slug)
         if self.exists(slug):
             raise StateError("run-exists", f"{slug} already exists; a run is created once")
         run = Run.new(
             slug, steps=steps, project=project, branch=branch, brief=brief,
-            base=base, tree=tree, needs=needs,
+            base=base, tree=tree, needs=needs, frame=frame,
         )
         self.save(run)
         log.info("run %s created on %s", run.slug, run.branch)

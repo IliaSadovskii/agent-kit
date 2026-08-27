@@ -58,6 +58,21 @@ def _a_run_may_have_a_tree(data: dict[str, object]) -> dict[str, object]:
 MIGRATIONS[3] = _a_run_may_have_a_tree
 
 
+def _a_run_may_carry_a_frame(data: dict[str, object]) -> dict[str, object]:
+    """Schema 5 — a run carries what the work it belongs to builds alike.
+
+    A schema 4 file gains nothing: there were no frames to carry, and a run
+    started by hand has none in any schema. What the number buys is the refusal
+    in the other direction — a kit that does not know `frame` would run a
+    feature of a batch without the one thing every feature of it shares, and
+    nothing in its record would say the line was dropped.
+    """
+    return data
+
+
+MIGRATIONS[4] = _a_run_may_carry_a_frame
+
+
 def oldest_schema() -> int:
     """The oldest file this kit can read: whatever the migrations reach back to.
 

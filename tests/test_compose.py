@@ -126,3 +126,21 @@ def test_every_role_is_told_that_the_kit_does_not_merge(tmp_path):
             continue
         text = compose_input(run=run, definition=definition, attempt=1, provider="fake")
         assert "gh pr merge" in text, name
+
+
+def test_the_frame_reaches_the_step_that_is_about_to_build(tmp_path):
+    """What every feature of one work builds alike, enclosed rather than looked up."""
+    run = RunStore(tmp_path).create(
+        "add-vat", brief="a brief", frame=["the rate lives in one place"]
+    )
+    said = compose_input(run, builtin_registry().get("design"), attempt=1, provider="fake")
+
+    assert "What every feature of this work builds alike" in said
+    assert "- the rate lives in one place" in said
+
+
+def test_a_run_with_no_frame_says_nothing_about_one(tmp_path):
+    run = RunStore(tmp_path).create("add-vat", brief="a brief")
+    said = compose_input(run, builtin_registry().get("design"), attempt=1, provider="fake")
+
+    assert "builds alike" not in said

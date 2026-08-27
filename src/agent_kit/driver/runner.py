@@ -730,6 +730,7 @@ def create_run(
     base: str | None = None,
     tree: str | None = None,
     needs: list[str] | None = None,
+    frame: list[str] | None = None,
 ) -> Run:
     """A run may only be created from steps that exist.
 
@@ -749,7 +750,7 @@ def create_run(
     # the driver happened to keep its paperwork, which is nowhere useful.
     return store.create(
         slug, steps=steps, project=project or str(store.paths.root.resolve()), brief=brief,
-        base=base, tree=tree, needs=needs,
+        base=base, tree=tree, needs=needs, frame=frame,
     )
 
 

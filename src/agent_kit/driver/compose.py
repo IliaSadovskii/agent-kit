@@ -69,6 +69,22 @@ def compose_input(
     if run.brief:
         parts += ["", "## What this run is for", "", run.brief.strip()]
 
+    if run.frame:
+        # The one thing a feature cannot work out for itself: what the other
+        # features of the same work are doing, decided once where all of them
+        # were visible at once. Enclosed rather than looked up, like everything
+        # else — reading is never an instruction.
+        parts += [
+            "",
+            "## What every feature of this work builds alike",
+            "",
+            "Several features are being built from one decision, and these were settled before any",
+            "of them started. They are not preferences. A feature that departs from one of them",
+            "makes the others wrong, and nobody is awake to notice.",
+            "",
+            *[f"- {line}" for line in run.frame],
+        ]
+
     if enclosures:
         parts += ["", "## What is enclosed", "", "Everything below is here so that you do not go looking for it."]
         for title, body in enclosures:

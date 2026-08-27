@@ -13,8 +13,8 @@ simply the answer. Writing the chain twice would put a second copy of the one
 mechanism the bench has a dozen traps for beside the copy those traps watch,
 and the second copy would have none of them.
 
-What the chain needs to know about who it is running for is seven fields, and
-`Subject` is those seven. A `Run` is one; a sitting is another.
+What the chain needs to know about who it is running for is eight fields, and
+`Subject` is those eight. A `Run` is one; a sitting is another.
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ log = get_logger("driver")
 
 @runtime_checkable
 class Subject(Protocol):
-    """Who a turn is being run for, in the only seven facts a turn reads."""
+    """Who a turn is being run for, in the only eight facts a turn reads."""
 
     slug: str
     branch: str
@@ -64,6 +64,7 @@ class Subject(Protocol):
     base: str
     brief: str | None
     needs: list[str]
+    frame: list[str]
 
 
 @dataclass
@@ -77,6 +78,11 @@ class Standing:
     base: str = ""
     brief: str | None = None
     needs: list[str] = field(default_factory=list)
+    #: A sitting has no work above it deciding what several features share, so
+    #: this is empty and stays empty. It is here because `compose_input` reads
+    #: one shape, and a subject missing a field the composer reads is a subject
+    #: that only works until the composer grows.
+    frame: list[str] = field(default_factory=list)
 
 
 @dataclass

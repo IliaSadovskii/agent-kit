@@ -15,7 +15,7 @@ from typing import Any
 from .. import __version__
 from ..errors import StateError
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 BRANCH_PREFIX = "kit/"
 
 #: The order the method's steps mean anything in, and it is an argument rather
@@ -138,6 +138,11 @@ class Run:
     #: The runs this one may not start before, and whose work its steps are
     #: shown. Read by the batch driver and by `driver/compose.py`.
     needs: list[str] = field(default_factory=list)
+    #: What every feature of the work this run belongs to builds alike. One
+    #: reader — `driver/compose.py`, which encloses it — and one writer, the
+    #: driver above that knows there are several features. A run started by
+    #: hand has none, which is what a run started by hand is.
+    frame: list[str] = field(default_factory=list)
     current_step: int | None = None
     #: The step whose gate closed, where that is what stopped this run. `halt`
     #: writes it and `reopen` reads it, and nothing else: the step kept its
@@ -154,7 +159,8 @@ class Run:
     @classmethod
     def new(cls, slug: str, steps: list[str] | tuple[str, ...] | None = None, project: str | None = None,
             branch: str | None = None, brief: str | None = None, base: str | None = None,
-            tree: str | None = None, needs: list[str] | None = None) -> "Run":
+            tree: str | None = None, needs: list[str] | None = None,
+            frame: list[str] | None = None) -> "Run":
         check_slug(slug)
         names = list(steps or DEFAULT_STEPS)
         if not names:
@@ -169,6 +175,7 @@ class Run:
             base=base or "",
             tree=_optional_text(tree, "tree"),
             needs=_needs(needs or [], slug),
+            frame=_frame(frame or []),
         )
 
     # --- reading ----------------------------------------------------------
@@ -441,6 +448,7 @@ class Run:
             "base": self.base,
             "tree": self.tree,
             "needs": list(self.needs),
+            "frame": list(self.frame),
             "status": self.status.value,
             "current_step": self.current_step,
             "gate_closed_on": self.gate_closed_on,
@@ -472,6 +480,7 @@ class Run:
             base=_optional_text(data.get("base") or None, "base") or "",
             tree=_optional_text(data.get("tree"), "tree"),
             needs=_needs(data.get("needs") or [], check_slug(slug)),
+            frame=_frame(data.get("frame") or []),
             current_step=_step_index(data.get("current_step"), len(raw_steps)),
             gate_closed_on=_step_index(data.get("gate_closed_on"), len(raw_steps), "gate_closed_on"),
             created_at=_text(data.get("created_at"), "created_at"),
@@ -572,6 +581,22 @@ def _needs(value: Any, slug: str) -> list[str]:
     if slug in named:
         _bad("needs", f"{slug} cannot wait for itself")
     return named
+
+
+def _frame(value: Any) -> list[str]:
+    """The lines every feature of this work builds alike.
+
+    Lines and not records: the only reader encloses them as prose, and a shape
+    with fields nobody reads apart is a shape somebody will start filling in.
+    """
+    if not isinstance(value, list):
+        _bad("frame", "frame must be a list of lines")
+    said = []
+    for line in value:
+        if not isinstance(line, str) or not line.strip():
+            _bad("frame", "every line of a frame must be a non-empty string")
+        said.append(line.strip())
+    return said
 
 
 def _reason(reason: Any) -> str:
