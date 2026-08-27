@@ -1,0 +1,11 @@
+# a run somebody stopped in the night, standing beside one that landed. Work
+# that stopped short is worth more than a report waiting to be read, so the
+# door names the first and prints the second under it.
+
+[case]
+title = "a run a person stopped, and a run that delivered"
+fires = "the door answers `run-stopped`, names the command that carries it on, and says why it stopped"
+
+[expect]
+exit_code = 0
+status = "done"
