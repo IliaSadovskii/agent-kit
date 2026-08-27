@@ -30,7 +30,6 @@ from ..driver.workspace import StepWorkspace
 from ..errors import ProviderError, StateError
 from ..logs import get_logger
 from ..paths import project_paths
-from ..project import require_project
 from ..state.store import write_whole
 from .lens import Lens
 from .tree import unpack_head
@@ -103,10 +102,11 @@ class Audit:
         anything is a commit it can unpack and a manifest it can read, and both
         are refused by name.
         """
-        # Read rather than required for anything of its own: the role table this
-        # project declares is what decides who runs the lens, and the papers go
-        # under this project's own kit directory.
-        require_project(self.root)
+        # Nothing here requires the project's declaration, and that is on
+        # purpose: the role table is optional and is already read that way, and
+        # the papers go under this project's own kit directory whether or not
+        # anybody ran `init`. A refusal with no reader is one rule 5 deletes
+        # rather than documents.
         self.audits.mkdir(parents=True, exist_ok=True)
         keep_audits_out_of_git(self.audits)
 
