@@ -504,6 +504,19 @@ def test_a_refused_audit_leaves_no_tree_behind(tmp_path):
     assert stood and not stood[0].exists()
 
 
+def test_a_repository_that_declares_nothing_to_the_kit_is_still_measured(tmp_path):
+    """The audit reads the project's declaration and does not require one.
+
+    Nothing here has a reader for it: the role table is optional and already
+    read that way, and the papers go under this project's own kit directory
+    whether or not anybody ran `init`. A refusal with no reader is a refusal
+    this project's own rules delete rather than document.
+    """
+    root = repository(tmp_path, declared=False)
+    held, _, _ = audit(root, [answer()])
+    assert held.run().findings == 1
+
+
 def test_a_project_with_nothing_to_measure_spends_no_session(tmp_path):
     root = repository(tmp_path, manifest=None)
     held, _, fake = audit(root, [answer()])
