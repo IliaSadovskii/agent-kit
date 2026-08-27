@@ -253,22 +253,31 @@ def _every_import(tree: Path) -> tuple[dict[str, tuple[int, str]], list[str]]:
 def _own(tree: Path) -> set[str]:
     """Names that are this project's, so importing one is not a dependency.
 
-    Every directory holding an `__init__.py`, every module at the top of the
-    tree or under `src/`, and whatever the manifest calls the project. Printed
-    afterwards, because a filter that is wrong about one name turns a real
-    dependency into silence, and silence is what this layer exists against.
+    Every directory holding an `__init__.py`, every directory at the top of the
+    tree or under `src/`, the name of every module anywhere in it, and whatever
+    the manifest calls the project.
+
+    **Every module anywhere**, because that is how Python resolves one: a file
+    beside the file importing it wins, and `tests/` with no `__init__.py` in it
+    is the ordinary case rather than an odd one — measured on the kit itself,
+    where `import conftest` came out as a package nobody declared. A repository
+    that really does carry `requests.py` shadows the package of that name too,
+    and calling that its own is not a mistake: the import resolves to the file.
+
+    Printed afterwards, because a filter that is wrong about one name turns a
+    real dependency into silence, and silence is what this layer exists against.
     """
     mine: set[str] = set()
-    for path in tree.rglob("__init__.py"):
-        mine.add(path.parent.name)
+    for path in tree.rglob("*.py"):
+        mine.add(path.stem)
+        if path.name == "__init__.py":
+            mine.add(path.parent.name)
     for where in (tree, tree / "src"):
         if not where.is_dir():
             continue
         for path in where.iterdir():
             if path.is_dir():
                 mine.add(path.name)
-            elif path.suffix == ".py":
-                mine.add(path.stem)
     manifest = tree / MANIFEST
     if manifest.is_file():
         try:
