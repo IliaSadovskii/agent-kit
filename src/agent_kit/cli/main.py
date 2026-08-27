@@ -524,8 +524,12 @@ def _doctor(paths: Paths) -> int:
     print(f"  state       {paths.state_dir}  {_present(paths.state_dir)}")
     print(f"  logs        {paths.log_dir}  {_present(paths.log_dir)}")
     print(f"  secrets     {paths.secrets_file}  {_present(paths.secrets_file)}")
-    ledger = _ledger(paths)
-    print(f"  ledger      {ledger.path}  {_present(ledger.path)}")
+    # The path, not a ledger: building one creates the file, so asking an
+    # object for its own path made `missing` a word this line could never
+    # print — about the one thing it is here to say.
+    from ..machine import ledger_path
+
+    print(f"  ledger      {ledger_path(paths)}  {_present(ledger_path(paths))}")
     print()
     print("the method")
     registry = builtin_registry()
@@ -828,7 +832,7 @@ def _where(run) -> str:
 
 def _batch(args: argparse.Namespace, paths: Paths) -> int:
     """An evening's work: several features, and what waits for what."""
-    from ..batch import BatchStore, FeatureStatus, read_declaration, refuse_unless_answered
+    from ..batch import BatchStore, read_declaration, refuse_unless_answered
     from ..project import read_project
 
     root = Path(args.project).resolve()

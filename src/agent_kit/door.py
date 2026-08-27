@@ -20,10 +20,12 @@ command*. Only states that no refusal covers get a word of their own, and those
 are named mechanically after the record they come from: `run-failed`,
 `run-stopped`, `run-created`, `run-running`.
 
-**It reads no clock.** Nothing is ever compared against *now*: an answer that
-changes at midnight is an answer no trap can hold, which is the rule about a
-fixture encoding a shape rather than a moment. Two records are compared against
-each other, which is deterministic, and that is the only ordering there is.
+**No rung depends on the time of day.** Nothing is ranked by age and no answer
+changes at midnight, which is the rule about a fixture encoding a shape rather
+than a moment: two records are compared against each other and never against
+the present, and that is the only ordering there is. What does read a clock is
+the ledger, which is asked whether a lease has expired — a question about now
+by its nature, and the only one here.
 
 **It refuses once, and not about a project.** `not-a-directory` is a path
 somebody typed wrong; every state it actually finds — including a project
@@ -134,18 +136,17 @@ class Door:
         owner_of = {
             feature.slug: batch.name for batch in batches for feature in batch.features
         }
-        # A batch that cannot be read is a batch whose features nobody can
-        # name, so no run below can be called unowned. It stands on the ladder
-        # instead — `batch go` would refuse it by exactly this code — and the
-        # runs keep their own line only where being owned would not have
-        # changed it.
-        ownership_is_known = not unreadable_batches
+        # A batch that cannot be read stands on the first rung — `batch go`
+        # refuses it by exactly this code — and hides nothing else. Which runs
+        # were its features is unknown, so those runs keep their own lines
+        # rather than being swept out of sight with it: one unreadable source
+        # hides none of the rest.
 
         reading.ladder = (
             self._running_now(standing)
             + self._the_night_would_refuse(knowledge, unreadable_batches)
             + self._work_that_was_spent(runs, owner_of)
-            + self._work_that_is_unfinished(runs, batches, owner_of, ownership_is_known)
+            + self._work_that_is_unfinished(runs, batches, owner_of, standing)
             + self._waiting_for_a_person(runs, owner_of, project, reading)
         )
         if not reading.ladder:
@@ -253,23 +254,29 @@ class Door:
         if standing is None or not standing.anything:
             return []
         asked = "; ".join(f"{ask.step} asks: {ask.question}" for ask in standing.asks)
-        lines = []
+        # One line per thing being driven rather than per lease: a run with no
+        # worktree holds two of them — the run and the project's working copy —
+        # and it is one night either way.
+        held: dict[str, tuple] = {}
         for lease, kind in (
             [(one, "run") for one in standing.runs]
             + [(one, "batch") for one in standing.batches]
             + [(one, "working copy") for one in standing.checkouts]
         ):
-            lines.append(
+            held.setdefault(lease.slug, (lease, kind))
+        return _in_order(
+            [
                 Line(
                     "a-night-is-running",
-                    f"{lease.slug} — a {kind} has a driver on it since {lease.taken_at}",
+                    f"{slug} — a {kind} has a driver on it since {lease.taken_at}",
                     why=asked or "nothing is waiting on you; it is building",
                     command="agent-kit machine",
                     at=lease.taken_at,
-                    name=lease.slug,
+                    name=slug,
                 )
-            )
-        return _in_order(lines)
+                for slug, (lease, kind) in held.items()
+            ]
+        )
 
     def _the_night_would_refuse(self, knowledge, unreadable_batches) -> list[Line]:
         """Rung 1. What a night would be refused for, said before it is typed.
@@ -368,7 +375,7 @@ class Door:
             )
         return _in_order(lines)
 
-    def _work_that_is_unfinished(self, runs, batches, owner_of, ownership_is_known) -> list[Line]:
+    def _work_that_is_unfinished(self, runs, batches, owner_of, standing) -> list[Line]:
         """Rung 3. Work that stopped short and that a command will carry on.
 
         A batch stands for its own features here: `batch go` is what continues
@@ -376,10 +383,16 @@ class Door:
         whose driver is somebody else. That ownership is about the *name*,
         though, and not about the rank — a feature that failed is on the rung
         above, because `batch go` will never build it again.
+
+        **And nothing a driver is holding appears here at all.** Rung zero
+        names it already; printing it again below with `run go` or `batch go`
+        would be the door offering a command the lease refuses by name, which
+        is the defect this whole layer is written against.
         """
+        driven = self._being_driven(standing)
         batch_lines, run_lines = [], []
         for batch in batches:
-            if batch.finished:
+            if batch.finished or batch.name in driven:
                 continue
             landed = sum(1 for feature in batch.features if feature.status.value == "done")
             batch_lines.append(
@@ -395,14 +408,12 @@ class Door:
 
         unfinished_batches = {batch.name for batch in batches if not batch.finished}
         for slug, run in runs.items():
-            if not ownership_is_known:
-                # A batch nobody could read means nobody can say whose this run
-                # is. It is left to its batch's line above rather than named as
-                # a run somebody should start by hand.
+            if slug in driven:
                 continue
-            if owner_of.get(slug) in unfinished_batches:
+            owner = owner_of.get(slug)
+            if owner in unfinished_batches:
                 continue
-            code, command, why = self._where_it_stopped(run)
+            code, command, why = self._where_it_stopped(run, owner)
             if code is None:
                 continue
             run_lines.append(
@@ -419,11 +430,22 @@ class Door:
         # them on. Inside each group the record's own moment orders them.
         return _in_order(batch_lines) + _in_order(run_lines)
 
-    def _where_it_stopped(self, run):
+    def _being_driven(self, standing) -> set[str]:
+        """Every name a live lease of this project stands against."""
+        if standing is None:
+            return set()
+        return {
+            lease.slug for lease in standing.runs + standing.batches + standing.checkouts
+        }
+
+    def _where_it_stopped(self, run, owner: str | None = None):
         """Three ways a run is unfinished, and the command for each.
 
         The codes are the run's own statuses, so there is one word for one
-        state and no synonym to keep in step with anything.
+        state and no synonym to keep in step with anything. The command is the
+        batch's wherever a batch owns the run: `run reopen` is not what carries
+        a feature on, and offering it reopens work the batch will not then look
+        at.
         """
         status = run.status.value
         if status == "stopped":
@@ -432,7 +454,12 @@ class Door:
                 if run.gate_closed_on is not None
                 else "it was stopped"
             )
-            return "run-stopped", f"agent-kit run reopen {run.slug}", f"{closed} — {run.reason or ''}".strip(" —")
+            carry_on = (
+                f"agent-kit batch reopen {owner} {run.slug}"
+                if owner
+                else f"agent-kit run reopen {run.slug}"
+            )
+            return "run-stopped", carry_on, f"{closed} — {run.reason or ''}".strip(" —")
         if status == "created":
             return "run-created", f"agent-kit run go {run.slug}", "it was created and nothing has started it"
         if status == "running":
@@ -486,8 +513,9 @@ class Door:
             url = str(output.get("pull_request") or "")
             if not url:
                 continue
-            base = run.base or (project.default_branch if project else "main")
-            landed = self._has_landed(run.branch, str(output.get("commit") or ""), base)
+            trunk = project.default_branch if project else "main"
+            base = run.base or trunk
+            landed = self._has_landed(run.branch, str(output.get("commit") or ""), base, trunk)
             if landed is True:
                 continue
             told = (
@@ -546,8 +574,29 @@ class Door:
         answered = self._git("rev-parse", "--verify", "--quiet", f"refs/heads/{run.branch}")
         return answered is None or answered[0] != 1
 
-    def _has_landed(self, branch: str, commit: str, base: str) -> bool | None:
-        """Two questions of the same price, and three answers.
+    def _has_landed(self, branch: str, commit: str, base: str, trunk: str) -> bool | None:
+        """The pair of questions, put to the base and to the trunk both.
+
+        A feature that needs another is based on that one's branch, and that
+        branch never receives a merge: the owner merges the stack into the
+        trunk and tidies the branches away. Asked only against its base, such a
+        report would be named for ever — and that is the commonest way a batch
+        ends.
+
+        Asking twice is safe because a question here may only ever *take* the
+        rung away. A yes from either branch is landed; a no from either and
+        nothing else is *not yet*; nothing answerable at all is `None`.
+        """
+        answered_at_all = False
+        for against in dict.fromkeys((base, trunk)):
+            said = self._asked_of(branch, commit, against)
+            if said is True:
+                return True
+            answered_at_all = answered_at_all or said is False
+        return False if answered_at_all else None
+
+    def _asked_of(self, branch: str, commit: str, base: str) -> bool | None:
+        """Two questions of the same price against one branch, and three answers.
 
         `merge-base --is-ancestor` sees a merge commit and nothing else: the
         kit's own rules allow `gh pr merge --squash`, and a squashed branch is

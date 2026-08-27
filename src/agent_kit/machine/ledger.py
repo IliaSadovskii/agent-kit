@@ -363,7 +363,12 @@ class Ledger:
                 f" {SCHEMA_VERSION}",
                 hint="upgrade the kit, or move the ledger aside — it holds nothing that outlives a reboot",
             )
-        db.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
+        if held != SCHEMA_VERSION:
+            # Only when it disagrees. Written unconditionally this is a short
+            # write lock on every open, so a reader that takes none of its own
+            # — the door — would still wait behind a driver's `BEGIN
+            # IMMEDIATE` and could report the ledger unreadable for it.
+            db.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
         return db
 
     @staticmethod
