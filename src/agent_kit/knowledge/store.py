@@ -19,6 +19,7 @@ from ..state.store import write_whole
 from .parts import LEDGER, PARTS_HEADING, PRODUCT, Part, read_parts, render_part
 from .format import (
     ASSUMED,
+    FRAME,
     Anchor,
     Block,
     KnowledgeError,
@@ -221,7 +222,7 @@ class Knowledge:
                 "this project's declaration says it keeps no knowledge, so there is nowhere to write one",
             )
 
-    def write(self, at: str, run: str, body: str, id: str, date: str) -> list[Path]:
+    def write(self, at: str, run: str, body: str, id: str, date: str, kind: str = ASSUMED) -> list[Path]:
         """Put the block at the end of the record it addresses, replacing its own.
 
         Its own, and only its own: a block with this identifier is removed
@@ -242,7 +243,7 @@ class Knowledge:
         while end > anchor.line + 1 and not lines[end - 1].strip():
             end -= 1
 
-        block = render(ASSUMED, date, run, id, body)
+        block = render(kind, date, run, id, body)
         _write_lines(path, lines[:end] + [""] + block + lines[end:])
         return [held for held in dict.fromkeys([*touched, path]) if held is not None]
 
@@ -287,25 +288,49 @@ class Knowledge:
     def closable(self, id: str) -> Block:
         """The block, if it is one a run may close, and a named refusal if it is not.
 
-        Only `assumed`. A `frame` is in force while it stands and its batch may
-        not have merged; a `found` belongs to the review that wrote it and a
-        `stale` to whoever noticed. Asked here as well as in `close`, because
-        `record` resolves everything before it edits anything: a run that closed
-        one block and then refused the next leaves the owner's knowledge
-        half-edited.
+        Only `assumed`. A `frame` is closed by whatever wrote it, when the work
+        it framed is over — never by one of the features inside that work, which
+        would be a feature deleting what the others are still being held to. A
+        `found` belongs to the review that wrote it and a `stale` to whoever
+        noticed. Asked here as well as in `close`, because `record` resolves
+        everything before it edits anything: a run that closed one block and
+        then refused the next leaves the owner's knowledge half-edited.
         """
+        return self._closable(id, ASSUMED, wrote_it="")
+
+    def closable_frame(self, id: str, wrote_it: str) -> Block:
+        """A frame, and only one this same writer laid down.
+
+        A frame is choreography: it says what several features must build alike
+        while they are being built, and it stops being true when they are. So it
+        has a closer, and the closer is whoever wrote it — the name in the
+        block's own header. Anything else is one evening's work deleting
+        another's.
+        """
+        return self._closable(id, FRAME, wrote_it=wrote_it)
+
+    def _closable(self, id: str, kind: str, wrote_it: str) -> Block:
         block = self.find(id)
-        if block.kind != ASSUMED:
+        if block.kind != kind:
             raise KnowledgeError(
                 "not-closable-kind",
-                f"{id} is a {block.kind} block, and a run closes only {ASSUMED}: "
+                f"{id} is a {block.kind} block, and this closes only {kind}: "
                 f"{block.kind} is not this step's to delete",
+            )
+        if wrote_it and block.run != wrote_it:
+            raise KnowledgeError(
+                "not-its-block",
+                f"{id} was written by {block.run!r} and {wrote_it!r} does not close it",
             )
         return block
 
     def close(self, id: str) -> Path:
         """Closing is deletion, and deletion needs an address. That is the identifier's second reason."""
         self.closable(id)
+        return self._remove(id, missing_ok=False)
+
+    def close_frame(self, id: str, wrote_it: str) -> Path:
+        self.closable_frame(id, wrote_it)
         return self._remove(id, missing_ok=False)
 
     def _remove(self, id: str, missing_ok: bool) -> Path | None:

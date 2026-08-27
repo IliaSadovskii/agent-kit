@@ -85,19 +85,28 @@ def unanswered(declaration: Declaration, project: Project | None) -> list[Unansw
                 )
             )
 
-    if project is None or not project.commands:
-        # The same code `verify` refuses by, asked before anything is spent
-        # rather than in the middle of the first feature of the night.
-        where = project.source if project is not None else "this project"
-        said.append(
-            Unanswered(
-                "no-commands",
-                f"{where} declares no commands, so there is no way to check anything this night "
-                "builds",
-            )
-        )
+    return said + unanswered_about_the_project(project)
 
-    return said
+
+def unanswered_about_the_project(project: Project | None) -> list[Unanswered]:
+    """The half of the gate that has nothing to do with what was composed.
+
+    Its own function because `batch compose` asks it *before* the first session:
+    a project with no way to check anything cannot start a night whatever is
+    composed, and finding that out after two turns is finding it out at the
+    owner's expense.
+    """
+    if project is not None and project.commands:
+        return []
+    # The same code `verify` refuses by, asked before anything is spent rather
+    # than in the middle of the first feature of the night.
+    where = project.source if project is not None else "this project"
+    return [
+        Unanswered(
+            "no-commands",
+            f"{where} declares no commands, so there is no way to check anything this night builds",
+        )
+    ]
 
 
 def refuse_unless_answered(declaration: Declaration, project: Project | None) -> None:

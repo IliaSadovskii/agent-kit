@@ -62,6 +62,11 @@ class Frame:
 
     what: str
     id: str = ""
+    #: Where in the knowledge the block stands. Read by the writer in
+    #: `composing.py` and by nothing else, so it is **not** rendered into the
+    #: file: by the time a declaration is on disk the block is written, and a
+    #: second copy of the address would be a field the reader is a check for.
+    at: str = ""
 
 
 @dataclass(frozen=True)
@@ -107,7 +112,7 @@ def read_declaration(path: Path | str) -> Declaration:
             )
         )
 
-    _refuse_a_graph_that_cannot_run(features)
+    refuse_a_graph_that_cannot_run(features)
 
     mvp = document.get("mvp") or {}
     if not isinstance(mvp, dict):
@@ -206,7 +211,7 @@ def _quoted_list(values) -> str:
     return "[" + ", ".join(_quoted(one) for one in values) + "]"
 
 
-def _refuse_a_graph_that_cannot_run(features: list[Feature]) -> None:
+def refuse_a_graph_that_cannot_run(features: list[Feature]) -> None:
     """Two refusals, and both are about a batch that could never start.
 
     A need naming nothing is a feature waiting for something that will never

@@ -21,6 +21,7 @@ from typing import Any, Callable
 from ..driver import create_run
 from ..driver.tree import make_tree, remove_tree
 from ..errors import ExitCode, KitError, StateError
+from ..knowledge import Knowledge, KnowledgeError
 from ..logs import get_logger
 from ..machine import Ceilings, Ledger, ledger_path
 from ..paths import Paths
@@ -131,6 +132,7 @@ class BatchDriver:
             self.ledger.release(held)
 
         conflicts = self._will_they_merge(batch)
+        self._close_the_frames(batch)
         self._take_away_the_trees_of_what_landed(batch)
         self._tell_the_owner(batch, conflicts, interrupted)
         return BatchOutcome(batch=batch, interrupted=interrupted, conflicts=conflicts)
@@ -393,6 +395,46 @@ class BatchDriver:
             if feature.status is FeatureStatus.DONE
         ]
         return list(self.check_merges(self.project, base, landed))
+
+    def _close_the_frames(self, batch: Batch) -> None:
+        """A frame is choreography, and the work it framed is over.
+
+        Closed by the evening that wrote them and by nothing below: a feature
+        deleting a frame would be deleting what its neighbours are still being
+        held to, which is why `record` refuses the kind by name. The measurement
+        behind this is the second version's: frames were the most written kind
+        there, and a writer with no closer leaves the index of the owner's
+        knowledge growing by a line per frame for ever — and that index is
+        enclosed in every `design` afterwards.
+
+        **Only when there is nothing left to build.** A batch a person stopped
+        keeps features `pending`, and `batch go` again carries on with them; the
+        lines they are held to must still be standing when it does.
+
+        Nothing here fails the night. A block the owner deleted, a knowledge
+        directory that moved: the work landed, the pull requests are open, and
+        throwing that away over bookkeeping would be the worst trade in the kit.
+        """
+        if any(not feature.over for feature in batch.features):
+            return
+        standing = [frame for frame in batch.frames if frame.id]
+        if not standing:
+            return
+        project = read_project(self.project)
+        knowledge = Knowledge(project.knowledge_in(self.project) if project else None)
+        if not knowledge.exists:
+            return
+        for frame in standing:
+            try:
+                knowledge.close_frame(frame.id, batch.name)
+            except KnowledgeError as could_not:
+                log.info("%s: %s stays where it is — %s", batch.name, frame.id, could_not.code)
+                self.say(f"{batch.name}: рамку {frame.id} закрыть не вышло — {could_not.code}")
+                continue
+            # The record follows the file: the block is gone, so the batch no
+            # longer claims to hold one.
+            frame.id = ""
+        self.store.save(batch)
 
     def _take_away_the_trees_of_what_landed(self, batch: Batch) -> None:
         """A landed feature's tree is a copy of a branch; a stalled one's is evidence."""

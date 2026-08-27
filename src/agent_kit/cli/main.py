@@ -103,6 +103,25 @@ def build_parser() -> argparse.ArgumentParser:
     batch = commands.add_parser("batch", help="an evening's work: several features, and what waits for what")
     batch_what = batch.add_subparsers(dest="what", metavar="WHAT")
 
+    batch_compose = batch_what.add_parser(
+        "compose", help="сеанс с владельцем: он рассказывает, кит собирает объявление вечера"
+    )
+    batch_compose.add_argument("name", help="имя партии; оно же имя каталога и заголовок отчёта")
+    batch_compose.add_argument(
+        "--from", dest="telling", metavar="FILE",
+        help="файл с рассказом; `-` читает его с потока ввода, и тогда спросить будет некого. "
+             "Без этого открывается $EDITOR, как у `git commit`",
+    )
+    batch_compose.add_argument(
+        "--out", metavar="FILE",
+        help="куда писать объявление; без этого — .agent-kit/v3/declarations/<имя>.toml",
+    )
+    batch_compose.add_argument("--provider", help="кто исполняет два хода сеанса; без этого решает таблица ролей")
+    batch_compose.add_argument("--option", action="append", default=[], metavar="KEY=VALUE",
+                               help="настройка провайдера, как описано в его блоке; можно повторять")
+    batch_compose.add_argument("--wait", type=int, metavar="SECONDS",
+                               help="сколько ждать слота; 0 отказывает вместо ожидания")
+
     batch_new = batch_what.add_parser("new", help="create a batch from the file you wrote")
     batch_new.add_argument("file", help="the declaration: features, briefs, and what needs what")
 
@@ -792,8 +811,12 @@ def _batch(args: argparse.Namespace, paths: Paths) -> int:
     what = args.what
     if what is None:
         raise UsageError(
-            "missing-command", "batch needs one of: new, list, show, go, stop, skip, reopen"
+            "missing-command",
+            "batch needs one of: compose, new, list, show, go, stop, skip, reopen",
         )
+
+    if what == "compose":
+        return _compose(args, paths, root)
 
     if what == "new":
         # Three acts in one order: the gate, then the batch, then the file it
@@ -896,6 +919,35 @@ def _batch(args: argparse.Namespace, paths: Paths) -> int:
         return int(ExitCode.OK)
 
     raise UsageError("unknown-command", f"batch {what}")
+
+
+def _compose(args: argparse.Namespace, paths: Paths, root: Path) -> int:
+    """The evening, composed in front of the person whose evening it is.
+
+    Two sources and they are two on purpose, exactly as they are for the hour
+    about the product: the telling comes from a file or an editor, because it is
+    long; the answers come from the terminal and from nowhere else, because a
+    sitting is with somebody. Where the telling is coming from the standard
+    input there is nobody to answer, and that is printed before the first
+    session rather than discovered by a refusal halfway through.
+    """
+    from ..batch.composing import ComposingSitting
+    from ..sitting import Telling
+
+    told, from_the_stream = _told(args.telling)
+    if from_the_stream:
+        print("рассказ читается с потока ввода: ответить на противоречие будет некому.")
+
+    sitting = ComposingSitting(
+        args.name,
+        root=root,
+        sessions=_sessions(root, args.provider, args.option, args.wait),
+        say=print,
+        answers=None if from_the_stream else _lines_typed(),
+        out=Path(args.out) if args.out else None,
+    )
+    sitting.hold(Telling(told))
+    return int(ExitCode.OK)
 
 
 def _batch_go(args: argparse.Namespace, paths: Paths, root: Path, store) -> int:

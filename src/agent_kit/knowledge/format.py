@@ -31,11 +31,15 @@ WIDTH = 100
 
 QUOTE = "> "
 
-#: The kind this version writes. `frame` belongs to a batch, `found` to a
-#: reviewer whose findings do not reach the knowledge yet, and `stale` to
-#: whoever notices. A kind with no writer is the mirror of a field with no
-#: reader, and the kit refuses both. `accepted` is dropped.
+#: The two kinds this version writes, and each of them has one writer.
+#: `assumed` is a run's — `record` — and `frame` is the composing sitting's,
+#: which is the one place a whole evening's features are visible at once.
+#: `found` still belongs to a reviewer whose findings do not reach the
+#: knowledge, and `stale` to whoever notices; a kind with no writer is the
+#: mirror of a field with no reader, and the kit refuses both. `accepted` is
+#: dropped.
 ASSUMED = "assumed"
+FRAME = "frame"
 
 _HEADER = re.compile(r"^\s*>\s*\*\*\[(?P<kind>[a-z]+) (?P<date>\d{4}-\d{2}-\d{2})(?P<rest>[^\]]*)\]\*\*")
 _QUOTED = re.compile(r"^\s*>")

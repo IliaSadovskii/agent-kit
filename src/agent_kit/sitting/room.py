@@ -146,7 +146,12 @@ class Sitting:
         index: int,
         enclosures: list[tuple[str, str]],
         judge: Callable[[dict], Any],
+        contract=None,
     ) -> dict:
+        # The contract the *project* imposes, which may be more than the kit's:
+        # the same object is shown to the session and checked against what comes
+        # back, so neither reads a description the other did not.
+        contract = definition.contract if contract is None else contract
         workspace = StepWorkspace(opened.room, index, definition.name)
         attempts = {"n": 0}
 
@@ -155,7 +160,7 @@ class Sitting:
             return opened.subject, attempts["n"]
 
         walked = self.sessions.turn(
-            opened.subject, definition, workspace, definition.contract, enclosures, {},
+            opened.subject, definition, workspace, contract, enclosures, {},
             on_start=on_start, judge=judge,
         )
         if not walked.passed:
