@@ -11,7 +11,14 @@ printf '%s\n' "$SAID" | grep -q "unreadable-run" ||
   { echo "the door said nothing about a record it could not read"; exit 1; }
 printf '%s\n' "$SAID" | grep -q "last-summer" ||
   { echo "the door did not name which record it could not read"; exit 1; }
-# And the whole point: the broken one hid nothing.
-printf '%s\n' "$SAID" | grep -q "add-vat" ||
-  { echo "one unreadable record silenced the run that is whole"; exit 1; }
+# And the whole point: the broken one hid nothing. Which rung answered is not
+# asked — that would be this judge reading somebody else's mechanism. What is
+# asked is that the pass got past the damage: an answer of its own, and the
+# view built after it.
+FIRST=$(printf '%s\n' "$SAID" | head -1)
+case "$FIRST" in
+  unreadable*) echo "a record nobody can read became the whole answer"; exit 1 ;;
+esac
+printf '%s\n' "$SAID" | grep -q "where this project stands" ||
+  { echo "one unreadable record stopped the door before it read anything else"; exit 1; }
 exit 0

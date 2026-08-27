@@ -14,7 +14,8 @@ case "$FIRST" in
 esac
 printf '%s\n' "$SAID" | grep -q "run-created" &&
   { echo "a feature its batch will start was named as a run to start by hand"; exit 1; }
-# The name carries the owner even where the rank does not.
-printf '%s\n' "$SAID" | grep -q "vat/add-vat" ||
-  { echo "a run inside a batch was printed without the batch"; exit 1; }
+# Nothing here asks what the door says about the run that landed. That is
+# another mechanism, and a judge that reddens for a neighbour's break cannot
+# say what it measures — `a-feature-the-night-lost` is where the batch's name
+# beside a feature's is judged, on the rung that case is about.
 exit 0
