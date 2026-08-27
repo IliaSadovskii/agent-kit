@@ -279,6 +279,24 @@ def build_parser() -> argparse.ArgumentParser:
     tell.add_argument("--wait", type=int, metavar="SECONDS",
                       help="сколько ждать слота; 0 отказывает вместо ожидания")
 
+    audit = commands.add_parser(
+        "audit", help="линза над кодом: отчёт и список работы; в проекте ничего не меняется"
+    )
+    audit.add_argument(
+        "lens", metavar="LENS",
+        help="какая линза; сегодня их одна — dependencies: что объявлено против того, что импортируется",
+    )
+    audit.add_argument(
+        "--out", metavar="FILE",
+        help="куда писать список кандидатов; без этого — candidates.md в каталоге аудита. "
+             "Работы не нашлось — файла нет",
+    )
+    audit.add_argument("--provider", help="кто исполняет ход линзы; без этого решает таблица ролей")
+    audit.add_argument("--option", action="append", default=[], metavar="KEY=VALUE",
+                       help="настройка провайдера, как описано в его блоке; можно повторять")
+    audit.add_argument("--wait", type=int, metavar="SECONDS",
+                       help="сколько ждать слота; 0 отказывает вместо ожидания")
+
     daemon = commands.add_parser("daemon", help="the process that serves the page and sweeps up")
     daemon_what = daemon.add_subparsers(dest="what", metavar="WHAT")
     daemon_start = daemon_what.add_parser("start", help="raise it")
@@ -354,6 +372,8 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace, paths: 
         return _owner(args, paths)
     if args.command == "knowledge":
         return _knowledge(args, paths)
+    if args.command == "audit":
+        return _audit(args, paths)
     if args.command == "daemon":
         return _daemon(args, paths)
 
@@ -395,6 +415,29 @@ def _tell(args: argparse.Namespace, paths: Paths) -> int:
         answers=None if from_the_stream else _lines_typed(),
     )
     sitting.hold(Telling(told))
+    return int(ExitCode.OK)
+
+
+# --- the audit -------------------------------------------------------------
+
+
+def _audit(args: argparse.Namespace, paths: Paths) -> int:
+    """One lens over the last commit. It writes two files and changes nothing else.
+
+    The code is zero even when the lens found work: an audit is not a gate. Its
+    output is a list of candidates, and a list that turns the build red is a
+    list nobody will run twice.
+    """
+    from ..audit import Audit, lens_named
+
+    root = Path(args.project).resolve()
+    Audit(
+        root=root,
+        lens=lens_named(args.lens),
+        sessions=_sessions(root, args.provider, args.option, args.wait),
+        say=print,
+        out=Path(args.out) if args.out else None,
+    ).run()
     return int(ExitCode.OK)
 
 
