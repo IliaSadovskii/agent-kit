@@ -514,3 +514,95 @@ def test_a_tree_is_taken_away_when_its_feature_lands_and_kept_when_it_did_not(re
 
     assert tree_for(repo, "one").is_dir()
     assert not tree_for(repo, "two").exists()
+
+
+# --- S8b: the frame, handed down and closed when the night is over ----------
+
+FRAMED = """
+name = "vat"
+
+[[frames]]
+what = "the rate lives in one place"
+id = "fr4me1"
+
+[features.one]
+brief = "The first"
+
+[features.two]
+brief = "The second"
+"""
+
+
+def knowledge_holding_a_frame(repo, id="fr4me1", run="vat"):
+    where = repo / "docs/knowledge"
+    where.mkdir(parents=True, exist_ok=True)
+    (where / "product.md").write_text(
+        "# Продукт\n"
+        "\n"
+        "### Налог\n"
+        "`key: tax`\n"
+        "\n"
+        "Как считается налог.\n"
+        "\n"
+        f"> **[{'frame'} 2026-08-27 · {run} · id: {id}]** the rate lives in one place\n",
+        encoding="utf-8",
+    )
+    return where / "product.md"
+
+
+def test_every_feature_is_handed_the_frame_of_the_work_it_belongs_to(repo):
+    knowledge_holding_a_frame(repo)
+    held, store, runs, spawn, _ = driver(repo, text=FRAMED)
+
+    held.go("vat")
+
+    assert [runs.load(slug).frame for slug in ("one", "two")] == [
+        ["the rate lives in one place"]
+    ] * 2
+
+
+def test_the_frame_is_closed_by_the_evening_that_wrote_it(repo):
+    path = knowledge_holding_a_frame(repo)
+    held, store, _, _, _ = driver(repo, text=FRAMED)
+
+    # The trap first: the block really is standing before the night runs.
+    assert "id: fr4me1" in path.read_text(encoding="utf-8")
+
+    held.go("vat")
+
+    assert "id: fr4me1" not in path.read_text(encoding="utf-8")
+    assert "Как считается налог" in path.read_text(encoding="utf-8")
+    assert store.load("vat").frames[0].id == ""
+
+
+def test_a_night_a_person_stopped_leaves_its_frames_standing(repo):
+    """`batch go` again carries on with what is pending, and it is still held to them."""
+    path = knowledge_holding_a_frame(repo)
+    held, store, _, _, _ = driver(
+        repo, text=FRAMED, endings={"one": "asks-the-batch-to-stop", "two": "stops-when-asked"},
+        machine=1,
+    )
+
+    held.go("vat")
+
+    assert "id: fr4me1" in path.read_text(encoding="utf-8")
+
+
+def test_a_frame_another_evening_wrote_is_left_where_it_stands(repo):
+    path = knowledge_holding_a_frame(repo, run="last-week")
+    held, store, _, _, _ = driver(repo, text=FRAMED)
+
+    held.go("vat")
+
+    assert "id: fr4me1" in path.read_text(encoding="utf-8")
+    assert store.load("vat").frames[0].id == "fr4me1"
+
+
+def test_a_block_that_is_gone_does_not_fail_a_night_that_landed(repo):
+    knowledge_holding_a_frame(repo)
+    held, store, _, _, _ = driver(repo, text=FRAMED)
+    (repo / "docs/knowledge/product.md").write_text("# Продукт\n\n### Налог\n`key: tax`\n", encoding="utf-8")
+
+    outcome = held.go("vat")
+
+    assert all(feature.status is FeatureStatus.DONE for feature in outcome.batch.features)

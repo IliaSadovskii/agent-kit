@@ -13,7 +13,7 @@ not depend on another project being on this machine.
 
 import pytest
 
-from agent_kit.knowledge import ALPHABET, Knowledge, KnowledgeError, identifier
+from agent_kit.knowledge import ALPHABET, FRAME, Knowledge, KnowledgeError, identifier
 
 #: The two header shapes the real knowledge uses, and nothing else. Faithful to
 #: `beeplish/docs/knowledge` as it stood on 22 August 2026.
@@ -724,4 +724,54 @@ def test_the_kind_is_asked_before_anything_is_written(knowledge):
     with pytest.raises(KnowledgeError) as refused:
         knowledge.closable("fffff3")
 
+    assert refused.value.code == "not-closable-kind"
+
+
+# --- S8b: the kind that now has a writer, and a closer -----------------------
+
+
+def test_a_frame_is_written_as_a_frame(knowledge, tmp_path):
+    knowledge.write(at="entities.md#account", run="2026-08-27-vat", body="one place", id="fr4me1",
+                    date="2026-08-27", kind=FRAME)
+
+    assert "**[frame 2026-08-27 · 2026-08-27-vat · id: fr4me1]**" in (
+        tmp_path / "docs/knowledge/entities.md"
+    ).read_text(encoding="utf-8")
+
+
+def test_a_run_does_not_close_a_frame(knowledge):
+    """The kind refuses the caller, and this is what keeps a feature from deleting
+    what its neighbours are still being held to."""
+    knowledge.write(at="entities.md#account", run="2026-08-27-vat", body="one place", id="fr4me1",
+                    date="2026-08-27", kind=FRAME)
+
+    with pytest.raises(KnowledgeError) as refused:
+        knowledge.close("fr4me1")
+    assert refused.value.code == "not-closable-kind"
+
+
+def test_an_evening_closes_the_frame_it_wrote(knowledge, tmp_path):
+    knowledge.write(at="entities.md#account", run="2026-08-27-vat", body="one place", id="fr4me1",
+                    date="2026-08-27", kind=FRAME)
+
+    knowledge.close_frame("fr4me1", "2026-08-27-vat")
+
+    assert "fr4me1" not in (tmp_path / "docs/knowledge/entities.md").read_text(encoding="utf-8")
+
+
+def test_an_evening_does_not_close_another_evening_s_frame(knowledge):
+    knowledge.write(at="entities.md#account", run="last-week", body="one place", id="fr4me1",
+                    date="2026-08-27", kind=FRAME)
+
+    with pytest.raises(KnowledgeError) as refused:
+        knowledge.close_frame("fr4me1", "2026-08-27-vat")
+    assert refused.value.code == "not-its-block"
+
+
+def test_an_evening_does_not_close_an_assumption(knowledge):
+    knowledge.write(at="entities.md#account", run="2026-08-27-vat", body="took it", id="k7f3q2",
+                    date="2026-08-27")
+
+    with pytest.raises(KnowledgeError) as refused:
+        knowledge.close_frame("k7f3q2", "2026-08-27-vat")
     assert refused.value.code == "not-closable-kind"
