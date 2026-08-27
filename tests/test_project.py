@@ -411,12 +411,20 @@ def test_the_refusal_names_the_command_and_the_word(tmp_path):
     assert refused.value.exit_code == ExitCode.CONFIG
 
 
-def test_doctor_says_which_declared_command_starts_nothing(tmp_path, capsys, machine_home, monkeypatch):
+def test_the_door_says_which_declared_command_starts_nothing(tmp_path, capsys, machine_home, monkeypatch):
+    """What `doctor` used to answer about a project, asked where a project is now read.
+
+    The question has not moved: it is still *what would `verify` be refused
+    for*, printed before a night rather than after two sessions. Only the
+    screen it is printed on has, because `doctor` answers about this machine
+    and this is about a project.
+    """
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     declare(tmp_path, '[commands]\ntest = "definitely-not-here --all"\n')
 
-    main(["-C", str(tmp_path), "doctor"])
+    main(["-C", str(tmp_path), "next"])
 
     out = capsys.readouterr().out
+    assert "no-such-command" in out
     assert "definitely-not-here" in out
     assert "test" in out
