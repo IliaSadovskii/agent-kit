@@ -27,6 +27,7 @@ from ..machine import Busy, Ceilings, Ledger, ledger_path
 from ..owner import ANSWERED, HAD_ROUND, NOBODY, Owner, Question, Settled, as_assumption, questions_of
 from ..paths import Paths
 from ..project import DEFAULT_BRANCH, read_project, refuse_commands_that_start_nothing
+from ..verification import refuse_commands_that_prove_nothing
 from ..state import DEFAULT_STEPS, Run, RunStore, StepStatus
 from ..steps import Registry, StepDefinition
 from .executor import Executor
@@ -232,6 +233,10 @@ class StepRunner:
             return
         if project is not None:
             refuse_commands_that_start_nothing(project)
+            # The second question about the same commands: one that starts is
+            # not one that can fail, and a kind answered with `true` is a kind
+            # nothing checks. `[commands]` is deliberately not held to this.
+            refuse_commands_that_prove_nothing(project)
 
     def _is_described_at_all(self, run: Run) -> None:
         """Missing is not the same as fine, and only one of them can be said out loud.

@@ -29,6 +29,8 @@ from .config import RoleConfig, roles_from_table
 from .knowledge import DEFAULT_DIR as KNOWLEDGE_DIR
 from .errors import ConfigError
 from .paths import project_paths
+from .verification.answers import Answer, answers_from_table
+from .verification.answers import render as verification_lines
 
 PROJECT_FILE = "project.toml"
 
@@ -39,7 +41,7 @@ DEFAULT_BRANCH = "main"
 #: better says so; this is what the kit assumes when it does not.
 DEFAULT_COMMAND_TIMEOUT = 3600
 
-_TOP_KEYS = {"project", "commands", "roles"}
+_TOP_KEYS = {"project", "commands", "roles", "verification"}
 _PROJECT_KEYS = {"default_branch", "command_timeout", "knowledge"}
 
 
@@ -71,8 +73,19 @@ class Project:
     #: to a path.
     knowledge: str = KNOWLEDGE_DIR
     commands: tuple[Command, ...] = ()
+    #: What this project checks itself for: one answer per kind of verification
+    #: the kit knows, and nothing at all for a kind nobody has been asked about
+    #: yet. Its readers are the feature's level — what a design owes and what
+    #: `verify` walks — the machine question asked before the first session, and
+    #: the door. Empty is the ordinary state of every project written by a kit
+    #: older than this one.
+    verification: tuple[Answer, ...] = ()
     roles: dict[str, RoleConfig] = field(default_factory=dict)
     source: Path | None = None
+
+    def answer_for(self, kind: str) -> Answer | None:
+        """What this project said about that kind, or nothing at all."""
+        return next((answer for answer in self.verification if answer.kind == kind), None)
 
     @property
     def declares_knowledge(self) -> bool:
@@ -153,8 +166,30 @@ def starts_nothing(command: str) -> str:
 
 
 def commands_that_start_nothing(project: "Project") -> list[Command]:
-    """Every declared command whose first word this machine cannot start."""
-    return [command for command in project.commands if starts_nothing(command.command)]
+    """Every command this project declares whose first word this machine cannot start.
+
+    Both lists: what `verify` runs over the project, and what a kind of
+    verification is answered with. One question, one code, one moment.
+    """
+    return [
+        command
+        for command in (*project.commands, *answered_commands(project))
+        if starts_nothing(command.command)
+    ]
+
+
+def answered_commands(project: "Project") -> list[Command]:
+    """A kind answered with a command is a command this machine will run.
+
+    It is held to starting for exactly the reason `[commands]` is, and by the
+    same code: `verify` runs both, and a run refused at the end for a binary
+    that was never there costs the same night either way.
+    """
+    return [
+        Command(f"verification.{answer.kind}", answer.command)
+        for answer in project.verification
+        if answer.is_a_command
+    ]
 
 
 def refuse_commands_that_start_nothing(project: "Project") -> None:
@@ -204,6 +239,7 @@ def read_project(root: Path | str) -> Project | None:
         command_timeout=_seconds(block.get("command_timeout", DEFAULT_COMMAND_TIMEOUT), "project.command_timeout"),
         knowledge=_inside(block.get("knowledge", KNOWLEDGE_DIR), "project.knowledge"),
         commands=_commands(_table(document.get("commands", {}), "commands")),
+        verification=answers_from_table(_table(document.get("verification", {}), "verification")),
         roles=roles_from_table(_table(document.get("roles", {}), "roles")),
         source=path,
     )
@@ -250,10 +286,41 @@ def discover(root: Path) -> tuple[Project, list[str]]:
             command_timeout=standing.command_timeout if standing else DEFAULT_COMMAND_TIMEOUT,
             knowledge=standing.knowledge if standing else KNOWLEDGE_DIR,
             commands=tuple(commands),
+            verification=_answered(standing, found),
             roles=dict(standing.roles) if standing else {},
         ),
         missing,
     )
+
+
+def _answered(standing: "Project | None", found: list[Command]) -> tuple[Answer, ...]:
+    """What the project already answered, and the one answer reading it proposes.
+
+    From the *finding*, never from what was already declared: a project whose
+    `test` command a person typed by hand has not thereby said that the suite is
+    what proves a feature of it. What the repository itself says — a `test`
+    target, a pytest section — is a proposal the kit may make, and it is the
+    cheapest of the answers the plan measured: an instrument already installed
+    and never declared.
+
+    Everything else is left unanswered, and the door names it. A commented hole
+    would be prose, and a `why` the kit invented would be the project refusing a
+    kind nobody asked a person about.
+    """
+    already = standing.verification if standing else ()
+    if any(answer.kind == "suite" for answer in already):
+        return already
+    suite = next((command for command in found if command.name == "test"), None)
+    if suite is None:
+        return already
+    return answers_from_table(
+        {answer.kind: _as_table(answer) for answer in already} | {"suite": {"command": suite.command}}
+    )
+
+
+def _as_table(answer: Answer) -> dict[str, str]:
+    said = {"command": answer.command} if answer.is_a_command else {"why": answer.why, "since": answer.since}
+    return {key: value for key, value in said.items() if value}
 
 
 def render(project: Project) -> str:
@@ -276,6 +343,8 @@ def render(project: Project) -> str:
     lines += [f'{command.name} = "{command.command}"' for command in project.commands]
     if not project.commands:
         lines.append("# nothing was found; `verify` refuses a project that cannot say how it is tested")
+
+    lines += verification_lines(project.verification)
 
     for name, role in sorted(project.roles.items()):
         # Read back by the driver, so it has to survive being written out. It
