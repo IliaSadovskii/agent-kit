@@ -696,6 +696,10 @@ class Door:
             return ["nothing declared, and nothing written"]
         try:
             blocks = knowledge.blocks()
+            # Inside the same `try`, and that is the whole of why it is here: a
+            # ledger the kit cannot read must not take down a door whose one
+            # refusal is a path typed wrong.
+            debt = knowledge.debt()
         except KnowledgeError as unreadable:
             return [f"{unreadable.code}: {unreadable.detail}"]
         assumed = sum(1 for block in blocks if block.kind == ASSUMED)
@@ -703,8 +707,18 @@ class Door:
         said = [
             f"{knowledge.root} — "
             + ("described" if knowledge.described else "declared, and nothing written in it")
-            + f"; standing: {assumed} assumed, {frames} frame"
+            + f"; standing: {assumed} assumed, {frames} frame, {len(debt)} in the ledger"
         ]
+        if debt:
+            # A counter and never a rung. A rung is what a night would be
+            # refused for, and nothing refuses a project that owes itself work —
+            # and no command closes a line: the work that answers it does, named
+            # by a feature that says so. A rung the kit cannot take away is a
+            # rung the door stops descending at.
+            said.append(
+                "the ledger holds what is built and works badly; a line goes when the work "
+                "that answers it lands, or when you take it out yourself"
+            )
         if assumed:
             said.append(
                 "an assumption nobody confirmed is settled where the owner talks: "

@@ -509,6 +509,18 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
             "Что мешает выпуску", [f"- {_where(item)}" for item in blocking] + [""], spilled
         )
 
+    # Открыто, и это «что сделано»: строку долга писал владелец своими словами
+    # или ночь при нём, а её снятие — то, о чём он узнал бы из диффа, если бы
+    # оно уехало под спойлер.
+    answered = [str(key) for key in (recorded.get("fixed") or []) if str(key).strip()]
+    if answered:
+        open_part += _open_section(
+            "Закрытый долг",
+            ["Эта работа отвечает строкам реестра — вечер снимет их, когда партия кончится:", ""]
+            + [f"- `{key}`" for key in answered] + [""],
+            spilled,
+        )
+
     # A question that was asked and not answered is folded into the assumptions
     # by the driver, word for word. Printing both would say the same thing
     # twice, so what the fold wrote is dropped and the question itself stands.
@@ -580,8 +592,17 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
         folded.append("")
 
     rest = [item for item in findings if item.get("severity") != BLOCKING]
+    keyed = {str(line.get("what")): str(line.get("key")) for line in (recorded.get("debt") or [])}
     folded += ["## Что ещё нашло ревью", ""]
-    folded += [f"- *{item.get('severity')}* — {_where(item)}" for item in rest] if rest else ["Ничего."]
+    folded += [f"- *{item.get('severity')}*{_keyed(item, keyed)} — {_where(item)}" for item in rest] if rest \
+        else ["Ничего."]
+    if keyed:
+        folded += [
+            "",
+            "Ключ рядом — имя строки в реестре долга. Строку кладёт вечер партии, когда "
+            "строить больше нечего; у прогона, запущенного руками, её нет, и находка живёт "
+            "только здесь.",
+        ]
     folded.append("")
 
     return "\n".join(
@@ -592,6 +613,12 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
            "---", "",
            f"Собрано китом, прогон `{request.slug}`. Каждый пункт выше — запись шага, а не пересказ.", ""]
     )
+
+
+def _keyed(finding: dict, keyed: dict) -> str:
+    """The key of the line this finding becomes, where a line is going to exist."""
+    key = keyed.get(_where(finding))
+    return f" `{key}`" if key else ""
 
 
 def _proved(design: dict) -> list[str]:
