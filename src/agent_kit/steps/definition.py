@@ -70,6 +70,18 @@ class StepDefinition:
     #: `design`, and it is here rather than in the contract because the contract
     #: is the kit's and this is the project's.
     knowledge_requires: tuple[tuple[str, str], ...] = ()
+    #: What a project that answers a kind of verification with a command makes
+    #: required of this step's output. Here rather than in the contract for the
+    #: same reason `knowledge_requires` is: the contract is the kit's and this is
+    #: the project's. `(path, the sibling whose truth requires it)`, and an empty
+    #: answer is no answer — a feature that will prove nothing has not decided
+    #: what will prove it.
+    verification_requires: tuple[tuple[str, str], ...] = ()
+    #: True when this step must be told which kinds of verification this project
+    #: checks itself for. The driver encloses the catalogue's own words about
+    #: each one, so an excuse is written against them rather than against a
+    #: session's memory of what the kind is for.
+    needs_kinds: bool = False
     #: Open question 5, the ceiling inside a step. A step that may be split is
     #: continued in a fresh session with what the previous one produced. A step
     #: that may not and outgrows its window is a design error, not a survival.
@@ -79,13 +91,15 @@ class StepDefinition:
     def by_agent(self) -> bool:
         return self.executor == AGENT
 
-    def contract_in(self, keeps_knowledge: bool) -> Contract:
+    def contract_in(self, keeps_knowledge: bool, owes_kinds: bool = False) -> Contract:
         """The contract this project imposes, which is the one the agent is shown."""
-        if not (keeps_knowledge and self.knowledge_requires):
-            return self.contract
         contract = self.contract
-        for path, when in self.knowledge_requires:
-            contract = contract.requiring(path, when=when)
+        if keeps_knowledge:
+            for path, when in self.knowledge_requires:
+                contract = contract.requiring(path, when=when)
+        if owes_kinds:
+            for path, when in self.verification_requires:
+                contract = contract.requiring(path, when=when, empty_is_an_answer=False)
         return contract
 
     def instructions(self) -> str:

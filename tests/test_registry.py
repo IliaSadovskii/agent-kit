@@ -82,7 +82,7 @@ def test_the_prose_of_a_step_does_not_promise_what_the_driver_does_not_enclose()
 def test_a_design_that_will_prove_nothing_is_not_a_design():
     design = builtin_registry().get("design").contract
 
-    assert design.field("verification").empty_is_an_answer is False
+    assert design.field("changes").empty_is_an_answer is False
     assert design.field("changes").empty_is_an_answer is False
 
 

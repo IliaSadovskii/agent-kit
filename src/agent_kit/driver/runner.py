@@ -27,9 +27,12 @@ from ..machine import Busy, Ceilings, Ledger, ledger_path
 from ..owner import ANSWERED, HAD_ROUND, NOBODY, Owner, Question, Settled, as_assumption, questions_of
 from ..paths import Paths
 from ..project import DEFAULT_BRANCH, read_project, refuse_commands_that_start_nothing
-from ..verification import refuse_commands_that_prove_nothing
+from ..verification import owed_by_a_feature, refuse_commands_that_prove_nothing
+from ..verification.owed import recount_for
+from ..verification.said import what_a_feature_owes
 from ..state import DEFAULT_STEPS, Run, RunStore, StepStatus
 from ..steps import Registry, StepDefinition
+from ..steps.contract import CheckedAgainst
 from .executor import Executor
 from .session import (
     ATTEMPTS_PER_PROVIDER,
@@ -335,10 +338,19 @@ class StepRunner:
             raise StateError("no-step-pending", f"{slug}: every step is done")
 
         definition = self.registry.get(run.steps[index].name)
-        contract = definition.contract_in(self.keeps_knowledge(run))
+        project = self._project_of(run)
+        contract = definition.contract_in(
+            self.keeps_knowledge(run), bool(owed_by_a_feature(project))
+        )
         providers = self.sessions.providers_for(definition)
         workspace = StepWorkspace(self.store.run_root(slug), index, definition.name)
         enclosures, prior = self.enclosures(run, index, definition)
+        # What this step's answer is held to beyond its own fields: what the
+        # project owes, and what an earlier step measured. Neither fits in a
+        # contract the kit ships, so it is bound here, where both are in hand.
+        recount = recount_for(definition.name, prior, project)
+        if recount is not None:
+            contract = CheckedAgainst(fields=contract.fields, recount=recount)
 
         outcome = StepOutcome(slug=slug, step=definition.name, passed=False)
         # Из файла шага, а не с нуля: драйвер мог умереть после того, как
@@ -675,6 +687,16 @@ class StepRunner:
                 prior[step.name] = output
         if definition is not None and definition.needs_knowledge:
             enclosed.append(("the project's knowledge, as an index", self._knowledge_of(run).index()))
+        if definition is not None and definition.needs_kinds:
+            # Reading is never an instruction, so what the kit knows about a
+            # kind arrives here rather than being looked up: a session judging
+            # its own excuse against its memory of what `types` means is a
+            # session judging nothing.
+            said = what_a_feature_owes(
+                self._project_of(run), definition.name, prior.get("design"), prior.get("verify")
+            )
+            if said:
+                enclosed.append(("what a feature of this project owes", said))
         return enclosed, prior
 
 

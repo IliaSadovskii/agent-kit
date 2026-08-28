@@ -23,7 +23,7 @@ DESIGN = {
     "summary": "Money learns a VAT rate, so a price can be quoted with tax.",
     "changes": ["src/kit_sandbox/money.py — a with_vat method"],
     "seams": ["Money is frozen, so with_vat returns a new one"],
-    "verification": ["a test that 1000 at 20% is 1200", "a test that a negative rate is refused"],
+    "proves": [{"kind": "suite", "command": "pytest tests/test_money.py"}],
     "asks": [],
     "assumptions": [{"what": "VAT is a whole percent", "expensive": False, "because": "the sandbox has no fractions"}],
 }
@@ -81,12 +81,20 @@ def test_design_returns_the_seams_and_what_will_prove_it():
     checked = contract("design").check(DESIGN)
 
     assert checked["seams"]
-    assert checked["verification"]
+    assert checked["proves"][0]["command"]
     assert checked["assumptions"][0]["expensive"] is False
 
 
-def test_a_design_that_does_not_say_what_will_prove_it_is_refused():
-    assert refuse("design", {**DESIGN, "verification": None}) == "output-missing-field: verification"
+def test_a_design_that_does_not_say_what_will_prove_it_is_refused_where_the_project_asks():
+    # The kit asks for `proves` where the project answers a kind of verification
+    # with a command, and asks nothing of a project that answered none. What a
+    # missing record costs is `test_proving.py`; this is the shape of the field.
+    strict = builtin_registry().get("design").contract_in(False, True)
+
+    with pytest.raises(ContractRefusal) as refused:
+        strict.check({**DESIGN, "proves": None})
+
+    assert refused.value.code == "output-missing-field: proves"
 
 
 def test_a_design_that_names_no_seams_is_refused():
@@ -174,7 +182,7 @@ def test_each_step_is_handed_what_the_one_before_it_returned(tmp_path):
     assert "a with_vat method" in build_input  # the design arrived enclosed
     assert "Money should know about VAT" in build_input  # and so did the brief
     assert "test_vat_is_added_to_the_amount" in review_input
-    assert "1000 at 20% is 1200" in review_input  # what design said would prove it
+    assert "pytest tests/test_money.py" in review_input  # what design said would prove it
 
 
 def test_a_design_that_gives_no_subject_line_is_refused():

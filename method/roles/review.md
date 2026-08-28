@@ -14,6 +14,15 @@ Three questions, in this order:
 3. **Do the tests cover what the design said would prove it?** A verification the design
    named and the build did not write is a finding.
 
+4. **Does the change leave the design's excuses standing?** Where this project checks
+   itself for kinds of verification, a design may say a kind cannot apply to this change.
+   Each of those is enclosed above with the reason it gave, and `proofs` is one record
+   per excuse: `stands` where the change leaves the reason true, `contradicted` where it
+   does not. A contradiction names the file that contradicts it, from the enclosed list
+   of what the commands were measured over — a file that list does not hold is not an
+   answer, and you will be asked again. This is the one thing no record can do for
+   itself: every other pass reads what the design said, and only you read the change.
+
 **Every finding carries a severity, and the severity is a decision the program acts on:**
 
 - `blocking` — delivery refuses. Use it for what must not reach a pull request: it is

@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, replace
-from typing import Any, Iterable, Sequence
+from typing import Any, Callable, Iterable, Sequence
 
 from ..errors import ExitCode, KitError
 
@@ -172,7 +172,9 @@ class Contract:
     def field(self, name: str) -> Field | None:
         return next((field for field in self.fields if field.name == name), None)
 
-    def requiring(self, path: str, when: str = "") -> "Contract":
+    def requiring(
+        self, path: str, when: str = "", empty_is_an_answer: bool | None = None
+    ) -> "Contract":
         """A stricter copy of this contract, because a project asked for one.
 
         The join S6 exists for — an expensive assumption owes a block — binds a
@@ -187,16 +189,22 @@ class Contract:
             if field.name != head:
                 continue
             if not inner:
-                fields[index] = replace(field, required=True, required_when=when)
-                return Contract(fields=tuple(fields))
+                fields[index] = replace(field, required=True, required_when=when, **_emptiness(empty_is_an_answer))
+                # `replace(self, ...)` and not `Contract(...)`: a contract that
+                # is also checked against a measurement is still that contract
+                # after a project has made one of its fields required, and
+                # rebuilding it by name would quietly throw the check away.
+                return replace(self, fields=tuple(fields))
             if not isinstance(field, Records):
                 raise ContractRefusal("bad-contract", f"{head} is not a list of records, so {path} names nothing")
             shape = list(field.shape)
             for at, inside in enumerate(shape):
                 if inside.name == inner:
-                    shape[at] = replace(inside, required=True, required_when=when)
+                    shape[at] = replace(
+                        inside, required=True, required_when=when, **_emptiness(empty_is_an_answer)
+                    )
                     fields[index] = replace(field, shape=tuple(shape))
-                    return Contract(fields=tuple(fields))
+                    return replace(self, fields=tuple(fields))
             raise ContractRefusal("bad-contract", f"{path} names no field of this contract")
         raise ContractRefusal("bad-contract", f"{path} names no field of this contract")
 
@@ -224,6 +232,41 @@ class Contract:
                         gathered.append(item)
             merged[field.name] = gathered or None
         return merged
+
+
+@dataclass(frozen=True)
+class CheckedAgainst(Contract):
+    """A contract whose answer is also recounted against something measured.
+
+    The fields are what the kit asks of every project; the recount is what *this*
+    run measured — what the project owes, which files the commands ran over — and
+    neither can be expressed in the other. So the driver builds one of these
+    where it already holds both, and the one place that checks an answer
+    (`driver/session.py`) is untouched: a recount refuses exactly as a field
+    does, the reason goes into the next input, and the session is asked again.
+    """
+
+    #: Raises `ContractRefusal` when what came back does not stand up to what
+    #: was measured. Never None in practice — a step with nothing to recount
+    #: gets an ordinary `Contract`.
+    recount: Callable[[dict[str, Any]], None] | None = None
+
+    def check(self, data: Any) -> dict[str, Any]:
+        checked = super().check(data)
+        if self.recount is not None:
+            self.recount(checked)
+        return checked
+
+
+def _emptiness(empty_is_an_answer: bool | None) -> dict[str, bool]:
+    """Whether nothing is a thing the field may say, when a project has an opinion.
+
+    A project that owes a kind of verification makes `proves` required *and*
+    makes an empty one no answer: a feature that will prove nothing has not
+    decided what will prove it. Which of the two a field is normally belongs to
+    the field; this is the one place another party may say otherwise.
+    """
+    return {} if empty_is_an_answer is None else {"empty_is_an_answer": empty_is_an_answer}
 
 
 def _check_fields(fields: Sequence[Field], data: Any, where: str) -> dict[str, Any]:

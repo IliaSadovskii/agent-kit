@@ -555,7 +555,7 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
     folded += ["## Замысел", "", (design.get("summary") or "").strip(), ""]
     folded += _list("Что меняется", design.get("changes"))
     folded += _list("Швы", design.get("seams"))
-    folded += _list("Чем это доказано — решено до кода", design.get("verification"))
+    folded += _list("Чем это доказано — решено до кода", _proved(design))
     folded += _list("Файлы", build.get("files"))
     folded += _list("Тесты", build.get("tests"))
 
@@ -592,6 +592,24 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
            "---", "",
            f"Собрано китом, прогон `{request.slug}`. Каждый пункт выше — запись шага, а не пересказ.", ""]
     )
+
+
+def _proved(design: dict) -> list[str]:
+    """What this feature said would prove it, per kind of verification.
+
+    The excuses come with the reason, because a kind of test this change did not
+    write is exactly what the owner would want to see and exactly what nobody
+    scrolls to find. A project that answers no kind has no lines here and the
+    section does not appear.
+    """
+    said = []
+    for row in design.get("proves") or []:
+        kind = row.get("kind")
+        if (row.get("command") or "").strip():
+            said.append(f"{kind}: `{row['command'].strip()}`")
+        elif (row.get("why") or "").strip():
+            said.append(f"{kind}: не применимо здесь — {row['why'].strip()}")
+    return said
 
 
 def _list(heading: str, items: Any) -> list[str]:

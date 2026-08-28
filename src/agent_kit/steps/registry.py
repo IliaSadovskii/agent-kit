@@ -77,6 +77,11 @@ DESIGN = StepDefinition(
     title="decide what changes, and what will prove it",
     needs_brief=True,
     needs_knowledge=True,
+    needs_kinds=True,
+    # What a project that answers a kind of verification with a command asks of
+    # a design: a record for every one of them. A project that answers none asks
+    # nothing, which is every project written before this existed.
+    verification_requires=(("proves", ""),),
     # What a project that keeps knowledge asks of a design, and a project that
     # keeps none does not. The join the second version never made lives here:
     # an expensive assumption owes a block, and a block owes an address.
@@ -104,10 +109,30 @@ DESIGN = StepDefinition(
                 help="each place that changes, one line each: the file and what happens to it",
             ),
             TextList("seams", help="where this meets what is already there, and what must not break"),
-            TextList(
-                "verification",
-                empty_is_an_answer=False,
-                help="what will prove it works — decided here, before the code, never after",
+            Records(
+                "proves",
+                required=False,
+                help="one record per kind of verification this project answers with a command — "
+                     "they are enclosed above, with what each one catches. The command this change "
+                     "owes under that kind, or the `why` it cannot apply here. Decided now, before "
+                     "the code: chosen afterwards, this list is written by somebody who already "
+                     "knows what they built and is looking for a reason to be finished",
+                shape=(
+                    Text("kind", help="one of the kinds enclosed above, copied, not invented"),
+                    Text(
+                        "command",
+                        required=False,
+                        help="the command that proves this change under that kind, as it will be "
+                             "run. `verify` runs it and records what it printed",
+                    ),
+                    Text(
+                        "why",
+                        required=False,
+                        help="why this kind cannot apply to this change, against what the enclosed "
+                             "catalogue says it does not apply to. The review reads it against the "
+                             "diff, so a reason the change contradicts stops the run",
+                    ),
+                ),
             ),
             Records(
                 "asks",
@@ -231,8 +256,37 @@ REVIEW = StepDefinition(
                     Text("where", required=False, help="file and line, where there is one"),
                 ),
             ),
+            Records(
+                "proofs",
+                required=False,
+                help="one record per kind of verification the design excused — they are enclosed "
+                     "above with the reason each one gave. This is the one thing no record can do "
+                     "for itself: every other pass reads the design, and only you read the change",
+                shape=(
+                    Text("kind", help="the kind excused, copied from the list enclosed above"),
+                    Enum(
+                        "verdict",
+                        choices=("stands", "contradicted"),
+                        help="stands when the change leaves that reason true; contradicted when it "
+                             "does not, and then the run stops here",
+                    ),
+                    Text(
+                        "where",
+                        required=False,
+                        help="the file that contradicts the reason, from the enclosed list of what "
+                             "the commands were measured over. Required when contradicted, and one "
+                             "the list does not hold is not an answer",
+                    ),
+                    Text(
+                        "because",
+                        required=False,
+                        help="what that file does that the reason says nothing here does",
+                    ),
+                ),
+            ),
         )
     ),
+    needs_kinds=True,
 )
 
 #: verify: the kit runs the project's declared commands itself. No role, no
@@ -256,7 +310,22 @@ VERIFY = StepDefinition(
                     Text("output", required=False),
                 ),
             ),
-            Bool("passed", help="every command that ran came back green"),
+            Records(
+                "kinds",
+                required=False,
+                help="every kind of verification this feature owed, and what proving it printed. "
+                     "A kind proved by a command the project had already run in this step carries "
+                     "that same result rather than a second run of the same line",
+                shape=(
+                    Text("kind"),
+                    Text("name"),
+                    Text("command"),
+                    Int("exit_code", required=False),
+                    Bool("passed"),
+                    Text("output", required=False),
+                ),
+            ),
+            Bool("passed", help="every command that ran came back green, the kinds included"),
             # What the result is a claim about. Its reader is `deliver`, which
             # refuses a commit that is not the tree these commands ran over.
             Text(

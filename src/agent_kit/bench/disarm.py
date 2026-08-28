@@ -64,7 +64,7 @@ NOTHING_WRONG: dict[str, str] = {
             "summary": "Money learns a VAT rate, so a price can be quoted with the tax on it.",
             "changes": ["money.py — a RATE beside the amount"],
             "seams": ["AMOUNT keeps its meaning: the price before tax"],
-            "verification": ["the declared command comes back green with RATE in place"],
+            "proves": [],
             "asks": [],
             "closes": [],
             "assumptions": [],

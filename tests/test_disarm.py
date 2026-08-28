@@ -73,13 +73,13 @@ def test_the_trap_a_case_lays_in_its_replies_is_taken_away_too(cases, tmp_path):
     """Most cases plant nothing: what they bring is what the sessions say."""
     write_case(
         cases,
-        "a-design-with-no-verification",
-        {"exit_code": 3, "status": "failed", "refusal": "output-empty-field: verification"},
-        replies=({"title": "t", "summary": "s", "changes": ["c"], "seams": [], "verification": [],
+        "a-design-that-changes-nothing",
+        {"exit_code": 3, "status": "failed", "refusal": "output-empty-field: changes"},
+        replies=({"title": "t", "summary": "s", "changes": [], "seams": [],
                   "asks": [], "assumptions": []},),
     )
 
-    said = check_named(cases, "a-design-with-no-verification", tmp_path / "into")
+    said = check_named(cases, "a-design-that-changes-nothing", tmp_path / "into")
 
     assert said.state == ARMED, said.why
 

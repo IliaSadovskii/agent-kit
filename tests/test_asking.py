@@ -28,7 +28,7 @@ def design(asks=None, **rest):
         "summary": "Money learns a VAT rate, so a price can be quoted with tax.",
         "changes": ["money.py — a RATE beside the amount"],
         "seams": ["AMOUNT keeps its meaning: the price before tax"],
-        "verification": ["the declared command comes back green"],
+        "proves": [],
         "asks": asks if asks is not None else [],
         "assumptions": [],
     }

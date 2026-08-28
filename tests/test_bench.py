@@ -23,7 +23,7 @@ DESIGN = {
     "summary": "Money learns a VAT rate, so a price can be quoted with tax.",
     "changes": ["money.py — a with_vat helper"],
     "seams": ["AMOUNT stays where it is"],
-    "verification": ["a check that 1000 at 20% is 1200"],
+    "proves": [],
     "asks": [],
     # The baseline world is a described project, like the ordinary one, and a
     # described project asks a design what this feature makes untrue.

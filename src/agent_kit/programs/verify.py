@@ -22,6 +22,7 @@ from pathlib import Path
 
 from ..logs import get_logger
 from ..project import require_project
+from ..verification.owed import UnprovedKind, proving, refuse_unless_every_kind_is_answered
 from ..shell import kill_group
 from ..providers.base import ExecutorFailed, ExecutorResult, StepRequest
 from .proved import stood_on
@@ -66,20 +67,67 @@ class Verify:
                 # Everything after this would be run over code already refused.
                 break
 
-        passed = all(record["passed"] for record in ran)
+        kinds = self._walk(request, project, where, waiting, ran) if all(one["passed"] for one in ran) else []
+        passed = all(record["passed"] for record in (*ran, *kinds))
         # What the result is about. A claim bound to nothing is what let a
         # build change six files, name four, and deliver a green run on a
         # branch missing two of them — see `proved.py`, and `deliver` reads it.
         head, held = stood_on(where)
         return ExecutorResult(
             raw=json.dumps(
-                {"commands": ran, "passed": passed, "proved_at": head, "proved_over": held},
+                {
+                    "commands": ran,
+                    "kinds": kinds,
+                    "passed": passed,
+                    "proved_at": head,
+                    "proved_over": held,
+                },
                 indent=2, ensure_ascii=False,
             ),
             # No `model`: a program is not a session and must not appear in the
             # record as one. `run show` reads that field to say who did the work.
-            meta={"commands_run": len(ran)},
+            meta={"commands_run": len(ran) + sum(1 for kind in kinds if kind.get("command"))},
         )
+
+    def _walk(self, request: StepRequest, project, where: Path, waiting: int, ran: list[dict]) -> list[dict]:
+        """The list the design decided, walked rather than decided again.
+
+        Two things happen here and they are one sentence of the plan each.
+        Every kind the project owes must have been answered — and it is asked
+        here as well as at the design, because a run assembled from other steps
+        may carry no design at all, and then nobody has answered.
+
+        Then each answered kind is run. A command already run in this step is
+        not run twice: on a real project `[commands].test` and the answer to
+        `suite` are the same line, and a feature that paid for it twice would
+        pay every night. What that costs is a record where the same command
+        appears against a kind and against the project, which is exactly what
+        makes the two agreeing visible instead of accidental.
+        """
+        design = request.prior.get("design") or {}
+        try:
+            refuse_unless_every_kind_is_answered(design, project)
+        except UnprovedKind as unproved:
+            # Not retryable: the design is on file and a second attempt at this
+            # step reads the same file. At the design it was an attempt refused
+            # and asked again; here it is a step that cannot pass.
+            raise ExecutorFailed(unproved.code, unproved.detail, retryable=False) from None
+
+        already = {record["command"]: record for record in ran}
+        kinds: list[dict] = []
+        for name, command in proving(design):
+            standing = already.get(command)
+            if standing is not None:
+                log.info("verify: %s — proved by %s, which has already run", name, standing["name"])
+                kinds.append({**standing, "kind": name, "name": standing["name"]})
+                continue
+            log.info("verify: %s — %s", name, command)
+            record = self._one(name, command, where, waiting)
+            already[command] = record
+            kinds.append({**record, "kind": name})
+            if not record["passed"]:
+                break
+        return kinds
 
     def _one(self, name: str, command: str, root: Path, waiting: int) -> dict:
         """One declared command, and everything it started dies with it.

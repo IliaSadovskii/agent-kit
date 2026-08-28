@@ -23,7 +23,7 @@ DESIGN = {
     "summary": "Money learns a VAT rate, so a price can be quoted with tax.",
     "changes": ["money.py — a with_vat method"],
     "seams": ["Money is frozen, so with_vat returns a new one"],
-    "verification": ["a test that 1000 at 20% is 1200"],
+    "proves": [{"kind": "suite", "command": "pytest tests/test_money.py"}],
     "asks": [],
     "assumptions": [
         {"what": "the rate is a whole percent", "expensive": True, "because": "nothing in the sandbox uses fractions"}
@@ -278,7 +278,7 @@ def test_the_owner_reads_the_gist_and_what_is_wanted_of_them_before_anything_els
     assert "the rate is a whole percent" in open_part  # an expensive assumption is asked about
     assert "Money is frozen" not in open_part  # the seams are detail
     assert "Money is frozen" in folded
-    assert "1000 at 20% is 1200" in folded
+    assert "pytest tests/test_money.py" in folded
 
 
 def test_a_blocking_finding_would_be_open_and_not_folded_away(repo):

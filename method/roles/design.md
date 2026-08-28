@@ -23,6 +23,14 @@ Do this, in this order:
 5. **Decide what will prove it — now, before any code exists.** This is the field that
    matters most. Written afterwards, a test proves whatever was built; written here, it
    proves what was meant. Name the cases, not the framework.
+
+   If this project checks itself for kinds of verification, they are enclosed above with
+   what each one catches, and `proves` is one record per kind: the command this change
+   owes under it, or the `why` it cannot apply here. The command is run by the program at
+   `verify` and its output is recorded, so write it as it will be run. The `why` is read
+   by the review against the change itself, so an excuse the diff contradicts stops the
+   run — do not write one to be finished sooner. One kind may never be excused, and the
+   enclosed list says which.
 6. **Say what you assumed.** Anything you took as true without checking; an empty list is a
    real answer and says you looked. For each one,
    `expensive` is true when being wrong about it would cost more than checking it would

@@ -15,6 +15,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..providers.base import ExecutorFailed
+from ..verification.owed import contradicted
 
 BLOCKING = "blocking"
 
@@ -50,8 +51,8 @@ def refuse_unless_deliverable(build: dict, verify: dict, review: dict) -> None:
     if not verify.get("passed"):
         failed = [
             f"{command.get('name')} exited with {command.get('exit_code')}"
-            for command in verify.get("commands") or []
-            if not command.get("passed")
+            for command in (*(verify.get("commands") or []), *(verify.get("kinds") or []))
+            if not command.get("passed") and command.get("command")
         ]
         raise ExecutorFailed(
             "not-verified",
@@ -75,6 +76,21 @@ def refuse_unless_deliverable(build: dict, verify: dict, review: dict) -> None:
         named = "; ".join(where(finding) for finding in blocking) or "and it named nothing that does"
         raise ExecutorFailed(
             "blocked-by-review", f"the review blocks delivery: {named}", retryable=False, expected=True
+        )
+
+    # An excuse the change contradicts. Its own code and not `blocked-by-review`:
+    # *the review found a defect* and *the review caught a kind of test being
+    # skipped* are different events, they need different things from the owner,
+    # and a judge that could not tell them apart would be reading the sentence.
+    #
+    # It is a finding rather than a bad answer, so the reviewer is not asked
+    # again: it recorded what is true, which was its work. The run stops here.
+    for kind, place, because in contradicted(review):
+        raise ExecutorFailed(
+            f"why-the-diff-contradicts: {kind}",
+            f"the design excused {kind} and {place} says otherwise: {because or 'the review gave no reason'}",
+            retryable=False,
+            expected=True,
         )
 
 
