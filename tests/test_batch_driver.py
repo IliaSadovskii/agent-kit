@@ -954,9 +954,13 @@ def test_a_feature_that_did_not_land_hands_nobody_a_chore(repo):
 
 
 def test_a_file_the_repository_ignores_does_not_fail_the_night_and_is_said_out_loud(repo):
-    spoke = Spoke()
+    """The kit of S0 to S3 wrote `.agent-kit/v3/.gitignore` = `*`, and only `init`
+    clears it. A chore written into a file nobody commits dies with this machine —
+    which is the defect this whole file exists against — so it is refused by name."""
+    heard = []
     (repo / ".gitignore").write_text(".agent-kit/\n", encoding="utf-8")
-    held, store, runs, spawn, _ = driver(repo, text=APART, spoke=spoke)
+    held, store, runs, spawn, _ = driver(repo, text=APART)
+    held.say = heard.append
     with_chores(held, spawn, {
         "one": {"manual": [{"key": "aaaaaa", "what": "положить ключ", "proof": "sh a.sh", "by_hand": ""}]},
     })
@@ -964,4 +968,5 @@ def test_a_file_the_repository_ignores_does_not_fail_the_night_and_is_said_out_l
     outcome = held.go("vat")
 
     assert all(feature.status is FeatureStatus.DONE for feature in outcome.batch.features)
-    assert any("manual-ignored" in line for line in spoke.said), spoke.said
+    assert any("manual-ignored" in line for line in heard), heard
+    assert not (repo / ".agent-kit/v3/manual.md").exists()

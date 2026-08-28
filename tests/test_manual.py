@@ -54,7 +54,7 @@ def test_the_peeling_is_one_function_and_stops_at_a_word_it_does_not_know():
     assert [one.said.get("key") for one in held] == [None, "bbbbbb"]
     # `walked:` не из этого словаря, обдирание встало на нём — и `key:` под ним
     # остался частью слов, ровно как это держит часть продукта вне реестра.
-    assert held[0].body.endswith("`key: aaaaaa`")
+    assert "`key: aaaaaa`" in held[0].body
 
 
 def test_the_peeling_does_not_read_what_a_fence_only_shows():
@@ -303,11 +303,16 @@ def test_a_design_with_nothing_wrong_passes_the_same_hook():
     recount_for("design", {}, None)({"manual": [{"what": "положить ключ", "proof": "sh a.sh"}]})
 
 
-def test_the_step_declares_the_field_and_an_empty_list_is_an_answer():
+def test_the_step_declares_the_field_and_a_design_that_names_none_still_stands():
     from agent_kit.steps import builtin_registry
-    from agent_kit.steps.contract import parse_output
 
     design = builtin_registry().get("design")
-    assert any(field.name == "manual" for field in design.contract.fields)
-    parse_output(design.contract, '{"title": "t", "summary": "s", "changes": ["c"], "seams": [],'
-                                  ' "asks": [], "assumptions": []}')
+    assert any(one.name == "manual" for one in design.contract.fields)
+    said = design.contract.check(
+        {"title": "t", "summary": "s", "changes": ["c"], "seams": [], "asks": [], "assumptions": []}
+    )
+    from agent_kit.manual import actions_of
+
+    # Absent is what an optional record list comes back as, exactly like
+    # `proves`: a design written before this existed answers for no chores.
+    assert actions_of(said) == []

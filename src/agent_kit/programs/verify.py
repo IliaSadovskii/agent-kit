@@ -17,14 +17,13 @@ the kit does not.
 from __future__ import annotations
 
 import json
-import subprocess
 from pathlib import Path
 
 from ..logs import get_logger
 from ..project import require_project, starts_nothing
 from ..verification import owed_by_a_feature
 from ..verification.owed import UnprovedKind, proving, refuse_unless_every_kind_is_answered
-from ..shell import kill_group
+from ..shell import ran_alone
 from ..providers.base import ExecutorFailed, ExecutorResult, StepRequest
 from .proved import stood_on
 
@@ -178,47 +177,16 @@ class Verify:
         which is `docker compose exec`. Killing the wrapper and leaving what it
         started is how a stuck build keeps a shared machine busy all night, so
         the command gets its own process group and the group is what dies.
+        That last part is `shell.ran_alone`, which `agent-kit manual check` runs
+        a chore's proof with: one home, two callers.
         """
-        try:
-            finished = subprocess.Popen(
-                command,
-                shell=True,  # a declared command is a shell line, as its author wrote it
-                cwd=root,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                start_new_session=True,
-            )
-        except OSError as error:
-            return {
-                "name": name,
-                "command": command,
-                "exit_code": None,
-                "passed": False,
-                "output": f"it could not be run: {error}",
-            }
-
-        try:
-            stdout, stderr = finished.communicate(timeout=waiting)
-        except subprocess.TimeoutExpired:
-            kill_group(finished)
-            return {
-                "name": name,
-                "command": command,
-                "exit_code": None,
-                "passed": False,
-                "output": f"it said nothing for {waiting} seconds and was stopped, along with everything it started",
-            }
-
+        code, output = ran_alone(command, root, waiting)
         return {
             "name": name,
             "command": command,
-            "exit_code": finished.returncode,
-            "passed": finished.returncode == 0,
-            "output": _tail(f"{stdout}\n{stderr}"),
+            "exit_code": code,
+            "passed": code == 0,
+            "output": _tail(output),
         }
 
 

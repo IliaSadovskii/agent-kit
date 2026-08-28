@@ -171,6 +171,33 @@ DESIGN = StepDefinition(
                      "index — that this feature does the work of. The evening takes those lines "
                      "away when it is over; a key no line carries stops the run",
             ),
+            Records(
+                "manual",
+                required=False,
+                help="what a person must do by hand for this work to be of any use: place a "
+                     "secret, apply a migration, create an account, point a domain. Empty when "
+                     "there is nothing, which is a real answer. The evening writes each one into "
+                     "`.agent-kit/v3/manual.md`, where it survives this machine",
+                shape=(
+                    Text("what", help="the action itself, one line, in the project's language"),
+                    Text(
+                        "proof",
+                        required=False,
+                        help="the command that comes back zero once this has been done — the key "
+                             "is in the environment, the migration is applied, the endpoint "
+                             "answers. `agent-kit manual check` runs it and takes the line away "
+                             "when it passes, so nobody has to remember to tick anything. A "
+                             "command that cannot fail — `true`, `:`, `yes` — is refused",
+                    ),
+                    Text(
+                        "by_hand",
+                        required=False,
+                        help="why no command can prove this one, where none can: it needs a "
+                             "person holding a phone. Such a line stays until somebody deletes "
+                             "it, so this is the expensive answer and the short list",
+                    ),
+                ),
+            ),
             TextList(
                 "closes",
                 required=False,
@@ -405,6 +432,19 @@ RECORD = StepDefinition(
                 shape=(
                     Text("key", help="the key the line carries, derived from its own words"),
                     Text("what", help="the finding, as the line will say it"),
+                ),
+            ),
+            Records(
+                "manual",
+                required=False,
+                help="what a person must do by hand, one record per action the design named, "
+                     "with the key its line will carry. Named here and written by the evening, "
+                     "which is the one writer that file has",
+                shape=(
+                    Text("key", help="the key the line carries, derived from its own words"),
+                    Text("what", help="the action, as the line will say it"),
+                    Text("proof", required=False, help="the command that closes it"),
+                    Text("by_hand", required=False, help="why no command can close it"),
                 ),
             ),
             TextList(

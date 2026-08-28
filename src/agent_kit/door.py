@@ -52,6 +52,7 @@ from pathlib import Path
 
 from .errors import ConfigError, KitError, StateError, UsageError
 from .knowledge import ASSUMED, FRAME, Knowledge, KnowledgeError
+from .manual import Manual, ManualError
 from .verification.kinds import kind_named
 from .paths import Paths, project_paths
 
@@ -145,6 +146,10 @@ class Door:
         if unreadable is not None:
             reading.unread.append(unreadable)
 
+        chores, unreadable_manual = self._chores()
+        if unreadable_manual is not None:
+            reading.unread.append(unreadable_manual)
+
         owner_of = {
             feature.slug: batch.name for batch in batches for feature in batch.features
         }
@@ -159,6 +164,7 @@ class Door:
             + self._the_night_would_refuse(knowledge, unreadable_batches)
             + self._work_that_was_spent(runs, owner_of)
             + self._work_that_is_unfinished(runs, batches, owner_of, standing)
+            + self._work_a_person_owes(chores)
             + self._waiting_for_a_person(runs, owner_of, project, reading)
         )
         if not reading.ladder:
@@ -166,7 +172,7 @@ class Door:
             # under *also standing* beneath a night that failed, it would be
             # the door contradicting its own first line.
             reading.ladder.append(self._nothing_is_due(project))
-        reading.view = self._view(project, knowledge, runs, batches, standing)
+        reading.view = self._view(project, knowledge, runs, batches, standing, chores)
         return reading
 
     # --- the sources ---------------------------------------------------------
@@ -253,6 +259,22 @@ class Door:
             return None, Line(code, str(where), why=str(getattr(unreadable, "detail", unreadable)))
 
     # --- the ladder, top to bottom -------------------------------------------
+
+    def _chores(self):
+        """What a person still owes this project by hand, read off the disk.
+
+        Its own `try`, like every other source: a file somebody broke by hand
+        must not take down a door whose one refusal is a path typed wrong.
+        """
+        try:
+            return Manual(self.root).actions(), None
+        except ManualError as unreadable:
+            return [], Line(
+                unreadable.code,
+                str(Manual(self.root).path),
+                why=unreadable.detail,
+                name="manual",
+            )
 
     def _running_now(self, standing) -> list[Line]:
         """Rung 0. Something of this project is being written right now.
@@ -482,6 +504,37 @@ class Door:
             )
         return None, "", ""
 
+    def _work_a_person_owes(self, chores) -> list[Line]:
+        """Rung 4. Something a night could not do for itself is waiting on a person.
+
+        Above a report that is waiting, because the report describes work that
+        does nothing until the key is placed; below work that is unfinished,
+        because a night not finished costs more than a chore.
+
+        **Only a chore the kit can take away stands here.** A line that says no
+        command can prove it is closed by nobody but the owner deleting it, and
+        a rung nothing can remove is a rung the door stops descending at — the
+        defect the review found in `run-failed` and the reason `debt.md` has no
+        rung at all. Those are counted in the view instead.
+
+        Nothing is run here. The door names the command that runs the proofs; a
+        door that acts is not a door.
+        """
+        provable = [chore for chore in chores if chore.provable]
+        if not provable:
+            return []
+        first = provable[0]
+        return [
+            Line(
+                "manual-due",
+                f"{len(provable)} по этому проекту — {first.what}"
+                + (f" (+{len(provable) - 1})" if len(provable) > 1 else ""),
+                why="это работа, которую ночь сделать не может; доказательство снимет строку само",
+                command="agent-kit manual check",
+                name="manual",
+            )
+        ]
+
     def _waiting_for_a_person(self, runs, owner_of, project, reading) -> list[Line]:
         """Rung 4. The work landed and its report is waiting to be read.
 
@@ -657,7 +710,7 @@ class Door:
         owner = owner_of.get(slug)
         return f"{owner}/{slug}" if owner else slug
 
-    def _view(self, project, knowledge, runs, batches, standing) -> list[tuple[str, list[str]]]:
+    def _view(self, project, knowledge, runs, batches, standing, chores=()) -> list[tuple[str, list[str]]]:
         counted: dict[str, int] = {}
         for run in runs.values():
             counted[run.status.value] = counted.get(run.status.value, 0) + 1
@@ -677,6 +730,7 @@ class Door:
                 or ["none"],
             ),
             ("knowledge", self._knowledge_view(project, knowledge)),
+            ("by hand", self._manual_view(chores)),
             ("commands", self._commands_view(project)),
             ("verification", self._verification_view(project)),
         ]
@@ -723,6 +777,28 @@ class Door:
             said.append(
                 "an assumption nobody confirmed is settled where the owner talks: "
                 "`agent-kit knowledge tell`"
+            )
+        return said
+
+    def _manual_view(self, chores) -> list[str]:
+        """Every chore standing, and the ones no command will ever close.
+
+        The second kind is printed here and ranked nowhere. The plan wanted a
+        *stage* to decide what is shown; there is no stage on disk and inventing
+        one would be a field with a reader, no writer and no closer. What the
+        door does instead is name one thing — the count and the first chore —
+        and leave the list to the command that walks it.
+        """
+        if not chores:
+            return ["nothing standing"]
+        said = []
+        for chore in chores:
+            how = f"proof: {chore.proof}" if chore.provable else f"by hand: {chore.by_hand}"
+            said.append(f"{chore.key}  {chore.what} — {how}")
+        if any(not chore.provable for chore in chores):
+            said.append(
+                "a chore no command can prove is closed by nobody but you, so it is never ranked: "
+                "delete the line in the commit that does the work"
             )
         return said
 

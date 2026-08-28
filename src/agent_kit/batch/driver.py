@@ -23,6 +23,7 @@ from ..driver.tree import make_tree, remove_tree
 from ..errors import ExitCode, KitError, StateError
 from ..driver.workspace import StepWorkspace
 from ..knowledge import BADLY, Knowledge, KnowledgeError
+from ..manual import Manual, ManualError
 from ..logs import get_logger
 from ..machine import Ceilings, Ledger, ledger_path
 from ..paths import Paths
@@ -30,7 +31,7 @@ from ..project import read_project
 from ..state import RunStore
 from ..steps import Registry
 from .merge import Conflict, check_merges as _check_merges
-from .state import OF_A_RUN, Batch, BatchStore, DebtState, FeatureState, FeatureStatus
+from .state import OF_A_RUN, Batch, BatchStore, DebtState, FeatureState, FeatureStatus, ManualState
 
 #: How often the driver looks at its children and at the ledger. A poll of a
 #: local file and a `waitpid` are cheaper than a protocol to get wrong.
@@ -103,6 +104,7 @@ class BatchDriver:
         # is not asked about again — and `batch go` is the way back.
         self._close_the_frames(batch)
         self._write_the_ledger(batch)
+        self._lay_the_manual_actions(batch)
         if batch.finished:
             raise StateError(
                 "batch-finished", f"{name}: nothing is running and nothing is ready to start"
@@ -144,6 +146,7 @@ class BatchDriver:
         conflicts = self._will_they_merge(batch)
         self._close_the_frames(batch)
         self._write_the_ledger(batch)
+        self._lay_the_manual_actions(batch)
         self._take_away_the_trees_of_what_landed(batch)
         self._tell_the_owner(batch, conflicts, interrupted)
         return BatchOutcome(batch=batch, interrupted=interrupted, conflicts=conflicts)
@@ -522,6 +525,60 @@ class BatchDriver:
             # after a sitting. Said here rather than left in a log.
             self.say(f"{batch.name}: {path}")
 
+    def _lay_the_manual_actions(self, batch: Batch) -> None:
+        """What a person must do by hand, written once by the evening.
+
+        The same writer, the same moment and the same file-in-the-owner's-
+        checkout as the ledger, for the same measured reason: two features of
+        one batch appending to one insertion point are two branches that will
+        not merge. What is different is only where it lands — `.agent-kit/v3/`
+        rather than the knowledge — so a project that says nobody describes it
+        is served too, and it is served most.
+
+        Nothing here fails a night whose work has landed. A file the repository
+        ignores is refused by name, and the owner is told in the same breath as
+        everything else this night could not write.
+        """
+        if any(not feature.over for feature in batch.features):
+            return
+        held = Manual(self.project)
+        laid = {line.key for line in batch.manual}
+        touched: list[Path] = []
+        for feature in batch.features:
+            # Only what landed, exactly as for the ledger: a chore that belongs
+            # to code nobody merged is work the owner cannot act on.
+            if feature.status is not FeatureStatus.DONE:
+                continue
+            for row in self._what_a_feature_recorded(feature.slug).get("manual") or []:
+                key, what = str(row.get("key") or ""), str(row.get("what") or "")
+                if not key or not what:
+                    continue
+                if key in laid:
+                    # Two features that need the same key placed need it placed
+                    # once. Counted inside one feature and collapsed across the
+                    # evening — the same difference the ledger keeps.
+                    log.info("%s: %s was already laid; %s needs it too", batch.name, key, feature.slug)
+                    self.say(f"{batch.name}: {key} — это же нужно и {feature.slug}")
+                    continue
+                try:
+                    touched.append(
+                        held.write(
+                            what,
+                            proof=str(row.get("proof") or ""),
+                            by_hand=str(row.get("by_hand") or ""),
+                            key=key,
+                        )
+                    )
+                except ManualError as could_not:
+                    log.info("%s: %s stays unwritten — %s", batch.name, key, could_not.code)
+                    self.say(f"{batch.name}: ручное действие {key} записать не вышло — {could_not.code}")
+                    continue
+                laid.add(key)
+                batch.manual.append(ManualState(key=key, what=what))
+        self.store.save(batch)
+        for path in dict.fromkeys(touched):
+            self.say(f"{batch.name}: {path}")
+
     def _close_a_line(self, knowledge: Knowledge, batch: Batch, key: str, touched: list) -> None:
         """A line the work answered, taken away by the movement that answered it.
 
@@ -601,6 +658,10 @@ def said(batch: Batch, conflicts: list[Conflict], interrupted: bool = False) -> 
         lines.append("")
         lines.append("В реестр долга дописано — незакоммичено, прочитайте diff:")
         lines += [f"- {line.key} — {line.what}" for line in batch.debt]
+    if batch.manual:
+        lines.append("")
+        lines.append("Руками — незакоммичено, `agent-kit manual check` снимет то, что уже сделано:")
+        lines += [f"- {line.key} — {line.what}" for line in batch.manual]
     standing = [frame for frame in batch.frames if frame.id]
     if standing:
         lines.append("")

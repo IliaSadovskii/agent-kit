@@ -279,19 +279,42 @@ def recount_for(
     from ..steps.contract import ContractRefusal
 
     if step == "design":
-        if not owed_by_a_feature(project):
-            return None
+        # Gathered, never a single check hung inside another: what a *project*
+        # owes is answered by most projects with nothing, and a check hung
+        # inside that branch is a check nobody performs. S8g's manual actions
+        # are owed by every project, and would have vanished on the same hook.
+        checks: list[Callable[[dict[str, Any]], None]] = []
 
-        def design_answers_for_every_kind(output: dict[str, Any]) -> None:
+        if owed_by_a_feature(project):
+            def design_answers_for_every_kind(output: dict[str, Any]) -> None:
+                try:
+                    refuse_unless_every_kind_is_answered(output, project)
+                except UnprovedKind as unproved:
+                    # A session's answer, so it is refused and asked again with
+                    # the reason enclosed. The same judgement reaches `verify`
+                    # as a failure, because by then nobody can fix it.
+                    raise ContractRefusal(unproved.code, unproved.detail) from None
+
+            checks.append(design_answers_for_every_kind)
+
+        def design_answers_for_every_action(output: dict[str, Any]) -> None:
+            from ..manual import ManualRefused, refuse_unless_each_action_is_answered
+
             try:
-                refuse_unless_every_kind_is_answered(output, project)
-            except UnprovedKind as unproved:
-                # A session's answer, so it is refused and asked again with the
-                # reason enclosed. The same judgement reaches `verify` as a
-                # failure, because by then nobody can fix it.
-                raise ContractRefusal(unproved.code, unproved.detail) from None
+                refuse_unless_each_action_is_answered(output)
+            except ManualRefused as refused:
+                # Mended in the attempt it is already in. `record` asks the same
+                # question again, because a run assembled from other steps may
+                # carry no design at all — and there it is a step that failed.
+                raise ContractRefusal(refused.code, refused.detail) from None
 
-        return design_answers_for_every_kind
+        checks.append(design_answers_for_every_action)
+
+        def design_answers(output: dict[str, Any]) -> None:
+            for one in checks:
+                one(output)
+
+        return design_answers
 
     if step == "review":
         # Whatever the run holds. A run with no design in it excused nothing,

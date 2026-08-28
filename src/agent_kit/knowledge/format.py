@@ -174,6 +174,59 @@ def prose(file: str, lines: list[str]) -> list[bool]:
     return outside
 
 
+#: A list item, and the last backticked segment of one. Anchored to the end for
+#: the reason `parts.py` anchors its own: an unanchored search finds the
+#: leftmost, which reads a description holding a `word` as though it were a
+#: segment.
+_ITEM = re.compile(r"^\s*[-*]\s+(?P<body>.*\S)\s*$")
+_SEGMENT = re.compile(r"`(?P<inside>[^`]+)`\s*$")
+_SEGMENT_PAIR = re.compile(r"^(?P<name>[a-z-]+):\s*(?P<value>[^·]+?)$")
+
+
+@dataclass(frozen=True)
+class Item:
+    """One list item read as data: what it says, and what it says about itself."""
+
+    body: str
+    said: dict[str, str]
+    line: int
+
+
+def read_items(file: str, lines: list[str], vocabulary: frozenset[str]) -> list[Item]:
+    """Every list item of one file, with its own segments peeled off the end.
+
+    One peel and two files. The ledger of S8f and the manual actions of S8g are
+    the same shape — a line of words with `key: value` segments after them — and
+    a second spelling of one parser is one that will disagree with itself
+    (finding 52 is what a second parser costs).
+
+    `vocabulary` is what stops the peeling: a segment whose name is not in it is
+    words, not data, and everything to its left stays words too. That is what
+    keeps a part's `walked:` from turning a part of the product into a line of
+    somebody else's file.
+    """
+    found: list[Item] = []
+    written = prose(file, lines)
+    for index, line in enumerate(lines):
+        item = _ITEM.match(line) if written[index] else None
+        if item is None:
+            continue
+        said: dict[str, str] = {}
+        rest = item.group("body")
+        while True:
+            trimmed = rest.rstrip()
+            segment = _SEGMENT.search(trimmed)
+            if segment is None:
+                break
+            pair = _SEGMENT_PAIR.match(segment.group("inside").strip())
+            if pair is None or pair.group("name") not in vocabulary:
+                break
+            said.setdefault(pair.group("name"), pair.group("value").strip())
+            rest = trimmed[: segment.start()].rstrip().rstrip("·—-").rstrip()
+        found.append(Item(body=rest.strip(), said=said, line=index))
+    return found
+
+
 def read_blocks(file: str, lines: list[str]) -> list[Block]:
     """Every block in one file, in the order they stand."""
     found: list[Block] = []

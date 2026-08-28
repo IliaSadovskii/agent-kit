@@ -27,10 +27,9 @@ cannot tell them apart cannot weigh either.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
-from .format import identifier, prose
+from .format import identifier, read_items
 
 #: The file. The kit's own name, which is what lets `described` leave it out
 #: and what lets this reader be sure it is not reading somebody's shopping list.
@@ -64,12 +63,10 @@ LEDGER_HEAD = [
 #: Whatever stands between a line's words and its segments.
 SEPARATOR = " · "
 
-_ITEM = re.compile(r"^\s*[-*]\s+(?P<body>.*\S)\s*$")
-#: The last backticked segment of a line, and only the last — the same reason
-#: `parts.py` anchors its own: an unanchored search finds the leftmost, which
-#: reads a description holding a `word` as though it were a segment.
-_SEGMENT = re.compile(r"`(?P<inside>[^`]+)`\s*$")
-_PAIR = re.compile(r"^(?P<name>key|run):\s*(?P<value>[^·]+?)$")
+#: What a segment of a ledger line may be called. Everything else stops the
+#: peeling, a part's `walked:` among them — which is what keeps a part standing
+#: in this file from being read as debt.
+SEGMENTS = frozenset({"key", "run"})
 
 
 @dataclass(frozen=True)
@@ -102,42 +99,23 @@ def debt_key(what: str) -> str:
 
 
 def read_debt(file: str, lines: list[str]) -> list[Debt]:
-    """Every line of the ledger, in the order they stand."""
-    found: list[Debt] = []
-    written = prose(file, lines)
-    for index, line in enumerate(lines):
-        item = _ITEM.match(line) if written[index] else None
-        if item is None:
-            continue
-        one = _read_item(item.group("body"), file, index)
-        if one is not None:
-            found.append(one)
-    return found
+    """Every line of the ledger, in the order they stand.
 
-
-def _read_item(body: str, file: str, index: int) -> Debt | None:
-    """A list item, if it carries a key and nothing that makes it a part.
-
-    Its segments come off the end one at a time, and anything that is not one of
-    this vocabulary's stops the peeling — a part's `walked:` among them, which
-    is what keeps a part standing in this file from being read as debt.
+    The peeling itself is `format.read_items`: one parser, and the manual
+    actions of S8g are the second file read by it. A line is one that carries a
+    key and still has words of its own left after its segments come off.
     """
-    said: dict[str, str] = {}
-    rest = body
-    while True:
-        trimmed = rest.rstrip()
-        segment = _SEGMENT.search(trimmed)
-        if segment is None:
-            break
-        pair = _PAIR.match(segment.group("inside").strip())
-        if pair is None:
-            break
-        said.setdefault(pair.group("name"), pair.group("value").strip())
-        rest = trimmed[: segment.start()].rstrip().rstrip("·—-").rstrip()
-
-    if "key" not in said or not rest.strip():
-        return None
-    return Debt(key=said["key"], what=rest.strip(), run=said.get("run", ""), file=file, line=index)
+    return [
+        Debt(
+            key=item.said["key"],
+            what=item.body,
+            run=item.said.get("run", ""),
+            file=file,
+            line=item.line,
+        )
+        for item in read_items(file, lines, SEGMENTS)
+        if "key" in item.said and item.body
+    ]
 
 
 def render_debt(key: str, what: str, run: str = "") -> str:

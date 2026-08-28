@@ -166,6 +166,32 @@ class DebtState:
 
 
 @dataclass
+class ManualState:
+    """One chore this evening has already laid in `.agent-kit/v3/manual.md`.
+
+    The same memory `DebtState` is, and here it holds one thing more: the
+    closer of a chore is its own proof, so a line laid last week may be gone by
+    tonight. Without this a second `batch go` would write it back — resurrecting
+    work somebody has already done, which is worse than never laying it.
+    """
+
+    key: str
+    what: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"key": self.key, "what": self.what}
+
+    @classmethod
+    def from_dict(cls, data: Any) -> "ManualState":
+        if not isinstance(data, dict):
+            raise StateError("bad-field: manual", "a manual action must be a table")
+        key = data.get("key")
+        if not isinstance(key, str) or not key.strip():
+            raise StateError("bad-field: manual", "a manual action is named by its key")
+        return cls(key=key.strip(), what=str(data.get("what") or ""))
+
+
+@dataclass
 class Batch:
     name: str
     features: list[FeatureState]
@@ -175,6 +201,8 @@ class Batch:
     frames: list[FrameState] = field(default_factory=list)
     #: What this evening has already written into the owner's ledger.
     debt: list[DebtState] = field(default_factory=list)
+    #: What this evening has already asked a person to do by hand.
+    manual: list[ManualState] = field(default_factory=list)
     project: str | None = None
     created_at: str = field(default_factory=now)
     updated_at: str = field(default_factory=now)
@@ -378,6 +406,7 @@ class Batch:
             "reason": self.reason,
             "frames": [frame.to_dict() for frame in self.frames],
             "debt": [line.to_dict() for line in self.debt],
+            "manual": [line.to_dict() for line in self.manual],
             "features": [feature.to_dict() for feature in self.features],
         }
 
@@ -413,6 +442,7 @@ class Batch:
             # Absent in a file schema 1 or 2 wrote: no evening had laid a line
             # then, so an empty list is the truth rather than a default.
             debt=[DebtState.from_dict(line) for line in (data.get("debt") or [])],
+            manual=[ManualState.from_dict(line) for line in (data.get("manual") or [])],
             project=_optional(data.get("project")),
             created_at=str(data.get("created_at") or now()),
             updated_at=str(data.get("updated_at") or now()),

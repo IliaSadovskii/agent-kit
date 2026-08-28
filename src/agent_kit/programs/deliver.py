@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from ..logs import get_logger
+from ..manual import actions_of
 from ..paths import project_paths
 from ..shell import kill_group
 from ..project import require_project
@@ -90,7 +91,12 @@ class Deliver:
         # `record` has not made it.
         keeps = project.keeps_knowledge
         design, build, verify, review = read(request.prior, *(("record",) if keeps else ()))
-        recorded = request.prior.get("record") or {"blocks": [], "closed": [], "files": []}
+        # Every field the joins below count, so a run assembled without
+        # `record` is refused for what it dropped rather than for a key nobody
+        # named.
+        recorded = request.prior.get("record") or {
+            "blocks": [], "closed": [], "files": [], "debt": [], "fixed": [], "manual": []
+        }
 
         refuse_unless_deliverable(build, verify, review)
         # The green suite was measured over a working copy, and this is the one
@@ -98,6 +104,11 @@ class Deliver:
         # touched yet, because a delivery that notices afterwards has already
         # made the branch it is about to disown.
         refuse_unless_the_tree_is_where_it_was_proved(where, verify)
+        # Unconditional, and the one join that is: a chore does not live in the
+        # knowledge, and a project that keeps none is exactly the project this
+        # file was moved out of the knowledge directory to serve. Under `keeps`
+        # it would be switched off where it counts most.
+        refuse_unless_every_action_has_a_line(design, recorded)
         if keeps:
             _refuse_a_naked_assumption(design, recorded)
         # Only where there is a ledger to have named a line in: `record` writes
@@ -439,6 +450,36 @@ def refuse_unless_every_finding_has_a_line(review: dict, recorded: dict, design:
         )
 
 
+def refuse_unless_every_action_has_a_line(design: dict, recorded: dict) -> None:
+    """What a person must do by hand owes a line, or the step that names them dropped one.
+
+    The third join, and the same shape as the two above: `record.manual` has a
+    reader — the evening that lays the lines — and a field with a reader and no
+    watchman is a field that can be dropped silently by the step that fills it.
+
+    Counted, never gathered into a set: two chores worded the same are two
+    chores. Across two *features* of one evening the same words collapse to one
+    line, and that is deliberate — a design that named it twice named it twice.
+    """
+    named = Counter(str(line.get("what")) for line in (recorded.get("manual") or []))
+    naked = []
+    for row in actions_of(design):
+        what = str(row.get("what") or "").strip()
+        if not what:
+            continue
+        if named[what] > 0:
+            named[what] -= 1
+        else:
+            naked.append(what)
+    if naked:
+        raise ExecutorFailed(
+            "action-with-no-line",
+            "the design says a person must do these by hand, and the record named no line for "
+            "them: " + "; ".join(naked),
+            retryable=False,
+        )
+
+
 def _refuse_a_naked_assumption(design: dict, recorded: dict) -> None:
     """The join, asked a second time by the step that closes the feature.
 
@@ -605,7 +646,19 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
         wanted.append("")
         wanted += [f"- **{item.get('what')}** — {item.get('because')}" for item in expensive]
         wanted.append("")
-    if not asked and not expensive:
+    chores = recorded.get("manual") or []
+    if chores:
+        # Открыто и здесь же: это буквально то, что нужно от владельца, и
+        # шестым разделом оно отобрало бы место у вопросов и блокеров.
+        wanted += [
+            "Сделать руками — без этого работа ни на что не годна. Строки лежат в "
+            "`.agent-kit/v3/manual.md`; `agent-kit manual check` прогоняет доказательства и "
+            "снимает то, что уже сделано:",
+            "",
+        ]
+        wanted += [f"- {_chore(one)}" for one in chores]
+        wanted.append("")
+    if not asked and not expensive and not chores:
         wanted += ["Ничего: вопросов нет, дорогих допущений нет, ревью ничего не заблокировало.", ""]
     open_part += _open_section("Что нужно от владельца", wanted, spilled)
 
@@ -683,6 +736,21 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
            "---", "",
            f"Собрано китом, прогон `{request.slug}`. Каждый пункт выше — запись шага, а не пересказ.", ""]
     )
+
+
+def _chore(one: dict) -> str:
+    """One line about a chore, and it says which kind of closing it has.
+
+    A chore with a command closes itself the first time anybody runs the check;
+    one without needs the owner to delete the line, and saying so is the whole
+    of the second bullet of S8g.
+    """
+    what = str(one.get("what") or "")
+    key = str(one.get("key") or "")
+    proof = str(one.get("proof") or "").strip()
+    if proof:
+        return f"**{what}** — `{key}`, снимется само, когда `{proof}` вернёт ноль"
+    return f"**{what}** — `{key}`, командой не проверить: {one.get('by_hand')}. Строку удаляете вы"
 
 
 def _keyed(finding: dict, keyed: dict[str, list[str]]) -> str:

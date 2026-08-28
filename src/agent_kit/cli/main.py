@@ -16,6 +16,7 @@ from .. import __version__
 from ..config import Config, load_config
 from ..errors import ConfigError, ExitCode, KitError, ProviderError, StateError, UsageError
 from ..logs import get_logger, setup_logging
+from ..manual import PROOF_TIMEOUT as MANUAL_TIMEOUT
 from ..paths import Paths
 from ..driver import StepRunner, create_run
 from ..driver.compose import compose_input
@@ -49,6 +50,16 @@ def build_parser() -> argparse.ArgumentParser:
         "next", help="where this project stands, and the one thing to do about it"
     )
     commands.add_parser("doctor", help="what this machine is configured with, and what is missing")
+
+    manual = commands.add_parser("manual", help="the work a night cannot do, and what proves it done")
+    manual_what = manual.add_subparsers(dest="what", metavar="WHAT")
+    manual_check = manual_what.add_parser(
+        "check", help="run every proof and take away the lines that come back green"
+    )
+    manual_check.add_argument(
+        "--timeout", type=int, default=None, metavar="SECONDS",
+        help=f"how long one proof is given (default: {MANUAL_TIMEOUT})",
+    )
 
     init = commands.add_parser("init", help="write what this project declares, from what it already says")
     init.add_argument("--force", action="store_true", help="overwrite a declaration that is already there")
@@ -352,6 +363,8 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace, paths: 
         return _next(Path(args.project), paths)
     if args.command == "doctor":
         return _doctor(paths)
+    if args.command == "manual":
+        return _manual(args)
     if args.command == "init":
         return _init(Path(args.project).resolve(), args.force)
     if args.command == "config":
@@ -497,6 +510,38 @@ def _lines_typed():
 
 
 # --- doctor ----------------------------------------------------------------
+
+
+def _manual(args) -> int:
+    """The one command that runs a proof, and the only one that may.
+
+    Not the door, which reads and never acts; not a night, which would be
+    running commands in a working copy it does not hold. A person types this
+    where they are standing, and what comes back zero takes its own line away.
+
+    Exit zero whatever it finds: this is a report, and every line of it names
+    its own code, which is what a judge reads.
+    """
+    from ..manual import check
+
+    if args.what != "check":
+        raise UsageError("what-of-manual", "agent-kit manual check")
+
+    root = Path(args.project)
+    checked = check(root, timeout=args.timeout or MANUAL_TIMEOUT)
+    for key in checked.done:
+        print(f"manual-done: {key} — доказательство вернуло ноль, строка снята")
+    for key, why in checked.stands:
+        print(f"manual-stands: {key} — {why.strip().splitlines()[-1] if why.strip() else 'ничего не сказало'}")
+    for key in checked.proves_nothing:
+        print(f"manual-proves-nothing: {key} — эта команда не может провалиться, она не запускалась")
+    for key, why in checked.by_hand:
+        print(f"manual-by-hand: {key} — {why}")
+    if not (checked.done or checked.standing):
+        print("руками делать нечего")
+    else:
+        print(f"снято: {len(checked.done)}; стоит: {checked.standing}")
+    return int(ExitCode.OK)
 
 
 def _next(project: Path, paths: Paths) -> int:

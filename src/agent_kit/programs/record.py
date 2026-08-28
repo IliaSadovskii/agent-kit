@@ -22,6 +22,7 @@ from datetime import date as _date
 from pathlib import Path
 
 from ..knowledge import Knowledge, KnowledgeError
+from ..manual import Manual, ManualRefused, actions_of, refuse_unless_each_action_is_answered
 from ..logs import get_logger
 from ..project import require_project
 from ..providers.base import ExecutorFailed, ExecutorResult, StepRequest
@@ -55,6 +56,14 @@ class Record:
         # stands in front of `deliver` rather than inside it.
         refuse_unless_deliverable(build, verify, review)
 
+        # Before the knowledge is even looked at, because a chore does not live
+        # there: the file is `.agent-kit/v3/manual.md` and every project has
+        # one. Named against the owner's own checkout, for the reason the
+        # ledger is — nobody commits it, so a line laid last night stands only
+        # there, and a key derived against this run's frozen copy would collide
+        # with it.
+        actions = self._manual(root, design)
+
         knowledge = Knowledge(project.knowledge_in(where))
         # And the ledger is asked of the owner's own checkout, never of this
         # copy. The blocks a run writes are committed onto its branch, so the
@@ -85,7 +94,7 @@ class Record:
             # hour with the owner does, because somebody is standing there to be
             # asked. The expensive assumptions and the findings still reach the
             # owner: `deliver` opens the pull request with them.
-            return _said([], [], [], [], [])
+            return _said([], [], [], [], [], actions)
 
         naked = [item for item in owing if not (item.get("block") and item.get("at"))]
         if naked:
@@ -134,10 +143,46 @@ class Record:
             if relative not in files:
                 files.append(relative)
         log.info(
-            "%s: %s blocks written, %s closed, %s lines of debt named, %s answered",
-            request.slug, len(blocks), len(closed), len(debt), len(fixes),
+            "%s: %s blocks written, %s closed, %s lines of debt named, %s answered, %s by hand",
+            request.slug, len(blocks), len(closed), len(debt), len(fixes), len(actions),
         )
-        return _said(blocks, closed, files, debt, fixes)
+        return _said(blocks, closed, files, debt, fixes, actions)
+
+    def _manual(self, root: Path, design: dict) -> list[dict]:
+        """What a person must do by hand, named with the key its line will carry.
+
+        Named, and not written: this file has one writer — the evening of a
+        batch, once, when there is nothing left to build — for the measurement
+        that moved the ledger's writer, which holds here unchanged.
+
+        A run started by hand names its actions and lays none. They reach the
+        owner in the pull request, the way a lone run's findings do.
+        """
+        try:
+            refuse_unless_each_action_is_answered(design)
+        except ManualRefused as refused:
+            # A program, so this is a failure and not an attempt refused: the
+            # design is on file and a second attempt reads the same file.
+            raise ExecutorFailed(refused.code, refused.detail, retryable=False) from None
+
+        standing = Manual(root)
+        claimed: set[str] = set()
+        named = []
+        for row in actions_of(design):
+            what = str(row.get("what") or "").strip()
+            # `claimed` and not a set of wordings: two chores worded the same
+            # are two chores, which is what the join counts.
+            key = standing.free_key(what, claimed)
+            claimed.add(key)
+            named.append(
+                {
+                    "key": key,
+                    "what": what,
+                    "proof": str(row.get("proof") or "").strip(),
+                    "by_hand": str(row.get("by_hand") or "").strip(),
+                }
+            )
+        return named
 
     def _debt(self, ledger: Knowledge, review: dict) -> list[dict]:
         """What the review found and nothing stops, named with the key it will carry.
@@ -198,11 +243,13 @@ def _closed(knowledge: Knowledge, id: str, touched: list[Path]) -> str:
 
 
 def _said(
-    blocks: list[dict], closed: list[str], files: list[str], debt: list[dict], fixed: list[str]
+    blocks: list[dict], closed: list[str], files: list[str], debt: list[dict], fixed: list[str],
+    manual: list[dict] | None = None,
 ) -> ExecutorResult:
     return ExecutorResult(
         raw=json.dumps(
-            {"blocks": blocks, "closed": closed, "files": files, "debt": debt, "fixed": fixed},
+            {"blocks": blocks, "closed": closed, "files": files, "debt": debt, "fixed": fixed,
+             "manual": manual or []},
             indent=2, ensure_ascii=False,
         ),
         # No `model`: a program is not a session, and the record must not read
