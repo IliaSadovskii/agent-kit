@@ -45,7 +45,7 @@ BUILD = {
 REVIEW = {"verdict": "pass", "findings": []}
 
 
-def write_case(root, name, expect, replies=(DESIGN, BUILD, REVIEW), plant=None, judge=None, overlay=None):
+def write_case(root, name, expect, replies=(DESIGN, BUILD, REVIEW), plant=None, judge=None, overlay=None, steps=()):
     """A case on disk, exactly as one the kit ships is laid out."""
     case = root / name
     (case / "replies").mkdir(parents=True)
@@ -53,6 +53,7 @@ def write_case(root, name, expect, replies=(DESIGN, BUILD, REVIEW), plant=None, 
         "[case]",
         f'title = "{name}"',
         'fires = "whatever this case is for"',
+        *([f"steps = [{', '.join(chr(34) + one + chr(34) for one in steps)}]"] if steps else []),
         "",
         "[expect]",
     ]
@@ -274,7 +275,22 @@ def test_the_case_runs_against_a_gh_that_is_a_script_and_a_remote_that_is_a_dire
 #: sixty-two cases could have vanished and this file would have stayed green.
 #: Changing this number is how a case is added or retired — deliberately, in a
 #: commit that says so.
-SHIPPED = 112
+SHIPPED = 120
+
+
+def test_a_case_may_ask_for_a_run_of_particular_steps(cases, tmp_path):
+    """A run without `design` is a world, and S8e needs one.
+
+    `verify` asks the same question of a design that the design's own contract
+    asks, because a run assembled from other steps may carry no design at all —
+    and then nothing has answered for a kind the project owes. That world is
+    two words in a case rather than a mechanism nobody can reach.
+    """
+    from agent_kit.bench.cases import read_case
+
+    write_case(cases, "a-run-of-two-steps", {"exit_code": 0, "status": "done"}, steps=("build", "verify"))
+
+    assert read_case(cases, "a-run-of-two-steps").steps == ("build", "verify")
 
 
 def test_every_shipped_case_is_readable_and_says_what_must_fire(capsys):
