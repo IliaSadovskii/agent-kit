@@ -1,0 +1,15 @@
+# a review's finding, after the pull request nobody reads twice
+
+[case]
+title = "the evening lays a line for what the review found and nothing stopped"
+fires = "the finding is in the owner's ledger with the key the kit derives, and it is not committed"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+]
+
+[expect]
+exit_code = 0
+features = { rates = "done" }

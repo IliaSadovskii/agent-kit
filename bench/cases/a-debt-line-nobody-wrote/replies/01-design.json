@@ -1,0 +1,10 @@
+{
+  "title": "Money learns a VAT rate",
+  "summary": "Money learns a VAT rate, and says it answers a line of the ledger.",
+  "changes": ["money.py — a RATE beside the amount"],
+  "seams": ["AMOUNT keeps its meaning"],
+  "asks": [],
+  "closes": [],
+  "fixes": ["zzzzzz"],
+  "assumptions": []
+}

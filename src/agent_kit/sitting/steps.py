@@ -12,6 +12,10 @@ a conversation, and every handover in this kit is a file.
 
 from __future__ import annotations
 
+#: The two kinds a ledger line can be, named where the ledger is read and
+#: written so that the vocabulary of the file and the vocabulary of the turn
+#: that fills it cannot drift apart.
+from ..knowledge.debt import BADLY, BROKEN
 from ..steps.contract import Contract, Enum, LongText, Records, Text
 from ..steps.definition import StepDefinition
 
@@ -20,11 +24,6 @@ REFINES = "refines"
 CONTRADICTS = "contradicts"
 UNCHANGED = "unchanged"
 VERDICTS = (NEW, REFINES, CONTRADICTS, UNCHANGED)
-
-#: The two kinds a ledger line can be. Named where the ledger is read and
-#: written — `knowledge/debt.py` — so that the vocabulary of the file and the
-#: vocabulary of the turn that fills it cannot drift apart.
-from ..knowledge.debt import BADLY, BROKEN  # noqa: E402
 
 #: Every field below has a reader, and the readers are the program that writes
 #: the files and the program that asks the owner. `key` finds the line to

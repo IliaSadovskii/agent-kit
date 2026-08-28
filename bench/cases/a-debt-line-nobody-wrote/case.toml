@@ -1,0 +1,11 @@
+# a key no line carries, named by the work that says it answered one
+
+[case]
+title = "a feature that says it answered a line nobody wrote"
+fires = "record refuses by name rather than reporting a closing nothing happened"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "no-such-debt"
+steps = { record = "failed" }

@@ -1,0 +1,10 @@
+{
+  "title": "The report stops being counted by hand",
+  "summary": "rates: the report the ledger complains about, counted by the program.",
+  "changes": ["rates.py — the counting"],
+  "seams": ["money.py keeps its meaning"],
+  "asks": [],
+  "closes": [],
+  "fixes": ["6kwgcv"],
+  "assumptions": []
+}

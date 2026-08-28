@@ -1,0 +1,9 @@
+# the ledger a design is handed, rather than sent to go and find
+
+[case]
+title = "a project that owes itself work, and the design that is told so"
+fires = "the standing lines of the ledger are in the design's own input, with their keys"
+
+[expect]
+exit_code = 0
+status = "done"

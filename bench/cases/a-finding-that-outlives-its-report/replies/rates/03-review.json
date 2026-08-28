@@ -1,0 +1,7 @@
+{
+  "verdict": "pass",
+  "findings": [
+    {"severity": "worth-fixing", "what": "the retry loop swallows the reason it failed"},
+    {"severity": "note", "what": "the name could be shorter"}
+  ]
+}

@@ -102,8 +102,10 @@ class Record:
 
             # A line the work says it answers has to be a line somebody wrote.
             # Asked here, with the addresses, because this step resolves
-            # everything before it edits anything.
-            standing = {line.key for line in knowledge.debt()}
+            # everything before it edits anything — and asked only where the run
+            # has something to do with the ledger, so a night is not failed at
+            # its last step over a file it never touched.
+            standing = {line.key for line in knowledge.debt()} if fixes else set()
             for key in fixes:
                 if key not in standing:
                     raise KnowledgeError(

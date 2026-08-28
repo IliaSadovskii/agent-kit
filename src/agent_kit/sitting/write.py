@@ -15,7 +15,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..knowledge import Knowledge
-from ..knowledge.debt import LEDGER
 from .read import Reading
 from .steps import UNCHANGED
 

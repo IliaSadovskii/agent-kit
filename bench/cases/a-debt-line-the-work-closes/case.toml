@@ -1,0 +1,15 @@
+# the line goes with the movement that answers it, and not with a ticked box
+
+[case]
+title = "a feature that does the work a line of the ledger names"
+fires = "the evening takes that line away and leaves its neighbour standing"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "The report stops being counted by hand" },
+]
+
+[expect]
+exit_code = 0
+features = { rates = "done" }
