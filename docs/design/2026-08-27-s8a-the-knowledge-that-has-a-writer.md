@@ -102,8 +102,18 @@ entirely on complaints would leave a project the gate calls described and nobody
 
 **The ledger's path.** The plan puts it at `docs/technical_debt.md`, outside the knowledge
 directory — where it has no index, no anchors, no parser and therefore no reader at all until
-S8f builds one. It is at `<knowledge>/debt.md`, which puts it into the index for free: every
-`design` from tonight sees the *works, but badly* lines. S8f can rename it in one line.
+S8f builds one. It is at `<knowledge>/debt.md`, which puts it inside the parser's reach and gives
+it an address. S8f can rename it in one line.
+
+**Corrected on 28 August, and the correction belongs here rather than in a later note.** This
+paragraph first said the ledger "goes into the index for free: every `design` from tonight sees the
+*works, but badly* lines". Measured rather than remembered, that is false: `index()` prints the
+ledger's *heading* as an addressable record and a one-line glimpse of the file, and nothing else —
+a ledger line carries a `key:` and no mark, so it is not read as a part. What a design sees today
+is `debt.md#Работает плохо`, not the lines under it. The claim was written the day the file gained
+a writer and no reader, which is exactly when a sentence like that is easiest to believe. S8f is
+where the lines actually reach the index; until it lands, this stood as an assertion with no trace
+in the project's own record of the work.
 
 **"A line per record" is a line per part.** The reason behind the plan's bullet — a third of
 the reading is the cheap way to look thorough — survives the narrowing, because completeness is
