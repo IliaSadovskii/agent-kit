@@ -634,3 +634,161 @@ def test_a_frame_that_could_not_be_closed_reaches_the_owner(repo):
     held.go("vat")
 
     assert any("fr4me1" in line for line in spoke.said), spoke.said
+
+
+# --- S8f: the ledger, written once by the evening ---------------------------
+#
+# Every feature of one batch branches from the same base, and a line appended to
+# the same section of the same file by two of them is two branches that will not
+# merge — 200 of 200, measured before this was built. So the feature names its
+# lines in `record`, and the evening lays them: one writer, one point, one
+# moment, in the owner's own checkout and uncommitted, the way the frames and
+# the sitting's description already are.
+
+from agent_kit.driver.workspace import StepWorkspace
+
+
+def a_record_that_said(runs, slug, debt=(), fixed=()):
+    """What the feature's `record` step left behind, which is what the evening reads."""
+    run = runs.load(slug)
+    index = [one.name for one in run.steps].index("record")
+    StepWorkspace(runs.run_root(slug), index, "record").accept(
+        1, {"blocks": [], "closed": [], "files": [], "debt": list(debt), "fixed": list(fixed)}, {}
+    )
+
+
+def ledger_text(repo):
+    path = repo / "docs/knowledge/debt.md"
+    return path.read_text(encoding="utf-8") if path.is_file() else ""
+
+
+def described(repo):
+    """A project somebody has written down. A night never creates the knowledge
+    directory: a run carrying `design` in a project that declares one and has
+    written nothing in it is refused before its first session."""
+    where = repo / "docs/knowledge"
+    where.mkdir(parents=True, exist_ok=True)
+    (where / "product.md").write_text("# Продукт\n\n## Части\n\n- деньги — сумма — `walked: 2026-08-20`\n",
+                                      encoding="utf-8")
+    return where
+
+
+def a_ledger_holding(repo, *lines):
+    from agent_kit.knowledge import Knowledge
+
+    held = Knowledge(repo / "docs/knowledge")
+    for what in lines:
+        held.write_debt(what, "badly")
+    return held
+
+
+class WhenItLands:
+    """A child that writes the feature's papers the moment its run lands."""
+
+    def __init__(self, spawn, said):
+        self.spawn, self.said = spawn, said
+
+    def __call__(self, run, argv):
+        child = self.spawn(run, argv)
+        poll = child.poll
+
+        def and_then():
+            code = poll()
+            if code == 0 and run.slug in self.said:
+                a_record_that_said(self.spawn.runs, run.slug, **self.said[run.slug])
+            return code
+
+        child.poll = and_then
+        return child
+
+
+def with_papers(held, spawn, said):
+    held.spawn = WhenItLands(spawn, said)
+    return held
+
+
+def test_the_evening_lays_a_line_for_what_the_review_found(repo):
+    described(repo)
+    held, store, runs, spawn, _ = driver(repo, text=APART)
+    with_papers(held, spawn, {
+        "one": {"debt": [{"key": "aaaaaa", "what": "the retry loop swallows the reason"}]},
+        "two": {"debt": [{"key": "bbbbbb", "what": "the counter is off by one"}]},
+    })
+
+    held.go("vat")
+
+    text = ledger_text(repo)
+    assert "the retry loop swallows the reason" in text
+    assert "the counter is off by one" in text
+    assert "`key: aaaaaa`" in text and "`run: one`" in text
+
+
+def test_one_line_for_a_thing_two_features_both_found(repo):
+    described(repo)
+    held, store, runs, spawn, _ = driver(repo, text=APART)
+    with_papers(held, spawn, {
+        "one": {"debt": [{"key": "aaaaaa", "what": "the same thing"}]},
+        "two": {"debt": [{"key": "aaaaaa", "what": "the same thing"}]},
+    })
+
+    held.go("vat")
+
+    assert ledger_text(repo).count("the same thing") == 1
+
+
+def test_the_evening_takes_away_the_lines_the_work_answered(repo):
+    from agent_kit.knowledge.debt import debt_key
+
+    described(repo)
+    a_ledger_holding(repo, "отчёт считает вручную", "почта уходит дважды")
+    held, store, runs, spawn, _ = driver(repo, text=APART)
+    with_papers(held, spawn, {"one": {"fixed": [debt_key("отчёт считает вручную")]}})
+
+    held.go("vat")
+
+    assert "отчёт считает вручную" not in ledger_text(repo)
+    assert "почта уходит дважды" in ledger_text(repo)
+    assert "## Работает плохо" in ledger_text(repo)
+
+
+def test_a_line_the_owner_has_deleted_is_not_laid_a_second_time(repo):
+    described(repo)
+    held, store, runs, spawn, _ = driver(repo, text=APART)
+    with_papers(held, spawn, {"one": {"debt": [{"key": "aaaaaa", "what": "the retry loop swallows"}]}})
+    held.go("vat")
+    assert store.load("vat").debt[0].key == "aaaaaa"
+
+    (repo / "docs/knowledge/debt.md").write_text("# Технический долг\n", encoding="utf-8")
+    again, store, _, _, _ = another_driver(repo, store)
+    # `go` refuses a finished batch on the way in, and the ledger is written
+    # before that refusal — the same recovery the frames were given.
+    with pytest.raises(StateError) as refused:
+        again.go("vat")
+
+    assert refused.value.code == "batch-finished"
+    assert "the retry loop swallows" not in ledger_text(repo)
+
+
+def test_the_ledger_does_not_fail_the_night(repo):
+    """The work landed and the pull requests are open; bookkeeping does not undo that."""
+    described(repo)
+    (repo / "docs/knowledge/debt.md").write_text("- строка · `key: aaaaaa`\n- другая · `key: aaaaaa`\n",
+                                                 encoding="utf-8")
+    held, store, runs, spawn, _ = driver(repo, text=APART)
+    with_papers(held, spawn, {"one": {"debt": [{"key": "bbbbbb", "what": "the retry loop swallows"}]}})
+
+    outcome = held.go("vat")
+
+    assert [one.status for one in outcome.batch.features] == [FeatureStatus.DONE, FeatureStatus.DONE]
+
+
+def test_a_night_that_is_not_over_lays_nothing_yet(repo):
+    described(repo)
+    held, store, runs, spawn, _ = driver(
+        repo, text=APART, endings={"one": "asks-the-batch-to-stop", "two": "stops-when-asked"}, machine=1,
+    )
+    with_papers(held, spawn, {"one": {"debt": [{"key": "aaaaaa", "what": "the retry loop swallows"}]}})
+
+    held.go("vat")
+
+    assert "the retry loop swallows" not in ledger_text(repo)

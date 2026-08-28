@@ -473,7 +473,22 @@ def test_a_batch_written_before_frames_reads_as_having_none(tmp_path):
     assert store.load("2026-08-27-vat").frames == []
 
 
-def test_the_batch_schema_is_two(tmp_path):
+def test_the_batch_schema_is_three(tmp_path):
+    """Three since a batch remembers the lines it laid in the owner's ledger: a
+    kit that does not know the field must say `schema-too-new` rather than read
+    the file and lay every line a second time."""
     from agent_kit.batch.state import SCHEMA_VERSION
 
-    assert SCHEMA_VERSION == 2
+    assert SCHEMA_VERSION == 3
+
+
+def test_a_batch_remembers_the_lines_it_laid(tmp_path):
+    """The same shape as a frame's identifier, and for the same reason: a line the
+    owner has taken away must not come back on the next `batch go`."""
+    from agent_kit.batch.state import Batch, DebtState, FeatureState
+
+    batch = Batch(name="vat", features=[FeatureState(slug="one", brief="the first")],
+                  debt=[DebtState(key="aaaaaa", what="the retry loop swallows")])
+    read = Batch.from_dict(batch.to_dict())
+
+    assert [(one.key, one.what) for one in read.debt] == [("aaaaaa", "the retry loop swallows")]
