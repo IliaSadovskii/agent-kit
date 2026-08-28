@@ -174,14 +174,15 @@ class Record:
             # are two chores, which is what the join counts.
             key = standing.free_key(what, claimed)
             claimed.add(key)
-            named.append(
-                {
-                    "key": key,
-                    "what": what,
-                    "proof": str(row.get("proof") or "").strip(),
-                    "by_hand": str(row.get("by_hand") or "").strip(),
-                }
-            )
+            # The one that was not answered is left out rather than written
+            # empty: an optional field of a contract is absent or is an answer,
+            # and `""` is neither.
+            said = {"key": key, "what": what}
+            for name in ("proof", "by_hand"):
+                value = str(row.get(name) or "").strip()
+                if value:
+                    said[name] = value
+            named.append(said)
         return named
 
     def _debt(self, ledger: Knowledge, review: dict) -> list[dict]:

@@ -576,9 +576,11 @@ def test_a_manual_action_is_named_with_the_key_its_line_will_carry(project):
 
     said = json.loads(record(project, {"design": a_design_that_needs_a_person(proof="sh ops/key.sh")}).raw)
 
+    # The half that was not answered is absent, not empty: an optional field of
+    # a contract is absent or is an answer, and `""` is neither.
     assert said["manual"] == [
         {"key": manual_key("положить STRIPE_KEY"), "what": "положить STRIPE_KEY",
-         "proof": "sh ops/key.sh", "by_hand": ""}
+         "proof": "sh ops/key.sh"}
     ]
 
 
