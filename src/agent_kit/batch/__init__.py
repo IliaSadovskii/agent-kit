@@ -11,13 +11,14 @@ from .declaration import (
     Declaration, Feature, Frame, Scenario, read_declaration, render_declaration,
 )
 from .gate import Unanswered, refuse_unless_answered, unanswered
-from .state import Batch, BatchStore, FeatureState, FeatureStatus, FrameState
+from .state import Batch, BatchStore, DebtState, FeatureState, FeatureStatus, FrameState
 
 __all__ = [
     "Batch",
     "BatchDriver",
     "BatchOutcome",
     "BatchStore",
+    "DebtState",
     "Declaration",
     "Feature",
     "FeatureState",

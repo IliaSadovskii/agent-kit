@@ -21,7 +21,8 @@ from typing import Any, Callable
 from ..driver import create_run
 from ..driver.tree import make_tree, remove_tree
 from ..errors import ExitCode, KitError, StateError
-from ..knowledge import Knowledge, KnowledgeError
+from ..driver.workspace import StepWorkspace
+from ..knowledge import BADLY, Knowledge, KnowledgeError
 from ..logs import get_logger
 from ..machine import Ceilings, Ledger, ledger_path
 from ..paths import Paths
@@ -29,7 +30,7 @@ from ..project import read_project
 from ..state import RunStore
 from ..steps import Registry
 from .merge import Conflict, check_merges as _check_merges
-from .state import OF_A_RUN, Batch, BatchStore, FeatureState, FeatureStatus
+from .state import OF_A_RUN, Batch, BatchStore, DebtState, FeatureState, FeatureStatus
 
 #: How often the driver looks at its children and at the ledger. A poll of a
 #: local file and a `waitpid` are cheaper than a protocol to get wrong.
@@ -101,6 +102,7 @@ class BatchDriver:
         # it is idempotent — a frame the batch no longer holds an identifier for
         # is not asked about again — and `batch go` is the way back.
         self._close_the_frames(batch)
+        self._write_the_ledger(batch)
         if batch.finished:
             raise StateError(
                 "batch-finished", f"{name}: nothing is running and nothing is ready to start"
@@ -141,6 +143,7 @@ class BatchDriver:
 
         conflicts = self._will_they_merge(batch)
         self._close_the_frames(batch)
+        self._write_the_ledger(batch)
         self._take_away_the_trees_of_what_landed(batch)
         self._tell_the_owner(batch, conflicts, interrupted)
         return BatchOutcome(batch=batch, interrupted=interrupted, conflicts=conflicts)
@@ -447,6 +450,96 @@ class BatchDriver:
             frame.id = ""
         self.store.save(batch)
 
+    def _write_the_ledger(self, batch: Batch) -> None:
+        """The ledger of debt, written once by the evening and by nobody below it.
+
+        Every feature of one batch branches from the same base. Two of them
+        appending a line to the same section of one file is two branches that
+        will not merge — measured before this was built, 200 of 200, in both the
+        world where the ledger already stands and the world where each feature
+        creates it. The night would be green and the owner would be handed a
+        conflict in a file no feature of theirs was about.
+
+        So the feature names its lines and the evening lays them: one writer,
+        one point, one moment. It is the same place and the same shape as
+        closing the frames — the owner's own checkout, uncommitted, when there
+        is nothing left to build — and, like it, nothing here fails a night
+        whose work has landed.
+
+        **A run started by hand writes none.** Its findings reach the owner in
+        the pull request, the way they always have. That is a narrowing of the
+        plan's *a review's finding reaches the knowledge*: it reaches it from
+        the night the kit is written for, and not from the run a person started
+        and is standing over.
+        """
+        if any(not feature.over for feature in batch.features):
+            return
+        project = read_project(self.project)
+        knowledge = Knowledge(project.knowledge_in(self.project) if project else None)
+        # Never made: a night does not decide that a project keeps knowledge,
+        # and a run carrying `design` in a project that declares one is already
+        # refused before its first session unless something is written in it.
+        if not knowledge.exists:
+            return
+
+        laid = {line.key for line in batch.debt}
+        touched: list[Path] = []
+        for feature in batch.features:
+            said = self._what_a_feature_recorded(feature.slug)
+            for key in said.get("fixed") or []:
+                self._close_a_line(knowledge, batch, str(key), touched)
+            for line in said.get("debt") or []:
+                key, what = str(line.get("key") or ""), str(line.get("what") or "")
+                if not key or not what or key in laid:
+                    continue
+                try:
+                    touched.append(knowledge.write_debt(what, BADLY, run=feature.slug, key=key))
+                except KnowledgeError as could_not:
+                    log.info("%s: %s stays unwritten — %s", batch.name, key, could_not.code)
+                    self.say(f"{batch.name}: строку долга {key} записать не вышло — {could_not.code}")
+                    continue
+                laid.add(key)
+                batch.debt.append(DebtState(key=key, what=what))
+        self.store.save(batch)
+        for path in dict.fromkeys(touched):
+            # The kit does not commit: the owner reads the diff, exactly as
+            # after a sitting. Said here rather than left in a log.
+            self.say(f"{batch.name}: {path}")
+
+    def _close_a_line(self, knowledge: Knowledge, batch: Batch, key: str, touched: list) -> None:
+        """A line the work answered, taken away by the movement that answered it.
+
+        A key naming nothing is silence and not a complaint: the line is already
+        gone, which is the state this was asking for. `record` refused a key no
+        line carried while the feature was still being built.
+        """
+        try:
+            touched.append(knowledge.close_debt(key))
+        except KnowledgeError as could_not:
+            if could_not.code != "no-such-debt":
+                log.info("%s: %s stays where it is — %s", batch.name, key, could_not.code)
+                self.say(f"{batch.name}: строку долга {key} закрыть не вышло — {could_not.code}")
+            return
+        batch.debt = [line for line in batch.debt if line.key != key]
+
+    def _what_a_feature_recorded(self, slug: str) -> dict:
+        """What this feature's `record` step left behind, read out of its own papers.
+
+        Nothing below the batch learns the word *batch*: the feature wrote an
+        ordinary step output, and this is the layer above reading it.
+        """
+        if not self.runs.exists(slug):
+            return {}
+        try:
+            run = self.runs.load(slug)
+        except KitError:
+            return {}
+        names = [step.name for step in run.steps]
+        if "record" not in names:
+            return {}
+        workspace = StepWorkspace(self.runs.run_root(slug), names.index("record"), "record")
+        return workspace.read_output() or {}
+
     def _take_away_the_trees_of_what_landed(self, batch: Batch) -> None:
         """A landed feature's tree is a copy of a branch; a stalled one's is evidence."""
         for feature in batch.features:
@@ -488,6 +581,10 @@ def said(batch: Batch, conflicts: list[Conflict], interrupted: bool = False) -> 
         lines += [f"- {conflict.said()}" for conflict in conflicts]
     # A frame the night could not take away is an edit waiting in the owner's own
     # working copy. It reaches them here rather than in a log they never open.
+    if batch.debt:
+        lines.append("")
+        lines.append("В реестр долга дописано — незакоммичено, прочитайте diff:")
+        lines += [f"- {line.key} — {line.what}" for line in batch.debt]
     standing = [frame for frame in batch.frames if frame.id]
     if standing:
         lines.append("")

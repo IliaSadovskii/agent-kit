@@ -27,7 +27,7 @@ from ..state.store import write_whole
 from .declaration import Declaration
 
 BATCH_FILE = "batch.json"
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 log = get_logger("batch")
 
@@ -140,6 +140,32 @@ class FrameState:
 
 
 @dataclass
+class DebtState:
+    """One line of the ledger this evening has already laid.
+
+    Held for the reason a frame's identifier is held: so that a second `batch
+    go` does not lay again what the owner has read and taken away. The evening
+    is the ledger's one writer, and a writer with no memory of what it wrote is
+    a writer that undoes the owner's answer every time it runs.
+    """
+
+    key: str
+    what: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"key": self.key, "what": self.what}
+
+    @classmethod
+    def from_dict(cls, data: Any) -> "DebtState":
+        if not isinstance(data, dict):
+            raise StateError("bad-field: debt", "a line of the ledger must be a table")
+        key = data.get("key")
+        if not isinstance(key, str) or not key.strip():
+            raise StateError("bad-field: debt", "a line of the ledger is named by its key")
+        return cls(key=key.strip(), what=str(data.get("what") or ""))
+
+
+@dataclass
 class Batch:
     name: str
     features: list[FeatureState]
@@ -147,6 +173,8 @@ class Batch:
     #: once to hand each child its lines, and once at the end to close the
     #: blocks the composing sitting wrote.
     frames: list[FrameState] = field(default_factory=list)
+    #: What this evening has already written into the owner's ledger.
+    debt: list[DebtState] = field(default_factory=list)
     project: str | None = None
     created_at: str = field(default_factory=now)
     updated_at: str = field(default_factory=now)
@@ -349,6 +377,7 @@ class Batch:
             "updated_at": self.updated_at,
             "reason": self.reason,
             "frames": [frame.to_dict() for frame in self.frames],
+            "debt": [line.to_dict() for line in self.debt],
             "features": [feature.to_dict() for feature in self.features],
         }
 
@@ -381,6 +410,9 @@ class Batch:
             # here and this is why one is not needed — said in words rather
             # than left for somebody to find out.
             frames=[FrameState.from_dict(frame) for frame in (data.get("frames") or [])],
+            # Absent in a file schema 1 or 2 wrote: no evening had laid a line
+            # then, so an empty list is the truth rather than a default.
+            debt=[DebtState.from_dict(line) for line in (data.get("debt") or [])],
             project=_optional(data.get("project")),
             created_at=str(data.get("created_at") or now()),
             updated_at=str(data.get("updated_at") or now()),
