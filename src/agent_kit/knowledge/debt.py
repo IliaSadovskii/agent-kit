@@ -84,6 +84,12 @@ class Debt:
     line: int
 
 
+#: What a ledger key is derived from, beside the words themselves. One place,
+#: because `free_key` walks the same derivation with a salt and two spellings of
+#: one formula is one that will disagree with itself.
+DEBT_SEED = "debt"
+
+
 def debt_key(what: str) -> str:
     """The key of a line, from its own words.
 
@@ -92,7 +98,7 @@ def debt_key(what: str) -> str:
     whatever came out. Case and spacing are flattened first, so a complaint told
     twice with a capital letter is one line rather than two.
     """
-    return identifier("debt", " ".join(what.split()).casefold())
+    return identifier(DEBT_SEED, " ".join(what.split()).casefold())
 
 
 def read_debt(file: str, lines: list[str]) -> list[Debt]:

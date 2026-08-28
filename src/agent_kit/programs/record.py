@@ -114,7 +114,7 @@ class Record:
 
             closed = [_closed(knowledge, id, touched) for id in closing]
             blocks = [self._write(knowledge, request, item, touched, claimed) for item in owing]
-            debt = self._debt(knowledge, request, review)
+            debt = self._debt(knowledge, review)
         except KnowledgeError as refused:
             # The address, the identifier — the knowledge said no by name, and
             # the same name reaches the run's own record.
@@ -131,7 +131,7 @@ class Record:
         )
         return _said(blocks, closed, files, debt, fixes)
 
-    def _debt(self, knowledge: Knowledge, request: StepRequest, review: dict) -> list[dict]:
+    def _debt(self, knowledge: Knowledge, review: dict) -> list[dict]:
         """What the review found and nothing stops, named with the key it will carry.
 
         Named, and not written. The ledger has one writer — the night of a

@@ -16,7 +16,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..state.store import write_whole
-from .debt import BADLY, LEDGER, LEDGER_HEAD, SECTIONS, Debt, debt_key, read_debt, render_debt
+from .debt import (
+    BADLY, DEBT_SEED, LEDGER, LEDGER_HEAD, SECTIONS, Debt, debt_key, read_debt, render_debt,
+)
 from .parts import PARTS_HEADING, PRODUCT, Part, read_parts, render_part
 from .format import (
     ASSUMED,
@@ -253,7 +255,7 @@ class Knowledge:
         standing = {line.key: line for line in self.debt()}
         wanted_words = " ".join(what.split()).casefold()
         for salt in range(SALTS):
-            wanted = identifier("debt", wanted_words, salt)
+            wanted = identifier(DEBT_SEED, wanted_words, salt)
             if wanted in claimed:
                 continue
             held = standing.get(wanted)
@@ -262,6 +264,12 @@ class Knowledge:
         raise KnowledgeError("no-free-identifier", f"{SALTS} keys derived for {what!r} are all taken")
 
     # --- writing ----------------------------------------------------------
+
+    def _root(self) -> Path:
+        """The directory, once it is known to be declared. `_must_be_declared`
+        is what refuses, by name; this is how the rest of a writer says so."""
+        self._must_be_declared()
+        return self.root  # type: ignore[return-value]
 
     def _must_be_declared(self) -> None:
         if self.root is None:
@@ -343,12 +351,12 @@ class Knowledge:
         than deriving a second answer to the same question.
         """
         self._must_be_declared()
-        assert self.root is not None
+        root = self._root()
         key = key or debt_key(what)
         line = render_debt(key, what, run)
 
-        self.root.mkdir(parents=True, exist_ok=True)
-        path = self.root / LEDGER
+        root.mkdir(parents=True, exist_ok=True)
+        path = root / LEDGER
         lines = self._lines(path) if path.is_file() else list(LEDGER_HEAD)
 
         for standing in read_debt(LEDGER, lines):
@@ -378,10 +386,10 @@ class Knowledge:
         would have to notice was gone.
         """
         self._must_be_declared()
-        assert self.root is not None
+        root = self._root()
         for standing in self.debt():
             if standing.key == key:
-                path = self.root / LEDGER
+                path = root / LEDGER
                 lines = self._lines(path)
                 _write_lines(path, lines[: standing.line] + lines[standing.line + 1 :])
                 return path
