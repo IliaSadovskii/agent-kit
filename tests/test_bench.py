@@ -303,6 +303,14 @@ def test_every_shipped_case_is_readable_and_says_what_must_fire(capsys):
         assert case.title.strip()
 
 
+#: The whole bench, in one process: 127 repositories made, driven and taken away.
+#: The suite's own 300 seconds is a guard against a hang, not a budget for that —
+#: and the number grows by a world with every trap, so a test that measures the
+#: whole bench cannot live under the same ceiling as one that measures a function.
+WHOLE_BENCH = 1800
+
+
+@pytest.mark.timeout(WHOLE_BENCH)
 def test_every_shipped_case_fires(capsys):
     """S5's own condition, as a test: break any mechanism and exactly one case says so."""
     code = main(["bench", "run"])
@@ -447,6 +455,7 @@ def test_a_bench_that_broke_and_a_mechanism_that_regressed_have_different_codes(
     assert regression != broken
 
 
+@pytest.mark.timeout(WHOLE_BENCH)  # `bench` with no word runs the shipped cases, all of them
 def test_the_bench_with_no_word_after_it_runs_the_cases(cases, capsys):
     write_case(cases, "one", {"exit_code": 0, "status": "done"}, plant=WROTE_IT)
 
