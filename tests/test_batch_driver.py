@@ -809,3 +809,159 @@ def test_a_feature_that_did_not_land_lays_nothing(repo):
 
     assert "the one that landed" in ledger_text(repo)
     assert "the one that did not" not in ledger_text(repo)
+
+
+# --- S8g: the manual actions, laid by the same writer as the ledger ---------
+#
+# Same measurement, same answer: two features of one batch appending to one
+# insertion point are two branches that will not merge. The feature names its
+# actions in `record`, and the evening lays them — in the owner's own checkout,
+# uncommitted, when there is nothing left to build.
+
+
+def a_record_that_needs_a_person(runs, slug, manual=()):
+    run = runs.load(slug)
+    index = [one.name for one in run.steps].index("record")
+    StepWorkspace(runs.run_root(slug), index, "record").accept(
+        1, {"blocks": [], "closed": [], "files": [], "debt": [], "fixed": [],
+            "manual": list(manual)}, {}
+    )
+
+
+class WhenItLandsWithChores:
+    def __init__(self, spawn, said):
+        self.spawn, self.said = spawn, said
+
+    def __call__(self, run, argv):
+        child = self.spawn(run, argv)
+        poll = child.poll
+
+        def and_then():
+            code = poll()
+            if code == 0 and run.slug in self.said:
+                a_record_that_needs_a_person(self.spawn.runs, run.slug, **self.said[run.slug])
+            return code
+
+        child.poll = and_then
+        return child
+
+
+def with_chores(held, spawn, said):
+    held.spawn = WhenItLandsWithChores(spawn, said)
+    return held
+
+
+def manual_text(repo):
+    path = repo / ".agent-kit/v3/manual.md"
+    return path.read_text(encoding="utf-8") if path.is_file() else ""
+
+
+def test_the_evening_lays_the_line_a_feature_named(repo):
+    held, store, runs, spawn, _ = driver(repo, text=APART)
+    with_chores(held, spawn, {
+        "one": {"manual": [{"key": "aaaaaa", "what": "положить STRIPE_KEY",
+                            "proof": "sh ops/key.sh", "by_hand": ""}]},
+        "two": {"manual": [{"key": "bbbbbb", "what": "направить домен",
+                            "proof": "", "by_hand": "нужен человек у панели"}]},
+    })
+
+    held.go("vat")
+
+    text = manual_text(repo)
+    assert "положить STRIPE_KEY" in text and "`key: aaaaaa`" in text
+    assert "`proof: sh ops/key.sh`" in text
+    assert "`by-hand: нужен человек у панели`" in text
+
+
+def test_a_project_that_keeps_no_knowledge_still_gets_its_chores(repo):
+    """The ledger is silent for such a project by design; this file is not, and
+    that is why it does not live in the knowledge directory."""
+    held, store, runs, spawn, _ = driver(repo, text=APART)
+    with_chores(held, spawn, {
+        "one": {"manual": [{"key": "aaaaaa", "what": "положить ключ", "proof": "sh a.sh", "by_hand": ""}]},
+    })
+
+    held.go("vat")
+
+    assert "положить ключ" in manual_text(repo)
+
+
+def test_one_line_for_a_chore_two_features_both_named(repo):
+    held, store, runs, spawn, _ = driver(repo, text=APART)
+    with_chores(held, spawn, {
+        "one": {"manual": [{"key": "aaaaaa", "what": "положить ключ", "proof": "sh a.sh", "by_hand": ""}]},
+        "two": {"manual": [{"key": "aaaaaa", "what": "положить ключ", "proof": "sh a.sh", "by_hand": ""}]},
+    })
+
+    held.go("vat")
+
+    assert manual_text(repo).count("положить ключ") == 1
+
+
+def test_the_evening_does_not_commit_what_it_laid(repo):
+    held, store, runs, spawn, _ = driver(repo, text=APART)
+    with_chores(held, spawn, {
+        "one": {"manual": [{"key": "aaaaaa", "what": "положить ключ", "proof": "sh a.sh", "by_hand": ""}]},
+    })
+
+    held.go("vat")
+
+    said = subprocess.run(
+        ["git", "status", "--porcelain", "--", ".agent-kit/v3/manual.md"],
+        cwd=repo, capture_output=True, text=True, check=True,
+    )
+    assert said.stdout.strip()
+
+
+def test_what_the_evening_laid_reaches_the_owner_in_one_message(repo):
+    spoke = Spoke()
+    held, store, runs, spawn, _ = driver(repo, text=APART, spoke=spoke)
+    with_chores(held, spawn, {
+        "one": {"manual": [{"key": "aaaaaa", "what": "положить ключ", "proof": "sh a.sh", "by_hand": ""}]},
+    })
+
+    held.go("vat")
+
+    assert any("положить ключ" in line for line in spoke.said), spoke.said
+
+
+def test_a_second_batch_go_does_not_resurrect_a_line_the_proof_took_away(repo):
+    from agent_kit.manual import Manual
+
+    held, store, runs, spawn, _ = driver(repo, text=APART)
+    with_chores(held, spawn, {
+        "one": {"manual": [{"key": "aaaaaa", "what": "положить ключ", "proof": "sh a.sh", "by_hand": ""}]},
+    })
+    held.go("vat")
+    Manual(repo).close("aaaaaa")
+
+    again, store, _, _, _ = another_driver(repo, store)
+    with pytest.raises(StateError):
+        again.go("vat")
+
+    assert "положить ключ" not in manual_text(repo)
+
+
+def test_a_feature_that_did_not_land_hands_nobody_a_chore(repo):
+    held, store, runs, spawn, _ = driver(repo, text=APART, endings={"one": "fails"})
+    with_chores(held, spawn, {
+        "one": {"manual": [{"key": "aaaaaa", "what": "положить ключ", "proof": "sh a.sh", "by_hand": ""}]},
+    })
+
+    held.go("vat")
+
+    assert "положить ключ" not in manual_text(repo)
+
+
+def test_a_file_the_repository_ignores_does_not_fail_the_night_and_is_said_out_loud(repo):
+    spoke = Spoke()
+    (repo / ".gitignore").write_text(".agent-kit/\n", encoding="utf-8")
+    held, store, runs, spawn, _ = driver(repo, text=APART, spoke=spoke)
+    with_chores(held, spawn, {
+        "one": {"manual": [{"key": "aaaaaa", "what": "положить ключ", "proof": "sh a.sh", "by_hand": ""}]},
+    })
+
+    outcome = held.go("vat")
+
+    assert all(feature.status is FeatureStatus.DONE for feature in outcome.batch.features)
+    assert any("manual-ignored" in line for line in spoke.said), spoke.said

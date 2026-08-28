@@ -556,3 +556,94 @@ def test_the_key_of_a_finding_is_derived_against_the_owner_s_ledger(project, tre
     said = json.loads(record(project, {"review": WORTH_FIXING}, tree=tree).raw)
 
     assert said["debt"][0]["key"] == debt_key("the retry loop swallows the reason (money.py:90)")
+
+
+# --- S8g: the manual actions a night names and cannot do --------------------
+#
+# The names, and not the file: the ledger's division exactly. `record` derives
+# the key against the owner's own checkout, the evening lays the line. What is
+# new here is that this half does not depend on the knowledge at all — the file
+# lives in `.agent-kit/v3/`, so a project that keeps no knowledge still hands
+# its owner the key it needs placing.
+
+
+def a_design_that_needs_a_person(**row):
+    return {**DESIGN, "assumptions": [], "manual": [{"what": "положить STRIPE_KEY", **row}]}
+
+
+def test_a_manual_action_is_named_with_the_key_its_line_will_carry(project):
+    from agent_kit.manual import manual_key
+
+    said = json.loads(record(project, {"design": a_design_that_needs_a_person(proof="sh ops/key.sh")}).raw)
+
+    assert said["manual"] == [
+        {"key": manual_key("положить STRIPE_KEY"), "what": "положить STRIPE_KEY",
+         "proof": "sh ops/key.sh", "by_hand": ""}
+    ]
+
+
+def test_the_action_is_named_and_never_written_by_the_run(project):
+    record(project, {"design": a_design_that_needs_a_person(proof="sh ops/key.sh")})
+
+    assert not (project / ".agent-kit/v3/manual.md").exists()
+
+
+def test_a_project_that_keeps_no_knowledge_still_names_what_a_person_must_do(without_knowledge):
+    """The early return that answers *nothing is owed* stands after this, not before
+    it: a manual action does not live in the knowledge, and the project the kit knows
+    least about is the one whose secret nobody would otherwise be told to place."""
+    said = json.loads(
+        record(without_knowledge, {"design": a_design_that_needs_a_person(proof="sh ops/key.sh")}).raw
+    )
+
+    assert [one["what"] for one in said["manual"]] == ["положить STRIPE_KEY"]
+
+
+def test_the_key_is_derived_against_the_owners_checkout_and_not_this_runs_tree(project, tree):
+    """The same divergence S8f paid for. Nobody commits the file, so a line laid last
+    night stands only in the owner's checkout — and a key derived against the copy
+    frozen in this run's tree would collide with it."""
+    from agent_kit.manual import Manual, manual_key
+
+    standing = Manual(project)
+    standing.write("положить STRIPE_KEY", proof="sh ops/old.sh")
+
+    said = json.loads(
+        record(project, {"design": a_design_that_needs_a_person(proof="sh ops/key.sh")}, tree=tree).raw
+    )
+
+    assert said["manual"][0]["key"] == manual_key("положить STRIPE_KEY")
+    assert [one.key for one in standing.actions()] == [said["manual"][0]["key"]]
+
+
+def test_two_actions_worded_alike_are_two_lines(project):
+    design = {**DESIGN, "assumptions": [], "manual": [
+        {"what": "положить ключ", "proof": "sh a.sh"},
+        {"what": "положить ключ", "proof": "sh b.sh"},
+    ]}
+
+    said = json.loads(record(project, {"design": design}).raw)
+
+    keys = [one["key"] for one in said["manual"]]
+    assert len(set(keys)) == 2
+
+
+def test_an_action_that_could_not_be_written_back_stops_the_step_by_name(project):
+    design = a_design_that_needs_a_person(proof="sh -c 'echo `date`'")
+
+    with pytest.raises(ExecutorFailed) as refused:
+        record(project, {"design": design})
+
+    assert refused.value.code.startswith("action-that-cannot-be-written")
+
+
+def test_an_action_with_no_answer_stops_the_step_by_name(project):
+    with pytest.raises(ExecutorFailed) as refused:
+        record(project, {"design": a_design_that_needs_a_person()})
+
+    assert refused.value.code.startswith("action-unproved")
+
+
+def test_a_blocking_finding_stops_the_run_before_a_person_is_given_a_chore(project):
+    with pytest.raises(ExecutorFailed):
+        record(project, {"design": a_design_that_needs_a_person(proof="sh a.sh"), "review": BLOCKED})

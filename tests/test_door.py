@@ -770,3 +770,75 @@ def test_a_ledger_that_cannot_be_read_does_not_take_the_door_down(project, capsy
 
     assert code == 0
     assert "two-lines-one-key" in out
+
+
+# --- S8g: the chores a person owes ------------------------------------------
+#
+# The seam §10 of this note named: a rung between *work unfinished* and *a
+# report is waiting*, reading a file that had no writer then. Only a line the
+# kit can take away stands on it — a `by-hand` line can be closed by nobody but
+# a person, and a rung nothing can remove is a rung the door stops descending
+# at, which is the defect the review found in `run-failed`.
+
+
+def a_manual_holding(root, *lines):
+    path = root / ".agent-kit/v3/manual.md"
+    path.write_text("# Сделать руками\n\n" + "".join(f"- {line}\n" for line in lines), encoding="utf-8")
+    return path
+
+
+def test_a_chore_with_a_proof_is_what_the_door_names(project, capsys):
+    a_manual_holding(project, "положить STRIPE_KEY · `key: aaaaaa` · `proof: sh ops/key.sh`")
+
+    code, out, _ = door(project, capsys)
+
+    assert code == ExitCode.OK
+    assert answered(out) == "manual-due"
+    assert "agent-kit manual check" in out
+
+
+def test_a_chore_only_a_person_can_close_never_puts_the_door_on_a_rung(project, capsys):
+    a_manual_holding(project, "подтвердить домен · `key: bbbbbb` · `by-hand: код приходит на телефон`")
+
+    code, out, _ = door(project, capsys)
+
+    assert answered(out) == "nothing-is-due"
+    assert "bbbbbb" in out  # counted in the view, and never ranked
+
+
+def test_an_unfinished_run_still_outranks_a_chore(project, capsys):
+    a_manual_holding(project, "положить ключ · `key: aaaaaa` · `proof: sh ops/key.sh`")
+    a_run(project, "add-vat")
+
+    _, out, _ = door(project, capsys)
+
+    assert answered(out) == "run-created"
+
+
+def test_a_chore_outranks_a_report_that_is_waiting(project, capsys):
+    a_manual_holding(project, "положить ключ · `key: aaaaaa` · `proof: sh ops/key.sh`")
+    delivered(project, "add-vat")
+
+    _, out, _ = door(project, capsys)
+
+    assert answered(out) == "manual-due"
+    assert "pull-request-waiting" in out
+
+
+def test_a_file_the_door_cannot_read_names_a_code_and_hides_nothing(project, capsys):
+    (project / ".agent-kit/v3/manual.md").write_text("```\n- открыто · `key: a`\n", encoding="utf-8")
+
+    code, out, _ = door(project, capsys)
+
+    assert code == ExitCode.OK
+    assert "unreadable-manual" in out
+    assert answered(out) == "nothing-is-due"
+
+
+def test_the_door_names_the_chore_and_never_runs_the_proof(project, capsys):
+    """A door that acts is not a door: the proof is run by the command it names."""
+    a_manual_holding(project, "положить ключ · `key: aaaaaa` · `proof: touch ran-here`")
+
+    door(project, capsys)
+
+    assert not (project / "ran-here").exists()

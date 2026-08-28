@@ -952,3 +952,82 @@ def test_the_fold_says_who_lays_the_line_without_naming_a_batch(repo):
 
     assert WHO_LAYS_A_LINE in body.split("<details>")[1]
     assert "партии" not in body and "партия" not in body
+
+
+# --- S8g: the join a manual action owes, and where the owner reads it --------
+#
+# Unconditional, and that is the whole of it: both S8f joins stand under
+# `keeps = project.keeps_knowledge`, and the file a manual action lands in is
+# outside the knowledge exactly so that the project which keeps none is served.
+# A join switched off for that project is a join switched off where it counts.
+
+
+def a_design_that_needs_a_person(**row):
+    return {**DESIGN, "manual": [{"what": "положить STRIPE_KEY", **row}]}
+
+
+def test_an_action_with_no_line_stops_delivery(repo):
+    from agent_kit.programs.deliver import refuse_unless_every_action_has_a_line
+
+    with pytest.raises(ExecutorFailed) as refused:
+        refuse_unless_every_action_has_a_line(
+            a_design_that_needs_a_person(proof="sh a.sh"), a_record()
+        )
+
+    assert refused.value.code == "action-with-no-line"
+
+
+def test_two_actions_worded_alike_owe_two_lines(repo):
+    from agent_kit.programs.deliver import refuse_unless_every_action_has_a_line
+
+    design = {**DESIGN, "manual": [
+        {"what": "положить ключ", "proof": "sh a.sh"},
+        {"what": "положить ключ", "proof": "sh b.sh"},
+    ]}
+    one = a_record(manual=[{"key": "aaaaaa", "what": "положить ключ"}])
+
+    with pytest.raises(ExecutorFailed) as refused:
+        refuse_unless_every_action_has_a_line(design, one)
+
+    assert refused.value.code == "action-with-no-line"
+
+
+def test_a_run_with_no_record_step_is_refused_by_its_own_code(repo):
+    """The default `recorded` carries every field the joins count, so a run
+    assembled without `record` is refused for the action it dropped rather than
+    for a key error nobody named."""
+    from agent_kit.programs.deliver import refuse_unless_every_action_has_a_line
+
+    with pytest.raises(ExecutorFailed) as refused:
+        refuse_unless_every_action_has_a_line(
+            a_design_that_needs_a_person(proof="sh a.sh"), {"blocks": [], "closed": [], "files": []}
+        )
+
+    assert refused.value.code == "action-with-no-line"
+
+
+def test_a_project_that_keeps_no_knowledge_is_held_to_the_join_too(repo):
+    """The whole reason the file is not in the knowledge directory."""
+    worked_on(repo)
+    declare(repo, '[project]\ndefault_branch = "main"\nknowledge = ""\n\n[commands]\ntest = "true"\n')
+
+    with pytest.raises(ExecutorFailed) as refused:
+        deliver(repo, {"design": a_design_that_needs_a_person(proof="sh a.sh")})
+
+    assert refused.value.code == "action-with-no-line"
+
+
+def test_what_a_person_must_do_is_open_and_stands_with_what_is_wanted_of_them(repo):
+    from agent_kit.programs.deliver import compose_body
+
+    text = compose_body(
+        request(repo, whole()), a_design_that_needs_a_person(proof="sh ops/key.sh"),
+        BUILD, VERIFY, REVIEW_PASSED,
+        a_record(manual=[{"key": "aaaaaa", "what": "положить STRIPE_KEY",
+                          "proof": "sh ops/key.sh", "by_hand": ""}]),
+    )
+    open_part, _, _ = text.partition("<details>")
+
+    assert "положить STRIPE_KEY" in open_part
+    assert open_part.count("Что нужно от владельца") == 1
+    assert "agent-kit manual check" in open_part

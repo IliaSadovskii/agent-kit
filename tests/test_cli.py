@@ -677,3 +677,38 @@ def test_doctor_does_not_create_the_ledger_it_then_calls_missing(machine, capsys
     assert code == ExitCode.OK
     assert f"{where}  missing" in out
     assert not where.exists()
+
+
+# --- S8g: the one command that runs a proof ---------------------------------
+
+
+def test_manual_check_walks_the_file_and_takes_away_what_is_proved(tmp_path, capsys):
+    (tmp_path / ".agent-kit/v3").mkdir(parents=True)
+    (tmp_path / ".agent-kit/v3/project.toml").write_text(
+        '[project]\ndefault_branch = "main"\n\n[commands]\ntest = "true"\n', encoding="utf-8"
+    )
+    (tmp_path / ".agent-kit/v3/manual.md").write_text(
+        "# Сделать руками\n\n"
+        "- положить ключ · `key: aaaaaa` · `proof: true`\n"
+        "- сделанное · `key: bbbbbb` · `proof: sh -c \"exit 0\"`\n"
+        "- домен · `key: cccccc` · `by-hand: нужен человек`\n",
+        encoding="utf-8",
+    )
+
+    code = main(["-C", str(tmp_path), "manual", "check"])
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert "manual-done: bbbbbb" in out
+    assert "manual-by-hand: cccccc" in out
+    assert "manual-proves-nothing: aaaaaa" in out
+    assert "bbbbbb" not in (tmp_path / ".agent-kit/v3/manual.md").read_text(encoding="utf-8")
+
+
+def test_manual_check_over_a_project_with_nothing_to_do_says_so(tmp_path, capsys):
+    (tmp_path / ".agent-kit/v3").mkdir(parents=True)
+    (tmp_path / ".agent-kit/v3/project.toml").write_text(
+        '[project]\ndefault_branch = "main"\n', encoding="utf-8"
+    )
+
+    assert main(["-C", str(tmp_path), "manual", "check"]) == 0
