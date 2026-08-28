@@ -52,6 +52,7 @@ from pathlib import Path
 
 from .errors import ConfigError, KitError, StateError, UsageError
 from .knowledge import ASSUMED, FRAME, Knowledge, KnowledgeError
+from .verification.kinds import kind_named
 from .paths import Paths, project_paths
 
 #: How long git is given to answer a question about a ref. It is a local
@@ -677,6 +678,7 @@ class Door:
             ),
             ("knowledge", self._knowledge_view(project, knowledge)),
             ("commands", self._commands_view(project)),
+            ("verification", self._verification_view(project)),
         ]
         if standing is not None and standing.asks:
             sections.append(
@@ -709,6 +711,44 @@ class Door:
                 "`agent-kit knowledge tell`"
             )
         return said
+
+    def _verification_view(self, project) -> list[str]:
+        """What this project checks itself for, and what it has said nothing about.
+
+        The view and never a rung. A rung is what a night would be *refused*
+        for, and nothing refuses an unanswered kind: the catalogue is the kit's,
+        every project in the world begins with none of it answered, and a
+        baseline frozen where nobody may move it could never answer at all. A
+        rung nothing can take away is a rung the door stops descending, which is
+        the one thing S8d must not do.
+
+        The answer that could never fail is the exception, and it is not an
+        exception to that rule: it *is* refused, before the first session of any
+        run that carries `verify`, and it is printed here in the same words.
+        """
+        from .verification import commands_that_prove_nothing, proves_nothing, unanswered
+        from .verification.said import about
+
+        if project is None:
+            return ["nothing declared, and no project to answer"]
+        empty = {answer.kind for answer in commands_that_prove_nothing(project)}
+        said = []
+        for answer in project.verification:
+            kind = kind_named(answer.kind)
+            line = about(kind, answer) if kind is not None else answer.kind
+            if answer.kind in empty:
+                line += (
+                    f"   ← command-that-proves-nothing: "
+                    f"{proves_nothing(answer.command)!r} exits zero whatever is wrong"
+                )
+            said.append(line)
+        left = unanswered(project)
+        if left:
+            said.append(
+                "kind-unanswered: " + ", ".join(kind.name for kind in left)
+                + " — nothing here says whether this project checks for them"
+            )
+        return said or ["none of the kinds the kit knows has been answered"]
 
     def _commands_view(self, project) -> list[str]:
         from .project import starts_nothing

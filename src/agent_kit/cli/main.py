@@ -280,6 +280,11 @@ def build_parser() -> argparse.ArgumentParser:
     tell.add_argument("--wait", type=int, metavar="SECONDS",
                       help="сколько ждать слота; 0 отказывает вместо ожидания")
 
+    commands.add_parser(
+        "verification",
+        help="the kinds of verification the kit knows, and what this project answers about each",
+    )
+
     audit = commands.add_parser(
         "audit", help="линза над кодом: отчёт и список работы; в проекте ничего не меняется"
     )
@@ -375,6 +380,8 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace, paths: 
         return _owner(args, paths)
     if args.command == "knowledge":
         return _knowledge(args, paths)
+    if args.command == "verification":
+        return _verification(Path(args.project))
     if args.command == "audit":
         return _audit(args, paths)
     if args.command == "daemon":
@@ -502,6 +509,32 @@ def _next(project: Path, paths: Paths) -> int:
     from ..door import what_now
 
     print(what_now(project, paths))
+    return int(ExitCode.OK)
+
+
+def _verification(project: Path) -> int:
+    """The catalogue, and what this project declared about each kind of it.
+
+    One home printed from one place: the same sentences the driver encloses into
+    a design, so nobody has to join the kit's list and the project's answers by
+    hand six times a night. It exits zero on a project that has answered nothing
+    — the refusals are where the answers are read, and this is the list.
+    """
+    from ..project import read_project
+    from ..verification.said import catalogue_lines
+
+    try:
+        declared = read_project(project)
+    except ConfigError as unreadable:
+        # An answer the kit will not read is worth more than a catalogue: the
+        # code is what every other command refuses this project by.
+        print(f"{unreadable.code}: {unreadable.detail}", file=sys.stderr)
+        return int(unreadable.exit_code)
+
+    print("the kinds of verification this kit knows, and what this project says about each")
+    print()
+    for line in catalogue_lines(declared):
+        print(line)
     return int(ExitCode.OK)
 
 

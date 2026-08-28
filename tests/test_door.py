@@ -696,7 +696,7 @@ def test_a_kind_nobody_answered_is_reported_and_never_stands_in_the_way(project,
     would be one the door could never descend, which is the defect S8d was
     built against.
     """
-    main(["next", "--project", str(project)])
+    main(["-C", str(project), "next"])
 
     said = capsys.readouterr().out
     answer, _, rest = said.partition("\n")
@@ -712,7 +712,7 @@ def test_what_a_project_answered_about_a_kind_is_printed_beside_the_kind(project
         encoding="utf-8",
     )
 
-    main(["next", "--project", str(project)])
+    main(["-C", str(project), "next"])
 
     said = capsys.readouterr().out
     assert "sh check.sh" in said
@@ -724,13 +724,13 @@ def test_an_answer_that_could_never_fail_is_named_where_the_answers_are(project,
         DECLARED + '\n[verification.suite]\ncommand = "true"\n', encoding="utf-8"
     )
 
-    main(["next", "--project", str(project)])
+    main(["-C", str(project), "next"])
 
     assert "command-that-proves-nothing" in capsys.readouterr().out
 
 
 def test_the_command_that_prints_the_catalogue_names_every_kind(project, capsys):
-    assert main(["verification", "--project", str(project)]) == 0
+    assert main(["-C", str(project), "verification"]) == 0
 
     said = capsys.readouterr().out
     for kind in ("suite", "types", "end-to-end"):
@@ -738,7 +738,7 @@ def test_the_command_that_prints_the_catalogue_names_every_kind(project, capsys)
 
 
 def test_the_catalogue_says_what_a_kind_catches_and_never_a_tool(project, capsys):
-    main(["verification", "--project", str(project)])
+    main(["-C", str(project), "verification"])
 
     said = capsys.readouterr().out
     assert "code that worked and stopped working" in said
