@@ -25,12 +25,9 @@ from ..knowledge import Knowledge, KnowledgeError
 from ..logs import get_logger
 from ..project import require_project
 from ..providers.base import ExecutorFailed, ExecutorResult, StepRequest
-from .deliverable import expensive_of, read, refuse_unless_deliverable, where as said_where
-
-#: A finding that is real and does not stop delivery. `blocking` never reaches
-#: this step — the run is over before it — and a `note` costs nothing and blocks
-#: nothing, which is exactly what a line in somebody's ledger does not.
-WORTH_FIXING = "worth-fixing"
+from .deliverable import (
+    WORTH_FIXING, expensive_of, read, refuse_unless_deliverable, where as said_where,
+)
 
 log = get_logger("programs.record")
 
@@ -59,6 +56,14 @@ class Record:
         refuse_unless_deliverable(build, verify, review)
 
         knowledge = Knowledge(project.knowledge_in(where))
+        # And the ledger is asked of the owner's own checkout, never of this
+        # copy. The blocks a run writes are committed onto its branch, so the
+        # tree is the right place for them; the ledger is committed by nobody —
+        # the evening lays a line there and the owner reads the diff — so a
+        # run's tree holds it frozen at the base of its branch. Asked here, a
+        # line laid last night and not yet committed would be a line this run
+        # cannot see, and naming it would kill the night at its last step.
+        ledger = Knowledge(project.knowledge_dir)
         owing = expensive_of(design)
         # Named twice means named once. Without this the pre-check below passes
         # twice — the block is still there when it is asked — and the second
@@ -108,7 +113,7 @@ class Record:
             # everything before it edits anything — and asked only where the run
             # has something to do with the ledger, so a night is not failed at
             # its last step over a file it never touched.
-            standing = {line.key for line in knowledge.debt()} if fixes else set()
+            standing = {line.key for line in ledger.debt()} if fixes else set()
             for key in fixes:
                 if key not in standing:
                     raise KnowledgeError(
@@ -117,7 +122,7 @@ class Record:
 
             closed = [_closed(knowledge, id, touched) for id in closing]
             blocks = [self._write(knowledge, request, item, touched, claimed) for item in owing]
-            debt = self._debt(knowledge, review)
+            debt = self._debt(ledger, review)
         except KnowledgeError as refused:
             # The address, the identifier — the knowledge said no by name, and
             # the same name reaches the run's own record.
@@ -134,7 +139,7 @@ class Record:
         )
         return _said(blocks, closed, files, debt, fixes)
 
-    def _debt(self, knowledge: Knowledge, review: dict) -> list[dict]:
+    def _debt(self, ledger: Knowledge, review: dict) -> list[dict]:
         """What the review found and nothing stops, named with the key it will carry.
 
         Named, and not written. The ledger has one writer — the night of a
@@ -143,6 +148,9 @@ class Record:
         branches that will not merge is what that produces every time: measured,
         200 of 200. So the feature decides the key and the evening lays the
         line, which is the same division `record` already keeps with `deliver`.
+
+        The keys are derived against the owner's own ledger and not this run's
+        copy of it, because that is the file the evening will look in.
 
         A run started by hand writes none at all. Its findings reach the owner
         in the pull request, the way they always have, and that narrowing is
@@ -163,7 +171,7 @@ class Record:
             # `keyed` and not a set of wordings: two findings worded the same
             # are two findings, and one line answering for both is the shape of
             # the blocker S6 paid for.
-            key = knowledge.free_key(what, keyed)
+            key = ledger.free_key(what, keyed)
             keyed.add(key)
             said.append({"key": key, "what": what})
         return said

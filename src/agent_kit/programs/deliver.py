@@ -30,7 +30,7 @@ from ..shell import kill_group
 from ..project import require_project
 from ..providers.base import ExecutorFailed, ExecutorResult, StepRequest
 from ..state.store import keep_out_of_git
-from .deliverable import BLOCKING, expensive_of, read, refuse_unless_deliverable
+from .deliverable import BLOCKING, WORTH_FIXING, expensive_of, read, refuse_unless_deliverable
 from .deliverable import where as _where
 from .proved import (
     left_behind,
@@ -53,6 +53,16 @@ SUBJECT = 72
 #: делится между ними поровну: один потолок на всех даёт прозе «Что сделано»
 #: съесть место у того, ради чего отчёт открыт, — у блокеров и у вопросов.
 OPEN = 1000
+
+#: Кто кладёт строку реестра, для отчёта владельцу. Одно предложение и одно
+#: место: судьи стенда сверяют коды, а тест — эту строку, а не прозу вокруг.
+#: Слова «партия» здесь нет: шаг ниже партии её не знает, и то, что он печатает,
+#: не знает тоже.
+WHO_LAYS_A_LINE = (
+    "Ключ рядом — имя строки в реестре долга. Строку кладёт та ночь, что собрала эту работу, "
+    "когда строить ей больше нечего; у прогона, запущенного руками, такой ночи нет, и находка "
+    "живёт только здесь."
+)
 
 log = get_logger("programs.deliver")
 
@@ -90,6 +100,12 @@ class Deliver:
         refuse_unless_the_tree_is_where_it_was_proved(where, verify)
         if keeps:
             _refuse_a_naked_assumption(design, recorded)
+        # Only where there is a ledger to have named a line in: `record` writes
+        # none for a project that declares a knowledge and has not written one,
+        # and a watchman that fires there would be refusing a run for a file
+        # nobody has made.
+        if keeps and (project.knowledge_dir is not None and project.knowledge_dir.is_dir()):
+            refuse_unless_every_finding_has_a_line(review, recorded, design)
 
         body = compose_body(request, design, build, verify, review, recorded)
         # It goes beside the run's own state, which means it must be kept out
@@ -373,6 +389,56 @@ def _written(recorded: dict) -> list[str]:
     return [str(name) for name in (recorded.get("files") or []) if str(name).strip()]
 
 
+def refuse_unless_every_finding_has_a_line(review: dict, recorded: dict, design: dict | None = None) -> None:
+    """What the review found and nothing stopped owes a line of the ledger.
+
+    The mirror of `_refuse_a_naked_assumption`, in the ledger's terms, and it
+    exists for the same reason: `record.debt` and `record.fixed` have a reader —
+    the evening that lays and takes away the lines — and a field with a reader
+    and no watchman is a field that can be dropped silently by the step that
+    fills it. This is what survives a run assembled from other steps.
+
+    Counted, never gathered into a set: two findings worded the same are two
+    findings, and one line answering for both is the shape of the blocker S6
+    paid for.
+    """
+    named = Counter(str(line.get("what")) for line in (recorded.get("debt") or []))
+    naked = []
+    for finding in review.get("findings") or []:
+        if finding.get("severity") != WORTH_FIXING:
+            continue
+        what = _where(finding)
+        if named[what] > 0:
+            named[what] -= 1
+        else:
+            naked.append(what)
+    if naked:
+        raise ExecutorFailed(
+            "finding-with-no-line",
+            "the review found these, nothing stopped them, and the record named no line of the "
+            "ledger for them: " + "; ".join(naked),
+            retryable=False,
+        )
+
+    answered = Counter(str(key) for key in (recorded.get("fixed") or []))
+    unanswered = []
+    for key in (design or {}).get("fixes") or []:
+        key = str(key).strip()
+        if not key:
+            continue
+        if answered[key] > 0:
+            answered[key] -= 1
+        else:
+            unanswered.append(key)
+    if unanswered:
+        raise ExecutorFailed(
+            "fix-with-no-line",
+            "the design says this feature does the work these lines of the ledger name, and the "
+            "record answered for none of them: " + ", ".join(unanswered),
+            retryable=False,
+        )
+
+
 def _refuse_a_naked_assumption(design: dict, recorded: dict) -> None:
     """The join, asked a second time by the step that closes the feature.
 
@@ -516,8 +582,9 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
     if answered:
         open_part += _open_section(
             "Закрытый долг",
-            ["Эта работа отвечает этим строкам реестра долга. Строку снимает вечер партии, "
-             "когда строить больше нечего; у прогона, запущенного руками, она остаётся стоять:", ""]
+            ["Эта работа отвечает этим строкам реестра долга. Строку снимает та ночь, что "
+             "собрала эту работу, когда строить ей больше нечего; у прогона, запущенного "
+             "руками, такой ночи нет, и строка остаётся стоять:", ""]
             + [f"- `{key}`" for key in answered] + [""],
             spilled,
         )
@@ -593,16 +660,18 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
         folded.append("")
 
     rest = [item for item in findings if item.get("severity") != BLOCKING]
-    keyed = {str(line.get("what")): str(line.get("key")) for line in (recorded.get("debt") or [])}
+    # In order and one at a time: keyed by text alone, two findings worded the
+    # same both printed the second one's key.
+    keyed: dict[str, list[str]] = {}
+    for line in recorded.get("debt") or []:
+        keyed.setdefault(str(line.get("what")), []).append(str(line.get("key")))
     folded += ["## Что ещё нашло ревью", ""]
     folded += [f"- *{item.get('severity')}*{_keyed(item, keyed)} — {_where(item)}" for item in rest] if rest \
         else ["Ничего."]
     if keyed:
         folded += [
             "",
-            "Ключ рядом — имя строки в реестре долга. Строку кладёт вечер партии, когда "
-            "строить больше нечего; у прогона, запущенного руками, её нет, и находка живёт "
-            "только здесь.",
+            WHO_LAYS_A_LINE,
         ]
     folded.append("")
 
@@ -616,10 +685,10 @@ def compose_body(request: StepRequest, design: dict, build: dict, verify: dict, 
     )
 
 
-def _keyed(finding: dict, keyed: dict) -> str:
-    """The key of the line this finding becomes, where a line is going to exist."""
-    key = keyed.get(_where(finding))
-    return f" `{key}`" if key else ""
+def _keyed(finding: dict, keyed: dict[str, list[str]]) -> str:
+    """The key of the line this finding becomes, taken rather than looked up."""
+    held = keyed.get(_where(finding)) or []
+    return f" `{held.pop(0)}`" if held else ""
 
 
 def _proved(design: dict) -> list[str]:

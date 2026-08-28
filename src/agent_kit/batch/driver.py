@@ -485,12 +485,28 @@ class BatchDriver:
         laid = {line.key for line in batch.debt}
         touched: list[Path] = []
         for feature in batch.features:
+            # Only what landed. A feature whose `record` ran and whose `deliver`
+            # then refused left papers behind, and a line naming a run nobody
+            # merged is work the owner cannot act on: the code it is about is
+            # not in the trunk and may never be.
+            if feature.status is not FeatureStatus.DONE:
+                continue
             said = self._what_a_feature_recorded(feature.slug)
             for key in said.get("fixed") or []:
                 self._close_a_line(knowledge, batch, str(key), touched)
             for line in said.get("debt") or []:
                 key, what = str(line.get("key") or ""), str(line.get("what") or "")
-                if not key or not what or key in laid:
+                if not key or not what:
+                    continue
+                if key in laid:
+                    # Two features that found the same thing are one complaint,
+                    # and the first one to be read keeps the line — with its own
+                    # `run:` on it. Counted inside one review and collapsed
+                    # across the evening, and the difference is deliberate: a
+                    # reviewer that says a thing twice about one feature said it
+                    # twice, and two features that say it once each said it once.
+                    log.info("%s: %s was already laid; %s found it too", batch.name, key, feature.slug)
+                    self.say(f"{batch.name}: {key} — это же нашла и {feature.slug}")
                     continue
                 try:
                     touched.append(knowledge.write_debt(what, BADLY, run=feature.slug, key=key))

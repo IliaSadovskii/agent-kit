@@ -22,6 +22,7 @@ from .debt import (
 from .parts import PARTS_HEADING, PRODUCT, Part, read_parts, render_part
 from .format import (
     ASSUMED,
+    prose,
     FRAME,
     Anchor,
     Block,
@@ -365,12 +366,17 @@ class Knowledge:
                 _write_lines(path, lines)
                 return path
 
+        # Through `prose()`, the way the reading is: a heading shown inside a
+        # fenced sample used to catch the write, and a line written there is one
+        # `debt()` can never reach.
         heading = f"## {SECTIONS[kind]}"
-        if heading not in lines:
+        written = prose(LEDGER, lines)
+        stands = [index for index, text in enumerate(lines) if written[index] and text.strip() == heading]
+        if not stands:
             lines += ["", heading, "", line]
         else:
-            at = lines.index(heading) + 1
-            while at < len(lines) and not lines[at].startswith("## "):
+            at = stands[0] + 1
+            while at < len(lines) and not (written[at] and lines[at].startswith("## ")):
                 at += 1
             while at > 0 and not lines[at - 1].strip():
                 at -= 1

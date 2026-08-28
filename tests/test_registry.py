@@ -117,8 +117,6 @@ def test_what_a_program_writes_is_not_a_step_answering_nothing():
 
 def test_a_design_may_name_the_debt_this_feature_does():
     """`fixes` is optional the way `closes` is: a project with no ledger owes nothing."""
-    from agent_kit.steps.contract import parse_output
-
     design = builtin_registry().get("design")
     field = [one for one in design.contract.fields if one.name == "fixes"][0]
     assert field.required is False

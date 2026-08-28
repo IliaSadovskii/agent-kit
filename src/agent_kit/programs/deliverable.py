@@ -19,6 +19,12 @@ from ..verification.owed import contradicted
 
 BLOCKING = "blocking"
 
+#: A finding that is real and does not stop delivery. `record` names a line of
+#: the ledger for each; `deliver` holds it to having named one. `blocking` never
+#: reaches either — the run is over before them — and a `note` costs nothing and
+#: blocks nothing, which is exactly what a line in somebody's ledger does not.
+WORTH_FIXING = "worth-fixing"
+
 #: The steps whose output both programs compose themselves from.
 READ = ("design", "build", "verify", "review")
 

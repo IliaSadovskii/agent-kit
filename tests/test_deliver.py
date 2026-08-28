@@ -849,10 +849,14 @@ def test_a_finding_carries_the_key_of_the_line_it_will_become_and_says_who_lays_
         {"blocks": [], "closed": [], "files": [],
          "debt": [{"key": "aaaaaa", "what": "the loop swallows"}], "fixed": []},
     )
+    from agent_kit.programs.deliver import WHO_LAYS_A_LINE
+
     folded = body.split("<details>")[1]
     assert "aaaaaa" in folded
     # The narrowing, said where the owner reads it: a lone run lays no line.
-    assert "вечер" in folded
+    # Measured against the kit's own sentence rather than a word of its prose —
+    # the judges of the bench were taught that and this test had not been.
+    assert WHO_LAYS_A_LINE in folded
 
 
 # --- S8f: the join, and what it counts --------------------------------------
