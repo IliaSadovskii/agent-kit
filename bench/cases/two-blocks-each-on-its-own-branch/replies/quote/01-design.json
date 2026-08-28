@@ -1,9 +1,12 @@
 {
   "title": "A price quoted with VAT on it",
   "summary": "quote: the price the customer sees, decided before the code.",
-  "changes": ["quote.py — the quoted price"],
-  "seams": ["money.py keeps its meaning"],
-  "verification": ["the project's own check command"],
+  "changes": [
+    "quote.py — the quoted price"
+  ],
+  "seams": [
+    "money.py keeps its meaning"
+  ],
   "asks": [],
   "closes": [],
   "assumptions": [

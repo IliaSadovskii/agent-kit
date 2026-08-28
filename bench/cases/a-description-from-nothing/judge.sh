@@ -50,7 +50,6 @@ cat > "$BENCH/design-reply.json" <<'JSON'
   "summary": "Money learns a VAT rate.",
   "changes": ["money.py — a RATE beside the amount"],
   "seams": ["AMOUNT keeps its meaning"],
-  "verification": ["the declared command comes back green"],
   "asks": [],
   "closes": [],
   "assumptions": []

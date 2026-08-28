@@ -2,10 +2,10 @@
 
 [case]
 title = "a design excusing a kind on a change that says otherwise"
-fires = "the run stops on the contradiction, under its own code and not a blocker's"
+fires = "record refuses before the owner's knowledge is touched, under its own code"
 
 [expect]
 exit_code = 5
 status = "stopped"
 refusal = "why-the-diff-contradicts: types"
-steps = { review = "passed" }
+steps = { review = "passed", record = "pending" }

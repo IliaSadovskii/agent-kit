@@ -1,11 +1,16 @@
 {
   "title": "Money learns a VAT rate",
   "summary": "Money learns a VAT rate, so a price can be quoted with the tax on it.",
-  "changes": ["money.py — a RATE beside the amount"],
-  "seams": ["AMOUNT keeps its meaning: the price before tax"],
-  "verification": ["the declared command comes back green with RATE in place"],
+  "changes": [
+    "money.py — a RATE beside the amount"
+  ],
+  "seams": [
+    "AMOUNT keeps its meaning: the price before tax"
+  ],
   "asks": [],
-  "closes": ["k7f3q2"],
+  "closes": [
+    "k7f3q2"
+  ],
   "assumptions": [
     {
       "what": "the rate is a whole percent",

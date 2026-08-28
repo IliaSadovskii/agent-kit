@@ -21,7 +21,8 @@ import subprocess
 from pathlib import Path
 
 from ..logs import get_logger
-from ..project import require_project
+from ..project import require_project, starts_nothing
+from ..verification import owed_by_a_feature
 from ..verification.owed import UnprovedKind, proving, refuse_unless_every_kind_is_answered
 from ..shell import kill_group
 from ..providers.base import ExecutorFailed, ExecutorResult, StepRequest
@@ -57,6 +58,12 @@ class Verify:
                 retryable=False,  # the file will not have changed by the next attempt
             )
 
+        # Before a single command is paid for. A run that will be refused for a
+        # kind must not run the suite first: the refusal was knowable before it,
+        # and — where a command comes back red — the kind would never be named
+        # at all, because the walk below would not be reached.
+        owed = self._asked_first(request, project)
+
         waiting = self.timeout if self.timeout is not None else project.command_timeout
         ran: list[dict] = []
         for command in project.commands:
@@ -67,7 +74,11 @@ class Verify:
                 # Everything after this would be run over code already refused.
                 break
 
-        kinds = self._walk(request, project, where, waiting, ran) if all(one["passed"] for one in ran) else []
+        kinds = (
+            self._walk(owed, where, waiting, ran)
+            if all(one["passed"] for one in ran)
+            else []
+        )
         passed = all(record["passed"] for record in (*ran, *kinds))
         # What the result is about. A claim bound to nothing is what let a
         # build change six files, name four, and deliver a green run on a
@@ -92,38 +103,61 @@ class Verify:
             meta={"commands_run": len({one["command"] for one in (*ran, *kinds)})},
         )
 
-    def _walk(self, request: StepRequest, project, where: Path, waiting: int, ran: list[dict]) -> list[dict]:
-        """The list the design decided, walked rather than decided again.
+    def _asked_first(self, request: StepRequest, project) -> list[tuple[str, str]]:
+        """Every kind the project owes must have been answered, asked before anything runs.
 
-        Two things happen here and they are one sentence of the plan each.
-        Every kind the project owes must have been answered — and it is asked
-        here as well as at the design, because a run assembled from other steps
-        may carry no design at all, and then nobody has answered.
+        The same judgement the design's own contract asks, asked again because a
+        run assembled from other steps may carry no `design` at all — and then
+        nobody has answered. At the design it was an attempt refused and asked
+        again; here it is a step that cannot pass, because the design is on file
+        and a second attempt reads the same file.
 
-        Then each answered kind is run. A command already run in this step is
-        not run twice: on a real project `[commands].test` and the answer to
-        `suite` are the same line, and a feature that paid for it twice would
-        pay every night. What that costs is a record where the same command
-        appears against a kind and against the project, which is exactly what
-        makes the two agreeing visible instead of accidental.
+        What comes back is the *white list*: kinds the project owes, in the
+        catalogue's order, each with the command the feature named. Nothing a
+        session wrote about a kind the project never answered is in it, and on a
+        project that has answered none it is empty whatever the design returned.
         """
         design = request.prior.get("design") or {}
         try:
             refuse_unless_every_kind_is_answered(design, project)
         except UnprovedKind as unproved:
-            # Not retryable: the design is on file and a second attempt at this
-            # step reads the same file. At the design it was an attempt refused
-            # and asked again; here it is a step that cannot pass.
             raise ExecutorFailed(unproved.code, unproved.detail, retryable=False) from None
+        return proving(design, owed_by_a_feature(project))
 
+    def _walk(
+        self, owed: list[tuple[str, str]], where: Path, waiting: int, ran: list[dict]
+    ) -> list[dict]:
+        """Each owed kind's command, run in the tree this step already stands in.
+
+        A command already run in this step is not run twice: on a real project
+        `[commands].test` and the answer to `suite` are the same line, and a
+        feature that paid for it twice would pay every night. The link between
+        the two records is the command string itself, compared exactly — so
+        `sh check.sh` and `sh  check.sh` are two commands and are paid for
+        twice. That costs money and never green: two runs of the same work
+        cannot disagree about whether it passed.
+
+        The first word is looked for before the command is started, by the code
+        every other declared command is refused by. It is the last of the three
+        questions asked of a string a session wrote, and the only one that has
+        to wait for the machine the run is on.
+        """
         already = {record["command"]: record for record in ran}
         kinds: list[dict] = []
-        for name, command in proving(design):
+        for name, command in owed:
             standing = already.get(command)
             if standing is not None:
                 log.info("verify: %s — proved by %s, which has already run", name, standing["name"])
                 kinds.append({**standing, "kind": name, "name": standing["name"]})
                 continue
+            lost = starts_nothing(command)
+            if lost:
+                raise ExecutorFailed(
+                    "no-such-command",
+                    f"{name} is proved by {command!r} and {lost!r} is not on this machine; "
+                    "nothing was run for it",
+                    retryable=False,
+                )
             log.info("verify: %s — %s", name, command)
             record = self._one(name, command, where, waiting)
             already[command] = record

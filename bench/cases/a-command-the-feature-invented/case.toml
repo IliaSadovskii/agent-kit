@@ -1,0 +1,11 @@
+# a feature proving a kind with a command that cannot fail
+
+[case]
+title = "a design naming `true` as what proves this change"
+fires = "the command is refused before any program runs it, and the kind is named"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "command-that-proves-nothing: suite"
+steps = { design = "failed" }

@@ -12,10 +12,17 @@ bare word:
 - **a date**, because *there is no front end* stops being true the week there
   is one.
 
-Nothing expires today. The date is written because the *done when* asks for it
-and because staleness will read it; a mechanism that moved an answer on its
-age would need a horizon nobody has set, and a horizon the kit invented would
-be a rung the door could never descend. Said here rather than half-built.
+**Nothing reads `since` except the refusal to accept an answer without it, and
+the line the door prints.** No horizon expires anything; `answer-out-of-date`
+was designed and then dropped, because a horizon the kit invented would put a
+rung on the door that nothing could ever take away. So this is a field whose
+only other reader is a printer — the very thing that got `design.verification`
+deleted in this same step, and the contradiction is deliberate rather than an
+oversight. The difference: that field was the *whole* answer to what would
+prove a feature, and this one is a required part of an answer the kit refuses
+without. When staleness gets a writer — an answer going stale on evidence, a
+manifest whose hash has moved — this is what it reads. Until then the honest
+statement is that the date is recorded and nobody acts on it.
 
 The shape of an answer is checked where the file is parsed — `project.py`, the
 one TOML reader the rest of the kit already uses. What a *machine* makes of it

@@ -7,9 +7,6 @@
   "seams": [
     "nothing else in the project reads it yet"
   ],
-  "verification": [
-    "the project's own check command"
-  ],
   "asks": [],
   "closes": [],
   "assumptions": [

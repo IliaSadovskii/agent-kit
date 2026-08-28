@@ -15,6 +15,19 @@ The two express the same judgement in their own vocabulary. A session's answer
 is refused and asked again; a program's is a failure that a second attempt
 cannot change. That is why the judgement raises its own error and neither caller
 raises the other's: an attempt refused and a step failed are different events.
+
+**What the bench holds and what it does not.** Each branch below has a trap on
+the design's side of it, and `kind-unproved` has a second one on verify's side —
+`a-run-that-skips-the-design`, which is the world where no design answered at
+all. The other branches reached through `verify` — `kind-cannot-be-excused` and
+`kind-excused-and-commanded` on a run assembled without a design — have no trap:
+the same design output cannot be both absent and wrong, so the world that would
+plant them is the world that has no design in it. Tests hold that side. Said here
+rather than counted as measured.
+
+`kind-not-owed`, `kind-named-twice` and `excuse-unjudged` are the white lists,
+and one of the three has a trap (`where-nobody-measured`). The other two are held
+by tests.
 """
 
 from __future__ import annotations
@@ -22,7 +35,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable
 
 from ..errors import ExitCode, KitError
-from .answers import owed_by_a_feature
+from .answers import owed_by_a_feature, proves_nothing
 from .kinds import Kind, kind_named
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -39,13 +52,22 @@ class UnprovedKind(KitError):
     exit_code = ExitCode.STATE
 
 
-def proving(design: dict[str, Any]) -> list[tuple[str, str]]:
-    """Every kind this feature said it would prove, and the command that does it."""
-    return [
-        (str(row.get("kind") or ""), str(row.get("command") or "").strip())
-        for row in design.get("proves") or []
-        if str(row.get("command") or "").strip()
-    ]
+def proving(design: dict[str, Any], owed: tuple[Kind, ...]) -> list[tuple[str, str]]:
+    """Every kind this project owes that the feature answered with a command.
+
+    Built from the *owed* list and not from what came back, which is the
+    difference between a white list and a session choosing what a program runs.
+    A row naming a kind the project never answered is not a kind: on a project
+    that has answered none — every project written before this — the list is
+    empty whatever the design returned, and `verify` runs nothing out of it.
+    """
+    rows = {str(row.get("kind") or "").strip(): row for row in design.get("proves") or []}
+    said = []
+    for kind in owed:
+        command = str((rows.get(kind.name) or {}).get("command") or "").strip()
+        if command:
+            said.append((kind.name, command))
+    return said
 
 
 def excused(design: dict[str, Any]) -> dict[str, str]:
@@ -118,6 +140,17 @@ def _judge(kind: Kind, row: dict[str, Any] | None) -> None:
             f"kind-cannot-be-excused: {kind.name}",
             f"{kind.name} is the one kind no feature may excuse, and this one excuses it: {why}",
         )
+    empty = proves_nothing(command)
+    if empty:
+        # The same question the project's own answer is held to, asked of the
+        # side that decides whether *this change* is proved. It is here rather
+        # than at the walk so that a session is told in the attempt it is
+        # already in, and so that no program ever runs the string unexamined.
+        raise UnprovedKind(
+            f"command-that-proves-nothing: {kind.name}",
+            f"{kind.name} is proved by {command!r}, and {empty!r} exits zero whatever is wrong; "
+            "a command that cannot fail proves nothing about this change",
+        )
 
 
 # --- what the review judged, against what the program measured --------------
@@ -159,10 +192,11 @@ def recount_the_proofs(
     """
     from ..steps.contract import ContractRefusal
 
+    # No early return on a feature that excused nothing. The loop below is what
+    # holds a row to something: leaving it unrun there let a review contradict an
+    # excuse that was never made, on a file nobody measured, and stop the night
+    # on it. `kind-not-owed` is what an empty list says to any row at all.
     owed = excused(design)
-    if not owed:
-        return
-
     measured = set(measured_paths(verify))
     judged: set[str] = set()
     for row in review.get("proofs") or []:
@@ -250,8 +284,10 @@ def recount_for(
 
         return design_answers_for_every_kind
 
-    if step == "review" and prior.get("design"):
-        design = prior["design"]
+    if step == "review":
+        # Whatever the run holds. A run with no design in it excused nothing,
+        # and a judgement about nothing is exactly what must not be acted on.
+        design = prior.get("design") or {}
         verify = prior.get("verify") or {}
 
         def review_judged_every_excuse(output: dict[str, Any]) -> None:

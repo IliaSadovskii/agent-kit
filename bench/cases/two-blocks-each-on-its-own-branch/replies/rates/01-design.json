@@ -1,9 +1,12 @@
 {
   "title": "A table of VAT rates",
   "summary": "rates: the rates themselves, decided before the code.",
-  "changes": ["rates.py — the table"],
-  "seams": ["money.py keeps its meaning"],
-  "verification": ["the project's own check command"],
+  "changes": [
+    "rates.py — the table"
+  ],
+  "seams": [
+    "money.py keeps its meaning"
+  ],
   "asks": [],
   "closes": [],
   "assumptions": [
