@@ -1,0 +1,16 @@
+# a feature whose review found something, and whose delivery then refused
+
+[case]
+title = "one feature's delivery refuses after its record ran, and the other lands"
+fires = "the line of the one that did not land is not in the owner's ledger, and the other's is"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+  { slug = "quote", brief = "A price quoted with VAT on it" },
+]
+
+[expect]
+exit_code = 3
+features = { rates = "failed", quote = "done" }

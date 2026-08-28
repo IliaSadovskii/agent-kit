@@ -1,0 +1,6 @@
+{
+  "verdict": "pass",
+  "findings": [
+    {"severity": "worth-fixing", "what": "the quoting rounds before it adds"}
+  ]
+}

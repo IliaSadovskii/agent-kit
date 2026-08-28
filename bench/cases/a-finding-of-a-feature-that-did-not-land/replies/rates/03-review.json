@@ -1,0 +1,6 @@
+{
+  "verdict": "pass",
+  "findings": [
+    {"severity": "worth-fixing", "what": "the table is read twice on every quote"}
+  ]
+}

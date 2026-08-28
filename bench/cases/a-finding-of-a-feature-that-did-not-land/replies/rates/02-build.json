@@ -1,0 +1,8 @@
+{
+  "complete": true,
+  "summary": "The table of rates.",
+  "files": ["rates.py", "nowhere/at/all.py"],
+  "tests": ["the declared command"],
+  "deviations": [],
+  "remaining": null
+}

@@ -1,0 +1,10 @@
+{
+  "title": "A price quoted with VAT on it",
+  "summary": "quote: the price with the tax on it.",
+  "changes": ["quote.py — the quoting"],
+  "seams": ["money.py keeps its meaning"],
+  "asks": [],
+  "closes": [],
+  "fixes": [],
+  "assumptions": []
+}
