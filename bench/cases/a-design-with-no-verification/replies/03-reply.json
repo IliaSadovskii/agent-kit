@@ -7,7 +7,6 @@
   "seams": [
     "AMOUNT keeps its meaning: the price before tax"
   ],
-  "verification": [],
   "asks": [],
   "closes": [],
   "assumptions": [
@@ -16,5 +15,6 @@
       "expensive": false,
       "because": "nothing in this project uses fractions of a percent"
     }
-  ]
+  ],
+  "proves": []
 }

@@ -1,0 +1,12 @@
+{
+  "complete": true,
+  "summary": "The rate, and a test beside it.",
+  "files": [
+    "money.py"
+  ],
+  "tests": [
+    "the declared command"
+  ],
+  "deviations": [],
+  "remaining": null
+}

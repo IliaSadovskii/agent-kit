@@ -1,0 +1,11 @@
+# a feature excusing the one kind no feature may excuse
+
+[case]
+title = "a design excusing the kind the catalogue never lets go"
+fires = "the excuse is refused by name and the kind is named with it"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "kind-cannot-be-excused: suite"
+steps = { design = "failed" }

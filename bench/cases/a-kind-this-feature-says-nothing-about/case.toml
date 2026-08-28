@@ -1,0 +1,11 @@
+# a design that says nothing about a kind this project checks itself for
+
+[case]
+title = "a feature silent about a kind of verification it owes"
+fires = "silence about a kind is a refusal rather than a pass, and the kind is named"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "kind-unproved: types"
+steps = { design = "failed" }

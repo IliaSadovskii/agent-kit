@@ -1,0 +1,11 @@
+# a record that both commands a kind and excuses it
+
+[case]
+title = "a kind carrying a command and a reason it cannot apply"
+fires = "a record that says both has decided neither, and it is refused by name"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "kind-excused-and-commanded: types"
+steps = { design = "failed" }

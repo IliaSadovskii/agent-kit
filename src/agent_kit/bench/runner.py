@@ -122,7 +122,8 @@ def _run_and_judge(case: Case, where: Path) -> Verdict:
 
 
 def _drive_a_run(case: Case, world: World):
-    created = _kit(world, ["run", "new", case.slug, "--brief", case.brief])
+    steps = ["--steps", ",".join(case.steps)] if case.steps else []
+    created = _kit(world, ["run", "new", case.slug, "--brief", case.brief, *steps])
     if created.returncode != 0:
         return unjudgeable(f"the run could not be created: {_said(created)}")
     waiting = [] if case.wait is None else ["--wait", str(case.wait)]

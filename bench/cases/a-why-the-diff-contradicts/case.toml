@@ -1,0 +1,11 @@
+# an excuse the change itself contradicts
+
+[case]
+title = "a design excusing a kind on a change that says otherwise"
+fires = "the run stops on the contradiction, under its own code and not a blocker's"
+
+[expect]
+exit_code = 5
+status = "stopped"
+refusal = "why-the-diff-contradicts: types"
+steps = { review = "passed" }

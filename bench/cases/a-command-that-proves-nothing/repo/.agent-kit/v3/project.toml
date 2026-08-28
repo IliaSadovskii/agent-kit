@@ -1,0 +1,14 @@
+[project]
+default_branch = "main"
+command_timeout = 20
+
+[commands]
+# `verify` runs this over the project, and a project whose command is a no-op
+# declares a real thing: this half is deliberately not held to proving anything.
+lint = "true"
+test = "sh check.sh"
+
+# This half is. `true` is a real binary on every Unix, it starts, and it is how
+# the second version's own gate was once opened.
+[verification.suite]
+command = "true"

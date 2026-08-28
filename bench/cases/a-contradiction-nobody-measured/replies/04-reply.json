@@ -1,0 +1,12 @@
+{
+  "verdict": "pass",
+  "findings": [],
+  "proofs": [
+    {
+      "kind": "types",
+      "verdict": "contradicted",
+      "where": "invented.py",
+      "because": "правка добавляет код в money.py"
+    }
+  ]
+}

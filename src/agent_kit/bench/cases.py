@@ -36,7 +36,7 @@ DEFAULT_SLUG = "add-vat"
 DEFAULT_BRIEF = "Money should be able to quote a price with VAT on it"
 
 _TOP_KEYS = {"case", "expect", "batch", "sitting", "audit"}
-_CASE_KEYS = {"title", "fires", "slug", "brief", "wait", "no_disarm"}
+_CASE_KEYS = {"title", "fires", "slug", "brief", "steps", "wait", "no_disarm"}
 _EXPECT_KEYS = {"exit_code", "status", "refusal", "steps", "features"}
 _BATCH_KEYS = {"name", "features", "frames"}
 _FRAME_KEYS = {"what", "id"}
@@ -198,6 +198,12 @@ class Case:
     expect: Expect
     slug: str = DEFAULT_SLUG
     brief: str = DEFAULT_BRIEF
+    #: The steps this case's run is made of. Empty is the method's own list,
+    #: which is what every case about something else wants. A case names them
+    #: where the world it needs *is* a run of other steps — a run with no
+    #: `design` in it, which is the one place `verify`'s own copy of the
+    #: question about the kinds can be reached.
+    steps: tuple[str, ...] = ()
     #: How long this case's run waits for the machine. `None` leaves it to the
     #: configuration, which is what every case about something else wants.
     wait: int | None = None
@@ -298,6 +304,7 @@ def read_case(root: Path, name: str) -> Case:
         fires=_text(block.get("fires"), "case.fires"),
         slug=_text(block.get("slug", DEFAULT_SLUG), "case.slug"),
         brief=_text(block.get("brief", DEFAULT_BRIEF), "case.brief"),
+        steps=_steps(block.get("steps")),
         wait=None if "wait" not in block else _number(block["wait"], "case.wait"),
         no_disarm=_prose(block.get("no_disarm"), "case.no_disarm"),
         batch=_batch(document.get("batch")),
@@ -321,6 +328,14 @@ def read_case(root: Path, name: str) -> Case:
             },
         ),
     )
+
+
+def _steps(value: Any) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if not isinstance(value, list) or not value or not all(isinstance(one, str) and one.strip() for one in value):
+        raise CaseError("bad-value", "case.steps must be a non-empty list of step names")
+    return tuple(one.strip() for one in value)
 
 
 def _sitting(block: Any) -> SittingCase | None:

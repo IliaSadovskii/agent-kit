@@ -1,0 +1,11 @@
+# a contradiction resting on a file nobody measured
+
+[case]
+title = "a review contradicting an excuse with a file the commands never ran over"
+fires = "the judgement is refused as an answer and asked again, never acted on"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "where-nobody-measured: types"
+steps = { review = "failed" }

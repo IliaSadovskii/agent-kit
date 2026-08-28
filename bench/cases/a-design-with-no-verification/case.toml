@@ -7,5 +7,5 @@ fires = "the step is refused and the reason names the field — absent, and then
 [expect]
 exit_code = 3
 status = "failed"
-refusal = "output-empty-field: verification"
+refusal = "output-empty-field: proves"
 steps = { design = "failed" }

@@ -1,0 +1,10 @@
+# a kind of verification answered with a command that cannot fail
+
+[case]
+title = "a kind proved by a command that exits zero whatever is wrong"
+fires = "the run is refused before the first session, and the state is untouched"
+
+[expect]
+exit_code = 2
+status = "created"
+steps = { design = "pending", verify = "pending" }

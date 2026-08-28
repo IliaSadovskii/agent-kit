@@ -7,14 +7,17 @@
   "seams": [
     "AMOUNT keeps its meaning: the price before tax"
   ],
-  "asks": [],
-  "closes": [],
-  "assumptions": [
+  "proves": [
     {
-      "what": "the rate is a whole percent",
-      "expensive": false,
-      "because": "nothing in this project uses fractions of a percent"
+      "kind": "suite",
+      "why": "тут нечего тестировать"
+    },
+    {
+      "kind": "types",
+      "command": "sh types.sh"
     }
   ],
-  "proves": []
+  "asks": [],
+  "closes": [],
+  "assumptions": []
 }

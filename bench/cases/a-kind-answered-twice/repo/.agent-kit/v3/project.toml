@@ -1,0 +1,14 @@
+[project]
+default_branch = "main"
+command_timeout = 20
+
+[commands]
+test = "sh check.sh"
+
+# Two kinds this project checks itself for, so every feature of it decides what
+# it owes under each one before any code exists.
+[verification.suite]
+command = "sh check.sh"
+
+[verification.types]
+command = "sh types.sh"

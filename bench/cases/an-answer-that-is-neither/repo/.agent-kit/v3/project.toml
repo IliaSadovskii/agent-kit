@@ -1,0 +1,10 @@
+[project]
+default_branch = "main"
+command_timeout = 20
+
+[commands]
+test = "sh check.sh"
+
+# An answer that decides nothing: a refusal with no date behind it.
+[verification.types]
+why = "ничего здесь не типизировано"

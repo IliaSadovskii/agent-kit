@@ -1,0 +1,12 @@
+# a run assembled without the step that decides what will prove the feature
+
+[case]
+title = "a run of build and verify, with nothing that answered for a kind"
+fires = "verify asks the same question the design's contract asks, and nobody answered it"
+steps = ["build", "verify"]
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "kind-unproved: suite"
+steps = { build = "passed", verify = "failed" }
