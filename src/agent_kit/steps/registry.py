@@ -165,6 +165,13 @@ DESIGN = StepDefinition(
                 ),
             ),
             TextList(
+                "fixes",
+                required=False,
+                help="keys of lines in the project's ledger of debt — they are in the enclosed "
+                     "index — that this feature does the work of. The evening takes those lines "
+                     "away when it is over; a key no line carries stops the run",
+            ),
+            TextList(
                 "closes",
                 required=False,
                 help="identifiers of blocks in the project's knowledge this feature makes untrue; "
@@ -389,6 +396,23 @@ RECORD = StepDefinition(
             ),
             TextList("closed", help="the identifiers removed"),
             TextList("files", help="the knowledge files this changed; delivery commits them beside the code"),
+            Records(
+                "debt",
+                required=False,
+                help="what the review found, does not block, and nobody would read twice: one "
+                     "record per `worth-fixing` finding, with the key its line will carry. Named "
+                     "here and written by the evening, which is the one writer that file has",
+                shape=(
+                    Text("key", help="the key the line carries, derived from its own words"),
+                    Text("what", help="the finding, as the line will say it"),
+                ),
+            ),
+            TextList(
+                "fixed",
+                required=False,
+                help="the keys of the ledger's lines this feature did the work of; the evening "
+                     "takes them away when there is nothing left to build",
+            ),
         )
     ),
 )
