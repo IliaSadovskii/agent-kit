@@ -744,3 +744,29 @@ def test_the_catalogue_says_what_a_kind_catches_and_never_a_tool(project, capsys
     assert "code that worked and stopped working" in said
     for tool in ("pytest", "mypy", "eslint"):
         assert tool not in said
+
+
+def test_the_door_counts_the_ledger_and_names_no_command_for_it(project, capsys):
+    """A counter in the view and never a rung: no command closes a line of debt —
+    the work does — and a rung nothing can take away is a rung the door stops
+    descending at."""
+    from agent_kit.knowledge import Knowledge
+
+    Knowledge(project / "docs/knowledge").write_debt("отчёт считает вручную", "badly")
+
+    _, out, _ = door(project, capsys)
+
+    assert "1 in the ledger" in out
+    assert "долг" not in out.splitlines()[0]
+
+
+def test_a_ledger_that_cannot_be_read_does_not_take_the_door_down(project, capsys):
+    """The door does not refuse about a project, and that includes its ledger."""
+    (project / "docs/knowledge/debt.md").write_text(
+        "- одна · `key: aaaaaa`\n- две · `key: aaaaaa`\n", encoding="utf-8"
+    )
+
+    code, out, _ = door(project, capsys)
+
+    assert code == 0
+    assert "two-lines-one-key" in out

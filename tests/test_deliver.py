@@ -821,3 +821,35 @@ def test_a_report_that_fits_is_left_exactly_as_it_was(repo):
     assert "…" not in open_part
     assert "не поместилось" not in text
     assert BUILD["summary"] in open_part
+
+
+# --- S8f: the ledger of debt, in the report ---------------------------------
+
+
+def test_the_debt_this_work_answers_stands_in_the_open_half(repo):
+    """It is *what was done* — the section with its own ceiling — and the line it
+    answers is one the owner wrote or read. A removal folded away is a removal
+    they find out about in a diff."""
+    from agent_kit.programs.deliver import compose_body
+
+    body = compose_body(
+        request(repo, whole()), DESIGN, BUILD, VERIFY, REVIEW_PASSED,
+        {"blocks": [], "closed": [], "files": [], "fixed": ["k7f3q2"], "debt": []},
+    )
+    open_half = body.split("<details>")[0]
+    assert "k7f3q2" in open_half
+
+
+def test_a_finding_carries_the_key_of_the_line_it_will_become_and_says_who_lays_it(repo):
+    from agent_kit.programs.deliver import compose_body
+
+    review = {"verdict": "pass", "findings": [{"severity": "worth-fixing", "what": "the loop swallows"}]}
+    body = compose_body(
+        request(repo, whole()), DESIGN, BUILD, VERIFY, review,
+        {"blocks": [], "closed": [], "files": [],
+         "debt": [{"key": "aaaaaa", "what": "the loop swallows"}], "fixed": []},
+    )
+    folded = body.split("<details>")[1]
+    assert "aaaaaa" in folded
+    # The narrowing, said where the owner reads it: a lone run lays no line.
+    assert "вечер" in folded
