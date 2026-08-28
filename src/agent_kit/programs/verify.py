@@ -141,6 +141,11 @@ class Verify:
         every other declared command is refused by. It is the last of the three
         questions asked of a string a session wrote, and the only one that has
         to wait for the machine the run is on.
+
+        No trap holds that last one. `a-command-that-starts-nothing` is about a
+        word the *project* declared, and taking this call away reddens nothing:
+        the world it needs is one where a session names a command that is not on
+        the machine, and the bench has none. Tests hold it, and this says so.
         """
         already = {record["command"]: record for record in ran}
         kinds: list[dict] = []

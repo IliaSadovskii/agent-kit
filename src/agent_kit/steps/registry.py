@@ -62,10 +62,12 @@ PROBE = StepDefinition(
 #: caught the second version on exactly that gap — 14% of assumptions with
 #: `expensive` unanswered, and nobody able to tell which were which.
 #:
-#: Four others say `empty_is_an_answer=False`, because for them nothing is not
-#: something to have found: `changes` and `verification` here, `files` and
-#: `tests` in the build. A design that will prove nothing has not decided what
-#: will prove it, and a build that wrote no test wrote no test.
+#: Three others say `empty_is_an_answer=False` outright, because for them nothing
+#: is not something to have found: `changes` here, `files` and `tests` in the
+#: build. A fourth, `proves`, is made that way by the project rather than by the
+#: field — `verification_requires` below, on a project that answers a kind with a
+#: command. A design that will prove nothing has not decided what will prove it,
+#: and a build that wrote no test wrote no test.
 #:
 #: design: what changes, where it meets what is already there, and — before any
 #: code exists — what will prove it. The second version prescribed all three in

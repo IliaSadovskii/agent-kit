@@ -28,6 +28,15 @@ rather than counted as measured.
 `kind-not-owed`, `kind-named-twice` and `excuse-unjudged` are the white lists,
 and one of the three has a trap (`where-nobody-measured`). The other two are held
 by tests.
+
+Two more things here were broken by hand and no case reddened, so tests and these
+words are all that hold them. `proving` builds its list from what the project owes
+rather than from what came back — build it from the rows instead and the bench
+does not notice. `recount_the_proofs` runs its loop on a feature that excused
+nothing — put the early return back and the bench does not notice that either.
+Both want the same world the bench has none of: a session naming a kind its
+project never answered. That is a case to write, not a line, and it is not in
+this step.
 """
 
 from __future__ import annotations
