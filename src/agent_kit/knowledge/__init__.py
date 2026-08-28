@@ -5,12 +5,19 @@ what makes the join checkable: an agent that writes the file itself can always
 claim it did.
 """
 
+from .debt import BADLY, BROKEN, LEDGER, Debt, debt_key, read_debt
 from .format import ALPHABET, ASSUMED, FRAME, Anchor, Block, identifier
 from .parts import DERIVED, Part, part_key, read_parts, render_part
 from .store import DEFAULT_DIR, Knowledge, KnowledgeError
 
 __all__ = [
     "ALPHABET",
+    "BADLY",
+    "BROKEN",
+    "Debt",
+    "LEDGER",
+    "debt_key",
+    "read_debt",
     "ASSUMED",
     "FRAME",
     "Anchor",

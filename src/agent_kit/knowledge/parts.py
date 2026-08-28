@@ -43,11 +43,6 @@ PARTS_HEADING = "## Части"
 
 PRODUCT = "product.md"
 
-#: The ledger of what is built and wrong. A file of the kit's own naming — not a
-#: word in any project's language — which is why `described` can name it and
-#: leave every other file to the project.
-LEDGER = "debt.md"
-
 _ITEM = re.compile(r"^\s*[-*]\s+(?P<body>.*\S)\s*$")
 #: The last backticked segment of a line, and only the last: a part's marks
 #: come off its end one at a time, and `search` on an unanchored pattern

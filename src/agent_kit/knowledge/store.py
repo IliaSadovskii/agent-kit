@@ -16,7 +16,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..state.store import write_whole
-from .parts import LEDGER, PARTS_HEADING, PRODUCT, Part, read_parts, render_part
+from .debt import BADLY, LEDGER, LEDGER_HEAD, SECTIONS, Debt, debt_key, read_debt, render_debt
+from .parts import PARTS_HEADING, PRODUCT, Part, read_parts, render_part
 from .format import (
     ASSUMED,
     FRAME,
@@ -104,6 +105,30 @@ class Knowledge:
                     f"line {held.line + 1} and {part.name!r} in {part.file} line {part.line + 1}",
                 )
             seen[part.key] = part
+        return found
+
+    def debt(self) -> list[Debt]:
+        """Every line of the ledger, and only out of the ledger.
+
+        A key two lines claim is refused rather than resolved to the first: the
+        whole use of a key is that whoever comes back finds the same line again,
+        and two lines answering to one key is a removal that takes whichever the
+        reader happened to look at.
+        """
+        path = self.root / LEDGER if self.root else None
+        if path is None or not path.is_file():
+            return []
+        found = read_debt(LEDGER, self._lines(path))
+        seen: dict[str, Debt] = {}
+        for line in found:
+            held = seen.get(line.key)
+            if held is not None:
+                raise KnowledgeError(
+                    "two-lines-one-key",
+                    f"{line.key} names two lines of this ledger: {held.what!r} on line "
+                    f"{held.line + 1} and {line.what!r} on line {line.line + 1}",
+                )
+            seen[line.key] = line
         return found
 
     def blocks_beside(self, part: Part) -> int:
@@ -213,6 +238,29 @@ class Knowledge:
                 return wanted
         raise KnowledgeError("no-free-identifier", f"{SALTS} identifiers derived for {what!r} are all taken")
 
+    def free_key(self, what: str, claimed: set[str] | None = None) -> str:
+        """The derived key of a line, unless it is already spoken for.
+
+        The same two goals `free_id` holds apart, in the ledger's terms. A line
+        with these words is *this complaint*: writing it again replaces it,
+        which is what makes a second night idempotent rather than doubling. But
+        two findings of one review worded the same are two findings, and reading
+        the second as a replacement loses one — the shape of the blocker S6
+        paid for. `claimed` is what tells them apart, and the salt walks on
+        deterministically so the second gets the same second key every time.
+        """
+        claimed = claimed if claimed is not None else set()
+        standing = {line.key: line for line in self.debt()}
+        wanted_words = " ".join(what.split()).casefold()
+        for salt in range(SALTS):
+            wanted = identifier("debt", wanted_words, salt)
+            if wanted in claimed:
+                continue
+            held = standing.get(wanted)
+            if held is None or " ".join(held.what.split()).casefold() == wanted_words:
+                return wanted
+        raise KnowledgeError("no-free-identifier", f"{SALTS} keys derived for {what!r} are all taken")
+
     # --- writing ----------------------------------------------------------
 
     def _must_be_declared(self) -> None:
@@ -284,6 +332,60 @@ class Knowledge:
         lines = self._lines(path) if path.is_file() else ["# Продукт"]
         _write_lines(path, lines + ["", PARTS_HEADING, "", line])
         return path
+
+    def write_debt(self, what: str, kind: str = BADLY, run: str = "", key: str = "") -> Path:
+        """One line of the ledger, replaced where it stands and laid where it does not.
+
+        A ledger line carries a key and no mark, and that is deliberate: a mark
+        is what makes a list item a part of the product. The key may be given —
+        the salt walk that keeps two findings worded alike apart happens where
+        the findings are read, and the writer honours what it decided rather
+        than deriving a second answer to the same question.
+        """
+        self._must_be_declared()
+        assert self.root is not None
+        key = key or debt_key(what)
+        line = render_debt(key, what, run)
+
+        self.root.mkdir(parents=True, exist_ok=True)
+        path = self.root / LEDGER
+        lines = self._lines(path) if path.is_file() else list(LEDGER_HEAD)
+
+        for standing in read_debt(LEDGER, lines):
+            if standing.key == key:
+                lines[standing.line] = line
+                _write_lines(path, lines)
+                return path
+
+        heading = f"## {SECTIONS[kind]}"
+        if heading not in lines:
+            lines += ["", heading, "", line]
+        else:
+            at = lines.index(heading) + 1
+            while at < len(lines) and not lines[at].startswith("## "):
+                at += 1
+            while at > 0 and not lines[at - 1].strip():
+                at -= 1
+            lines = lines[:at] + [line] + lines[at:]
+        _write_lines(path, lines)
+        return path
+
+    def close_debt(self, key: str) -> Path:
+        """Closing is deletion, here as everywhere: a ticked box is not a closing.
+
+        Only the line, and nothing around it. The section it stood in stays,
+        empty if it has to be — a heading the kit removed is a heading the owner
+        would have to notice was gone.
+        """
+        self._must_be_declared()
+        assert self.root is not None
+        for standing in self.debt():
+            if standing.key == key:
+                path = self.root / LEDGER
+                lines = self._lines(path)
+                _write_lines(path, lines[: standing.line] + lines[standing.line + 1 :])
+                return path
+        raise KnowledgeError("no-such-debt", f"no line of this project's ledger carries the key {key!r}")
 
     def closable(self, id: str) -> Block:
         """The block, if it is one a run may close, and a named refusal if it is not.
@@ -407,6 +509,19 @@ class Knowledge:
                     f"   {part.key:<{width}}  {part.mark:<16}  {part.file}  {part.name}"
                     + (f" — {part.says[:GLIMPSE]}" if part.says else "")
                 )
+
+        standing_debt = self.debt()
+        if standing_debt:
+            lines += [
+                "",
+                "## the ledger — built, and working badly",
+                "   Each is one line of " + LEDGER + ". `run` is the night whose review found it;",
+                "   a line with none was said by the owner. The work that answers a line takes it away.",
+            ]
+            width = max(len(line.key) for line in standing_debt)
+            run = max((len(line.run) for line in standing_debt), default=0)
+            for line in standing_debt:
+                lines.append(f"   {line.key:<{width}}  {line.run:<{run}}  {line.what[:GLIMPSE]}")
 
         lines += ["", "## the blocks standing now"]
         # The run is a column and not part of the glimpse: it is the only thing

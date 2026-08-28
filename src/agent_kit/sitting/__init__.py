@@ -11,7 +11,8 @@ from .room import Opened, Sitting as Held
 from .read import Entry, Reading, Row, read, settle
 from .steps import BADLY, BROKEN, CONTRADICTS, NEW, READING, REFINES, SETTLING, UNCHANGED
 from .telling import SittingRefusal, Telling
-from .write import LEDGER, Written, write
+from ..knowledge.debt import LEDGER
+from .write import Written, write
 
 __all__ = [
     "BADLY",

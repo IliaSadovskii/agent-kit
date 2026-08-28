@@ -32,6 +32,12 @@ REAL = """# Технический долг
 """
 
 
+def line_for(held, key):
+    """The line by its key: a new `badly` line lands in its own section, which is
+    not the end of the file — the ledger holds two sections and `broken` is below."""
+    return [one for one in held.debt() if one.key == key][0]
+
+
 def knowledge(tmp_path, files):
     root = tmp_path / "docs" / "knowledge"
     root.mkdir(parents=True)
@@ -102,7 +108,7 @@ def test_a_line_written_by_a_run_carries_the_run(tmp_path):
     held = knowledge(tmp_path, {LEDGER: REAL})
     held.write_debt("отчёт считает вручную", BADLY, run="kit/quote")
     assert "`run: kit/quote`" in (held.root / LEDGER).read_text(encoding="utf-8")
-    assert held.debt()[-1].run == "kit/quote"
+    assert line_for(held, debt_key("отчёт считает вручную")).run == "kit/quote"
 
 
 def test_the_same_words_replace_their_own_line_rather_than_laying_a_second(tmp_path):
@@ -110,14 +116,15 @@ def test_the_same_words_replace_their_own_line_rather_than_laying_a_second(tmp_p
     held.write_debt("отчёт считает вручную", BADLY)
     held.write_debt("отчёт считает вручную", BADLY, run="kit/quote")
     assert len(held.debt()) == 4
-    assert held.debt()[-1].run == "kit/quote"
+    assert line_for(held, debt_key("отчёт считает вручную")).run == "kit/quote"
 
 
 def test_a_key_the_caller_names_is_the_key_that_is_written(tmp_path):
     """The salt walk happens where the finding is read; the writer honours it."""
     held = knowledge(tmp_path, {LEDGER: REAL})
     held.write_debt("одно и то же", BADLY, key="dddddd")
-    assert [one.key for one in held.debt()][-1] == "dddddd"
+    assert line_for(held, "dddddd").what == "одно и то же"
+    assert debt_key("одно и то же") not in [one.key for one in held.debt()]
 
 
 # --- the key, derived and free ----------------------------------------------

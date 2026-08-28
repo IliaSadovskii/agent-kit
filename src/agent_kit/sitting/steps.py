@@ -21,8 +21,10 @@ CONTRADICTS = "contradicts"
 UNCHANGED = "unchanged"
 VERDICTS = (NEW, REFINES, CONTRADICTS, UNCHANGED)
 
-BADLY = "badly"
-BROKEN = "broken"
+#: The two kinds a ledger line can be. Named where the ledger is read and
+#: written — `knowledge/debt.py` — so that the vocabulary of the file and the
+#: vocabulary of the turn that fills it cannot drift apart.
+from ..knowledge.debt import BADLY, BROKEN  # noqa: E402
 
 #: Every field below has a reader, and the readers are the program that writes
 #: the files and the program that asks the owner. `key` finds the line to
