@@ -1,0 +1,18 @@
+# the kit of S0 to S3 wrote `.agent-kit/v3/.gitignore` = `*`, and only
+# `agent-kit init` clears it away. A project set up by that kit and never
+# re-initialised would swallow this file in silence — which is the exact defect
+# the second version was measured on: a chore in a file nobody commits.
+
+[case]
+title = "a project an older kit taught to ignore the kit's own directory"
+fires = "the chore is refused by name rather than written where it would die with this machine"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+]
+
+[expect]
+exit_code = 0
+features = { rates = "done" }

@@ -1,0 +1,10 @@
+# done is not a claim anybody makes about their own work: the command says so,
+# and the program deletes the line itself.
+
+[case]
+title = "two chores standing, one of them already done"
+fires = "the proof that comes back green takes its own line away and leaves the other standing"
+
+[expect]
+exit_code = 0
+status = "done"

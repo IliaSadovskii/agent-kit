@@ -1,0 +1,17 @@
+# where no check can be written, because it truly needs a person holding a
+# phone, the line stays and says so — and it is ranked nowhere, because the kit
+# can never take it away.
+
+[case]
+title = "a chore no command could ever prove done"
+fires = "the line says so in its own words, the check never runs it, and the door does not stand on it"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+]
+
+[expect]
+exit_code = 0
+features = { rates = "done" }

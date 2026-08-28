@@ -1,0 +1,14 @@
+{
+  "title": "Money quotes a price with VAT",
+  "summary": "quote: the price with the tax on it.",
+  "changes": ["money.py — with_vat"],
+  "seams": ["AMOUNT keeps its meaning"],
+  "asks": [],
+  "closes": [],
+  "fixes": [],
+  "assumptions": [],
+  "manual": [
+    {"what": "положить STRIPE_KEY в окружение продакшена", "proof": "sh ops/has-key.sh"},
+    {"what": "применить миграцию 0007", "proof": "sh ops/migrated.sh"}
+  ]
+}

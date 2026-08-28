@@ -1,0 +1,10 @@
+# a line somebody wrote by hand whose proof exits zero whatever is wrong. It
+# would take itself away the first time anybody looked.
+
+[case]
+title = "a chore proved by a command that cannot fail"
+fires = "the check refuses to run it, and the line stands"
+
+[expect]
+exit_code = 0
+status = "done"

@@ -1,0 +1,14 @@
+# a chore proved by a command that exits zero whatever is wrong, refused where
+# the session can still mend it. This world answers no kind of verification at
+# all — which is every project written before S8e — so the refusal cannot be
+# borrowing the hook that holds those.
+
+[case]
+title = "a design that proves a chore with a command that cannot fail"
+fires = "the attempt is refused by name, before any line is written"
+
+[expect]
+exit_code = 3
+status = "failed"
+refusal = "proof-that-proves-nothing"
+steps = { design = "failed" }

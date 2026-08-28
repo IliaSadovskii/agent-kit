@@ -1,0 +1,10 @@
+# the door names what is due rather than leaving it to be found — the seam §10
+# of the door's own note named and did not cross.
+
+[case]
+title = "a quiet project with a chore standing in it"
+fires = "the door answers `manual-due` and names the command that runs the proofs"
+
+[expect]
+exit_code = 0
+status = "done"

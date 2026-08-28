@@ -1,0 +1,13 @@
+{
+  "title": "A table of VAT rates",
+  "summary": "rates: the table itself, decided before the code.",
+  "changes": ["rates.py — the table"],
+  "seams": ["money.py keeps its meaning"],
+  "asks": [],
+  "closes": [],
+  "fixes": [],
+  "assumptions": [],
+  "manual": [
+    {"what": "подтвердить домен кодом из SMS", "by_hand": "код приходит на телефон владельца"}
+  ]
+}

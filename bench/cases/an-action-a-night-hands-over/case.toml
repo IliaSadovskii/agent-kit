@@ -1,0 +1,17 @@
+# the one class of work a night cannot do for itself, written where it survives
+# the machine: not a run file that is git-ignored and dies with it.
+
+[case]
+title = "two features of one evening, and the chores they hand to a person"
+fires = "the evening lays each line once, in the owner's checkout, in a file the repository keeps"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "A table of VAT rates" },
+  { slug = "quote", brief = "Money quotes a price with VAT" },
+]
+
+[expect]
+exit_code = 0
+features = { rates = "done", quote = "done" }
