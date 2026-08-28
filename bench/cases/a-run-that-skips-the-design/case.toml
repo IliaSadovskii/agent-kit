@@ -2,7 +2,7 @@
 
 [case]
 title = "a run of build and verify, with nothing that answered for a kind"
-fires = "verify asks the same question the design's contract asks, and nobody answered it"
+fires = "verify asks what nobody answered, and asks it before a command is paid for"
 steps = ["build", "verify"]
 
 [expect]
