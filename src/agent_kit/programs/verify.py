@@ -86,7 +86,10 @@ class Verify:
             ),
             # No `model`: a program is not a session and must not appear in the
             # record as one. `run show` reads that field to say who did the work.
-            meta={"commands_run": len(ran) + sum(1 for kind in kinds if kind.get("command"))},
+            # Distinct commands, because a kind proved by one the project had
+            # already run in this step did not cost a second run of it, and a
+            # count that said otherwise would be the record overstating itself.
+            meta={"commands_run": len({one["command"] for one in (*ran, *kinds)})},
         )
 
     def _walk(self, request: StepRequest, project, where: Path, waiting: int, ran: list[dict]) -> list[dict]:
