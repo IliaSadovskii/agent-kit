@@ -825,6 +825,24 @@ def test_a_chore_outranks_a_report_that_is_waiting(project, capsys):
     assert "pull-request-waiting" in out
 
 
+def test_a_chore_the_door_ranks_is_a_chore_the_walk_runs(project, capsys):
+    """The door ranks on the proof and the walk branches on the proof, so a line
+    carrying both segments cannot become a rung nothing can remove."""
+    a_manual_holding(
+        project,
+        "поставить ключ · `key: aaaaaa` · `proof: sh yes.sh` · `by-hand: и позвонить в банк`",
+    )
+    (project / "yes.sh").write_text("exit 0\n", encoding="utf-8")
+
+    _, out, _ = door(project, capsys)
+    assert answered(out) == "manual-due"
+
+    from agent_kit.manual import Manual, check
+
+    assert check(project).done == ["aaaaaa"]
+    assert Manual(project).actions() == []
+
+
 def test_a_file_the_door_cannot_read_names_a_code_and_hides_nothing(project, capsys):
     (project / ".agent-kit/v3/manual.md").write_text("```\n- открыто · `key: a`\n", encoding="utf-8")
 

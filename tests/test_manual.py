@@ -100,12 +100,19 @@ def test_the_key_is_derived_from_the_words_and_flattens_case_and_spacing():
     assert manual_key("Положить  STRIPE_KEY") == manual_key("положить stripe_key")
 
 
-def test_a_free_key_replaces_the_same_complaint_and_walks_past_another(tmp_path):
-    held = manual(tmp_path)
+def test_a_line_that_stands_with_these_words_keeps_its_key(tmp_path):
+    """The branch this is really about: a chore already standing is *this chore*.
+    Naming it again replaces the line, which is what makes a second night
+    idempotent rather than doubling — and two chores worded alike are still two,
+    which `claimed` is what tells apart."""
+    held = manual(tmp_path, None)
     what = "положить STRIPE_KEY в окружение продакшена"
-    assert held.free_key(what) == "aaaaaa" or held.free_key(what) != held.free_key("другое")
-    first = held.free_key("совсем новое действие")
-    assert held.free_key("совсем новое действие", claimed={first}) != first
+    first = held.free_key(what)
+    held.write(what, proof="sh ops/key.sh", key=first)
+
+    assert held.free_key(what) == first
+    assert held.free_key(what, claimed={first}) != first
+    assert held.free_key("совсем другое действие") != first
 
 
 # --- запись и обратное чтение ------------------------------------------------
@@ -156,6 +163,17 @@ def test_a_file_the_repository_ignores_is_refused_rather_than_written(tmp_path):
     with pytest.raises(ManualError) as refused:
         held.write("положить ключ", proof="sh ops/key.sh")
     assert refused.value.code == "manual-ignored"
+    assert not held.path.exists()
+
+
+def test_a_line_with_neither_answer_is_refused_rather_than_written(tmp_path):
+    """Rendered, it would carry an empty segment the reader cannot read back: the
+    line would be invisible to every reader and its key would already be in
+    `batch.json`."""
+    held = manual(tmp_path, None)
+    with pytest.raises(ManualError) as refused:
+        held.write("положить ключ")
+    assert refused.value.code == "action-with-no-answer"
     assert not held.path.exists()
 
 
@@ -264,9 +282,47 @@ def test_a_proof_that_says_nothing_is_stopped_and_its_line_stands(tmp_path):
     assert [one.key for one in held.actions()] == ["aaaaaa"]
 
 
-def test_the_walk_over_a_project_with_no_file_answers_nothing_and_refuses_nothing(tmp_path):
+def test_a_line_the_kit_cannot_close_is_never_run_and_never_taken_away(tmp_path):
+    """A file the owner edits by hand — which its own header invites — can hold a
+    line with neither answer. The walk used to branch on `by_hand`, so such a
+    line ran the empty string, which a shell exits zero on, and the kit erased
+    what somebody had just written down for themselves."""
+    (tmp_path / "ran.sh").write_text("touch ran-here\n", encoding="utf-8")
+    held = manual(
+        tmp_path,
+        "# Сделать руками\n\n- перевыпустить сертификат · `key: aaaaaa`\n",
+    )
+
+    checked = check(tmp_path)
+
+    assert checked.unclosable == ["aaaaaa"]
+    assert checked.done == []
+    assert [one.key for one in held.actions()] == ["aaaaaa"]
+
+
+def test_a_line_carrying_both_answers_is_run_because_the_door_ranks_it(tmp_path):
+    """The walk branches on the proof, and so does the rung. Branching on
+    `by_hand` here would leave a line the door stands on and the kit never runs:
+    a rung nothing can remove. The gate catches *both* in a design; this file is
+    hand-written prose, and there is no gate on reading it."""
+    (tmp_path / "yes.sh").write_text("exit 0\n", encoding="utf-8")
+    held = manual(
+        tmp_path,
+        "# Сделать руками\n\n"
+        "- поставить ключ · `key: aaaaaa` · `proof: sh yes.sh` · `by-hand: и позвонить в банк`\n",
+    )
+    assert held.actions()[0].provable
+
+    checked = check(tmp_path)
+
+    assert checked.done == ["aaaaaa"]
+    assert held.actions() == []
+
+
+
     checked = check(manual(tmp_path, None).root)
     assert checked.done == [] and checked.stands == [] and checked.by_hand == []
+    assert checked.unclosable == []
 
 
 def test_the_refusal_carries_the_state_code():

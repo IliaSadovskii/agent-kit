@@ -943,9 +943,33 @@ def test_a_second_batch_go_does_not_resurrect_a_line_the_proof_took_away(repo):
 
 
 def test_a_feature_that_did_not_land_hands_nobody_a_chore(repo):
-    held, store, runs, spawn, _ = driver(repo, text=APART, endings={"one": "fails"})
+    """A chore that belongs to code nobody merged is work the owner cannot act
+    on. Asked the way the ledger's guard is: the papers of the feature that
+    failed are written after the fact, so what refuses is the guard and not the
+    absence of an output."""
+    held, store, runs, spawn, _ = driver(repo, text=APART, endings={"two": "fails"})
     with_chores(held, spawn, {
-        "one": {"manual": [{"key": "aaaaaa", "what": "положить ключ", "proof": "sh a.sh", "by_hand": ""}]},
+        "one": {"manual": [{"key": "aaaaaa", "what": "то, что приземлилось", "proof": "sh a.sh"}]},
+    })
+
+    held.go("vat")
+    a_record_that_needs_a_person(
+        runs, "two", manual=[{"key": "bbbbbb", "what": "то, что не приземлилось", "proof": "sh b.sh"}]
+    )
+    held._lay_the_manual_actions(store.load("vat"))
+
+    assert "то, что приземлилось" in manual_text(repo)
+    assert "то, что не приземлилось" not in manual_text(repo)
+
+
+def test_a_night_that_is_not_over_hands_over_nothing_yet(repo):
+    """Its own copy of the guard the ledger has, so it gets its own test: a batch
+    a person stopped keeps features pending, and `batch go` carries on with them."""
+    held, store, runs, spawn, _ = driver(
+        repo, text=APART, endings={"one": "asks-the-batch-to-stop", "two": "stops-when-asked"}, machine=1,
+    )
+    with_chores(held, spawn, {
+        "one": {"manual": [{"key": "aaaaaa", "what": "положить ключ", "proof": "sh a.sh"}]},
     })
 
     held.go("vat")
