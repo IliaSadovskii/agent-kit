@@ -294,3 +294,84 @@ def test_a_contradicted_excuse_stops_the_run_where_a_blocking_finding_would():
     assert refused.value.code == "why-the-diff-contradicts: types"
     assert refused.value.expected is True
     assert refused.value.retryable is False
+
+
+# --- and the same command is not paid for twice -----------------------------
+
+
+def test_a_kind_proved_by_a_command_the_project_already_ran_is_not_run_again(tmp_path):
+    """On a real project `[commands].test` and the answer to `suite` are one line.
+
+    A feature that paid for it twice would pay every night. What it costs is a
+    record in which the same command stands against the project and against the
+    kind, which is what makes the two agreeing visible rather than accidental.
+    """
+    import json
+    import subprocess
+
+    from agent_kit.programs.verify import Verify
+    from agent_kit.providers.base import StepRequest
+
+    declare(
+        tmp_path,
+        '[commands]\ntest = "sh check.sh"\n\n'
+        '[verification.suite]\ncommand = "sh check.sh"\n\n'
+        '[verification.types]\ncommand = "sh types.sh"\n',
+    )
+    (tmp_path / "check.sh").write_text("#!/bin/sh\necho ran-the-suite\n")
+    (tmp_path / "types.sh").write_text("#!/bin/sh\nexit 0\n")
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
+
+    output = Verify(tmp_path).execute(
+        StepRequest(
+            slug="s", step_name="verify", attempt=1, provider="program", input_text="",
+            workdir=tmp_path, project=tmp_path,
+            prior={"design": {"proves": [
+                {"kind": "suite", "command": "sh check.sh"},
+                {"kind": "types", "command": "sh types.sh"},
+            ]}},
+        )
+    )
+
+    said = json.loads(output.raw)
+    suite = next(kind for kind in said["kinds"] if kind["kind"] == "suite")
+    assert suite["name"] == "test"  # the declared command that proved it
+    assert suite["command"] == "sh check.sh"
+    assert said["passed"] is True
+    # Two commands were run, not three, and the record says two.
+    assert output.meta["commands_run"] == 2
+
+
+def test_a_kind_whose_command_comes_back_red_is_a_verify_that_did_not_pass(tmp_path):
+    import json
+    import subprocess
+
+    from agent_kit.programs.verify import Verify
+    from agent_kit.programs.deliverable import refuse_unless_deliverable
+    from agent_kit.providers.base import ExecutorFailed, StepRequest
+
+    declare(
+        tmp_path,
+        '[commands]\ntest = "sh check.sh"\n\n[verification.types]\ncommand = "sh types.sh"\n',
+    )
+    (tmp_path / "check.sh").write_text("#!/bin/sh\nexit 0\n")
+    (tmp_path / "types.sh").write_text("#!/bin/sh\nexit 1\n")
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
+
+    said = json.loads(
+        Verify(tmp_path).execute(
+            StepRequest(
+                slug="s", step_name="verify", attempt=1, provider="program", input_text="",
+                workdir=tmp_path, project=tmp_path,
+                prior={"design": {"proves": [{"kind": "types", "command": "sh types.sh"}]}},
+            )
+        ).raw
+    )
+
+    assert said["passed"] is False
+
+    # And delivery names the kind rather than saying no command ran.
+    with pytest.raises(ExecutorFailed) as refused:
+        refuse_unless_deliverable({"complete": True}, said, {"verdict": "pass", "findings": []})
+    assert refused.value.code == "not-verified"
+    assert "types" in refused.value.detail
