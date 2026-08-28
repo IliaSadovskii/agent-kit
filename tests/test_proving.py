@@ -142,9 +142,21 @@ def test_one_kind_may_not_have_two_records(project):
     assert refused.value.code == "kind-named-twice: suite"
 
 
-def test_what_the_walk_will_run_and_what_it_will_not(project):
-    assert proving(PROVED) == [("suite", "sh check.sh")]
+def test_what_the_walk_will_run_is_built_from_what_the_project_owes(project):
+    from agent_kit.verification import owed_by_a_feature
+
+    assert proving(PROVED, owed_by_a_feature(project)) == [("suite", "sh check.sh")]
     assert excused(PROVED) == {"types": "this change adds no code, only prose"}
+
+
+def test_a_row_for_a_kind_the_project_does_not_owe_is_never_run(asks_nothing):
+    """The hole this closes: a project that answers nothing owes nothing, and a
+    row a session wrote anyway must not become a command the program runs."""
+    from agent_kit.verification import owed_by_a_feature
+
+    invented = {"proves": [{"kind": "suite", "command": "true"}]}
+
+    assert proving(invented, owed_by_a_feature(asks_nothing)) == []
 
 
 # --- the design's contract, which the project makes stricter ----------------
@@ -375,3 +387,141 @@ def test_a_kind_whose_command_comes_back_red_is_a_verify_that_did_not_pass(tmp_p
         refuse_unless_deliverable({"complete": True}, said, {"verdict": "pass", "findings": []})
     assert refused.value.code == "not-verified"
     assert "types" in refused.value.detail
+
+
+# --- the command a feature names is held to the same two questions ----------
+
+
+def test_a_command_a_feature_invented_that_could_never_fail_is_refused(project):
+    """`yes` is a claim no program can test, and it is a real binary.
+
+    The project's answer is held to this at the moment the file is read. The
+    feature's is held to it here — and here is the side that decides whether
+    this change is proved, so it is the side that matters.
+    """
+    empty = {"proves": [{"kind": "suite", "command": "true"}, {"kind": "types", "command": "sh types.sh"}]}
+
+    with pytest.raises(UnprovedKind) as refused:
+        refuse_unless_every_kind_is_answered(empty, project)
+
+    assert refused.value.code == "command-that-proves-nothing: suite"
+
+
+def test_a_command_nothing_on_this_machine_can_start_is_refused_before_it_runs(tmp_path):
+    import subprocess
+
+    from agent_kit.programs.verify import Verify
+    from agent_kit.providers.base import ExecutorFailed, StepRequest
+
+    declare(
+        tmp_path,
+        '[commands]\ntest = "sh check.sh"\n\n[verification.suite]\ncommand = "sh check.sh"\n',
+    )
+    (tmp_path / "check.sh").write_text("#!/bin/sh\nexit 0\n")
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
+
+    with pytest.raises(ExecutorFailed) as refused:
+        Verify(tmp_path).execute(
+            StepRequest(
+                slug="s", step_name="verify", attempt=1, provider="program", input_text="",
+                workdir=tmp_path, project=tmp_path,
+                prior={"design": {"proves": [
+                    {"kind": "suite", "command": "definitely-not-a-command --all"}
+                ]}},
+            )
+        )
+
+    assert refused.value.code == "no-such-command"
+    assert refused.value.retryable is False
+
+
+def test_a_project_that_owes_nothing_runs_nothing_a_session_named(tmp_path):
+    """The whole hole, end to end: a project nobody has answered for, a design
+    that names a command anyway, and a program that must not run it."""
+    import json
+    import subprocess
+
+    from agent_kit.programs.verify import Verify
+    from agent_kit.providers.base import StepRequest
+
+    declare(tmp_path, '[commands]\ntest = "sh check.sh"\n')
+    (tmp_path / "check.sh").write_text("#!/bin/sh\nexit 0\n")
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
+
+    said = json.loads(
+        Verify(tmp_path).execute(
+            StepRequest(
+                slug="s", step_name="verify", attempt=1, provider="program", input_text="",
+                workdir=tmp_path, project=tmp_path,
+                prior={"design": {"proves": [{"kind": "suite", "command": "true"}]}},
+            )
+        ).raw
+    )
+
+    assert said["kinds"] == []
+    assert [one["command"] for one in said["commands"]] == ["sh check.sh"]
+
+
+def test_the_kinds_are_asked_about_before_a_single_command_is_paid_for(tmp_path):
+    """A run that will be refused for a kind must not run the suite first.
+
+    Two faults in one order: a full suite paid for a refusal that was knowable
+    beforehand, and — where a command comes back red — a kind nobody ever named.
+    """
+    import subprocess
+
+    from agent_kit.programs.verify import Verify
+    from agent_kit.providers.base import ExecutorFailed, StepRequest
+
+    declare(
+        tmp_path,
+        '[commands]\ntest = "sh check.sh"\n\n[verification.suite]\ncommand = "sh check.sh"\n',
+    )
+    (tmp_path / "check.sh").write_text("#!/bin/sh\ntouch ran\nexit 1\n")
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
+
+    with pytest.raises(ExecutorFailed) as refused:
+        Verify(tmp_path).execute(
+            StepRequest(
+                slug="s", step_name="verify", attempt=1, provider="program", input_text="",
+                workdir=tmp_path, project=tmp_path, prior={"design": {"proves": []}},
+            )
+        )
+
+    assert refused.value.code == "kind-unproved: suite"
+    assert not (tmp_path / "ran").exists(), "the suite was paid for before the question was asked"
+
+
+# --- the white list is not skipped on a feature that excused nothing --------
+
+
+def test_a_contradiction_is_recounted_even_where_the_feature_excused_nothing():
+    """The inverse of the rule, and the way round that matters.
+
+    A review may return a contradiction on a run where there was nothing to
+    contradict. Leaving the loop unrun there let an invented finding through and
+    stopped the night on it, which is what the white list exists against.
+    """
+    commanded = {"proves": [{"kind": "suite", "command": "sh check.sh"}]}
+
+    with pytest.raises(ContractRefusal) as refused:
+        recount_the_proofs(
+            {"proofs": [{"kind": "types", "verdict": "contradicted", "where": "invented.py"}]},
+            commanded,
+            VERIFIED,
+        )
+
+    assert refused.value.code == "kind-not-owed: types"
+
+
+def test_a_run_with_no_design_in_it_still_recounts_what_the_review_judged(tmp_path):
+    from agent_kit.verification.owed import recount_for
+
+    declare(tmp_path, '[commands]\ntest = "sh check.sh"\n')
+    recount = recount_for("review", {}, require_project(tmp_path))
+
+    assert recount is not None
+    with pytest.raises(ContractRefusal) as refused:
+        recount({"proofs": [{"kind": "types", "verdict": "contradicted", "where": "invented.py"}]})
+
+    assert refused.value.code == "kind-not-owed: types"
