@@ -536,7 +536,7 @@ class Door:
         ]
 
     def _waiting_for_a_person(self, runs, owner_of, project, reading) -> list[Line]:
-        """Rung 4. The work landed and its report is waiting to be read.
+        """Rung 5. The work landed and its report is waiting to be read.
 
         The forge is not asked. The door does not talk to the network, so what
         it knows is what `deliver` wrote down: a branch, a commit and a URL.
@@ -601,7 +601,7 @@ class Door:
         return _in_order(lines)
 
     def _nothing_is_due(self, project) -> Line:
-        """Rung 5. It always answers, which is what makes the door always answer.
+        """Rung 6. It always answers, which is what makes the door always answer.
 
         The name of the evening is left blank on purpose: it is the owner's
         word for their own work, and a kit that invents one is a kit naming

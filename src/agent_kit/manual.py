@@ -268,6 +268,15 @@ class Manual:
                 "with this machine — which is what this file exists against",
                 hint="agent-kit init",
             )
+        if not proof.strip() and not by_hand.strip():
+            # Rendered, it would carry an empty segment: the reader would not
+            # read the line back, it would be invisible to the walk and to the
+            # door, and its key would already be in the evening's memory.
+            raise ManualError(
+                "action-with-no-answer",
+                f"{what!r} says neither how it will be proved done nor why no command can prove "
+                "it, and a line that says neither is one no reader can read back",
+            )
         key = key or manual_key(what)
         line = render_action(key, what, proof, by_hand)
 
@@ -391,10 +400,14 @@ class Checked:
     stands: list[tuple[str, str]] = field(default_factory=list)
     by_hand: list[tuple[str, str]] = field(default_factory=list)
     proves_nothing: list[str] = field(default_factory=list)
+    #: A line the kit cannot close at all: it carries no proof and does not even
+    #: say why. Only a person can have written it, and only a person can take it
+    #: away.
+    unclosable: list[str] = field(default_factory=list)
 
     @property
     def standing(self) -> int:
-        return len(self.stands) + len(self.by_hand) + len(self.proves_nothing)
+        return len(self.stands) + len(self.by_hand) + len(self.proves_nothing) + len(self.unclosable)
 
 
 def check(root: Path | str, timeout: int = PROOF_TIMEOUT) -> Checked:
@@ -411,8 +424,19 @@ def check(root: Path | str, timeout: int = PROOF_TIMEOUT) -> Checked:
     held = Manual(root)
     checked = Checked()
     for action in held.actions():
-        if action.by_hand:
-            checked.by_hand.append((action.key, action.by_hand))
+        if not action.provable:
+            # Branched on the proof and never on the reason, which is what keeps
+            # this walk and the door's rung reading one line the same way. A
+            # line carrying both — the file is hand-written prose, and there is
+            # no gate on reading it — is ranked by the door, so it must be run
+            # here or it is a rung nothing can remove. And a line carrying
+            # neither must never be run: the empty command is a command a shell
+            # exits zero on, and the kit would erase what somebody wrote down
+            # for themselves.
+            if action.by_hand:
+                checked.by_hand.append((action.key, action.by_hand))
+            else:
+                checked.unclosable.append(action.key)
             continue
         empty = proves_nothing(action.proof)
         if empty:

@@ -39,7 +39,7 @@ REAL = """# Сделать руками
 
 def manual(tmp_path, text=REAL):
     where = tmp_path / ".agent-kit/v3"
-    where.mkdir(parents=True)
+    where.mkdir(parents=True, exist_ok=True)
     if text is not None:
         (where / MANUAL).write_text(text, encoding="utf-8")
     return Manual(tmp_path)

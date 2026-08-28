@@ -527,7 +527,7 @@ def _manual(args) -> int:
     if args.what != "check":
         raise UsageError("what-of-manual", "agent-kit manual check")
 
-    root = Path(args.project)
+    root = Path(args.project).resolve()
     checked = check(root, timeout=args.timeout or MANUAL_TIMEOUT)
     for key in checked.done:
         print(f"manual-done: {key} — доказательство вернуло ноль, строка снята")
@@ -537,6 +537,8 @@ def _manual(args) -> int:
         print(f"manual-proves-nothing: {key} — эта команда не может провалиться, она не запускалась")
     for key, why in checked.by_hand:
         print(f"manual-by-hand: {key} — {why}")
+    for key in checked.unclosable:
+        print(f"manual-nobody-can-close: {key} — ни команды, ни причины: снять её может только человек")
     if not (checked.done or checked.standing):
         print("руками делать нечего")
     else:
