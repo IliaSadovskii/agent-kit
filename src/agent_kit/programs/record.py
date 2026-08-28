@@ -75,8 +75,11 @@ class Record:
                     f"the design names {named} and this project keeps no knowledge under {project.knowledge}",
                     retryable=False,
                 )
-            # Nothing is owed and nothing is written. The expensive assumptions
-            # still reach the owner: `deliver` opens the pull request with them.
+            # Nothing is owed and nothing is written — the findings of this
+            # review included. A night never *makes* a knowledge directory: the
+            # hour with the owner does, because somebody is standing there to be
+            # asked. The expensive assumptions and the findings still reach the
+            # owner: `deliver` opens the pull request with them.
             return _said([], [], [], [], [])
 
         naked = [item for item in owing if not (item.get("block") and item.get("at"))]
@@ -144,6 +147,12 @@ class Record:
         A run started by hand writes none at all. Its findings reach the owner
         in the pull request, the way they always have, and that narrowing is
         written down rather than discovered.
+
+        And what a blocking finding costs is said here rather than found out:
+        the run stops before this step, so every `worth-fixing` of that same
+        review goes with it. The ledger is empty exactly for the night after
+        which nothing was left — which is the night whose findings the owner is
+        reading in a refusal anyway.
         """
         keyed: set[str] = set()
         said = []
