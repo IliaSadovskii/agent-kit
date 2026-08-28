@@ -1,0 +1,15 @@
+# the ledger nobody commits, and the run that names a line of it
+
+[case]
+title = "a line laid last night and not committed, and the work that answers it"
+fires = "the run reads the owner's own ledger rather than the copy frozen in its tree"
+
+[batch]
+name = "vat"
+features = [
+  { slug = "rates", brief = "The report stops being counted by hand" },
+]
+
+[expect]
+exit_code = 0
+features = { rates = "done" }
