@@ -403,3 +403,111 @@ def test_where_the_knowledge_lives_is_the_project_s_word_about_the_tree(project,
 
     assert said["files"] == ["docs/wisdom/entities.md"]
     assert "kit/add-vat" in (tree / "docs/wisdom/entities.md").read_text(encoding="utf-8")
+
+
+# --- S8f: what the review found, and what the work answers -------------------
+#
+# `record` reads the ledger and writes none of it. The file has one writer — the
+# night of a batch, once, when there is nothing left to build — because two
+# features branching from one base and appending to one section is two branches
+# that will not merge: measured, 200 of 200. What this step does is name the
+# lines: their keys, derived, so the evening writes what the feature decided.
+
+WORTH_FIXING = {
+    "verdict": "pass",
+    "findings": [
+        {"severity": "worth-fixing", "what": "the retry loop swallows the reason", "where": "money.py:90"},
+        {"severity": "note", "what": "the name could be shorter"},
+    ],
+}
+
+
+def ledger_of(root):
+    from agent_kit.knowledge import Knowledge
+
+    return Knowledge(root / "docs/knowledge")
+
+
+def with_a_ledger(root, *lines):
+    from agent_kit.knowledge.debt import BADLY
+
+    held = ledger_of(root)
+    for what in lines:
+        held.write_debt(what, BADLY)
+    return held
+
+
+def test_a_worth_fixing_finding_is_named_with_the_key_the_kit_derives(project):
+    from agent_kit.knowledge.debt import debt_key
+
+    said = json.loads(record(project, {"review": WORTH_FIXING}).raw)
+
+    assert said["debt"] == [
+        {"key": debt_key("the retry loop swallows the reason (money.py:90)"),
+         "what": "the retry loop swallows the reason (money.py:90)"}
+    ]
+
+
+def test_a_note_is_not_debt(project):
+    """It costs nothing and blocks nothing; a line in the owner's ledger costs something."""
+    said = json.loads(record(project, {"review": WORTH_FIXING}).raw)
+
+    assert "the name could be shorter" not in json.dumps(said, ensure_ascii=False)
+
+
+def test_two_findings_worded_alike_are_two_lines(project):
+    """A set answering for two is the blocker S6 paid for, in the ledger's terms."""
+    twice = {"verdict": "pass", "findings": [
+        {"severity": "worth-fixing", "what": "the same thing"},
+        {"severity": "worth-fixing", "what": "the same thing"},
+    ]}
+    said = json.loads(record(project, {"review": twice}).raw)
+
+    assert len({one["key"] for one in said["debt"]}) == 2
+
+
+def test_the_step_writes_no_line_of_the_ledger_itself(project):
+    record(project, {"review": WORTH_FIXING})
+
+    assert not (project / "docs/knowledge/debt.md").exists()
+
+
+def test_the_work_names_the_debt_it_does(project):
+    from agent_kit.knowledge.debt import debt_key
+
+    with_a_ledger(project, "отчёт считает вручную", "почта уходит дважды")
+    design = {**DESIGN, "fixes": [debt_key("отчёт считает вручную")]}
+
+    said = json.loads(record(project, {"design": design}).raw)
+
+    assert said["fixed"] == [debt_key("отчёт считает вручную")]
+    # And the line is still there: the evening takes it away, not the feature.
+    assert "отчёт считает вручную" in (project / "docs/knowledge/debt.md").read_text(encoding="utf-8")
+
+
+def test_a_key_no_line_carries_stops_the_run_by_name(project):
+    with_a_ledger(project, "отчёт считает вручную")
+    design = {**DESIGN, "fixes": ["zzzzzz"]}
+
+    with pytest.raises(ExecutorFailed) as refused:
+        record(project, {"design": design})
+
+    assert refused.value.code == "no-such-debt"
+    # Nothing resolved, so nothing was written: not the block either.
+    assert "kit/add-vat" not in entities(project)
+
+
+def test_a_project_that_keeps_no_knowledge_owes_no_ledger(without_knowledge):
+    said = json.loads(record(without_knowledge, {"review": WORTH_FIXING}).raw)
+
+    assert said["debt"] == []
+    assert said["fixed"] == []
+
+
+def test_a_project_that_keeps_no_knowledge_cannot_be_told_it_fixed_a_line(without_knowledge):
+    design = {**DESIGN, "fixes": ["zzzzzz"], "assumptions": []}
+
+    with pytest.raises(ExecutorFailed) as refused:
+        record(without_knowledge, {"design": design})
+
+    assert refused.value.code == "no-knowledge"
