@@ -1,0 +1,11 @@
+# the file is prose the owner edits by hand — its own header says so — and
+# there is no gate on reading it. So a line can carry both answers or neither,
+# and the walk has to read both the way the door's rung reads them.
+
+[case]
+title = "a hand-written line with both answers, and one with neither"
+fires = "the kit runs what it ranks, and leaves standing what it can never close"
+
+[expect]
+exit_code = 0
+status = "done"

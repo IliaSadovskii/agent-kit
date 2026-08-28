@@ -1,0 +1,8 @@
+{
+  "complete": true,
+  "summary": "The price with VAT.",
+  "files": ["money.py"],
+  "tests": ["the declared command"],
+  "deviations": [],
+  "remaining": null
+}

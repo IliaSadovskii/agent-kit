@@ -13,11 +13,24 @@ git show "main:$LEDGER" >/dev/null 2>&1 && { echo "the trap was not planted: a l
 KEY=$(python3 -c "from agent_kit.knowledge import debt_key; print(debt_key('the retry loop swallows the reason it failed'))") ||
   { echo "the kit could not say what the key must be"; exit 3; }
 
+# Both features found it, which is what makes the line's count mean something.
+grep -q 'the retry loop swallows the reason it failed' .agent-kit/v3/runs/quote/steps/3-review/output.json ||
+  { echo "the trap was not planted: only one feature found it"; exit 1; }
+
 test -f "$LEDGER" || { echo "the finding reached no ledger at all"; exit 1; }
 grep -q "key: $KEY" "$LEDGER" || { echo "no line carries the key the kit derives: $KEY"; exit 1; }
 grep -q 'the retry loop swallows the reason it failed' "$LEDGER" || { echo "the line lost its own words"; exit 1; }
 grep -q 'run: rates' "$LEDGER" || { echo "the line does not say which night found it"; exit 1; }
 grep -q 'the name could be shorter' "$LEDGER" && { echo "a note became debt: it blocks nothing and costs nothing"; exit 1; }
+
+# One line for what two features both found, and one entry in the evening's own
+# memory of what it laid. The file alone does not measure it: writing a key that
+# already stands replaces the line, so a night with no memory would leave one
+# line and two entries — and lay it again the night after the work answered it.
+test "$(grep -c 'the retry loop swallows the reason it failed' "$LEDGER")" = 1 ||
+  { echo "two features that found one thing got two lines"; exit 1; }
+test "$(grep -c "\"key\": \"$KEY\"" "$BATCH_FILE")" = 1 ||
+  { echo "the evening remembers laying one line twice"; exit 1; }
 
 # Under the heading its kind names, and not at the foot of the file.
 awk '/^## Работает плохо/{seen=1; next} /^## /{seen=0} seen && /the retry loop swallows/{found=1} END{exit !found}' "$LEDGER" ||

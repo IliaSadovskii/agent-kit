@@ -9,7 +9,7 @@ rm -rf "$QUIET/.agent-kit/v3/runs" "$QUIET/.agent-kit/v3/batches"
 cat > "$QUIET/.agent-kit/v3/manual.md" <<'MD'
 # Сделать руками
 
-- положить ключ в окружение · `key: aaaaaa` · `proof: sh ops/has-key.sh`
+- положить ключ в окружение · `key: aaaaaa` · `proof: touch ran-here`
 MD
 cd "$QUIET"
 git init -q -b main

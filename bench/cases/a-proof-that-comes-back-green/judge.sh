@@ -7,6 +7,10 @@ FILE=.agent-kit/v3/manual.md
 BEFORE=$(git show "main:$FILE" 2>/dev/null) || { echo "no chores were planted at all"; exit 1; }
 case "$BEFORE" in *aaaaaa*) ;; *) echo "the line that is done was not planted"; exit 1;; esac
 case "$BEFORE" in *bbbbbb*) ;; *) echo "the line that must survive was not planted"; exit 1;; esac
+# The red one stands first, so what follows also measures that a proof coming
+# back red does not stop the walk: this is a report, not a `verify`.
+printf '%s\n' "$BEFORE" | grep -n 'key: ' | head -1 | grep -q bbbbbb ||
+  { echo "the trap was not planted: the red proof does not stand first"; exit 1; }
 
 SAID=$($KIT manual check) || { echo "the check did not come back"; exit 1; }
 printf '%s\n' "$SAID" | grep -q 'manual-done: aaaaaa' ||

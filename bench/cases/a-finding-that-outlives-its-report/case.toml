@@ -2,14 +2,15 @@
 
 [case]
 title = "the evening lays a line for what the review found and nothing stopped"
-fires = "the finding is in the owner's ledger with the key the kit derives, and it is not committed"
+fires = "the finding is in the owner's ledger once, with the key the kit derives, and it is not committed"
 
 [batch]
 name = "vat"
 features = [
   { slug = "rates", brief = "A table of VAT rates" },
+  { slug = "quote", brief = "Money quotes a price with VAT" },
 ]
 
 [expect]
 exit_code = 0
-features = { rates = "done" }
+features = { rates = "done", quote = "done" }
