@@ -853,3 +853,98 @@ def test_a_finding_carries_the_key_of_the_line_it_will_become_and_says_who_lays_
     assert "aaaaaa" in folded
     # The narrowing, said where the owner reads it: a lone run lays no line.
     assert "вечер" in folded
+
+
+# --- S8f: the join, and what it counts --------------------------------------
+
+
+def a_record(**said):
+    return {"blocks": [], "closed": [], "files": [], "debt": [], "fixed": [], **said}
+
+
+def test_a_finding_with_no_line_stops_delivery(repo, tmp_path):
+    """`record.debt` has a reader — the evening — and now a watchman. The mirror
+    of `assumption-with-no-block`: what the review found and nothing stopped owes
+    a line, or the step that names them dropped one silently."""
+    from agent_kit.programs.deliver import refuse_unless_every_finding_has_a_line
+
+    review = {"verdict": "pass", "findings": [{"severity": "worth-fixing", "what": "the loop swallows"}]}
+
+    with pytest.raises(ExecutorFailed) as refused:
+        refuse_unless_every_finding_has_a_line(review, a_record())
+
+    assert refused.value.code == "finding-with-no-line"
+
+
+def test_two_findings_worded_alike_owe_two_lines(repo):
+    """Counted, not gathered: a set says one line answers for both, which is the
+    blocker S6 paid for."""
+    from agent_kit.programs.deliver import refuse_unless_every_finding_has_a_line
+
+    review = {"verdict": "pass", "findings": [
+        {"severity": "worth-fixing", "what": "the same thing"},
+        {"severity": "worth-fixing", "what": "the same thing"},
+    ]}
+    one = a_record(debt=[{"key": "aaaaaa", "what": "the same thing"}])
+
+    with pytest.raises(ExecutorFailed) as refused:
+        refuse_unless_every_finding_has_a_line(review, one)
+
+    assert refused.value.code == "finding-with-no-line"
+    two = a_record(debt=[{"key": "aaaaaa", "what": "the same thing"},
+                         {"key": "bbbbbb", "what": "the same thing"}])
+    refuse_unless_every_finding_has_a_line(review, two)
+
+
+def test_a_note_owes_nothing(repo):
+    from agent_kit.programs.deliver import refuse_unless_every_finding_has_a_line
+
+    review = {"verdict": "pass", "findings": [{"severity": "note", "what": "the name could be shorter"}]}
+
+    refuse_unless_every_finding_has_a_line(review, a_record())
+
+
+def test_a_key_the_design_named_owes_a_line_it_answered(repo):
+    from agent_kit.programs.deliver import refuse_unless_every_finding_has_a_line
+
+    review = {"verdict": "pass", "findings": []}
+    design = {**DESIGN, "fixes": ["k7f3q2"]}
+
+    with pytest.raises(ExecutorFailed) as refused:
+        refuse_unless_every_finding_has_a_line(review, a_record(), design)
+
+    assert refused.value.code == "fix-with-no-line"
+
+
+def test_two_findings_worded_alike_are_printed_with_their_own_keys(repo):
+    """The report paired them by text, so both carried the second key."""
+    from agent_kit.programs.deliver import compose_body
+
+    review = {"verdict": "pass", "findings": [
+        {"severity": "worth-fixing", "what": "the same thing"},
+        {"severity": "worth-fixing", "what": "the same thing"},
+    ]}
+    body = compose_body(
+        request(repo, whole()), DESIGN, BUILD, VERIFY, review,
+        a_record(debt=[{"key": "aaaaaa", "what": "the same thing"},
+                       {"key": "bbbbbb", "what": "the same thing"}]),
+    )
+    folded = body.split("<details>")[1]
+
+    assert "aaaaaa" in folded and "bbbbbb" in folded
+
+
+def test_the_fold_says_who_lays_the_line_without_naming_a_batch(repo):
+    """A step below the batch does not know the word, and neither does what it
+    prints for the owner. Measured against the kit's own sentence, not a word of
+    prose somebody may rewrite."""
+    from agent_kit.programs.deliver import WHO_LAYS_A_LINE, compose_body
+
+    review = {"verdict": "pass", "findings": [{"severity": "worth-fixing", "what": "the loop swallows"}]}
+    body = compose_body(
+        request(repo, whole()), DESIGN, BUILD, VERIFY, review,
+        a_record(debt=[{"key": "aaaaaa", "what": "the loop swallows"}]),
+    )
+
+    assert WHO_LAYS_A_LINE in body.split("<details>")[1]
+    assert "партии" not in body and "партия" not in body

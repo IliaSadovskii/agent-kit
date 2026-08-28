@@ -511,3 +511,48 @@ def test_a_project_that_keeps_no_knowledge_cannot_be_told_it_fixed_a_line(withou
         record(without_knowledge, {"design": design})
 
     assert refused.value.code == "no-knowledge"
+
+
+# --- S8f: which ledger is the authority --------------------------------------
+#
+# The blocks a run writes go into its own worktree and `deliver` commits them.
+# The ledger is never committed by anybody: the evening writes it into the
+# owner's checkout and the owner reads the diff. So the copy in a run's tree is
+# the base of its branch — older by exactly the lines the last night laid — and
+# asking it whether a line exists refuses the run for a line that is standing.
+
+
+def test_a_line_the_owner_has_not_committed_is_a_line(project, tree):
+    from agent_kit.knowledge.debt import debt_key
+
+    with_a_ledger(project, "отчёт по периодам считается вручную")  # the checkout only
+    design = {**DESIGN, "fixes": [debt_key("отчёт по периодам считается вручную")]}
+
+    said = json.loads(record(project, {"design": design}, tree=tree).raw)
+
+    assert said["fixed"] == [debt_key("отчёт по периодам считается вручную")]
+
+
+def test_a_line_only_the_run_s_own_tree_holds_is_not_one(project, tree):
+    """The tree is a copy; the owner's checkout is where the ledger lives."""
+    from agent_kit.knowledge import Knowledge
+    from agent_kit.knowledge.debt import BADLY, debt_key
+
+    Knowledge(tree / "docs/knowledge").write_debt("что-то, чего в чекауте нет", BADLY)
+    design = {**DESIGN, "fixes": [debt_key("что-то, чего в чекауте нет")]}
+
+    with pytest.raises(ExecutorFailed) as refused:
+        record(project, {"design": design}, tree=tree)
+
+    assert refused.value.code == "no-such-debt"
+
+
+def test_the_key_of_a_finding_is_derived_against_the_owner_s_ledger(project, tree):
+    """One writer, one authority: the key this feature names is the key the
+    evening will look for in the file it writes."""
+    from agent_kit.knowledge.debt import debt_key
+
+    with_a_ledger(project, "the retry loop swallows the reason")
+    said = json.loads(record(project, {"review": WORTH_FIXING}, tree=tree).raw)
+
+    assert said["debt"][0]["key"] == debt_key("the retry loop swallows the reason (money.py:90)")

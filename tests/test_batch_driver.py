@@ -792,3 +792,20 @@ def test_a_night_that_is_not_over_lays_nothing_yet(repo):
     held.go("vat")
 
     assert "the retry loop swallows" not in ledger_text(repo)
+
+
+def test_a_feature_that_did_not_land_lays_nothing(repo):
+    """Its findings are about code that is going nowhere: a line in the owner's
+    ledger naming a run nobody merged is work nobody can act on."""
+    described(repo)
+    held, store, runs, spawn, _ = driver(repo, text=APART, endings={"two": "failed"})
+    with_papers(held, spawn, {"one": {"debt": [{"key": "aaaaaa", "what": "the one that landed"}]}})
+
+    held.go("vat")
+    # Its papers as they would be for a feature whose `record` ran and whose
+    # `deliver` then refused: the step left an output, and the run failed after.
+    a_record_that_said(runs, "two", debt=[{"key": "bbbbbb", "what": "the one that did not"}])
+    held._write_the_ledger(store.load("vat"))
+
+    assert "the one that landed" in ledger_text(repo)
+    assert "the one that did not" not in ledger_text(repo)

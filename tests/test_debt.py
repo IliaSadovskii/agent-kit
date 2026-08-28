@@ -179,3 +179,25 @@ def test_the_index_carries_the_lines_and_not_only_the_headings(tmp_path):
     assert "aaaaaa" in index
     assert "кнопка ничего не говорит про удержание" in index
     assert "kit/rates" in index
+
+
+def test_a_heading_inside_a_fenced_sample_does_not_catch_the_write(tmp_path):
+    """The reader goes through `prose()`; the writer matched the whole file, so a
+    heading shown as an example caught a line the reader could never reach."""
+    shown = (
+        "# Технический долг\n"
+        "\n"
+        "Пример того, как это выглядит:\n"
+        "\n"
+        "```\n"
+        "## Работает плохо\n"
+        "```\n"
+        "\n"
+        "## Работает плохо\n"
+        "\n"
+        "- старое · `key: aaaaaa`\n"
+    )
+    held = knowledge(tmp_path, {LEDGER: shown})
+    held.write_debt("новое", BADLY)
+
+    assert [one.key for one in held.debt()] == ["aaaaaa", debt_key("новое")]
