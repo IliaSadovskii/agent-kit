@@ -14,6 +14,13 @@ nothing else from the machine it runs on. The subscription is the CLI's own logi
 never sees a key and never talks to a model API.
 """
 
+[provider.setup]
+# What a person runs. The kit prints these and runs neither: installing is the
+# owner's act on the owner's machine, and a login opens a browser. What the
+# install did is measured afterwards by looking for `binary` again.
+install = ["npm", "install", "-g", "@anthropic-ai/claude-code"]
+login   = ["claude", "/login"]
+
 [provider.flags]
 # The shape: a flag that carries a value is [flag], and the value follows it.
 headless    = ["-p", "--output-format", "json"]

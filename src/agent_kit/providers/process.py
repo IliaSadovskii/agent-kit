@@ -29,6 +29,12 @@ from .base import ExecutorFailed, ExecutorResult, SessionFacts, StepRequest
 #: for this long has stopped rather than paused.
 DEFAULT_TIMEOUT = 1800
 
+#: How long a CLI is given to say what it is. Printing a version is the
+#: cheapest thing a program does, and this rung is climbed for every shipped
+#: provider every time the machine's standing is read — so the session's half
+#: hour here would make one hung CLI a hung `doctor`.
+VERSION_TIMEOUT = 15
+
 _JSON_OBJECT = re.compile(r"\{.*\}", re.DOTALL)
 
 log = get_logger("providers.process")
@@ -49,8 +55,21 @@ class Declaration:
     transcript_root: str | None = None
     limit_says: list[str] = field(default_factory=list)
     limit_until: str | None = None
+    #: What a person runs to put this tool on the machine, and what they run to
+    #: log it in. Argv, never prose: the kit runs neither — installing is the
+    #: owner's act on the owner's machine — but argv can be taken by its first
+    #: word and asked of PATH, and what installing did is measured afterwards by
+    #: the `binary` rung. A sentence could be held to neither.
+    install: list[str] = field(default_factory=list)
+    #: Printed only. Whether the account behind it answers is the `login` rung,
+    #: and that costs a session, so it is `provider check` that measures it.
+    login: list[str] = field(default_factory=list)
 
-    KNOWN = ("title", "level", "real", "binary", "notes", "flags", "answer", "transcript", "limits")
+    KNOWN = (
+        "title", "level", "real", "binary", "notes", "flags", "answer",
+        "transcript", "limits", "setup",
+    )
+    SETUP = ("install", "login")
 
     @classmethod
     def read(cls, name: str, path: Path) -> "Declaration":
@@ -69,6 +88,12 @@ class Declaration:
 
         transcript = block.get("transcript") or {}
         limits = block.get("limits") or {}
+        setup = block.get("setup") or {}
+        if not isinstance(setup, dict):
+            raise _bad(f"{path}: [provider.setup] must be a table")
+        unknown = [key for key in setup if key not in cls.SETUP]
+        if unknown:
+            raise _bad(f"{path}: setup.{', setup.'.join(sorted(unknown))} is not something the kit reads")
         return cls(
             name=name,
             title=block.get("title", name),
@@ -81,11 +106,29 @@ class Declaration:
             transcript_root=transcript.get("root"),
             limit_says=limits.get("says", []),
             limit_until=limits.get("until"),
+            install=_argv(setup.get("install"), path, "setup.install"),
+            login=_argv(setup.get("login"), path, "setup.login"),
         )
 
     @property
     def reads_limits(self) -> bool:
         return bool(self.limit_says and self.limit_until)
+
+
+def _argv(value: Any, path: Path, where: str) -> list[str]:
+    """A command, in the one form a program can do anything with.
+
+    A string would be prose: the kit would have to split it to find the first
+    word, and splitting somebody else's command line is guessing. A list of
+    words is not guessed at.
+    """
+    if value is None:
+        return []
+    if not isinstance(value, list) or not value:
+        raise _bad(f"{path}: {where} must be a non-empty list of words, not a sentence")
+    if any(not isinstance(word, str) or not word.strip() for word in value):
+        raise _bad(f"{path}: {where} holds something that is not a word of a command")
+    return list(value)
 
 
 def _bad(detail: str) -> Exception:
@@ -126,6 +169,24 @@ class ProcessExecutor:
         if self.effort and flags.get("effort"):
             argv += [*flags["effort"], self.effort]
         return argv
+
+    def version(self) -> str:
+        """Does the CLI answer at all? The second rung, and it costs no session.
+
+        Here rather than in an adapter: which flag asks a CLI what it is is a
+        fact about the tool, and it is already declared. Left in `claude_code`'s
+        adapter it was true that *the two free rungs are climbed for everyone*
+        only for the one provider that ships an adapter.
+        """
+        flags = self.declared.flags.get("version")
+        if not flags:
+            raise ExecutorFailed(
+                "no-version-flag",
+                f"{self.name} declares no flag that asks it what it is",
+                retryable=False,
+            )
+        stdout, _ = self.run([self.binary, *flags], "", None, timeout=VERSION_TIMEOUT)
+        return stdout.strip()
 
     # --- running it -------------------------------------------------------
 

@@ -41,6 +41,7 @@ RUNGS = ("binary", "answers", "login", "one_shot", "contract", "observed", "limi
 #: Level A is these; level B is every rung that applies.
 LEVEL_A = ("binary", "answers", "login", "one_shot")
 
+
 log = get_logger("providers.check")
 
 
@@ -203,9 +204,19 @@ def _binary(executor: Any) -> tuple[bool, str, bool]:
 
 
 def _answers(executor: Any) -> tuple[bool, str, bool]:
+    """Whether it can be asked is the declaration's answer, not the object's.
+
+    Every process executor carries `version()` since S9a, so having the method
+    no longer says the question can be put. A provider that declares no flag
+    for it is *not asked* — failing the rung would drop a working level-A
+    provider below level A over a flag it never claimed.
+    """
     version = getattr(executor, "version", None)
     if version is None:
         return False, "it cannot be asked what it is", False
+    declared = getattr(executor, "declared", None)
+    if declared is not None and not declared.flags.get("version"):
+        return False, "it declares no flag that asks it what it is", False
     try:
         return True, version(), True
     except ExecutorFailed as failure:

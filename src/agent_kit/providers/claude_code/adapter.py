@@ -97,11 +97,6 @@ class ClaudeCode(ProcessExecutor):
             facts=facts,
         )
 
-    def version(self) -> str:
-        """Does the CLI answer at all? The second rung of the ladder."""
-        stdout, _ = self.run([self.binary, *self.declared.flags["version"]], "", None, timeout=60)
-        return stdout.strip()
-
     # --- level B ----------------------------------------------------------
 
     def _facts(self, answer: dict[str, Any], asked_for: str, workdir: Path) -> SessionFacts:
