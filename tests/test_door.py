@@ -33,6 +33,11 @@ def git(root, *argv, check=True):
 def project(tmp_path, monkeypatch, machine_home):
     """An ordinary described project with one command, in a repository."""
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    # A machine that can start a session. Rung 1 asks the machine before it
+    # asks the project — every command below it spends one — so a home with no
+    # configuration is a machine whose answer is `no-provider`, and that is
+    # what the three cases at the foot of this file are about.
+    configured(tmp_path, '[machine]\nprovider = "fake"\n')
     root = tmp_path / "project"
     (root / ".agent-kit/v3").mkdir(parents=True)
     (root / "docs/knowledge").mkdir(parents=True)
@@ -43,6 +48,13 @@ def project(tmp_path, monkeypatch, machine_home):
     git(root, "add", "-A")
     git(root, "commit", "-m", "the baseline")
     return root
+
+
+def configured(tmp_path, text):
+    where = tmp_path / "home/.config/agent-kit/config.toml"
+    where.parent.mkdir(parents=True, exist_ok=True)
+    where.write_text(text, encoding="utf-8")
+    return where
 
 
 def door(root, capsys):
@@ -90,7 +102,9 @@ def delivered(root, slug, branch=None, commit=None, base="main",
 # --- a project with nothing in it -------------------------------------------
 
 
-def test_a_bare_directory_gets_an_answer_rather_than_a_stack_trace(tmp_path, capsys):
+def test_a_bare_directory_gets_an_answer_rather_than_a_stack_trace(tmp_path, capsys, monkeypatch, machine_home):
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    configured(tmp_path, '[machine]\nprovider = "fake"\n')
     bare = tmp_path / "nothing"
     bare.mkdir()
 
@@ -110,6 +124,7 @@ def test_a_path_that_is_not_a_directory_is_the_one_refusal_the_door_has(tmp_path
 
 def test_a_project_that_says_nobody_describes_it_goes_past_the_description(tmp_path, capsys, monkeypatch, machine_home):
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    configured(tmp_path, '[machine]\nprovider = "fake"\n')
     root = tmp_path / "quiet"
     (root / ".agent-kit/v3").mkdir(parents=True)
     (root / ".agent-kit/v3/project.toml").write_text(
@@ -124,6 +139,7 @@ def test_a_project_that_says_nobody_describes_it_goes_past_the_description(tmp_p
 
 def test_a_project_with_nothing_to_check_it_with_is_named_before_a_night(tmp_path, capsys, monkeypatch, machine_home):
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    configured(tmp_path, '[machine]\nprovider = "fake"\n')
     root = tmp_path / "p"
     (root / ".agent-kit/v3").mkdir(parents=True)
     (root / "docs/knowledge").mkdir(parents=True)
@@ -512,6 +528,7 @@ def test_a_checkout_git_cannot_answer_in_says_so_rather_than_no(tmp_path, capsys
     the three answers this is.
     """
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    configured(tmp_path, '[machine]\nprovider = "fake"\n')
     root = tmp_path / "loose"
     (root / ".agent-kit/v3").mkdir(parents=True)
     (root / "docs/knowledge").mkdir(parents=True)
@@ -860,3 +877,54 @@ def test_the_door_names_the_chore_and_never_runs_the_proof(project, capsys):
     door(project, capsys)
 
     assert not (project / "ran-here").exists()
+
+
+# --- S9a: the machine, asked before the project ------------------------------
+
+
+def test_a_machine_with_no_provider_is_named_before_anything_about_the_project(
+    project, tmp_path, capsys
+):
+    """Rung 1, above `no-description`, and the argument is S8d's own rule: a rung
+    must not name a command the kit would refuse. `knowledge tell` on a machine
+    with no provider does not describe anything — it raises `no-provider` at its
+    first session."""
+    configured(tmp_path, "[machine]\nmax_sessions = 2\n")
+    (project / "docs/knowledge/product.md").unlink()
+
+    code, out, _ = door(project, capsys)
+
+    assert code == ExitCode.OK
+    assert answered(out) == "no-provider"
+    assert "agent-kit setup" in out
+
+
+def test_a_provider_named_here_and_not_shipped_is_named_by_the_drivers_own_code(
+    project, tmp_path, capsys
+):
+    configured(tmp_path, '[roles.build]\nprovider = "codex"\n')
+
+    code, out, _ = door(project, capsys)
+
+    assert answered(out) == "unknown-provider"
+
+
+def test_a_configuration_that_will_not_parse_does_not_bring_the_door_down(
+    project, tmp_path, capsys
+):
+    """One unreadable source names itself and hides none of the rest, and the
+    door still has exactly one refusal, which is not this."""
+    configured(tmp_path, "this is = = not toml")
+
+    code, out, _ = door(project, capsys)
+
+    assert code == ExitCode.OK
+    assert answered(out) == "unreadable-config"
+
+
+def test_a_machine_that_names_a_provider_says_a_session_can_be_started(project, capsys):
+    code, out, _ = door(project, capsys)
+
+    assert code == ExitCode.OK
+    assert answered(out) != "no-provider"
+    assert "a session can be started here" in out

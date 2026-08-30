@@ -212,8 +212,11 @@ def test_a_provider_the_kit_does_not_ship_is_refused_before_anything_runs(machin
     assert "unknown-provider" in err
 
 
-def test_provider_list_reads_the_folder(machine, capsys):
-    code, out, _ = run(["provider", "list"], capsys)
+def test_the_providers_are_read_from_the_folder_and_the_fixture_is_marked(machine, capsys):
+    """What `provider list` printed until S9a. It printed these rows from a pass
+    of its own, which made three places that had to agree about one thing; the
+    rows are the machine's standing and `doctor` is where the machine is read."""
+    code, out, _ = run(["doctor"], capsys)
 
     assert code == ExitCode.OK
     assert "fake" in out
@@ -304,11 +307,20 @@ def test_run_show_says_what_a_step_cost_and_how_full_the_session_got(machine, ca
     assert "fake-script" in out
 
 
-def test_provider_list_says_whether_a_level_was_ever_measured(machine, capsys):
-    code, out, _ = run(["provider", "list"], capsys)
+def test_the_screen_says_whether_a_level_was_ever_measured(machine, capsys):
+    code, out, _ = run(["doctor"], capsys)
 
     assert code == ExitCode.OK
-    assert "not measured" in out
+    assert "never measured" in out
+
+
+def test_provider_on_its_own_refuses_by_name_now_that_list_is_gone(machine, capsys):
+    """A subcommand that dies must refuse rather than quietly do something else:
+    bare `agent-kit provider` printed the list, and there is no list."""
+    code, _, err = run(["provider"], capsys)
+
+    assert code == ExitCode.USAGE
+    assert "missing-command" in err
 
 
 def test_the_configuration_reaches_the_provider_it_configures(machine, capsys, tmp_path):
