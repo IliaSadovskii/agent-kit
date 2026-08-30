@@ -1397,10 +1397,23 @@ def _runner(store: RunStore, registry, provider: str | None, options: list[str],
     roles = {**config.roles, **(declared.roles if declared else {})}
     named = {role.provider for role in roles.values()}
     named |= {spare for role in roles.values() for spare in role.fallback}
+    # And the machine's own default, which is what a role the table does not
+    # name falls back to. It has to join the executors as well as the argument:
+    # `session.py` refuses `unknown-provider` for a default nothing was built
+    # for, which would be a correctly configured machine refused by name.
+    if config.machine.provider:
+        named |= {config.machine.provider}
     executors.update(
         {name: providers.build_executor(name, _settings(config, name, typed)) for name in sorted(named)}
     )
-    return StepRunner(store=store, registry=registry, executors=executors, roles=roles, **machine)
+    return StepRunner(
+        store=store,
+        registry=registry,
+        executors=executors,
+        roles=roles,
+        default_provider=config.machine.provider or None,
+        **machine,
+    )
 
 
 def _owner_of(config: Config, paths: Paths, ledger, silent: bool = False) -> object:

@@ -39,7 +39,7 @@ DEFAULT_PORT = 8080
 #: answer the same question about different things, and the table says which.
 DEFAULT_ANSWER_WAIT = 20 * 60
 
-_MACHINE_KEYS = {"max_sessions", "wait", "backoff"}
+_MACHINE_KEYS = {"max_sessions", "wait", "backoff", "provider"}
 _DAEMON_KEYS = {"host", "port"}
 _PROVIDER_KEYS = {"enabled", "model", "effort", "max_sessions", "account"}
 _ROLE_KEYS = {"provider", "fallback", "model", "effort"}
@@ -52,6 +52,16 @@ class MachineConfig:
     max_sessions: int = DEFAULT_MAX_SESSIONS
     wait: int = DEFAULT_WAIT
     backoff: int = DEFAULT_BACKOFF
+    #: Which provider runs a role the table does not name. Empty is a machine
+    #: that names none, and then a step whose role is unlisted is refused by
+    #: `no-provider` — which is what every machine did before this key.
+    #:
+    #: It is here rather than as nine `[roles.*]` blocks a program writes,
+    #: because nine generated blocks go stale the day a step declares a tenth
+    #: role: an old machine would then refuse in the middle of a night, for a
+    #: role nobody knew to write down. Its reader is `default_provider` in
+    #: `driver/session.py`, which until now only the command line could set.
+    provider: str = ""
 
 
 @dataclass(frozen=True)
@@ -197,6 +207,7 @@ def _machine(table: dict[str, Any]) -> MachineConfig:
         # And here it means try again at once, which is what every kit did
         # before this number existed.
         backoff=_whole(table.get("backoff", DEFAULT_BACKOFF), "machine.backoff"),
+        provider=table.get("provider") and _str(table["provider"], "machine.provider") or "",
     )
 
 
