@@ -58,13 +58,27 @@ BASELINE = {
     ),
 }
 
-#: What the machine a case runs on has chosen, and it chooses one thing: no
-#: pause between attempts. The pause is the kit's, not the case's, and a case
+#: What the machine a case runs on has chosen, and it chooses two things.
+#:
+#: No pause between attempts: the pause is the kit's, not the case's, and a case
 #: about something else would sit through it for nothing — three refused
 #: sessions in a case about a feature that does not land would cost minutes of
 #: waiting to measure something that has nothing to do with waiting. The case
 #: that *is* about the pause plants its own number over this file.
-MACHINE = "[machine]\nbackoff = 0\n"
+#:
+#: And the provider it runs on, which is true of this world rather than new to
+#: it: every case already drives the kit with `--provider fake`, which beats
+#: both the role table and this default, so nothing here changes what any case
+#: measures. What it changes is the door, whose first rung asks the machine
+#: before the project since S9a — a world that named no provider would answer
+#: `no-provider` in all of them.
+#:
+#: **A case that plants its own `config.toml` writes this file whole and does
+#: not inherit the line.** Harmless today: no case that replaces the machine's
+#: configuration also asks the door a question. A case that does both would
+#: need to write the provider back in, and would answer `no-provider` until it
+#: did — so a new door case planted among them must be read with this in mind.
+MACHINE = '[machine]\nbackoff = 0\nprovider = "fake"\n'
 
 #: A `gh` that answers the two things delivery asks it, and writes down every
 #: call so a judge can read what it was asked.
@@ -181,6 +195,11 @@ def _environment(bench: Path, home: Path, binaries: Path, repo: Path) -> dict[st
             # How a plant or a judge runs the kit it is measuring. The same
             # interpreter, so a case never reaches a version nobody asked about.
             "KIT": f"{sys.executable} -m agent_kit",
+            # The same interpreter on its own, so a judge can ask the kit what
+            # a fact of its own is instead of writing the answer down beside
+            # it. A judge that checks a string it wrote itself measures
+            # nothing — the precedent is S8a's derived part key.
+            "PYTHON": sys.executable,
         }
     )
     return env

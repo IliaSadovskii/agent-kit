@@ -51,6 +51,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     commands.add_parser("doctor", help="what this machine is configured with, and what is missing")
 
+    setup = commands.add_parser(
+        "setup", help="the way in: what to run to get a provider working here, and the config it writes"
+    )
+    setup.add_argument(
+        "name", nargs="?",
+        help="the provider to walk (default: the first that is not standing here)",
+    )
+
     manual = commands.add_parser("manual", help="the work a night cannot do, and what proves it done")
     manual_what = manual.add_subparsers(dest="what", metavar="WHAT")
     manual_check = manual_what.add_parser(
@@ -170,9 +178,11 @@ def build_parser() -> argparse.ArgumentParser:
     tree_remove = tree_what.add_parser("remove", help="take one away; the branch keeps the work")
     tree_remove.add_argument("slug")
 
+    # No `list`: what it printed is the machine's standing, and that is now one
+    # reading with two screens over it — `doctor` and `setup`. A third pass at
+    # the same rows is the defect §5 of the plan names.
     provider = commands.add_parser("provider", help="the providers this kit ships")
     provider_what = provider.add_subparsers(dest="what", metavar="WHAT")
-    provider_what.add_parser("list", help="every provider, with the level it declares")
 
     check = provider_what.add_parser("check", help="the level it earns, measured rather than claimed")
     check.add_argument("name")
@@ -363,6 +373,8 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace, paths: 
         return _next(Path(args.project), paths)
     if args.command == "doctor":
         return _doctor(paths)
+    if args.command == "setup":
+        return _setup(args, paths)
     if args.command == "manual":
         return _manual(args)
     if args.command == "init":
@@ -596,8 +608,21 @@ def _doctor(paths: Paths) -> int:
 
     The ledger's **path** stays, and only the path: nothing else prints it, and
     the hour somebody wants it is the hour the file is not there.
+
+    Since S9a the provider rows are measured rather than listed, and they are
+    the same rows `agent-kit setup` prints — one reading, two screens. It writes
+    nothing and it spends nothing: the two rungs climbed here are free ones.
     """
-    config = load_config(paths.config_file)
+    from ..setup import read as read_the_machine, render as render_providers
+
+    reading = read_the_machine(paths)
+    if reading.unreadable_config is not None:
+        # `doctor` has refused a configuration it cannot parse since S0, and it
+        # names the key rather than the file: `machine.max_sessions must be at
+        # least 1` is what sends somebody to the right line. The door is the one
+        # that names it and reads on, because a door that refuses can be missed.
+        raise reading.unreadable_config
+    config = reading.config
 
     print("the machine")
     print(f"  config      {paths.config_file}  {_present(paths.config_file)}")
@@ -615,20 +640,50 @@ def _doctor(paths: Paths) -> int:
     registry = builtin_registry()
     print(f"  prose       {method_root()}  {_present(method_root())}")
     print(f"  steps       {', '.join(registry.names())}")
-    print(f"  providers   {', '.join(providers.provider_names())}  (shipped; what this machine configured is below)")
     print()
     print("what is configured")
     print(f"  max sessions {config.machine.max_sessions}")
     print(f"  waits up to  {config.machine.wait}s for a slot or a limit to reset")
     print(f"  page         http://{config.daemon.host}:{config.daemon.port}")
     print(f"  owner        {_channel_line(config, paths)}")
-    print(f"  providers    {', '.join(sorted(config.providers)) or 'none — nothing can run yet'}")
+    print(f"  default      {config.machine.provider or 'none — a role the table does not name is refused'}")
     print(f"  roles        {', '.join(sorted(config.roles)) or 'none — every role falls back to the default'}")
+    _named_but_not_there(reading)
+    print()
+    print("providers")
+    for line in render_providers(reading):
+        print(line)
+    if not reading.working:
+        print()
+        print(f"  nothing here can run a session yet: {PROGRAM} setup")
     return int(ExitCode.OK)
+
+
+def _named_but_not_there(reading) -> None:
+    """A role pointed at a provider this kit does not ship, said before a night finds it."""
+    shipped = {one.name for one in reading.providers}
+    lost = sorted(reading.named_by - shipped)
+    if lost:
+        print(f"  unknown-provider {', '.join(lost)} — named here, and not shipped by this kit")
 
 
 def _present(path: Path) -> str:
     return "ok" if path.exists() else "missing"
+
+
+# --- setup -----------------------------------------------------------------
+
+
+def _setup(args: argparse.Namespace, paths: Paths) -> int:
+    """The way in. It prints commands and runs none, and it spends no session.
+
+    The answers come from the stream, which is what makes the whole walk
+    something the bench can drive — the same reason S8a refused a CLI attached
+    to a terminal and held the loop itself.
+    """
+    from ..setup import walk
+
+    return walk(args.name, ask=_typed, say=print, paths=paths)
 
 
 # --- init ------------------------------------------------------------------
@@ -1206,28 +1261,23 @@ def _step(args: argparse.Namespace, paths: Paths) -> int:
 
 
 def _provider(args: argparse.Namespace, paths: Paths) -> int:
-    what = args.what or "list"
-    if what == "check":
-        return _provider_check(args)
-    if what != "list":
-        raise UsageError("unknown-command", f"provider {what}")
+    """One thing, and it is the one that spends. `list` died into the reading.
 
-    from ..providers.measured import measured_levels
-
-    config = load_config(paths.config_file)
-    measured = measured_levels(paths)
-    for facts in providers.all_facts():
-        chosen = config.providers.get(facts.name)
-        state = "not configured here" if chosen is None else ("enabled" if chosen.enabled else "disabled")
-        real = "" if facts.real else "  (a fixture, not an agent)"
-        seen = measured.get(facts.name)
-        earned = (
-            f"not measured — {facts.level} is what it claims"
-            if seen is None
-            else f"measured {seen.level or 'no level'} on {seen.measured_at[:10]}"
+    Where the machine's standing is printed is `doctor`; where it is changed is
+    `setup`. What is left here is the ladder above the free rungs — the one
+    question about a provider that costs a real session — and that is why it is
+    still its own command rather than a flag on either of them.
+    """
+    what = args.what
+    if what is None:
+        raise UsageError(
+            "missing-command",
+            "provider needs one of: check",
+            hint=f"{PROGRAM} doctor — what this machine has; {PROGRAM} setup — how to change it",
         )
-        print(f"{facts.name:12} declares {facts.level:2} {earned:38} {state:20}{real}")
-    return int(ExitCode.OK)
+    if what != "check":
+        raise UsageError("unknown-command", f"provider {what}")
+    return _provider_check(args)
 
 
 # --- bench -----------------------------------------------------------------

@@ -28,14 +28,14 @@ make install-check  # `uv tool install` puts a working `agent-kit` on PATH
 ## What works today
 
 ```bash
-agent-kit doctor                  # the paths, the config, what is missing
+agent-kit doctor                  # the paths, the config, the providers, what is missing
 agent-kit config show             # the effective configuration
 agent-kit run new add-login       # a run on branch kit/add-login
 agent-kit run start add-login     # begin the next step
 agent-kit run pass add-login      # it satisfied its contract
 agent-kit run show add-login      # where it stands
 
-agent-kit provider list           # the providers the kit ships, read from the folder
+agent-kit setup                   # the way in: what to run to get a provider working here
 agent-kit provider check claude_code   # the level it earns, measured rather than claimed
 agent-kit step list               # the steps the kit knows
 agent-kit step show probe         # its prose and what it must return

@@ -125,11 +125,21 @@ class Door:
         self.project = None
         self.unreadable_project: Line | None = None
         self.unreadable_knowledge: Line | None = None
+        self.unreadable_config: Line | None = None
+        self.machine_refusals: list[Line] = []
 
     # --- reading ------------------------------------------------------------
 
     def read(self) -> Reading:
         reading = Reading()
+
+        config, self.unreadable_config = self._machine()
+        # What the machine would refuse a session for, above everything about
+        # the project: see `_the_night_would_refuse` for why it is first.
+        self.machine_refusals = (
+            [self.unreadable_config] if self.unreadable_config is not None
+            else self._no_provider_here(config)
+        )
 
         self.project, self.unreadable_project = self._project()
         project = self.project
@@ -176,6 +186,73 @@ class Door:
         return reading
 
     # --- the sources ---------------------------------------------------------
+
+    def _machine(self):
+        """What this machine chose, or the code that says the file will not parse.
+
+        The door reads no other file of the machine's, and it reads this one for
+        exactly one question: whether a session could be started here at all. In
+        its own `try` like every other source — a `config.toml` somebody broke
+        with an editor must not silence a whole project's standing, and the door
+        has one refusal and this is not it.
+        """
+        from .config import load_config
+
+        try:
+            return load_config(self.paths.config_file), None
+        except KitError as unreadable:
+            return None, Line(
+                unreadable.code,
+                str(self.paths.config_file),
+                why=unreadable.detail,
+                command="agent-kit doctor",
+            )
+
+    def _no_provider_here(self, config) -> list[Line]:
+        """Rung 1, and above everything about the project. Two codes, both borrowed.
+
+        Why it is first: a rung must not name a command the kit would refuse,
+        and every command the rungs below name spends a session. `agent-kit
+        knowledge tell` on a machine with no provider does not tell the owner
+        their project is undescribed — it raises `no-provider` at its first
+        session. So the machine is asked before the project is.
+
+        Both codes are `driver/session.py`'s own, raised there and printed here.
+        The door names another command's code, never a synonym of it.
+        """
+        if config is None:
+            return []
+        from .providers import registry
+
+        roles = config.roles
+        named = {role.provider for role in roles.values()}
+        named |= {spare for role in roles.values() for spare in role.fallback}
+        if config.machine.provider:
+            named |= {config.machine.provider}
+
+        if not named:
+            return [
+                Line(
+                    "no-provider",
+                    "this machine has no agent to run a session with",
+                    why=(
+                        "a step whose role the table does not name is refused at its first "
+                        "session, and every command below spends one"
+                    ),
+                    command="agent-kit setup",
+                )
+            ]
+        lost = sorted(named - set(registry.provider_names()))
+        if lost:
+            return [
+                Line(
+                    "unknown-provider",
+                    f"{', '.join(lost)} is named here and is not a provider this kit ships",
+                    why="the step that role runs is refused before its first session",
+                    command="agent-kit doctor",
+                )
+            ]
+        return []
 
     def _project(self):
         """The declaration, or the code that says it could not be read."""
@@ -315,18 +392,24 @@ class Door:
     def _the_night_would_refuse(self, knowledge, unreadable_batches) -> list[Line]:
         """Rung 1. What a night would be refused for, said before it is typed.
 
-        In the order the kit itself raises them, and every code here is a code
-        some other command already owns.
+        The machine first and the project after it, because a rung must not name
+        a command the kit would refuse: every command named below this one
+        spends a session, and on a machine with no provider they are all refused
+        before they reach the state they were meant to fix. Every code here is a
+        code some other command already owns.
         """
         from .project import commands_that_start_nothing, starts_nothing
 
         project = self.project
+        machine = list(self.machine_refusals)
         if self.unreadable_project is not None:
-            # A declaration that will not parse is the end of the questions:
-            # everything below reads it, so asking them would be guessing.
-            return [self.unreadable_project]
+            # A declaration that will not parse is the end of the questions
+            # *about the project*: everything below reads it, so asking them
+            # would be guessing. What the machine said stands regardless — it
+            # was not read from this file.
+            return machine + [self.unreadable_project]
 
-        lines: list[Line] = []
+        lines: list[Line] = list(self.machine_refusals)
         if self.unreadable_knowledge is not None:
             # Not the same state as *nothing is written down*, and the kit has
             # two codes for exactly that reason.
@@ -710,11 +793,25 @@ class Door:
         owner = owner_of.get(slug)
         return f"{owner}/{slug}" if owner else slug
 
+    def _machine_view(self) -> list[str]:
+        """One line, and it is about this machine rather than this project.
+
+        Here because every command the door names below spends a session: a
+        reader who is told to compose an evening on a machine that cannot start
+        one has been told the wrong thing.
+        """
+        if self.unreadable_config is not None:
+            return [f"{self.unreadable_config.code}: {self.unreadable_config.why}"]
+        if self.machine_refusals:
+            return [f"{one.code}: {one.what}" for one in self.machine_refusals]
+        return ["a session can be started here"]
+
     def _view(self, project, knowledge, runs, batches, standing, chores=()) -> list[tuple[str, list[str]]]:
         counted: dict[str, int] = {}
         for run in runs.values():
             counted[run.status.value] = counted.get(run.status.value, 0) + 1
         sections = [
+            ("machine", self._machine_view()),
             (
                 "runs",
                 [f"{len(runs)}" + (": " + ", ".join(f"{n} {s}" for s, n in sorted(counted.items())) if counted else "")],

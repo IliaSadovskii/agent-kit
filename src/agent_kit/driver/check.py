@@ -41,6 +41,12 @@ RUNGS = ("binary", "answers", "login", "one_shot", "contract", "observed", "limi
 #: Level A is these; level B is every rung that applies.
 LEVEL_A = ("binary", "answers", "login", "one_shot")
 
+#: The two that cost nothing: no session, no quota, no account. They are climbed
+#: for every shipped provider every time the machine's standing is read, which is
+#: why the line is drawn exactly here — a screen that cost quota is a screen
+#: nobody can afford to look at. Derived from the ladder rather than listed
+#: beside it, so a second list cannot disagree with the first.
+FREE = RUNGS[:2]
 
 log = get_logger("providers.check")
 
@@ -156,6 +162,38 @@ def check_provider(
 
     _fill(rungs["limits"], *_limits(executor))
     return done()
+
+
+def free_rungs(name: str, options: dict[str, list[str]] | None = None) -> list[Rung]:
+    """Just the two that cost nothing: it is here, and it says what it is.
+
+    The same two functions `check_provider` climbs them with — one
+    implementation of each rung, so what `doctor` prints and what `provider
+    check` measures cannot drift apart.
+    """
+    rungs = [Rung(rung) for rung in FREE]
+    declared = declared_facts(name)
+    if not declared.binary:
+        # Not a process, so neither question can be put to it. `fake` is the
+        # one shipped today, and a rung nobody can climb is not a rung anybody
+        # failed — printing it as failed would say the fixture is broken.
+        for rung in rungs:
+            _fill(rung, False, "this provider is not a process; there is nothing to find", False)
+        return rungs
+
+    try:
+        executor = build_executor(name, options or {})
+    except KitError as failure:
+        rungs[0].detail = f"{failure.code}: {failure.detail}"
+        rungs[1].detail = "not reached"
+        return rungs
+
+    _fill(rungs[0], *_binary(executor))
+    if not rungs[0].held:
+        rungs[1].detail = "not reached"
+        return rungs
+    _fill(rungs[1], *_answers(executor))
+    return rungs
 
 
 def _fill(rung: Rung, passed: bool, detail: str, applies: bool = True) -> None:

@@ -147,42 +147,64 @@ def load_config(path: Path | str) -> Config:
 _BLOCK = "[owner]"
 
 
-def write_owner_block(path: Path | str, owner: "OwnerConfig") -> Path:
-    """Переписать `[owner]` и не тронуть ни байта вокруг.
+def write_block(path: Path | str, header: str, lines: list[str]) -> Path:
+    """Переписать ровно один блок и не тронуть ни байта вокруг.
 
     План: *одна правда, три редактора* — команды, страница демона и текстовый
     редактор пишут в один файл. Значит команда, которая перечитала бы TOML и
     записала его заново, стёрла бы комментарии человека, а файл заведён именно
-    для того, чтобы их держать. Поэтому правится ровно свой блок, текстом.
+    для того, чтобы их держать. Поэтому правится ровно свой блок, текстом, и
+    на своём месте: блок, уезжающий в конец файла, — это перестановка чужих
+    строк, а её никто не просил.
+
+    Чего это **не** обещает, и это сказано здесь, а не в заметке: строка внутри
+    переписываемого блока не переживает запись, комментарий над ней тоже.
+    Построчное слияние держало бы больше, но честно оно не выходит — значение
+    в этом файле бывает многострочным, а у комментария ключа нет вовсе, — и
+    механизм, обещающий больше, чем умеет, хуже прямого. Всё, что вне блока,
+    цело: другие блоки, комментарии между ними, порядок.
     """
     path = Path(path)
-    lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    had = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    block = [header, *lines]
 
     kept: list[str] = []
     inside = False
-    for line in lines:
+    written = False
+    for line in had:
         stripped = line.strip()
         if stripped.startswith("["):
-            inside = stripped == _BLOCK
+            if inside and not written:
+                kept.extend([*block, ""])
+                written = True
+            inside = stripped == header
         if not inside:
             kept.append(line)
+    if inside and not written:
+        kept.extend(block)
+        written = True
 
-    while kept and not kept[-1].strip():
-        kept.pop()
+    if not written:
+        while kept and not kept[-1].strip():
+            kept.pop()
+        kept.extend(([""] if kept else []) + block)
 
-    block = [_BLOCK, f'channel = "{owner.channel}"']
-    if owner.chat:
-        block.append(f'chat    = "{owner.chat}"')
-    block.append(f"wait    = {owner.wait}")
-    if owner.file:
-        block.append(f'file    = "{owner.file}"')
-
-    written = "\n".join(([*kept, ""] if kept else []) + block) + "\n"
     path.parent.mkdir(parents=True, exist_ok=True)
     from .state.store import write_whole
 
-    write_whole(path, written)
+    write_whole(path, "\n".join(kept).rstrip("\n") + "\n")
     return path
+
+
+def write_owner_block(path: Path | str, owner: "OwnerConfig") -> Path:
+    """Канал этой машины, и только он."""
+    lines = [f'channel = "{owner.channel}"']
+    if owner.chat:
+        lines.append(f'chat    = "{owner.chat}"')
+    lines.append(f"wait    = {owner.wait}")
+    if owner.file:
+        lines.append(f'file    = "{owner.file}"')
+    return write_block(path, _BLOCK, lines)
 
 
 def _refuse_unknown(table: dict[str, Any], known: set[str], prefix: str) -> None:
