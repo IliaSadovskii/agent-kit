@@ -255,3 +255,65 @@ def _a_request(tmp_path):
         slug="add-vat", step_name="design", attempt=1, provider="fake",
         input_text="", workdir=tmp_path, project=tmp_path,
     )
+
+
+# --- S9a: the commands a person runs, declared beside the binary -------------
+
+
+def test_a_provider_declares_how_it_is_installed_and_how_it_is_logged_into(tmp_path, monkeypatch):
+    """Two argv lists and nothing else. A command the kit cannot run can still
+    be held to something: its first word is looked for on PATH before it is
+    printed, and the rung below it is climbed again after it was run."""
+    declare(
+        tmp_path,
+        monkeypatch,
+        "newcomer",
+        '[provider]\nbinary = "newcomer"\n\n'
+        '[provider.setup]\ninstall = ["npm", "install", "-g", "newcomer"]\nlogin = ["newcomer", "login"]\n',
+    )
+
+    facts = registry.facts("newcomer")
+
+    assert facts.install == ["npm", "install", "-g", "newcomer"]
+    assert facts.login == ["newcomer", "login"]
+
+
+def test_a_provider_that_declares_no_setup_says_so_with_nothing(tmp_path, monkeypatch):
+    declare(tmp_path, monkeypatch, "bare", '[provider]\nbinary = "bare"\n')
+
+    facts = registry.facts("bare")
+
+    assert facts.install == [] and facts.login == []
+
+
+@pytest.mark.parametrize(
+    "block",
+    [
+        '[provider.setup]\ninstall = "npm install -g newcomer"\n',
+        '[provider.setup]\ninstall = ["npm", ""]\n',
+        '[provider.setup]\nlogin = [4]\n',
+        '[provider.setup]\nrun = ["npm"]\n',
+    ],
+)
+def test_a_setup_command_that_is_not_argv_is_refused_by_name(tmp_path, monkeypatch, block):
+    """Prose in this block would be a declaration nobody can check. Argv can be
+    taken by its first word and asked of PATH; a sentence cannot."""
+    declare(tmp_path, monkeypatch, "sloppy", f'[provider]\nbinary = "sloppy"\n\n{block}')
+
+    with pytest.raises(ProviderError) as caught:
+        registry.facts("sloppy")
+
+    assert caught.value.code == "bad-declaration"
+
+
+def test_claude_code_ships_the_two_commands_a_fresh_machine_needs():
+    facts = registry.facts("claude_code")
+
+    assert facts.install and facts.login
+    assert all(isinstance(word, str) and word for word in facts.install + facts.login)
+
+
+def test_the_fixture_declares_neither_because_nobody_installs_it():
+    facts = registry.facts("fake")
+
+    assert facts.install == [] and facts.login == []

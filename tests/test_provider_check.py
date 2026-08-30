@@ -257,3 +257,50 @@ def test_a_provider_that_earns_less_than_it_declares_is_reported(tmp_path, capsy
     assert code == 4
     assert "level A" in out
     assert "declares level B" in err
+
+
+# --- S9a: the second free rung, for every provider that declares the flag ----
+
+
+def _declare(tmp_path, monkeypatch, name, text):
+    from agent_kit.providers import registry
+
+    folder = tmp_path / "providers" / name
+    folder.mkdir(parents=True)
+    (folder / "provider.toml").write_text(text, encoding="utf-8")
+    monkeypatch.setattr(registry, "PROVIDERS_DIR", tmp_path / "providers")
+
+
+def test_a_level_a_provider_with_a_version_flag_climbs_the_rung(tmp_path, monkeypatch):
+    """`version()` used to live in the level-B adapter alone, so *the two free
+    rungs are climbed for everyone* was false for every provider declared by a
+    `provider.toml` and nothing else — which is what S9 adds three of."""
+    binary = tmp_path / "newcomer"
+    binary.write_text("#!/bin/sh\necho 'newcomer 1.2.3'\n", encoding="utf-8")
+    binary.chmod(binary.stat().st_mode | stat.S_IEXEC)
+    _declare(
+        tmp_path, monkeypatch, "newcomer",
+        '[provider]\nbinary = "newcomer"\n\n[provider.flags]\nversion = ["--version"]\n',
+    )
+
+    report = check_provider("newcomer", {"binary": [str(binary)]}, project=tmp_path)
+
+    assert _rung(report, "binary").passed
+    answers = _rung(report, "answers")
+    assert answers.passed and "newcomer 1.2.3" in answers.detail
+
+
+def test_a_provider_with_no_version_flag_is_not_asked_rather_than_failed(tmp_path, monkeypatch):
+    """A rung nobody can climb is neither passed nor failed. Failing it here
+    would drop a working provider below level A for a flag it never declared."""
+    binary = tmp_path / "quiet"
+    binary.write_text("#!/bin/sh\nexit 3\n", encoding="utf-8")
+    binary.chmod(binary.stat().st_mode | stat.S_IEXEC)
+    _declare(tmp_path, monkeypatch, "quiet", '[provider]\nbinary = "quiet"\n')
+
+    report = check_provider("quiet", {"binary": [str(binary)]}, project=tmp_path)
+
+    answers = _rung(report, "answers")
+    assert answers.applies is False
+    assert answers.passed is False
+    assert answers.held is True
