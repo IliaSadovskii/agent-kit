@@ -367,6 +367,41 @@ batches exist:
   guess — with one provider configured there is one account. Parallelism is what stops it being
   a guess.
 
+**S9a · The way in, for a machine that has nothing installed.** Inserted 31 August 2026, before S9
+and not part of it: S9 builds the adapters, and this builds the door a person walks through before
+any adapter is worth having. Today a new machine is four undocumented CLIs, four logins and a
+config file nobody has seen, and the kit's only answer is `provider check <name>`, asked one name
+at a time by somebody who already knows the names.
+
+One command — `agent-kit setup` — and it is a program: no session, no model, because *the control
+surface never requires a live model* and this is the control surface.
+
+- **The catalogue is the `providers/` folder.** A directory with a `provider.toml` is a provider;
+  there is no second list that must agree with the first, and no provider is named outside
+  `providers/`.
+- **It shows what is measured, never a brochure.** The two free rungs of the ladder — the binary is
+  there, it answers what it is — are climbed for everyone as the list is printed. The rungs above
+  them cost a real session, which is why they are asked for by name and one at a time.
+- **It prints commands and runs none.** Installing is the owner's act on the owner's machine, and a
+  command needing root is printed and waited on. An installer that reports *done* is the assertion
+  instead of a trace this whole plan is written against; a printed command followed by a
+  re-measurement is a trace. The command itself is declared by the provider, beside its binary and
+  its flags, because it is a fact about the tool.
+- **Logins are the CLI's own, and the kit never sees a key.** They run in a browser and cannot be
+  driven headless; the kit prints the command and then measures whether the account answers.
+- **It writes the config, asking only what it cannot measure**: the account a provider's quota
+  belongs to — one subscription is one pool of slots even when two CLIs reach it — and the roles
+  this machine chooses.
+- **The owner answers from the terminal, and the answers are read from the stream**, which is what
+  makes the whole thing something the bench can drive. A form the bench cannot drive is a form with
+  no traps: that is why S8a refused a terminal-attached CLI and held the loop itself, and this
+  follows it.
+
+*Done when* a machine with nothing installed reaches a working provider by reading one screen and
+typing what it names; the list is derived from the shipped folders rather than from prose; nothing
+is reported installed or logged in that was not measured afterwards; and the bench drives the whole
+walk with the commands pointed at scripts.
+
 **S9 · Adapters two to four.** Codex, Gemini CLI, OpenCode. Each is a config block plus a small
 module, and each is run through the bench for its level. The context ceiling is measured per
 provider, never inherited.
