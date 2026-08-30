@@ -1,0 +1,16 @@
+# S9a — the way in. A machine where the tool does not work, a package manager
+# that is a script, and one walk from nothing to a line in `config.toml`.
+#
+# The run this case declares is an ordinary green one and is not what it
+# measures: `setup` is about the machine and not about any project, so there is
+# no way in that would give it a world it needs. What it measures is in
+# `judge.sh`, which runs the walk itself — the twelve cases about the door are
+# driven the same way and for the same reason.
+
+[case]
+title = "a machine with nothing installed, walked to a working provider"
+fires = "the walk prints the command the provider declares, measures what running it did, and writes the block"
+
+[expect]
+exit_code = 0
+status = "done"

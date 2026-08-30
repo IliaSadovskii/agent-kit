@@ -1,0 +1,15 @@
+# S9a — what a walk never overwrites.
+#
+# `config.toml` is the one file the plan calls *one truth, three editors*: the
+# commands write it, the daemon's page writes it, and a person writes it in an
+# editor. So a command that rewrote it whole would erase the comments it is
+# kept readable for. The walk rebuilds exactly the block it writes and leaves
+# every other byte of the file alone.
+
+[case]
+title = "a machine whose configuration a person had already written by hand"
+fires = "the walk adds its block and every other block, comment and value survives byte for byte"
+
+[expect]
+exit_code = 0
+status = "done"

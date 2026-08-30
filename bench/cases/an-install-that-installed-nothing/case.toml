@@ -1,0 +1,14 @@
+# S9a — nothing is reported installed that was not measured afterwards.
+#
+# An installer that exits zero and puts nothing on the machine is exactly the
+# *assertion instead of a trace* this whole plan is written against. The two
+# free rungs are climbed again after the person says they have run it, so the
+# walk finds the machine unchanged and writes nothing about the provider.
+
+[case]
+title = "an install command that exits zero and installs nothing"
+fires = "the walk measures the machine again, refuses by name and writes no provider block"
+
+[expect]
+exit_code = 0
+status = "done"

@@ -1,0 +1,14 @@
+# S9a — the door names the way in, or the way in is a door nobody is pointed at.
+#
+# The first rung asks the machine before it asks the project, because a rung
+# must not name a command the kit would refuse: every command below it spends a
+# session, and on a machine with no provider they are all refused before they
+# reach the state they were meant to fix.
+
+[case]
+title = "a project on a machine that cannot start a session"
+fires = "the door answers `no-provider` with the driver's own code and names `agent-kit setup`"
+
+[expect]
+exit_code = 0
+status = "done"
