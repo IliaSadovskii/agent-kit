@@ -141,3 +141,32 @@ def test_a_machine_may_name_its_own_pause_between_attempts(tmp_path):
     with pytest.raises(ConfigError) as caught:
         load_config(write(tmp_path / "config.toml", "[machine]\nbackoff = -1\n"))
     assert caught.value.detail.startswith("machine.backoff")
+
+
+# --- S9a: the provider this machine runs when a role does not say otherwise ---
+
+
+def test_the_machine_may_name_the_provider_every_role_falls_back_to(tmp_path):
+    """`doctor` has printed *every role falls back to the default* since S0, and
+    there was no default. The key is what makes that line true."""
+    path = write(tmp_path / "config.toml", '[machine]\nprovider = "claude_code"\n')
+
+    config = load_config(path)
+
+    assert config.machine.provider == "claude_code"
+
+
+def test_a_machine_that_names_no_provider_says_so_with_an_empty_string(tmp_path):
+    config = load_config(write(tmp_path / "config.toml", "[machine]\nmax_sessions = 2\n"))
+
+    assert config.machine.provider == ""
+
+
+def test_a_provider_that_is_not_a_name_is_refused(tmp_path):
+    path = write(tmp_path / "config.toml", "[machine]\nprovider = 4\n")
+
+    with pytest.raises(ConfigError) as refused:
+        load_config(path)
+
+    assert refused.value.code == "bad-value"
+    assert "machine.provider" in refused.value.detail

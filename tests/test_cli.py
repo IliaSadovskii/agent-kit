@@ -712,3 +712,40 @@ def test_manual_check_over_a_project_with_nothing_to_do_says_so(tmp_path, capsys
     )
 
     assert main(["-C", str(tmp_path), "manual", "check"]) == 0
+
+
+# --- S9a: the default provider has a reader, or it is a field with none ------
+
+
+def machine_says(tmp_path, text):
+    where = tmp_path / "home/.config/agent-kit/config.toml"
+    where.parent.mkdir(parents=True, exist_ok=True)
+    where.write_text(text, encoding="utf-8")
+    return where
+
+
+def test_the_machines_default_provider_runs_a_step_nobody_named_one_for(machine, capsys, tmp_path):
+    """The one reader of `machine.provider`: a run where no role names anybody.
+
+    Without it a fresh machine has to be told nine role blocks — one per role a
+    shipped step declares — and the tenth role that S9 or S10 adds breaks it in
+    the middle of a night.
+    """
+    machine_says(tmp_path, '[machine]\nprovider = "fake"\n')
+    reply = tmp_path / "reply.md"
+    reply.write_text('```json\n{"branch": "kit/x", "can_write": true}\n```', encoding="utf-8")
+    run(["run", "new", "add-login", "--steps", "probe"], capsys)
+
+    code, _, err = run(["step", "run", "add-login", "--option", f"reply={reply}"], capsys)
+
+    assert code == ExitCode.OK, err
+
+
+def test_a_default_provider_the_kit_does_not_ship_is_refused_by_name(machine, capsys, tmp_path):
+    machine_says(tmp_path, '[machine]\nprovider = "codex"\n')
+    run(["run", "new", "add-login", "--steps", "probe"], capsys)
+
+    code, _, err = run(["step", "run", "add-login"], capsys)
+
+    assert code == ExitCode.PROVIDER
+    assert "unknown-provider" in err
