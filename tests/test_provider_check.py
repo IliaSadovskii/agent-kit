@@ -304,3 +304,17 @@ def test_a_provider_with_no_version_flag_is_not_asked_rather_than_failed(tmp_pat
     assert answers.applies is False
     assert answers.passed is False
     assert answers.held is True
+
+
+def test_a_ladder_that_stopped_names_a_code_and_not_only_prose(tmp_path, monkeypatch, capsys):
+    """A judge reads a code. `provider check` printed which rung failed in a
+    sentence and no code at all, while the walk refuses the same state by name."""
+    from agent_kit.cli.main import main
+    from agent_kit.errors import ExitCode
+
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    code = main(["provider", "check", "claude_code", "--option", f"binary={tmp_path / 'nowhere'}"])
+    said = capsys.readouterr()
+
+    assert code == ExitCode.PROVIDER
+    assert "provider-not-ready" in said.err

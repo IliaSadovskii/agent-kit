@@ -280,3 +280,55 @@ def test_the_login_command_is_printed_and_the_login_is_not_claimed(machine, tmp_
     screen = "\n".join(printed)
     assert "newcomer login" in screen
     assert "has not been measured" in screen
+
+
+# --- what the walk may not write, and what it may not call by somebody's code ---
+
+
+def test_a_kit_that_ships_no_agent_is_a_different_state_from_a_machine_with_none(
+    machine, tmp_path, monkeypatch
+):
+    """Two states, two codes. `no-provider` is the driver's: a role has nobody and
+    there is no default, and the answer is to configure one. This one is the kit
+    itself carrying no agent at all, and configuring is not the answer to it."""
+    ships(tmp_path, monkeypatch, only='[provider]\ntitle = "not an agent"\nreal = false\n')
+    printed, say = saying()
+
+    with pytest.raises(ProviderError) as refused:
+        walk(None, ask=typing(), say=say, paths=machine)
+
+    assert refused.value.code == "ships-no-provider"
+
+
+def test_the_walk_freezes_no_default_the_person_never_chose(machine, tmp_path, monkeypatch):
+    """Rebuilding `[machine]` from the effective configuration would write `wait`
+    and `backoff` as literal numbers on a machine that never chose either — and
+    from that day a changed default in the kit would not reach this machine."""
+    ships(tmp_path, monkeypatch, newcomer=NEWCOMER)
+    installs(tmp_path)
+    printed, say = saying()
+
+    walk("newcomer", ask=typing("\n", "\n"), say=say, paths=machine)
+
+    written = machine.config_file.read_text(encoding="utf-8")
+    assert 'provider = "newcomer"' in written
+    assert "wait" not in written
+    assert "backoff" not in written
+    assert "max_sessions" not in written
+
+
+def test_a_key_the_person_did_choose_survives_the_default_being_written(
+    machine, tmp_path, monkeypatch
+):
+    ships(tmp_path, monkeypatch, newcomer=NEWCOMER)
+    installs(tmp_path)
+    machine.config_file.parent.mkdir(parents=True, exist_ok=True)
+    machine.config_file.write_text("[machine]\nmax_sessions = 7\n", encoding="utf-8")
+    printed, say = saying()
+
+    walk("newcomer", ask=typing("\n", "\n"), say=say, paths=machine)
+
+    written = machine.config_file.read_text(encoding="utf-8")
+    assert "max_sessions = 7" in written
+    assert 'provider = "newcomer"' in written
+    assert "backoff" not in written

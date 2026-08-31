@@ -170,3 +170,16 @@ def test_a_provider_that_is_not_a_name_is_refused(tmp_path):
 
     assert refused.value.code == "bad-value"
     assert "machine.provider" in refused.value.detail
+
+
+@pytest.mark.parametrize("value", ["false", "0", "[]", '""'])
+def test_a_provider_that_is_not_a_name_is_refused_whatever_shape_it_is(tmp_path, value):
+    """`table.get(key) and ...` reads every falsy value as *not named*, silently.
+    A name is a non-empty string or it is a mistake, and a mistake is refused."""
+    path = write(tmp_path / "config.toml", f"[machine]\nprovider = {value}\n")
+
+    with pytest.raises(ConfigError) as refused:
+        load_config(path)
+
+    assert refused.value.code == "bad-value"
+    assert "machine.provider" in refused.value.detail
