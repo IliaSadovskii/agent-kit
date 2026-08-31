@@ -4,7 +4,7 @@ export GID := $(shell id -g)
 
 COMPOSE := docker compose
 
-.PHONY: up down test bench armed shell install-check clean
+.PHONY: up down test round bench armed shell install-check clean
 
 up:            ## raise the workshop and install the kit into it
 	$(COMPOSE) up -d --build --wait
@@ -12,8 +12,17 @@ up:            ## raise the workshop and install the kit into it
 down:          ## stop it, keeping the caches
 	$(COMPOSE) down
 
-test: up       ## the whole suite
+# Four questions, and each is asked once. `test` is the kit's own code; `bench`
+# is the mechanisms, planted; `armed` is whether the traps are traps at all.
+# `round` is all three, which is the verification round in one word — the suite
+# used to run the bench twice and the disarm once inside itself, so a round
+# measured 142 worlds five times over.
+
+test: up       ## the kit's own code; it names what it left to `bench` and `armed`
 	$(COMPOSE) exec -T kit pytest
+
+round: test bench armed  ## all three, in order: the whole verification round
+	@echo "the suite, the bench and the disarm have all answered"
 
 bench: up      ## the planted traps: which mechanisms fired and which did not
 	$(COMPOSE) exec -T kit python -m agent_kit bench run

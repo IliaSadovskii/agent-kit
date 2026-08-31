@@ -3,9 +3,60 @@
 `main()` reads the real environment and `setup_logging` writes a file under
 `~/.local/state`. One test that forgets to redirect HOME would write there, so
 no test is trusted to remember.
+
+And it measures each thing once. A test whose body is a whole measurement the
+Makefile already runs under a name of its own says so — `measured_elsewhere`,
+with the target — and the routine suite deselects it and prints the target by
+name. What was not measured is then a line of the run's own output rather than
+something a reader has to remember, which is the difference this project keeps
+between a trace and a claim.
 """
 
 import pytest
+
+#: What the deselected ones were, and what measures each. Filled during
+#: collection and read by the summary, so the line can only name a test that
+#: really carried the mark.
+ELSEWHERE = pytest.StashKey[list]()
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--everything",
+        action="store_true",
+        help="run the tests a Makefile target of its own measures, here as well",
+    )
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "measured_elsewhere(target): a whole measurement `target` already runs; "
+        "the routine suite deselects it and says so",
+    )
+    config.stash[ELSEWHERE] = []
+
+
+def pytest_collection_modifyitems(config, items):
+    """Take out what a target measures, and remember what was taken and by whom."""
+    if config.getoption("--everything"):
+        return
+    taken, left = [], []
+    for item in items:
+        mark = item.get_closest_marker("measured_elsewhere")
+        if mark is None:
+            taken.append(item)
+        else:
+            left.append(item)
+            config.stash[ELSEWHERE].append((item.nodeid, mark.args[0]))
+    if left:
+        config.hook.pytest_deselected(items=left)
+        items[:] = taken
+
+
+def pytest_terminal_summary(terminalreporter):
+    for nodeid, target in terminalreporter.config.stash.get(ELSEWHERE, []):
+        terminalreporter.write_line(f"not measured here: {nodeid} — `{target}` measures it")
 
 
 @pytest.fixture(autouse=True)
