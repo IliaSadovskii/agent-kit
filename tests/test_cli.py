@@ -191,6 +191,7 @@ def test_step_run_against_the_fake_provider(machine, capsys, tmp_path):
 
 
 def test_step_run_reports_a_refusal_and_leaves_the_step_unpassed(machine, capsys, tmp_path):
+    unhurried(machine)
     reply = tmp_path / "reply.md"
     reply.write_text("I had a look and it seems fine.", encoding="utf-8")
     run(["run", "new", "add-login", "--steps", "probe"], capsys)
@@ -391,6 +392,22 @@ BUILD_REPLY = json.dumps(
 )
 
 
+def unhurried(machine):
+    """A machine that names its own pause between attempts, and names it zero.
+
+    The chain waits thirty seconds after a refused attempt and doubles from
+    there, which is right against a provider having a bad minute and is
+    measured where it lives — `tests/test_runner.py`, with a pause of its own
+    that records the seconds it was asked for. Here the subject is the code a
+    run ends on, so a real minute of sleeping measures nothing. `machine.backoff`
+    is the knob a machine already has, and zero is the value the bench's own
+    world writes into every case (`bench/world.py`).
+    """
+    config = machine / "home/.config/agent-kit/config.toml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text("[machine]\nbackoff = 0\n", encoding="utf-8")
+
+
 def scripted(tmp_path, *bodies):
     """The fake provider answers from files, one per attempt."""
     options = []
@@ -551,6 +568,7 @@ def test_go_on_a_stopped_run_says_what_carries_it_on(machine, capsys, tmp_path):
 
 def test_a_provider_that_will_not_answer_still_fails_the_run(machine, capsys, tmp_path):
     """The other half of the same distinction: this one really is a breakage."""
+    unhurried(machine)
     declare(tmp_path, '[commands]\ntest = "true"\n')
     run(["run", "new", "add-vat", "--brief", "VAT", "--steps", "design"], capsys)
 

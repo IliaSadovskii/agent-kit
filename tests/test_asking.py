@@ -18,6 +18,7 @@ from agent_kit.providers.fake import FakeExecutor
 from agent_kit.state import RunStatus, RunStore, StepStatus
 from agent_kit.steps import builtin_registry
 from agent_kit.steps.contract import parse_output
+from test_runner import no_pause
 
 QUESTION = "one rate, or one per country?"
 
@@ -92,6 +93,11 @@ def runner(tmp_path, replies, wait=60, channel=True):
             default_provider="fake",
             ledger=ledger,
             owner=owner,
+            # The owner's clock is already this file's own, and the chain's
+            # pause between attempts had stayed the real one: a step that asks
+            # and is answered still slept a minute and a half here, for a
+            # subject that is the state the step is in while it waits.
+            pause=no_pause,
         ),
         store,
         owner,

@@ -19,6 +19,15 @@ NO_BRANCH = '```json\n{"can_write": true}\n```'
 NOT_JSON = "I had a look around and everything seems fine."
 
 
+#: The chain waits thirty seconds after a refused attempt and doubles from
+#: there. Three tests here are about the seconds themselves and hand in a pause
+#: of their own that records them; every other test is about what the run
+#: decided, and a real minute of sleeping measures the clock rather than the
+#: decision. So the helper's default asks for the pause and does not take it.
+def no_pause(_seconds):
+    return None
+
+
 def runner(tmp_path, replies, roles=None, executors=None, pause=None):
     store = RunStore(tmp_path)
     create_run(store, builtin_registry(), "add-login", steps=["probe"], project=str(tmp_path))
@@ -30,7 +39,7 @@ def runner(tmp_path, replies, roles=None, executors=None, pause=None):
             executors={"fake": fake, **(executors or {})},
             roles=roles or {},
             default_provider="fake",
-            pause=pause,
+            pause=pause or no_pause,
         ),
         store,
         fake,
