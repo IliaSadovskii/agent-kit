@@ -206,7 +206,7 @@ def test_step_run_reports_a_refusal_and_leaves_the_step_unpassed(machine, capsys
 def test_a_provider_the_kit_does_not_ship_is_refused_before_anything_runs(machine, capsys):
     run(["run", "new", "add-login", "--steps", "probe"], capsys)
 
-    code, _, err = run(["step", "run", "add-login", "--provider", "codex"], capsys)
+    code, _, err = run(["step", "run", "add-login", "--provider", "a-tool-nobody-wrote"], capsys)
 
     assert code == ExitCode.PROVIDER
     assert "unknown-provider" in err
@@ -754,7 +754,7 @@ def test_the_machines_default_provider_runs_a_step_nobody_named_one_for(machine,
 
 
 def test_a_default_provider_the_kit_does_not_ship_is_refused_by_name(machine, capsys, tmp_path):
-    machine_says(tmp_path, '[machine]\nprovider = "codex"\n')
+    machine_says(tmp_path, '[machine]\nprovider = "a-tool-nobody-wrote"\n')
     run(["run", "new", "add-login", "--steps", "probe"], capsys)
 
     code, _, err = run(["step", "run", "add-login"], capsys)

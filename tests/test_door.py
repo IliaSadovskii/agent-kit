@@ -902,7 +902,9 @@ def test_a_machine_with_no_provider_is_named_before_anything_about_the_project(
 def test_a_provider_named_here_and_not_shipped_is_named_by_the_drivers_own_code(
     project, tmp_path, capsys
 ):
-    configured(tmp_path, '[roles.build]\nprovider = "codex"\n')
+    # A name the kit does not ship and will not: `codex` stood here until S9
+    # shipped it, at which point the door stopped being asked this at all.
+    configured(tmp_path, '[roles.build]\nprovider = "a-tool-nobody-wrote"\n')
 
     code, out, _ = door(project, capsys)
 

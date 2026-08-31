@@ -202,10 +202,13 @@ def test_checking_leaves_nothing_behind_in_the_project(tmp_path, monkeypatch):
 
 
 def test_a_provider_the_kit_does_not_ship_is_refused(tmp_path):
+    """Demonstrated with a name the kit will not ship tomorrow. It was `codex`,
+    and S9 ships it: a test whose subject walks into the catalogue stops asking
+    its question on the day the catalogue grows."""
     from agent_kit.errors import ProviderError
 
     with pytest.raises(ProviderError) as caught:
-        check_provider("codex", {}, project=tmp_path)
+        check_provider("a-tool-nobody-wrote", {}, project=tmp_path)
 
     assert caught.value.code == "unknown-provider"
 

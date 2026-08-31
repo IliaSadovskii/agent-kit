@@ -18,8 +18,11 @@ def test_the_fake_declares_itself_a_fixture():
 
 
 def test_a_provider_the_kit_does_not_ship_is_refused_by_name():
+    """The name has to be one the kit will not ship tomorrow. It was `codex`,
+    which S9 ships — a test whose subject moves into the catalogue stops asking
+    its question on the day it matters most."""
     with pytest.raises(ProviderError) as caught:
-        registry.facts("codex")
+        registry.facts("a-tool-nobody-wrote")
 
     assert caught.value.code == "unknown-provider"
 

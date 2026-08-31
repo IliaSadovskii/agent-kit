@@ -341,8 +341,12 @@ def test_claude_code_declares_itself_level_b_and_real():
     assert facts.binary == "claude"
 
 
-def test_the_kit_now_ships_two_providers():
-    assert registry.provider_names() == ["claude_code", "fake"]
+def test_the_kit_ships_exactly_the_providers_its_folder_holds():
+    """Exact, and not a floor: the catalogue is the folder, and adding or
+    retiring one is deliberate, in a commit that says so — the same reason
+    `bench.SHIPPED` is a number rather than a `>=`. Both the assertion and the
+    name of this test said *two providers* until S9 shipped two more."""
+    assert registry.provider_names() == ["claude_code", "codex", "fake", "gemini_cli"]
 
 
 # --- the stream, the bytes, and what the CLI puts around its JSON ---------
