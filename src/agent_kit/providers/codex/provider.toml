@@ -1,0 +1,64 @@
+# What is true about Codex CLI. Not what this machine chose — that lives in
+# ~/.config/agent-kit/config.toml, and neither file may hold the other's kind.
+#
+# Written from OpenAI's own published reference on 31 August 2026, on a machine
+# where Codex has never been installed. Every line below is a claim about
+# somebody else's tool, and `agent-kit provider check codex` is what turns any
+# of it into a measurement.
+
+[provider]
+title  = "Codex CLI"
+level  = "A"
+real   = true
+binary = "codex"
+notes  = """
+Nobody here has run this. The level above is what this declaration claims, not
+what it has earned: it was written from the tool's documentation, and the ladder
+is what measures it — `agent-kit provider check codex`, once it is installed and
+logged in.
+
+Driven headless by `codex exec`, which reads the prompt from stdin when it is
+given none, and answers in plain text with whatever the session chose to print.
+The kit finds the step's output in the last fenced block, which is the same way
+it reads any provider that does not promise JSON.
+
+What it reads from the machine it runs on: this repository's AGENTS.md, and also
+the operator's personal one. There is no flag that narrows it to the project the
+way Claude Code's --setting-sources does. That is a standing debt, not a setting.
+"""
+
+[provider.setup]
+# What a person runs. The kit prints these and runs neither: installing is the
+# owner's act on the owner's machine, and a login opens a browser. What the
+# install did is measured afterwards by looking for `binary` again.
+#
+# `--device-auth` and not a bare `codex login`: the machine this kit was built
+# for is a server reached over a private network, and a login that wants to open
+# a browser on the host has nowhere to open one. It prints a code to type
+# somewhere else, which is the flow that works from a terminal.
+install = ["npm", "install", "-g", "@openai/codex"]
+login   = ["codex", "login", "--device-auth"]
+
+[provider.flags]
+# The shape: a flag that carries a value is [flag], and the value follows it.
+headless = ["exec"]
+# `codex exec` sandboxes to read-only unless it is told otherwise, and a session
+# that cannot create a file earns no level at all since the `writes` rung. Not
+# `danger-full-access`: a run builds inside its own worktree, so the workspace is
+# the whole of what it has any business editing. `-a never` because there is
+# nobody at the terminal to approve anything at three in the morning.
+full_access = ["-s", "workspace-write", "-a", "never"]
+model       = ["--model"]
+version     = ["--version"]
+
+# No [provider.answer], [provider.transcript] or [provider.limits]. Level A reads
+# none of the first two — the shipped reader is claude_code's adapter — and the
+# `limits` rung measures declared phrases against a sentence built out of those
+# same phrases, so phrases nobody has seen this tool say would earn a green rung
+# for nothing. What that costs is real and is written down: an exhausted account
+# comes back as an ordinary `session-failed`, retryable, so the attempt chain
+# spends all three of its tries with the pause doubling between them.
+#
+# No `effort` either: Codex sets reasoning effort through a config override
+# (`-c model_reasoning_effort=...`), which is not a flag of the shape above. A
+# machine that names one is refused by `effort-not-selectable` before it spends.

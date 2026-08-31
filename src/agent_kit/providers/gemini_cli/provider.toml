@@ -1,0 +1,44 @@
+# What is true about Gemini CLI. Not what this machine chose — that lives in
+# ~/.config/agent-kit/config.toml, and neither file may hold the other's kind.
+#
+# Written from Google's own published CLI reference on 31 August 2026, on a
+# machine where Gemini CLI has never been installed.
+
+[provider]
+title  = "Gemini CLI"
+level  = "A"
+real   = true
+binary = "gemini"
+notes  = """
+Nobody here has run this. The level above is what this declaration claims, not
+what it has earned: `agent-kit provider check gemini_cli` is what measures it.
+
+There is no headless flag, and that is the declaration rather than an omission:
+the tool goes non-interactive by itself when stdin is not a terminal, and the kit
+always hands it a pipe. It answers in plain text, and the kit finds the step's
+output in the last fenced block.
+
+There is no login command either. Signing in is the tool itself: run `gemini`,
+choose an account in the screen it opens, and then leave the screen — it stays
+running until you do, and the walk is waiting on the line you type after.
+
+What it reads from the machine it runs on: this repository's GEMINI.md, and also
+the operator's personal one. There is no flag that narrows it to the project.
+"""
+
+[provider.setup]
+install = ["npm", "install", "-g", "@google/gemini-cli"]
+# Not a subcommand: this tool has none for signing in. The precedent is already
+# shipped — claude_code's login is a slash command typed inside its own screen.
+login   = ["gemini"]
+
+[provider.flags]
+# `--yolo` is deprecated in favour of the unified approval mode, and the two
+# cannot be given together.
+full_access = ["--approval-mode", "yolo"]
+model       = ["--model"]
+version     = ["--version"]
+
+# No [provider.answer], [provider.transcript] or [provider.limits], for the
+# reasons written out in codex/provider.toml beside this one. No `effort`: this
+# tool has no such idea, so a machine that names one is refused by name.
