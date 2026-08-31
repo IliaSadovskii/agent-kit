@@ -174,6 +174,59 @@ def test_a_flag_table_that_is_not_a_table_is_refused(tmp_path, monkeypatch):
 
 
 
+# --- a choice the tool cannot be told ---------------------------------------
+
+
+PLAIN = '[provider]\nbinary = "x"\n[provider.flags]\nheadless = ["-p"]\nversion = ["--version"]\n'
+
+
+def test_a_model_the_tool_has_no_flag_for_is_refused_by_name(tmp_path, monkeypatch):
+    """`config.toml` names a model; the tool has no flag; the session ran anyway.
+
+    `command()` read `if self.model and flags.get("model")` and dropped the
+    choice on the floor. The machine then paid for a night on whatever model the
+    tool defaults to, and no file anywhere said a choice had been made and lost.
+    """
+    from agent_kit.errors import ConfigError
+
+    declare(tmp_path, monkeypatch, "plain", PLAIN)
+
+    with pytest.raises(ConfigError) as caught:
+        registry.build_executor("plain", {"model": ["a-model-it-never-heard-of"]})
+
+    assert caught.value.code == "model-not-selectable"
+    assert "plain" in caught.value.detail
+
+
+def test_an_effort_the_tool_has_no_flag_for_is_refused_by_name(tmp_path, monkeypatch):
+    from agent_kit.errors import ConfigError
+
+    declare(tmp_path, monkeypatch, "plain", PLAIN)
+
+    with pytest.raises(ConfigError) as caught:
+        registry.build_executor("plain", {"effort": ["high"]})
+
+    assert caught.value.code == "effort-not-selectable"
+
+
+def test_a_choice_the_tool_can_be_told_is_not_refused(tmp_path, monkeypatch):
+    declare(tmp_path, monkeypatch, "choosy",
+            '[provider]\nbinary = "x"\n[provider.flags]\n'
+            'headless = ["-p"]\nmodel = ["--model"]\neffort = ["--effort"]\n')
+
+    executor = registry.build_executor("choosy", {"model": ["m"], "effort": ["high"]})
+
+    assert executor.command() == ["x", "-p", "--model", "m", "--effort", "high"]
+
+
+def test_a_machine_that_chose_nothing_is_not_refused(tmp_path, monkeypatch):
+    """The refusal is about a choice that would be lost, not about the flag."""
+    declare(tmp_path, monkeypatch, "plain", PLAIN)
+
+    assert registry.build_executor("plain", {}).command() == ["x", "-p"]
+
+
+
 # --- the fixture answers, and may also act ----------------------------------
 
 
