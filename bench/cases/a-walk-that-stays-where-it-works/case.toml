@@ -1,0 +1,18 @@
+# S9 — a bare `agent-kit setup` on a machine whose agent already works.
+#
+# `_which` read *the first that needs the walk*, and while one shipped provider
+# was real that could not go wrong: the one that needed the walk and the one that
+# worked were the same folder. S9 ships four, three of which are not installed on
+# any given machine, and the same line then walks somebody whose agent is
+# standing off to install a tool they never named — in alphabetical order.
+#
+# What this measures is the kit's choice, not either tool: the `claude` and
+# `codex` here are shims planted beside the judge.
+
+[case]
+title = "a bare walk on a machine that already has a working provider"
+fires = "the walk takes the provider that works and never names the install command of one that does not"
+
+[expect]
+exit_code = 0
+status = "done"

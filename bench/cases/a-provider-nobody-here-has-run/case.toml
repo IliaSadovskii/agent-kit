@@ -1,0 +1,24 @@
+# S9 — a declaration for a tool nobody on this machine has ever run.
+#
+# What this case can honestly prove, and it is worth saying plainly because the
+# temptation is to read it as more: it proves that the walk prints the commands
+# **this declaration** carries, runs neither, measures the machine again after a
+# person says they ran one, and only then writes the block. The shims it plants
+# are written from the same published reference the declaration was written
+# from — they answer `--version` and record every argv they are given.
+#
+# It does not prove anything whatever about Codex CLI. A shim agrees with the
+# documentation as it was read on 31 August 2026; whether the real tool agrees
+# with that reading is `agent-kit provider check codex`, on a machine where it
+# is installed, and nothing in this repository can stand in for it.
+#
+# The run this case declares is an ordinary green one and is not what it
+# measures: `setup` is about the machine and not about any project.
+
+[case]
+title = "a provider declared from documentation and installed by nobody"
+fires = "the walk prints what codex declares, runs neither command, and writes the block only after the machine changed"
+
+[expect]
+exit_code = 0
+status = "done"
