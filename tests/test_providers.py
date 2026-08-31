@@ -103,6 +103,77 @@ def test_a_declaration_with_a_key_the_kit_does_not_read_is_refused(tmp_path, mon
     assert "levle" in caught.value.detail
 
 
+# --- a key nobody reads is argv nobody passes -------------------------------
+
+
+def test_a_flag_the_kit_does_not_read_is_refused(tmp_path, monkeypatch):
+    """A misspelt flag key is silence wearing a declaration's clothes.
+
+    The top-level keys have been checked since S3 and `setup.*` since S9a, but
+    `flags` went through as a dictionary. That is the one table where silence is
+    invisible: a provider whose `headless` is deliberately absent — Gemini CLI
+    decides by whether stdin is a terminal — and one whose `headless` is spelt
+    `hedless` build exactly the same argv.
+    """
+    declare(tmp_path, monkeypatch, "typo_flag",
+            '[provider]\nbinary = "x"\n[provider.flags]\nhedless = ["-p"]\n')
+
+    with pytest.raises(ProviderError) as caught:
+        registry.facts("typo_flag")
+
+    assert caught.value.code == "bad-declaration"
+    assert "hedless" in caught.value.detail
+
+
+def test_an_answer_key_the_kit_does_not_read_is_refused(tmp_path, monkeypatch):
+    declare(tmp_path, monkeypatch, "typo_answer",
+            '[provider]\nbinary = "x"\n[provider.answer]\nsesion = "session_id"\n')
+
+    with pytest.raises(ProviderError) as caught:
+        registry.facts("typo_answer")
+
+    assert caught.value.code == "bad-declaration"
+    assert "sesion" in caught.value.detail
+
+
+def test_every_key_the_kit_does_read_is_accepted(tmp_path, monkeypatch):
+    """The other half: the check must not refuse what the shipped ones declare."""
+    declare(tmp_path, monkeypatch, "thorough", """
+[provider]
+binary = "x"
+[provider.flags]
+headless = ["-p"]
+full_access = ["--go"]
+instructions = ["--project"]
+model = ["--model"]
+effort = ["--effort"]
+session = ["--session-id"]
+version = ["--version"]
+[provider.answer]
+text = "result"
+session = "session_id"
+cost = "total_cost_usd"
+failed = "is_error"
+window = "modelUsage"
+used = "usage"
+""")
+
+    facts = registry.facts("thorough")
+
+    assert facts.flags["headless"] == ["-p"]
+    assert facts.answer["text"] == "result"
+
+
+def test_a_flag_table_that_is_not_a_table_is_refused(tmp_path, monkeypatch):
+    declare(tmp_path, monkeypatch, "flat", '[provider]\nbinary = "x"\nflags = "-p"\n')
+
+    with pytest.raises(ProviderError) as caught:
+        registry.facts("flat")
+
+    assert caught.value.code == "bad-declaration"
+
+
+
 # --- the fixture answers, and may also act ----------------------------------
 
 
