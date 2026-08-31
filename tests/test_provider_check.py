@@ -322,3 +322,57 @@ def test_a_ladder_that_stopped_names_a_code_and_not_only_prose(tmp_path, monkeyp
 
     assert code == ExitCode.PROVIDER
     assert "provider-not-ready" in said.err
+
+
+# --- the rung the probe was already measuring and nobody read ----------------
+
+
+def test_a_session_that_cannot_write_does_not_earn_level_a(tmp_path, monkeypatch):
+    """`can_write` is what the probe goes and finds out, and nothing read it.
+
+    S9 makes it reachable: `codex exec` sandboxes to read-only unless it is told
+    otherwise, so a declaration that forgets the sandbox flag gives a provider
+    that starts, answers, keeps the contract — and cannot edit a file. Without
+    this rung the ladder called that level A and the owner found out at the
+    build step of a night.
+    """
+    _transcript(tmp_path, monkeypatch)
+    walled = dict(ANSWER, result='```json\n{"branch": "kit/x", "can_write": false}\n```')
+
+    report = check_provider("claude_code", answering(tmp_path, walled), project=tmp_path)
+
+    assert report.failed == "writes"
+    assert report.level is None
+    assert _rung(report, "contract").passed  # it answered perfectly well
+
+
+def test_a_provider_whose_answer_could_not_be_read_is_not_asked_whether_it_writes(tmp_path, monkeypatch):
+    """A rung nobody could climb is not a rung anybody failed — and the level
+    an unreadable answer earns is the one it earned before this rung existed."""
+    _transcript(tmp_path, monkeypatch)
+    loose = dict(ANSWER, result='```json\n{"can_write": true}\n```')  # no branch: contract fails
+
+    report = check_provider("claude_code", answering(tmp_path, loose), project=tmp_path)
+
+    writes = _rung(report, "writes")
+    assert writes.applies is False
+    assert writes.held is True
+    assert report.level == "A"
+
+
+def test_a_choice_the_machine_made_is_not_a_rung_of_the_providers_ladder(tmp_path, monkeypatch):
+    """`effort-not-selectable` is the machine's configuration being wrong, and
+    exit code 4 means *an agent cannot be run right now*. Burying it in the
+    `binary` rung said the binary was missing, which was not true."""
+    from agent_kit.errors import ConfigError
+
+    binary = tmp_path / "newcomer"
+    binary.write_text("#!/bin/sh\necho 'newcomer 1.2.3'\n", encoding="utf-8")
+    binary.chmod(binary.stat().st_mode | stat.S_IEXEC)
+    _declare(tmp_path, monkeypatch, "newcomer",
+             '[provider]\nbinary = "newcomer"\n\n[provider.flags]\nversion = ["--version"]\n')
+
+    with pytest.raises(ConfigError) as caught:
+        check_provider("newcomer", {"binary": [str(binary)], "effort": ["high"]}, project=tmp_path)
+
+    assert caught.value.code == "effort-not-selectable"
