@@ -86,7 +86,7 @@ def walk(
 
 
 def _which(reading: Reading, name: str | None) -> Standing:
-    """The one named, or the first that needs the walk, or the first that works."""
+    """The one named, or the one that already works, or the first shipped."""
     if name is not None:
         registry.facts(name)  # `unknown-provider`, and it names what is shipped
         found = reading.named(name)
@@ -102,7 +102,15 @@ def _which(reading: Reading, name: str | None) -> Standing:
         raise ProviderError(
             "ships-no-provider", "this kit ships no provider that is an agent"
         )
-    return next((one for one in real if not one.ready), real[0])
+    # The one that already works, before the one that needs putting there.
+    #
+    # It read the other way round until S9, and could not go wrong: with one
+    # real provider shipped, *the first that needs the walk* and *the first
+    # that works* were the same folder. With four shipped and three of them
+    # not installed on any given machine, the old order walked somebody whose
+    # agent was standing and configured off to install a tool they never named,
+    # picked in alphabetical order. Naming one is still `agent-kit setup <name>`.
+    return next((one for one in real if one.ready), None) or real[0]
 
 
 # --- the two commands -------------------------------------------------------
