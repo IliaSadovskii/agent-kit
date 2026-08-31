@@ -1,11 +1,25 @@
 #!/bin/sh
 CONFIG="$BENCH/home/.config/agent-kit/config.toml"
 
+# --- the safety catch, and it measures what is about to run -----------------
+# Not "a file called npm exists": the first word comes out of the kit on
+# purpose, so the day a provider declares `brew`, `pnpm`, `curl` or `uv` a
+# check on the old name would stay green while the judge ran the real thing —
+# on a disarmed world too, where nothing shadows it. What is asked is the word
+# that will actually be executed, resolved the way the shell will resolve it,
+# and it has to land inside this case's own bin.
+shadowed() {
+  WHERE=$(command -v "$1" 2>/dev/null)
+  case "$WHERE" in
+    "$BENCH/bin/"*) return 0 ;;
+    *) echo "the trap was not planted: '$1' resolves to '${WHERE:-nothing at all}' rather than into this case's own bin — the real one reaches the network"; return 1 ;;
+  esac
+}
+
 # --- the trap was standing --------------------------------------------------
 # A judge that only checks nothing happened is green where nothing was planted.
-[ -x "$BENCH/bin/npm" ] ||
-  { echo "the trap was not planted: nothing shadows the installer, and the real one reaches the network"; exit 1; }
-"$BENCH/bin/claude" --version >/dev/null 2>&1 &&
+shadowed claude || exit 1
+claude --version >/dev/null 2>&1 &&
   { echo "the trap was not planted: claude answers before anybody installed it"; exit 1; }
 grep -q "providers.claude_code" "$CONFIG" 2>/dev/null &&
   { echo "the trap was not planted: this machine already knows claude_code"; exit 1; }
@@ -18,6 +32,7 @@ grep -q "^provider" "$CONFIG" 2>/dev/null &&
 INSTALL=$($PYTHON -c "from agent_kit.providers.registry import facts; print(' '.join(facts('claude_code').install))") ||
   { echo "the kit could not say how claude_code is installed"; exit 1; }
 [ -n "$INSTALL" ] || { echo "claude_code declares no install command"; exit 1; }
+shadowed "${INSTALL%% *}" || exit 1
 
 # --- the screen, on a machine where the tool does not work ------------------
 # Two runs and not a pipeline: a pipeline's halves race, and the kit's blocking
@@ -40,10 +55,17 @@ $INSTALL >/dev/null 2>&1 || { echo "the command the kit printed did not run"; ex
 
 # One line, and exactly one: the tool is standing now, so the install command is
 # never printed again, and no second provider is configured, so the pool is not
-# asked about.
-OUT=$(printf '\n' | $KIT setup claude_code 2>&1)
+# asked about. A second line is fed that is not an answer to anything — if the
+# walk asks a question this case did not expect, the word lands in the file and
+# the check below finds it. One question too *many* is caught this way and one
+# too many again by the EOF behind it; one question too *few* is not caught here
+# at all, and the kit's stdin is buffered, so counting what was left unread
+# would measure Python's buffer rather than the walk.
+OUT=$(printf '\nNOT-AN-ANSWER-TO-ANYTHING\n' | $KIT setup claude_code 2>&1)
 CODE=$?
 [ "$CODE" = "0" ] || { echo "the second walk exited $CODE: $OUT"; exit 1; }
+grep -q "NOT-AN-ANSWER-TO-ANYTHING" "$CONFIG" &&
+  { echo "the walk asked a question this case did not expect, and wrote the answer down"; exit 1; }
 
 grep -q "^\[providers.claude_code\]" "$CONFIG" ||
   { echo "the walk reached a working provider and wrote nothing down"; exit 1; }
