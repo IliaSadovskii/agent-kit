@@ -229,7 +229,9 @@ def _machine(table: dict[str, Any]) -> MachineConfig:
         # And here it means try again at once, which is what every kit did
         # before this number existed.
         backoff=_whole(table.get("backoff", DEFAULT_BACKOFF), "machine.backoff"),
-        provider=table.get("provider") and _str(table["provider"], "machine.provider") or "",
+        # `x and _str(x) or ""` reads false, 0, [] and "" as *not named*, in
+        # silence, and refuses only 4. A key that is there is a name or a mistake.
+        provider=_str(table["provider"], "machine.provider") if "provider" in table else "",
     )
 
 

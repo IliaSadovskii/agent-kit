@@ -95,7 +95,13 @@ def _which(reading: Reading, name: str | None) -> Standing:
         return found
     real = [one for one in reading.providers if one.real]
     if not real:
-        raise ProviderError("no-provider", "this kit ships no provider that is an agent")
+        # Not `no-provider`: that is the driver's, it means a role has nobody
+        # and there is no default, and the answer to it is to configure one.
+        # This is the kit carrying no agent at all, and configuring is not an
+        # answer to it. A code means one thing.
+        raise ProviderError(
+            "ships-no-provider", "this kit ships no provider that is an agent"
+        )
     return next((one for one in real if not one.ready), real[0])
 
 
@@ -196,10 +202,7 @@ def _write(paths: Paths, reading: Reading, one: Standing, account: str | None, s
 
     said_default = ""
     if not reading.default:
-        machine = reading.config.machine
-        block = [f"max_sessions = {machine.max_sessions}", f"wait = {machine.wait}",
-                 f"backoff = {machine.backoff}", f'provider = "{one.name}"']
-        write_block(paths.config_file, "[machine]", block)
+        write_block(paths.config_file, "[machine]", _machine_block(paths, one.name))
         said_default = one.name
 
     say("")
@@ -215,6 +218,33 @@ def _write(paths: Paths, reading: Reading, one: Standing, account: str | None, s
     say(f"the account behind it has not been measured. one session says whether it answers:")
     say(f"    {CHECK} {one.name}")
     log.info("%s written into the machine's configuration", one.name)
+
+
+def _machine_block(paths: Paths, provider: str) -> list[str]:
+    """`provider`, beside every key that was already typed there, and nothing else.
+
+    Rebuilding the block from the effective configuration would write `wait` and
+    `backoff` as literal numbers on a machine that never chose either — and from
+    that day a changed default in the kit could not reach this machine. What was
+    typed here stays typed here; what was never typed stays the kit's to decide.
+
+    The file parses: the walk refused before this if it did not.
+    """
+    import tomllib
+
+    had: dict = {}
+    if paths.config_file.exists():
+        had = tomllib.loads(paths.config_file.read_text(encoding="utf-8")).get("machine") or {}
+    kept = [f"{key} = {_scalar(value)}" for key, value in had.items() if key != "provider"]
+    return kept + [f'provider = "{provider}"']
+
+
+def _scalar(value: object) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, str):
+        return f'"{value}"'
+    return str(value)
 
 
 def _line(ask: Callable[[str], str], say, prompt: str) -> str:

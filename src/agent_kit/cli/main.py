@@ -611,7 +611,15 @@ def _doctor(paths: Paths) -> int:
 
     Since S9a the provider rows are measured rather than listed, and they are
     the same rows `agent-kit setup` prints — one reading, two screens. It writes
-    nothing and it spends nothing: the two rungs climbed here are free ones.
+    nothing and it spends no quota: the two rungs climbed here are the free ones.
+
+    **It is no longer a command that only reads files, and that is the price.**
+    Every call now starts each shipped provider once to ask its version — a
+    subprocess per provider, bounded by `VERSION_TIMEOUT`. A listed level is a
+    claim and a measured one is not, which is what the price buys; but a screen
+    that starts somebody else's binaries is a different kind of screen from the
+    one this was, and it is said here rather than discovered by whoever wonders
+    why `doctor` reaches a disk.
     """
     from ..setup import read as read_the_machine, render as render_providers
 
@@ -1524,7 +1532,13 @@ def _provider_check(args: argparse.Namespace) -> int:
     print()
 
     if report.level is None:
-        print(f"{args.name}: no level — it failed at {report.failed}", file=sys.stderr)
+        # The code, and it is the walk's own: a judge reads a code, and this is
+        # the same state `agent-kit setup` refuses by name. Two commands looking
+        # at one ladder must not call its answer two different things.
+        print(
+            f"{PROGRAM}: provider-not-ready: {args.name} stopped at the rung `{report.failed}`",
+            file=sys.stderr,
+        )
         return int(ExitCode.PROVIDER)
 
     print(f"{args.name}: level {report.level}, declared {report.declared_level}")

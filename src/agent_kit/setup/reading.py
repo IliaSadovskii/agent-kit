@@ -71,7 +71,6 @@ class Standing:
 class Reading:
     """One pass over the machine. Both screens print this and nothing else."""
 
-    paths: Paths
     config: Config
     providers: list[Standing]
     #: The failure itself where `config.toml` would not parse, and None where it
@@ -116,7 +115,7 @@ def read(paths: Paths | None = None) -> Reading:
 
     measured = measured_levels(paths)
     standing = [_standing(name, config, measured) for name in registry.provider_names()]
-    return Reading(paths=paths, config=config, providers=standing, unreadable_config=unreadable)
+    return Reading(config=config, providers=standing, unreadable_config=unreadable)
 
 
 def _standing(name: str, config: Config, measured: dict) -> Standing:

@@ -242,7 +242,11 @@ def test_the_command_says_which_rung_failed(tmp_path, capsys):
     )
 
     assert code == 4
-    assert "failed at binary" in err
+    # The code and the rung's own name, not the sentence around them: this test
+    # measured the prose, and the prose was rewritten the day the refusal got a
+    # code — which is the thing the project's own rule is about.
+    assert "provider-not-ready" in err
+    assert "binary" in err
 
 
 def test_a_provider_that_earns_less_than_it_declares_is_reported(tmp_path, capsys, monkeypatch):
