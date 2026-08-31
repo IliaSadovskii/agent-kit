@@ -46,9 +46,9 @@ CODE=$?
 [ "$CODE" = "8" ] ||
   { echo "the walk exited $CODE where a stream with nobody behind it is 8: $SAID"; exit 1; }
 printf '%s\n' "$SAID" | grep -qF "$INSTALL" ||
-  { echo "the walk did not print the install command this declaration carries"; exit 1; }
+  { echo "the walk did not print the install command this declaration carries — this compares the kit against the declaration, never against the real Codex CLI"; exit 1; }
 [ -s "$BENCH/npm-argv" ] &&
-  { echo "the walk ran the install command itself"; exit 1; }
+  { echo "the walk ran the install command itself, which it prints and never runs"; exit 1; }
 grep -q "providers.codex" "$CONFIG" 2>/dev/null &&
   { echo "the walk wrote a provider down before anybody installed it"; exit 1; }
 
@@ -70,15 +70,15 @@ grep -q "NOT-AN-ANSWER-TO-ANYTHING" "$CONFIG" &&
 # The login is printed, and it is this declaration's login rather than a
 # sentence about logging in.
 printf '%s\n' "$OUT" | grep -qF "$LOGIN" ||
-  { echo "the walk did not print the login command this declaration carries"; exit 1; }
+  { echo "the walk did not print the login command this declaration carries — measured against the declaration, not against the tool"; exit 1; }
 
 # And the kit ran neither of them. The shim writes down every argv it is given,
 # so what the kit is allowed to have done to it is the free rung and nothing
 # else: `--version`. A `login` line here is the kit logging somebody in.
 grep -q "^login" "$BENCH/codex-argv" &&
-  { echo "the walk ran the login command itself"; exit 1; }
+  { echo "the walk ran the login command itself; it prints a login and measures nothing about the account"; exit 1; }
 grep -q -- "--version" "$BENCH/codex-argv" ||
-  { echo "the walk never measured the tool it wrote down"; exit 1; }
+  { echo "the walk wrote a provider down without putting the free rung to it — what stands here is a shim written from the same documentation as the declaration, so this says nothing about the real tool either way"; exit 1; }
 
 grep -q "^\[providers.codex\]" "$CONFIG" ||
   { echo "the walk reached a working provider and wrote nothing down"; exit 1; }
