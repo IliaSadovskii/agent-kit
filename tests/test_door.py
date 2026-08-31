@@ -922,6 +922,23 @@ def test_a_configuration_that_will_not_parse_does_not_bring_the_door_down(
     assert answered(out) == "unreadable-config"
 
 
+def test_a_project_that_names_its_own_provider_is_not_stopped_by_the_machines_silence(
+    project, tmp_path, capsys
+):
+    """The driver prefers the project's role table to the machine's, so the door
+    must count it. A rung that fires where the night would have run is worse
+    than one that stays quiet."""
+    configured(tmp_path, "[machine]\nmax_sessions = 2\n")
+    (project / ".agent-kit/v3/project.toml").write_text(
+        DECLARED + '\n[roles.design]\nprovider = "fake"\n', encoding="utf-8"
+    )
+
+    code, out, _ = door(project, capsys)
+
+    assert code == ExitCode.OK
+    assert answered(out) != "no-provider"
+
+
 def test_a_machine_that_names_a_provider_says_a_session_can_be_started(project, capsys):
     code, out, _ = door(project, capsys)
 
