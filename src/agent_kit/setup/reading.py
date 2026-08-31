@@ -101,8 +101,8 @@ class Reading:
         return next((one for one in self.providers if one.name == name), None)
 
 
-def read(paths: Paths | None = None, climb: bool = True) -> Reading:
-    """The machine, once. `climb=False` is for a caller that only wants the file."""
+def read(paths: Paths | None = None) -> Reading:
+    """The machine, once: the file it chose with, and the two free rungs climbed."""
     paths = paths or Paths.from_env()
     unreadable: KitError | None = None
     try:
@@ -115,26 +115,21 @@ def read(paths: Paths | None = None, climb: bool = True) -> Reading:
         unreadable = broken
 
     measured = measured_levels(paths)
-    standing = [
-        _standing(name, config, measured, climb) for name in registry.provider_names()
-    ]
+    standing = [_standing(name, config, measured) for name in registry.provider_names()]
     return Reading(paths=paths, config=config, providers=standing, unreadable_config=unreadable)
 
 
-def _standing(name: str, config: Config, measured: dict, climb: bool) -> Standing:
-    facts = registry.facts(name)
-    rungs: list[tuple[str, bool, str]] = []
-    if climb:
-        from ..driver.check import free_rungs
+def _standing(name: str, config: Config, measured: dict) -> Standing:
+    from ..driver.check import free_rungs
 
-        rungs = free_rungs(name)
+    facts = registry.facts(name)
     return Standing(
         name=name,
         title=facts.title,
         notes=facts.notes.strip(),
         declared_level=facts.level,
         real=facts.real,
-        rungs=rungs,
+        rungs=free_rungs(name),
         install=facts.install,
         login=facts.login,
         installer_missing=_missing(facts.install),

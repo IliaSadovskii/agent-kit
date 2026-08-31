@@ -133,15 +133,19 @@ class Door:
     def read(self) -> Reading:
         reading = Reading()
 
+        self.project, self.unreadable_project = self._project()
+
         config, self.unreadable_config = self._machine()
         # What the machine would refuse a session for, above everything about
-        # the project: see `_the_night_would_refuse` for why it is first.
+        # the project: see `_the_night_would_refuse` for why it is first. The
+        # project is read before it, and only so that its own role table can be
+        # counted — the driver prefers that table to the machine's, so a project
+        # that names a provider is a project the machine's silence does not stop.
         self.machine_refusals = (
             [self.unreadable_config] if self.unreadable_config is not None
             else self._no_provider_here(config)
         )
 
-        self.project, self.unreadable_project = self._project()
         project = self.project
         knowledge, self.unreadable_knowledge = self._knowledge(project)
         # Neither goes into `unread`: both are on the first rung, because both
@@ -219,12 +223,19 @@ class Door:
 
         Both codes are `driver/session.py`'s own, raised there and printed here.
         The door names another command's code, never a synonym of it.
+
+        It fires only where *nothing anywhere* names a provider — the machine's
+        table, the machine's default, and the project's own table, which the
+        driver prefers to the machine's. A project that names one for a single
+        role may still be refused at some other role, and the door does not say
+        so: a rung that fires where the night would have run is worse than one
+        that stays quiet, which is the rule its git questions already keep.
         """
         if config is None:
             return []
         from .providers import registry
 
-        roles = config.roles
+        roles = {**config.roles, **(self.project.roles if self.project else {})}
         named = {role.provider for role in roles.values()}
         named |= {spare for role in roles.values() for spare in role.fallback}
         if config.machine.provider:
