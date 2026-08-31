@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from ..errors import UsageError
+from ..errors import ConfigError, UsageError
 from ..logs import get_logger
 from ..shell import kill_group
 from .base import ExecutorFailed, ExecutorResult, SessionFacts, StepRequest
@@ -189,6 +189,31 @@ class ProcessExecutor:
         self.timeout = timeout
         if not self.binary:
             raise _bad(f"{declared.name} declares no binary and ships no adapter to run instead")
+        self._refuse_a_choice_it_cannot_pass_on("model", model)
+        self._refuse_a_choice_it_cannot_pass_on("effort", effort)
+
+    def _refuse_a_choice_it_cannot_pass_on(self, what: str, chosen: str | None) -> None:
+        """A choice this machine made that this tool has no flag for.
+
+        Refused rather than dropped, and refused here — before a session, before
+        a slot, before a token. `command()` used to read `if self.model and
+        flags.get("model")`, so a machine that named a model for a tool with no
+        such flag ran the night on whatever that tool defaults to and said
+        nothing about it anywhere.
+
+        The code is the *machine's*, not the provider's: `provider.toml` states
+        what is true about a tool and is not wrong here, `config.toml` asked for
+        something this tool does not offer, and the file to edit is the second
+        one. Which is why it is a `ConfigError` and leaves exit code 2.
+        """
+        if chosen and not self.declared.flags.get(what):
+            raise ConfigError(
+                f"{what}-not-selectable",
+                f"this machine chose {what} {chosen!r} for {self.declared.name}, "
+                f"which declares no flag that passes one on",
+                hint=f"drop the {what} from [providers.{self.declared.name}] in the machine's "
+                     f"configuration, or add a {what} flag to that provider's declaration",
+            )
 
     # --- the command ------------------------------------------------------
 
@@ -197,9 +222,12 @@ class ProcessExecutor:
         argv = [self.binary, *flags.get("headless", [])]
         argv += flags.get("full_access", [])
         argv += flags.get("instructions", [])
-        if self.model and flags.get("model"):
+        # No `and flags.get(...)` here any more: a choice this tool cannot be
+        # told is refused when the executor is built, so reaching this line with
+        # one and no flag for it is impossible rather than quietly survivable.
+        if self.model:
             argv += [*flags["model"], self.model]
-        if self.effort and flags.get("effort"):
+        if self.effort:
             argv += [*flags["effort"], self.effort]
         return argv
 
