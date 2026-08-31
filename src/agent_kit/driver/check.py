@@ -8,6 +8,7 @@ the kit climbs a ladder and says which rung failed:
     login      the account behind it answers, not just the binary
     one_shot   given a step's input, it returns something
     contract   what it returned satisfies the step's contract
+    writes     the session could create a file where it landed
     observed   it can say how much context that session holds
     limits     it can tell a limited account from a working one
 
@@ -24,7 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from ..errors import KitError
+from ..errors import ConfigError, KitError
 from ..logs import get_logger
 from ..providers.base import ExecutorFailed, SessionFacts
 from ..providers.measured import remember as remembered
@@ -36,10 +37,17 @@ from ..steps import builtin_registry
 from ..steps.contract import ContractRefusal, parse_output
 
 #: In order. Getting this far is level A: it started and it answered.
-RUNGS = ("binary", "answers", "login", "one_shot", "contract", "observed", "limits")
+RUNGS = ("binary", "answers", "login", "one_shot", "contract", "writes", "observed", "limits")
 
 #: Level A is these; level B is every rung that applies.
-LEVEL_A = ("binary", "answers", "login", "one_shot")
+#:
+#: `writes` is among them and `contract` is not, which looks the wrong way round
+#: until the two questions are read apart. A provider that answers in prose has
+#: started a session and returned something — that is what level A is, and the
+#: step contract is the method's problem rather than the tool's. A provider that
+#: cannot create a file cannot do the one thing every step above `probe` exists
+#: to do, whatever it says while failing to.
+LEVEL_A = ("binary", "answers", "login", "one_shot", "writes")
 
 #: The two that cost nothing: no session, no quota, no account. They are climbed
 #: for every shipped provider every time the machine's standing is read, which is
@@ -113,6 +121,13 @@ def check_provider(
 
     try:
         executor = build_executor(name, options or {})
+    except ConfigError:
+        # Not a rung. A rung is a question about the provider; this is this
+        # machine choosing a model or an effort the tool has no flag for, the
+        # file to edit is `config.toml`, and exit code 2 says so. Landing it in
+        # the `binary` rung said the binary was missing when it was standing
+        # there — and exit 4 would have said an agent cannot be run right now.
+        raise
     except KitError as failure:
         rungs["binary"].detail = f"{failure.code}: {failure.detail}"
         return done()
@@ -146,11 +161,18 @@ def check_provider(
 
     probe = builtin_registry().get("probe")
     try:
-        probe.contract.check(parse_output(result.raw))
+        answered = parse_output(result.raw)
+        probe.contract.check(answered)
         rungs["contract"].passed = True
         rungs["contract"].detail = "the answer satisfied the probe's contract"
+        _fill(rungs["writes"], *_writes(answered))
     except ContractRefusal as refused:
         rungs["contract"].detail = f"{refused.code}: {refused.detail}"
+        # Not a failure of `writes`: nothing was asked of it. The contract is
+        # what guarantees `can_write` is there and is a boolean, so without it
+        # there is no answer to read — and a rung nobody climbed is not a rung
+        # anybody failed.
+        _fill(rungs["writes"], False, "the answer could not be read, so it was never asked", False)
 
     if result.facts.observed:
         rungs["observed"].passed = True
@@ -184,6 +206,10 @@ def free_rungs(name: str, options: dict[str, list[str]] | None = None) -> list[R
     try:
         executor = build_executor(name, options or {})
     except KitError as failure:
+        # Broad on purpose, and unlike `check_provider` above: this is what two
+        # screens print for every shipped provider, and a screen that raises is
+        # a machine that cannot be looked at. Its callers pass no options, so
+        # the choice a `ConfigError` would be about cannot be made here.
         rungs[0].detail = f"{failure.code}: {failure.detail}"
         rungs[1].detail = "not reached"
         return rungs
@@ -194,6 +220,26 @@ def free_rungs(name: str, options: dict[str, list[str]] | None = None) -> list[R
         return rungs
     _fill(rungs[1], *_answers(executor))
     return rungs
+
+
+def _writes(answered: Any) -> tuple[bool, str, bool]:
+    """What the probe already went and found out, finally read by somebody.
+
+    The probe's own words: *find out whether you can write to it — create a
+    file, delete it again*. The contract has required the answer since S2 and no
+    reader ever asked for it, which made `can_write` the one field in this kit
+    written for nobody. The rung is that reader.
+    """
+    if not isinstance(answered, dict):  # pragma: no cover - the contract refused first
+        return False, "the answer could not be read, so it was never asked", False
+    if answered.get("can_write") is True:
+        return True, "the session created a file where it landed and removed it again", True
+    return (
+        False,
+        "the session could not create a file where it landed — a sandbox, or a "
+        "declaration missing the flag that opens one",
+        True,
+    )
 
 
 def _fill(rung: Rung, passed: bool, detail: str, applies: bool = True) -> None:
