@@ -310,9 +310,19 @@ def test_every_shipped_case_is_readable_and_says_what_must_fire(capsys):
 WHOLE_BENCH = 1800
 
 
+@pytest.mark.measured_elsewhere("make bench")
 @pytest.mark.timeout(WHOLE_BENCH)
 def test_every_shipped_case_fires(capsys):
-    """S5's own condition, as a test: break any mechanism and exactly one case says so."""
+    """S5's own condition, as a test: break any mechanism and exactly one case says so.
+
+    Its body is `agent-kit bench run` and so is `make bench`, which is a target
+    of the same Makefile and runs in every verification round. Measuring the
+    same 142 worlds again inside the routine suite is not a second answer: it is
+    the same answer, bought for six minutes and a gigabyte on a shared machine —
+    and twice it came back red for want of memory rather than for a mechanism.
+    The routine suite deselects this and prints what measures it; `pytest
+    --everything` runs it here as well.
+    """
     code = main(["bench", "run"])
     printed = capsys.readouterr()
 
@@ -455,16 +465,28 @@ def test_a_bench_that_broke_and_a_mechanism_that_regressed_have_different_codes(
     assert regression != broken
 
 
-@pytest.mark.timeout(WHOLE_BENCH)  # `bench` with no word runs the shipped cases, all of them
-def test_the_bench_with_no_word_after_it_runs_the_cases(cases, capsys):
+def test_the_bench_with_no_word_after_it_runs_the_cases(cases, capsys, monkeypatch):
+    """`agent-kit bench` means `bench run`, over the cases at the default root.
+
+    What can go wrong here is the word nobody typed: `--case`, `--cases` and
+    `--keep` belong to a subcommand that was not named, so `_bench` reads them
+    as absent rather than crashing on them. That is dispatch, and one case at
+    the default root asks it exactly. It used to ask by running all 142 — the
+    whole bench a second time in one suite, for an answer `make bench` already
+    gives. The root is the one piece of data moved: a bare `bench` cannot be
+    pointed anywhere, so the default is pointed at a case of this test's own.
+    """
+    import agent_kit.bench as bench
+
     write_case(cases, "one", {"exit_code": 0, "status": "done"}, plant=WROTE_IT)
+    monkeypatch.setattr(bench, "cases_root", lambda: cases)
 
     code = main(["bench"])
     printed = capsys.readouterr()
 
     assert "internal-error" not in printed.err
-    assert "fired" in printed.out
-    assert code in (int(ExitCode.OK), int(ExitCode.BENCH))
+    assert "one" in printed.out and "fired" in printed.out
+    assert code == int(ExitCode.OK)
 
 
 def test_one_unreadable_case_does_not_hide_the_others_in_the_listing(cases, capsys):

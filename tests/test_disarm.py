@@ -247,9 +247,18 @@ def test_the_cases_that_cannot_be_disarmed_say_so_in_words(capsys):
     assert len(exempt) <= 20, f"{len(exempt)} cases exempt themselves from being measured"
 
 
+@pytest.mark.measured_elsewhere("make armed")
 @pytest.mark.timeout(1800)
 def test_every_shipped_case_is_armed_or_says_why_it_cannot_be(capsys):
-    """The whole point, as a test: no case the kit ships fires with its trap taken away."""
+    """The whole point, as a test: no case the kit ships fires with its trap taken away.
+
+    Its body is `agent-kit bench disarm`, which is `make armed` — the target
+    that runs in every verification round. This is the run that failed twice
+    under load without a mechanism being broken: `a-tree-in-the-way-of-one-feature`
+    not back inside 300 seconds, and `the-machine-frees-up` killed for memory.
+    So the routine suite deselects it and prints the target that measures it;
+    `pytest --everything` runs it here as well.
+    """
     code = main(["bench", "disarm"])
     printed = capsys.readouterr()
 
