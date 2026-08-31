@@ -332,3 +332,47 @@ def test_a_key_the_person_did_choose_survives_the_default_being_written(
     assert "max_sessions = 7" in written
     assert 'provider = "newcomer"' in written
     assert "backoff" not in written
+
+
+# --- which one a bare `agent-kit setup` walks --------------------------------
+
+
+def test_a_bare_walk_takes_the_one_that_works_over_the_one_that_is_missing(
+    machine, tmp_path, monkeypatch
+):
+    """S9 breaks a choice that could not go wrong while one provider was real.
+
+    `next((one for one in real if not one.ready), real[0])` reads *the first that
+    needs the walk*, and with a catalogue of one working provider that was always
+    the working one. With four shipped and three of them not installed, the same
+    line walks a machine whose agent is standing and configured off to install a
+    tool nobody asked about — in alphabetical order.
+    """
+    installs(tmp_path)  # the newcomer is here and answers
+    ships(tmp_path, monkeypatch, newcomer=NEWCOMER,
+          zzz_absent='[provider]\nbinary = "zzz-absent"\n'
+                     '[provider.setup]\ninstall = ["put-it-there", "zzz-absent"]\n')
+
+    printed, say = saying()
+    code = walk(None, typing("done"), say, machine)
+
+    said = "\n".join(printed)
+    assert code == int(ExitCode.OK)
+    assert "put-it-there zzz-absent" not in said
+    assert "[providers.newcomer] enabled" in said
+
+
+def test_a_bare_walk_on_a_machine_with_nothing_takes_the_first_shipped(
+    machine, tmp_path, monkeypatch
+):
+    """And where nothing works, the walk is still the walk: it names one and
+    goes. Preferring a working provider must not mean refusing a fresh machine."""
+    ships(tmp_path, monkeypatch, newcomer=NEWCOMER,
+          zzz_absent='[provider]\nbinary = "zzz-absent"\n')
+
+    printed, say = saying()
+    with pytest.raises(ProviderError) as caught:
+        walk(None, typing("done"), say, machine)
+
+    assert caught.value.code == "provider-not-ready"
+    assert "newcomer" in "\n".join(printed)
