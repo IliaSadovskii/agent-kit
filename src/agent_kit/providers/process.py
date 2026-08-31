@@ -70,6 +70,22 @@ class Declaration:
         "transcript", "limits", "setup",
     )
     SETUP = ("install", "login")
+    #: Every flag the kit will ever look for, and the reader of each is named
+    #: where it is used: `headless`, `full_access`, `instructions`, `model` and
+    #: `effort` in `ProcessExecutor.command`, `version` in `ProcessExecutor.version`,
+    #: `session` in the Claude Code adapter.
+    #:
+    #: Checked rather than passed through, because this is the one table where a
+    #: typo is invisible. A provider may leave `headless` out on purpose — Gemini
+    #: CLI goes non-interactive by itself when stdin is not a terminal — and a
+    #: provider that spells it `hedless` builds exactly the same argv. Nothing
+    #: downstream can tell those two apart, so the declaration is where they are.
+    FLAGS = (
+        "headless", "full_access", "instructions", "model", "effort", "session", "version",
+    )
+    #: Where each fact lives in the JSON a level-B adapter reads. Level A reads
+    #: none of them; the shipped reader is `claude_code/adapter.py`.
+    ANSWER = ("text", "session", "cost", "failed", "window", "used")
 
     @classmethod
     def read(cls, name: str, path: Path) -> "Declaration":
@@ -88,12 +104,9 @@ class Declaration:
 
         transcript = block.get("transcript") or {}
         limits = block.get("limits") or {}
-        setup = block.get("setup") or {}
-        if not isinstance(setup, dict):
-            raise _bad(f"{path}: [provider.setup] must be a table")
-        unknown = [key for key in setup if key not in cls.SETUP]
-        if unknown:
-            raise _bad(f"{path}: setup.{', setup.'.join(sorted(unknown))} is not something the kit reads")
+        setup = _table(block.get("setup"), path, "setup", cls.SETUP)
+        flags = _table(block.get("flags"), path, "flags", cls.FLAGS)
+        answer = _table(block.get("answer"), path, "answer", cls.ANSWER)
         return cls(
             name=name,
             title=block.get("title", name),
@@ -101,8 +114,8 @@ class Declaration:
             real=bool(block.get("real", True)),
             binary=block.get("binary"),
             notes=block.get("notes", ""),
-            flags=block.get("flags", {}),
-            answer=block.get("answer", {}),
+            flags=flags,
+            answer=answer,
             transcript_root=transcript.get("root"),
             limit_says=limits.get("says", []),
             limit_until=limits.get("until"),
@@ -113,6 +126,26 @@ class Declaration:
     @property
     def reads_limits(self) -> bool:
         return bool(self.limit_says and self.limit_until)
+
+
+def _table(value: Any, path: Path, where: str, known: tuple[str, ...]) -> dict:
+    """One of the declaration's sub-tables, with every key held to what is read.
+
+    The same shape `setup` has had since S9a, applied to the two tables that
+    were still going through untouched. A key nobody reads is not a harmless
+    extra: it is argv the kit will never pass and a fact it will never look up,
+    and neither leaves any trace at the hour it matters.
+    """
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise _bad(f"{path}: [provider.{where}] must be a table")
+    unknown = [key for key in value if key not in known]
+    if unknown:
+        raise _bad(
+            f"{path}: {where}.{f', {where}.'.join(sorted(unknown))} is not something the kit reads"
+        )
+    return dict(value)
 
 
 def _argv(value: Any, path: Path, where: str) -> list[str]:
