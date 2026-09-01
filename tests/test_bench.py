@@ -275,7 +275,7 @@ def test_the_case_runs_against_a_gh_that_is_a_script_and_a_remote_that_is_a_dire
 #: sixty-two cases could have vanished and this file would have stayed green.
 #: Changing this number is how a case is added or retired — deliberately, in a
 #: commit that says so.
-SHIPPED = 142
+SHIPPED = 143
 
 
 def test_a_case_may_ask_for_a_run_of_particular_steps(cases, tmp_path):

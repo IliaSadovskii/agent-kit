@@ -1,0 +1,35 @@
+# S9b — a tool that is installed, answers, and has no account behind it.
+#
+# The state the owner's own machine was in on 1 September 2026, and the one the
+# ladder was worst at: `codex --version` answered perfectly well, and the rung
+# about the account printed `ok` because the reason it got back matched none of
+# the English words the kit was holding in `driver/check.py`. The one green line
+# on the screen was the one thing that had failed.
+#
+# What this case can honestly prove, and it is worth saying plainly because the
+# temptation is to read it as more: the `codex` it talks to is a shim planted
+# beside it, printing what the real tool printed that evening, word for word. It
+# proves that the kit, handed that output, refuses on `login` rather than on
+# `one_shot`, carries the reason from the **end** of the output to the screen,
+# and names the login command out of the declaration. It proves nothing whatever
+# about Codex CLI — whether the real tool still says that sentence is
+# `agent-kit provider check codex` on a machine where it is installed, and
+# nothing in this repository can stand in for it.
+#
+# What it cannot reach at all is the shape one rung up: a provider that has
+# never been watched sign out, where the ladder must report the account as *not
+# asked about* rather than guess. That needs a declaration with no words in it
+# and a session that fails for a reason nobody declared, and it is held by
+# `tests/test_provider_check.py` — `test_a_session_that_failed_for_a_reason_
+# nobody_declared_does_not_pass_the_login`.
+#
+# The run this case declares is an ordinary green one and is not what it
+# measures: the ladder is about a provider and not about any project.
+
+[case]
+title = "a tool that is installed and has no account behind it"
+fires = "the ladder refuses on `login` and not on `one_shot`, carries the reason from the end of the output, and names the login command the declaration carries"
+
+[expect]
+exit_code = 0
+status = "done"
