@@ -81,6 +81,10 @@ class CheckReport:
     rungs: list[Rung] = field(default_factory=list)
     facts: SessionFacts = field(default_factory=SessionFacts)
     raw: str = ""
+    #: The whole of what a failing session printed. A rung's `detail` carries
+    #: the end of it, which is all a night's log has room for; this screen was
+    #: typed by somebody who wants to know what went wrong, so it gets more.
+    said: str = ""
 
     @property
     def failed(self) -> str | None:
@@ -147,12 +151,37 @@ def check_provider(
         rungs["one_shot"].passed = True
         rungs["one_shot"].detail = f"вернулось знаков: {len(result.raw)}"
     except ExecutorFailed as failure:
-        reason = f"{failure.code}: {failure.detail}"
-        if _is_about_login(reason):
+        # One session measures both rungs, so a failed session has to be sorted
+        # into which of them it failed — and there are three answers, not two.
+        #
+        # It used to be two. The reason was matched against a list of English
+        # words held in this file, and when nothing matched the ladder wrote
+        # *the account answered* and moved the failure up to `one_shot`. On the
+        # first live climb against a real provider that default reported `ok
+        # login` for an account that had returned 401 Unauthorized — the one
+        # thing on the screen that was green was the one thing that was broken.
+        #
+        # The kit's own rule is that a judge reads a code and never a phrase,
+        # and a list of somebody else's stderr wordings in the kit's own source
+        # is that rule broken by the kit itself. So the words live in the
+        # provider's declaration now, the executor turns them into
+        # `provider-signed-out`, and what is read here is a code.
+        #
+        # And the third answer is the point: where nothing says the account is
+        # the trouble, the rung is **not asked**. Not passed. A rung that
+        # reports `ok` on a guess is worse than no rung, because it is the line
+        # somebody stops reading at.
+        report.said = failure.said
+        reason = f"{failure.code}: {_one_line(failure.detail)}"
+        if failure.code == "provider-signed-out":
             rungs["login"].detail = reason
+            _fill(rungs["one_shot"], False, "аккаунт не ответил, поэтому работу не давали", False)
         else:
-            rungs["login"].passed = True
-            rungs["login"].detail = "аккаунт ответил, а потом работа не удалась"
+            _fill(
+                rungs["login"], False,
+                "не спрашивали: сессия не удалась, а из отказа не видно, дело ли в аккаунте",
+                False,
+            )
             rungs["one_shot"].detail = reason
         return done()
 
@@ -242,13 +271,26 @@ def _writes(answered: Any) -> tuple[bool, str, bool]:
     )
 
 
+def _one_line(reason: str) -> str:
+    """A rung is one row of a table, so its detail is one line.
+
+    Somebody else's failure arrives with the newlines it was printed with, and
+    a rung that pastes a session's banner into the middle of the ladder is a
+    ladder nobody can read down. The whole of it is printed under the table, so
+    what is kept here is the end — where a CLI puts its reason.
+
+    Trimmed apart from the code, never with it: the code is the one thing on
+    this row a judge reads, and a `…vider-signed-out` is a code nothing can
+    match. Which is the same rule under a different hat — a judge reads a code,
+    so the code has to survive being made to fit.
+    """
+    from ..providers.process import short
+
+    return short(" ".join(reason.split()), 160)
+
+
 def _fill(rung: Rung, passed: bool, detail: str, applies: bool = True) -> None:
     rung.passed, rung.detail, rung.applies = passed, detail, applies
-
-
-def _is_about_login(reason: str) -> bool:
-    words = reason.lower()
-    return any(phrase in words for phrase in ("login", "log in", "api key", "unauthor", "authenticat", "credential"))
 
 
 def _limits(executor: Any) -> tuple[bool, str, bool]:

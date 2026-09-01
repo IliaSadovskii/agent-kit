@@ -39,6 +39,7 @@ class ExecutorFailed(KitError):
         expected: bool = False,
         until: str | None = None,
         facts: "SessionFacts | None" = None,
+        said: str = "",
     ) -> None:
         super().__init__(code, detail, hint=hint)
         #: False when a second attempt is guaranteed to fail the same way.
@@ -50,6 +51,11 @@ class ExecutorFailed(KitError):
         #: When a limited account comes back, in the provider's own words.
         self.until = until
         self.facts = facts or SessionFacts()
+        #: The whole of what the session printed before it failed. `detail`
+        #: carries the end of it, which is what a night's log wants; a screen
+        #: somebody typed to get a diagnosis wants more, and this is where it
+        #: comes from. Empty where the failure was not a program saying things.
+        self.said = said
 
 
 @dataclass(frozen=True)

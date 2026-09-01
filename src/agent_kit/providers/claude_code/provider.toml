@@ -52,6 +52,23 @@ used     = "usage"
 # A session's record: <root>/<the project path, slashes and dots turned to dashes>/<session>.jsonl
 root = "~/.claude/projects"
 
+[provider.signed_out]
+# What this tool prints when the account behind it is not signed in.
+#
+# Where it comes from, said plainly: not from a machine here. Nobody has logged
+# Claude Code out to watch what it says, and this is the CLI's own wording as
+# the kit's own tests have carried it since S3. It is written here rather than
+# left in a test because here is where somebody who *has* seen the real thing
+# can correct it, and because a phrase list living in `driver/check.py` was the
+# kit doing to somebody else's stderr what it forbids its own bench judges to do.
+#
+# What being wrong here costs, and it is the whole reason an unmeasured line is
+# allowed to stand where `[provider.limits]` refuses one: these words are only
+# ever read off a session that has **already** failed, so a phrase that never
+# matches loses precision — the ladder reports the account as not asked about —
+# and can never turn a failure into a passing rung.
+says = ["please run /login", "invalid api key"]
+
 [provider.limits]
 # How a limited account announces itself in the text it returns.
 says  = ["usage limit reached", "rate limit", "limit will reset"]

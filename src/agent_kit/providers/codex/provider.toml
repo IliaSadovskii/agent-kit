@@ -61,6 +61,28 @@ full_access = ["-s", "workspace-write"]
 model       = ["--model"]
 version     = ["--version"]
 
+[provider.signed_out]
+# What this tool prints when the account behind it is not signed in — and this
+# one line is measured rather than read out of a reference. The owner ran
+# `agent-kit provider check codex` on 1 September 2026 on a machine where Codex
+# was installed and never logged in, and `codex exec` came back:
+#
+#     ERROR: unexpected status 401 Unauthorized: Missing bearer or basic
+#     authentication in header, url: https://api.openai.com/v1/responses
+#
+# One phrase, and the narrow half of the sentence. `401 Unauthorized` on its own
+# would also be printed by somebody else's API reached from inside a session
+# that then failed for its own reasons, and a false sign-out costs a provider
+# dropped from the night's chain. This half is said by the tool about its own
+# request and by nothing else.
+#
+# What is not here is what was not seen: the other wordings Codex may have for a
+# logged-out account — an expired session, a revoked token — have never been in
+# front of anybody here. Silence about them costs precision and no more: the
+# ladder reports the account as *not asked about* and names the reason it did
+# get, which is what a rung that cannot lie looks like.
+says = ["missing bearer or basic authentication"]
+
 # No [provider.answer], [provider.transcript] or [provider.limits]. Level A reads
 # none of the first two — the shipped reader is claude_code's adapter — and the
 # `limits` rung measures declared phrases against a sentence built out of those

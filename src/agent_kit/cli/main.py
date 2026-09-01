@@ -1521,6 +1521,7 @@ def _options(pairs: list[str]) -> dict[str, list[str]]:
 def _provider_check(args: argparse.Namespace) -> int:
     """The ladder, printed. A level nobody measured is a claim, not a fact."""
     from ..driver.check import check_provider
+    from ..providers.process import tail
 
     report = check_provider(
         args.name, _options(args.option), project=Path(args.project).resolve(), remember=True
@@ -1530,6 +1531,17 @@ def _provider_check(args: argparse.Namespace) -> int:
         mark = "ok  " if rung.passed else ("--  " if not rung.applies else "no  ")
         print(f"  {mark}{rung.name:10} {rung.detail}")
     print()
+
+    if report.said:
+        # The end of it, not the beginning. A CLI puts its banner first and its
+        # reason last, and the owner's first live climb printed the banner and
+        # cut off before the 401 — the cause had to be found by running the tool
+        # by hand. This is the screen somebody typed to get a diagnosis, so it
+        # carries more than a night's log line does.
+        print("  что сказала сессия, последние строки:")
+        for line in tail(report.said).splitlines():
+            print(f"    {line}")
+        print()
 
     if report.level is None:
         # The code, and it is the walk's own: a judge reads a code, and this is

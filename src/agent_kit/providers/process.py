@@ -55,6 +55,20 @@ class Declaration:
     transcript_root: str | None = None
     limit_says: list[str] = field(default_factory=list)
     limit_until: str | None = None
+    #: What this tool prints when the account behind it is not signed in.
+    #:
+    #: Beside `limits` and for the same reason: what a CLI says is a fact about
+    #: that CLI, and the kit had it as a list of English words in its own
+    #: `driver/check.py` — phrase-matching somebody else's stderr, which is the
+    #: very thing the kit forbids in its bench judges.
+    #:
+    #: Unlike `limits`, an undeclared phrase here is not a rung earned for
+    #: nothing: the `limits` rung feeds a provider its own declared words back
+    #: and would go green on words nobody ever saw, while these words are only
+    #: ever read off a session that has *already* failed. Silence here costs
+    #: precision — the ladder says the account was not asked about — and can
+    #: never turn a failure into a pass.
+    signed_out: list[str] = field(default_factory=list)
     #: What a person runs to put this tool on the machine, and what they run to
     #: log it in. Argv, never prose: the kit runs neither — installing is the
     #: owner's act on the owner's machine — but argv can be taken by its first
@@ -76,9 +90,11 @@ class Declaration:
 
     KNOWN = (
         "title", "level", "real", "binary", "notes", "flags", "answer",
-        "transcript", "limits", "setup",
+        "transcript", "limits", "signed_out", "setup",
     )
     SETUP = ("install", "login", "login_note")
+    LIMITS = ("says", "until")
+    SIGNED_OUT = ("says",)
     #: Every flag the kit will ever look for, and the reader of each is named
     #: where it is used: `headless`, `full_access`, `instructions`, `model` and
     #: `effort` in `ProcessExecutor.command`, `version` in `ProcessExecutor.version`,
@@ -112,7 +128,8 @@ class Declaration:
             raise _bad(f"{path}: {', '.join(sorted(unknown))} is not something the kit reads")
 
         transcript = block.get("transcript") or {}
-        limits = block.get("limits") or {}
+        limits = _table(block.get("limits"), path, "limits", cls.LIMITS)
+        signed_out = _table(block.get("signed_out"), path, "signed_out", cls.SIGNED_OUT)
         setup = _table(block.get("setup"), path, "setup", cls.SETUP)
         flags = _table(block.get("flags"), path, "flags", cls.FLAGS)
         answer = _table(block.get("answer"), path, "answer", cls.ANSWER)
@@ -126,8 +143,9 @@ class Declaration:
             flags=flags,
             answer=answer,
             transcript_root=transcript.get("root"),
-            limit_says=limits.get("says", []),
+            limit_says=_phrases(limits.get("says"), path, "limits.says"),
             limit_until=limits.get("until"),
+            signed_out=_phrases(signed_out.get("says"), path, "signed_out.says"),
             install=_argv(setup.get("install"), path, "setup.install"),
             login=_argv(setup.get("login"), path, "setup.login"),
             login_note=_prose(setup.get("login_note"), path, "setup.login_note"),
@@ -136,6 +154,10 @@ class Declaration:
     @property
     def reads_limits(self) -> bool:
         return bool(self.limit_says and self.limit_until)
+
+    @property
+    def reads_signed_out(self) -> bool:
+        return bool(self.signed_out)
 
 
 def _table(value: Any, path: Path, where: str, known: tuple[str, ...]) -> dict:
@@ -172,6 +194,24 @@ def _argv(value: Any, path: Path, where: str) -> list[str]:
     if any(not isinstance(word, str) or not word.strip() for word in value):
         raise _bad(f"{path}: {where} holds something that is not a word of a command")
     return list(value)
+
+
+def _phrases(value: Any, path: Path, where: str) -> list[str]:
+    """Words to look for in what a tool printed. A list, and held to being one.
+
+    A bare string here would be catastrophic rather than merely wrong: `any(word
+    in haystack for word in "401")` walks the *characters* of it, so a
+    declaration with a quote in the wrong place would find every text that holds
+    a `4`. That is a false sign-out on a night, and a provider dropped from the
+    chain for it.
+    """
+    if value is None:
+        return []
+    if not isinstance(value, list) or not value:
+        raise _bad(f"{path}: {where} must be a non-empty list of phrases, not a sentence")
+    if any(not isinstance(phrase, str) or not phrase.strip() for phrase in value):
+        raise _bad(f"{path}: {where} holds something that is not a phrase")
+    return [phrase.strip() for phrase in value]
 
 
 def _prose(value: Any, path: Path, where: str) -> str:
@@ -318,11 +358,14 @@ class ProcessExecutor:
             ) from None
 
         if child.returncode != 0:
-            self._refuse_if_limited(f"{stdout}\n{stderr}")
+            said = f"{stdout}\n{stderr}"
+            self._refuse_if_limited(said)
+            self._refuse_if_signed_out(said)
             raise ExecutorFailed(
                 "session-failed",
                 f"{self.binary} exited with {child.returncode}: "
                 f"{short(stderr) or short(stdout) or 'and said nothing'}",
+                said=said,
             )
         return stdout, stderr
 
@@ -346,6 +389,37 @@ class ProcessExecutor:
         )
 
 
+    def _refuse_if_signed_out(self, text: str, facts: SessionFacts | None = None) -> None:
+        """Only ever called on a failure, and only on words the provider declared.
+
+        A code, because a code means one thing and the kit's own rule is that a
+        judge reads a code and never a phrase. Until this existed, `provider
+        check` decided between *the account answered* and *the account did not*
+        by matching a list of English words against somebody else's stderr, in
+        its own source, and defaulted to **answered** when nothing matched — so
+        a live Codex CLI that came back `401 Unauthorized: Missing bearer or
+        basic authentication in header` was reported `ok  login`.
+
+        Not retryable, for the reason an exhausted account is not: an account
+        that is not signed in will not sign itself in between two attempts, and
+        three sessions with the pause doubling between them buy nothing. The
+        chain drops this provider and asks the next one, which is exactly right
+        — the spare may be signed in.
+        """
+        if not self.declared.reads_signed_out:
+            return
+        haystack = (text or "").lower()
+        if not any(phrase.lower() in haystack for phrase in self.declared.signed_out):
+            return
+        raise ExecutorFailed(
+            "provider-signed-out",
+            f"the account behind {self.binary} is not signed in",
+            retryable=False,
+            facts=facts,
+            said=text,
+        )
+
+
 def json_answer(stdout: str, binary: str) -> dict[str, Any]:
     """The JSON the CLI promises, found in a stream that may hold other things too."""
     for candidate in (stdout.strip(), *(_JSON_OBJECT.findall(stdout) or [])):
@@ -363,8 +437,36 @@ def json_answer(stdout: str, binary: str) -> dict[str, Any]:
 
 
 def short(text: Any, limit: int = 400) -> str:
+    """The **end** of what somebody else's program said, not the beginning.
+
+    Measured, on the first live run of the ladder: `codex exec` against an
+    account that was not signed in printed its banner — *Reading prompt from
+    stdin…*, the version, the workdir, the model — and then, lines later, the
+    reason. Trimmed from the front, the screen carried the banner and cut off
+    exactly where the sentence somebody needed began; the owner had to run the
+    tool by hand to find out what had happened.
+
+    A CLI's failure is at the end of its output, because it is what the program
+    got to last. So this keeps the end and marks that it dropped a front.
+    """
     text = (str(text) if text is not None else "").strip()
-    return text if len(text) <= limit else text[:limit] + "…"
+    return text if len(text) <= limit else "…" + text[-limit:]
+
+
+def tail(text: Any, lines: int = 40, limit: int = 4000) -> str:
+    """More of the same end, for a screen that was asked for a diagnosis.
+
+    `short` is what a night's log carries: a run writes a refusal per attempt,
+    and a whole session's transcript per attempt is its own defect. `provider
+    check` is the other thing — a person typed it to find out what is wrong with
+    one provider, and there is nothing else on that screen — so it gets the last
+    forty lines rather than the last four hundred characters.
+
+    Bounded twice, and by both: a tool that prints one line of forty thousand
+    characters is as bad a screen as one that prints four hundred lines.
+    """
+    kept = (str(text) if text is not None else "").strip().splitlines()[-lines:]
+    return short("\n".join(kept), limit)
 
 
 def whole_number(options: dict[str, list[str]], key: str, default: int) -> int:

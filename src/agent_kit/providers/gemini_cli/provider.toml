@@ -52,3 +52,11 @@ version     = ["--version"]
 # No [provider.answer], [provider.transcript] or [provider.limits], for the
 # reasons written out in codex/provider.toml beside this one. No `effort`: this
 # tool has no such idea, so a machine that names one is refused by name.
+#
+# And no [provider.signed_out]: nobody here has seen this tool refuse a session
+# for want of an account, so there are no words to write down. What that costs
+# is exactly one thing and it is worth knowing before somebody hits it — a
+# Gemini CLI that is installed and not signed in stops the ladder on `one_shot`
+# rather than on `login`, and the screen names the login command as *the one to
+# run if it is the account*, instead of saying that it is. The first person to
+# measure it should put the phrase here.

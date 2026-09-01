@@ -75,12 +75,18 @@ class ClaudeCode(ProcessExecutor):
         keys = self.declared.answer
         text = answer.get(keys["text"])
         if answer.get(keys["failed"]):
-            # The one place a limit is read on purpose: the failure path.
-            self._refuse_if_limited(f"{text}\n{answer.get('api_error_status') or ''}", facts)
+            # The one place a limit is read on purpose: the failure path. And
+            # the account, beside it: this CLI can exit 0 and report the failure
+            # inside the JSON, so a sign-out that never reaches `run()` would
+            # otherwise be read here as an ordinary session that went wrong.
+            said = f"{text}\n{answer.get('api_error_status') or ''}"
+            self._refuse_if_limited(said, facts)
+            self._refuse_if_signed_out(said, facts)
             raise ExecutorFailed(
                 "session-error",
                 f"the session reported a failure: {short(text) or answer.get('subtype', 'no reason given')}",
                 facts=facts,
+                said=said,
             )
         if not isinstance(text, str) or not text.strip():
             raise ExecutorFailed(
