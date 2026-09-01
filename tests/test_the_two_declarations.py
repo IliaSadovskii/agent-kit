@@ -72,10 +72,18 @@ def test_codex_is_told_to_write_where_the_run_builds():
     """`codex exec` sandboxes to read-only unless told otherwise, and a provider
     that cannot write earns no level since the `writes` rung. `workspace-write`
     and not `danger-full-access`: a run builds in its own worktree, so the
-    workspace is the whole of what it has any business editing."""
+    workspace is the whole of what it has any business editing.
+
+    And no approval flag. `-a/--ask-for-approval` belongs to `codex` itself, not
+    to `codex exec`, which refuses it — measured on 1 September 2026 by the
+    ladder, on the owner's server, against the installed tool:
+    `unexpected argument '-a' found`. There is nothing to say instead: a
+    subcommand named for running non-interactively does not stop to ask.
+    """
     flags = registry.facts("codex").flags
 
-    assert flags["full_access"] == ["-s", "workspace-write", "-a", "never"]
+    assert flags["full_access"] == ["-s", "workspace-write"]
+    assert "-a" not in flags["full_access"]
     assert flags["headless"] == ["exec"]
 
 
