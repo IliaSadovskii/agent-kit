@@ -525,3 +525,43 @@ def test_a_provider_that_earned_what_it_declares_is_told_nothing_to_do(tmp_path,
 
     assert code == 0
     assert "Что делать дальше" not in out
+
+
+# --- S9c: what the machine is missing, named where the ladder stopped --------
+
+
+def test_the_rung_that_failed_names_what_the_machine_does_not_have(tmp_path, monkeypatch):
+    """One declaration, three readers. `agent-kit setup` prints requirements
+    above the install command; the ladder is the other place a person arrives
+    at with a tool that is not working, and it was the place that used to say
+    nothing at all about them."""
+    from agent_kit.driver.check import cure
+    from agent_kit.providers import registry
+
+    monkeypatch.setenv("PATH", str(tmp_path))  # a machine with nothing on it
+
+    report = check_provider("codex", {"binary": [str(tmp_path / "nowhere")]}, project=tmp_path)
+    fix = cure(report)
+
+    assert report.failed == "binary"
+    assert [word for word, _ in fix.missing] == [
+        registry.facts("codex").install[0],
+        *(one.binary for one in registry.facts("codex").requires),
+    ]
+
+
+def test_a_machine_that_has_what_it_needs_is_told_about_no_requirements(tmp_path, monkeypatch):
+    """A list of met requirements under a broken tool is noise: what is printed
+    is what is missing, and here nothing is."""
+    from agent_kit.driver.check import cure
+    from agent_kit.providers import registry
+
+    installer = tmp_path / registry.facts("claude_code").install[0]
+    installer.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    installer.chmod(installer.stat().st_mode | stat.S_IEXEC)
+    monkeypatch.setenv("PATH", str(tmp_path))
+
+    report = check_provider("claude_code", {"binary": [str(tmp_path / "nowhere")]}, project=tmp_path)
+
+    assert report.failed == "binary"
+    assert cure(report).missing == []

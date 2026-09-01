@@ -115,7 +115,7 @@ def test_a_provider_that_is_not_here_stops_on_the_first_free_rung(machine, tmp_p
     assert one.ready is False
     assert one.stopped_on == "binary"
     assert one.install == ["put-it-there", "newcomer"]
-    assert one.installer_missing == "put-it-there"
+    assert [want.binary for want in one.missing] == ["put-it-there"]
 
 
 def test_a_provider_that_is_here_climbs_both_free_rungs(machine, tmp_path, monkeypatch):
@@ -610,3 +610,114 @@ def test_no_shipped_declaration_says_a_browser_opens_here(machine):
         note = registry.facts(name).login_note.lower()
         assert "откроется браузер" not in note
         assert "откроет браузер" not in note
+
+
+# --- S9c: what a machine must already have, said before the install command ---
+#
+# The owner's own words after an afternoon of it: *right now I am debugging one
+# provider by talking to you — that is not the thing.* `bubblewrap` was learned
+# from a conversation, and everything else a machine was missing arrived as a
+# refusal after the command had already been run. A requirement is a word asked
+# of PATH, so the walk measures it and puts it where it is of use: above the
+# command, not under the wreckage.
+
+#: A tool that needs something else standing before it will work — and the
+#: installer is not that something: the kit derives the installer itself.
+NEEDY = NEWCOMER.replace(
+    "[provider.flags]",
+    '[[provider.requires]]\nbinary = "runtime"\n'
+    'why = "сам инструмент — сценарий runtime, без него он не запустится"\n\n[provider.flags]',
+)
+
+
+def puts(tmp_path, word):
+    """Something else this machine has, and it is not the tool being installed."""
+    binary = tmp_path / "bin" / word
+    binary.write_text(f"#!/bin/sh\necho '{word}'\n", encoding="utf-8")
+    binary.chmod(binary.stat().st_mode | stat.S_IEXEC)
+    return binary
+
+
+def test_what_a_machine_must_have_is_measured_beside_what_it_installs_with(
+    machine, tmp_path, monkeypatch
+):
+    """Two requirements: the installer, derived from the command's first word,
+    and the one the declaration names. Both asked of PATH, neither claimed."""
+    ships(tmp_path, monkeypatch, newcomer=NEEDY)
+    puts(tmp_path, "put-it-there")
+
+    one = read(machine).named("newcomer")
+
+    assert [(want.binary, want.here) for want in one.requires] == [
+        ("put-it-there", True),
+        ("runtime", False),
+    ]
+    assert [want.binary for want in one.missing] == ["runtime"]
+
+
+def test_the_walk_names_what_is_missing_before_the_command_that_needs_it(
+    machine, tmp_path, monkeypatch
+):
+    """Before, and this is the whole of the case: a requirement printed under
+    the install command is a requirement somebody reads after running it."""
+    ships(tmp_path, monkeypatch, newcomer=NEEDY)
+    printed, say = saying()
+
+    with pytest.raises(ProviderError):
+        walk("newcomer", ask=typing("\n", "\n"), say=say, paths=machine)
+
+    screen = "\n".join(printed)
+    assert "runtime" in screen
+    said_it = next(number for number, line in enumerate(printed) if "runtime" in line)
+    command = next(
+        number for number, line in enumerate(printed) if "put-it-there newcomer" in line
+    )
+    assert said_it < command
+
+
+def test_a_requirement_this_machine_has_is_marked_apart_from_one_it_lacks(
+    machine, tmp_path, monkeypatch
+):
+    """Each one carries what was measured about it. A block that named all of
+    them alike would be a list somebody has to go and check by hand — which is
+    the afternoon this mechanism exists to stop."""
+    ships(tmp_path, monkeypatch, newcomer=NEEDY)
+    puts(tmp_path, "put-it-there")
+    printed, say = saying()
+
+    with pytest.raises(ProviderError):
+        walk("newcomer", ask=typing("\n", "\n"), say=say, paths=machine)
+
+    marks = {
+        line.split()[1]: line.split()[0]
+        for line in (one.strip() for one in printed)
+        if line[:4] in ("ok  ", "no  ")
+    }
+    assert marks == {"put-it-there": "ok", "runtime": "no"}
+
+
+def test_a_tool_already_standing_is_not_asked_what_it_needed_to_be_installed(
+    machine, tmp_path, monkeypatch
+):
+    """The block belongs to the install step. A tool that is here got installed."""
+    ships(tmp_path, monkeypatch, newcomer=NEEDY)
+    installs(tmp_path)
+    printed, say = saying()
+
+    walk("newcomer", ask=typing("\n", "\n"), say=say, paths=machine)
+
+    assert "runtime" not in "\n".join(printed)
+
+
+def test_the_standing_screen_names_what_a_provider_is_missing(
+    machine, tmp_path, monkeypatch
+):
+    """One reading, two screens. `doctor` is where *what does this machine
+    have* is asked, and a requirement nobody has met is half that answer."""
+    ships(tmp_path, monkeypatch, newcomer=NEEDY)
+    printed, say = saying()
+
+    screen = "\n".join(render(read(machine)))
+
+    assert "runtime" in screen
+    assert "сценарий runtime" in screen

@@ -619,3 +619,99 @@ def test_the_shipped_declarations_say_what_they_have_seen_and_no_more():
 
     assert codex.signed_out == ["missing bearer or basic authentication"]
     assert registry.facts("gemini_cli").signed_out == []
+
+
+# --- S9c: what a machine must already have, declared before anybody installs --
+#
+# The first live walks taught this by costing an afternoon: `bubblewrap` was
+# learned from a conversation rather than from the kit, and every requirement
+# a person hit arrived as a refusal *after* the install command had run. A
+# requirement is a word asked of PATH, so it is measured like everything else
+# here, and it is declared where what is true about a tool is declared.
+
+
+def test_a_provider_declares_what_the_machine_must_already_have(tmp_path, monkeypatch):
+    """A word, and the line saying why. Both, or the declaration is refused."""
+    declare(
+        tmp_path,
+        monkeypatch,
+        "newcomer",
+        '[provider]\nbinary = "newcomer"\n\n'
+        '[provider.setup]\ninstall = ["npm", "install", "-g", "newcomer"]\n\n'
+        '[[provider.requires]]\nbinary = "node"\nwhy = "сам инструмент — сценарий node"\n',
+    )
+
+    facts = registry.facts("newcomer")
+
+    assert [(one.binary, one.why) for one in facts.requires] == [
+        ("node", "сам инструмент — сценарий node")
+    ]
+
+
+def test_a_provider_that_requires_nothing_says_so_with_nothing(tmp_path, monkeypatch):
+    declare(tmp_path, monkeypatch, "bare", '[provider]\nbinary = "bare"\n')
+
+    assert registry.facts("bare").requires == []
+
+
+@pytest.mark.parametrize(
+    "block",
+    [
+        '[provider.requires]\nbinary = "node"\nwhy = "x"\n',      # a table, not an array
+        '[[provider.requires]]\nbinary = "node"\n',                 # no reason to name it
+        '[[provider.requires]]\nwhy = "x"\n',                       # nothing to ask PATH
+        '[[provider.requires]]\nbinary = "node --version"\nwhy = "x"\n',  # not one word
+        '[[provider.requires]]\nbinary = "node"\nwhy = "x"\nversion = "20"\n',  # nobody reads it
+        '[[provider.requires]]\nbinary = "node"\nwhy = "x"\n[[provider.requires]]\n'
+        'binary = "node"\nwhy = "y"\n',                             # named twice
+    ],
+)
+def test_a_requirement_that_cannot_be_asked_of_path_is_refused_by_name(
+    tmp_path, monkeypatch, block
+):
+    """Prose here would be the thing these four days caught three times: a claim
+    written from documentation and printed at somebody as if it were measured."""
+    declare(
+        tmp_path, monkeypatch, "sloppy",
+        f'[provider]\nbinary = "sloppy"\n\n[provider.setup]\ninstall = ["npm", "i"]\n\n{block}',
+    )
+
+    with pytest.raises(ProviderError) as caught:
+        registry.facts("sloppy")
+
+    assert caught.value.code == "bad-declaration"
+
+
+def test_a_requirement_the_kit_already_derives_is_refused(tmp_path, monkeypatch):
+    """The first word of the install command is asked of PATH already, and the
+    provider's own binary is the first rung of the ladder. Declaring either
+    would put one thing on the screen twice, under two spellings of why."""
+    for word in ("npm", "sloppy"):
+        room = tmp_path / word
+        room.mkdir()
+        declare(
+            room, monkeypatch, "sloppy",
+            '[provider]\nbinary = "sloppy"\n\n'
+            '[provider.setup]\ninstall = ["npm", "install", "-g", "sloppy"]\n\n'
+            f'[[provider.requires]]\nbinary = "{word}"\nwhy = "x"\n',
+        )
+
+        with pytest.raises(ProviderError) as caught:
+            registry.facts("sloppy")
+
+        assert caught.value.code == "bad-declaration"
+
+
+def test_the_shipped_declarations_require_what_was_measured_on_a_machine():
+    """Measured on the owner's server on 1 September 2026, by looking at the
+    files: `codex` and `gemini` are both `#!/usr/bin/env node`, so neither runs
+    without node. The `claude` standing on that machine is a native binary, so
+    a node requirement written for it would be a claim about a tool nobody here
+    has installed that way — and unmeasured claims are what this week caught
+    three times out of three.
+    """
+    for name in ("codex", "gemini_cli"):
+        assert [one.binary for one in registry.facts(name).requires] == ["node"]
+        assert all(one.why for one in registry.facts(name).requires)
+    assert registry.facts("claude_code").requires == []
+    assert registry.facts("fake").requires == []
