@@ -38,6 +38,8 @@ way Claude Code's --setting-sources does. That is a standing debt, not a setting
 # somewhere else, which is the flow that works from a terminal.
 install = ["npm", "install", "-g", "@openai/codex"]
 login   = ["codex", "login", "--device-auth"]
+# Why this one does not say "a browser will open": on this machine none will.
+login_note = "Появится код: наберите его в браузере на другой машине — на сервере браузера нет."
 
 [provider.flags]
 # The shape: a flag that carries a value is [flag], and the value follows it.

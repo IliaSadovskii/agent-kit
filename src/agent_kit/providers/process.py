@@ -64,12 +64,21 @@ class Declaration:
     #: Printed only. Whether the account behind it answers is the `login` rung,
     #: and that costs a session, so it is `provider check` that measures it.
     login: list[str] = field(default_factory=list)
+    #: One short line about *this tool's* login, printed by the walk under the
+    #: command. What happens when a person runs it differs by tool and by
+    #: nothing else: Gemini opens a screen that does not close itself, Codex
+    #: prints a code to type on another machine because a server has no browser.
+    #: A walk that wrote one sentence for all of them would be wrong about two.
+    #:
+    #: Prose, and Russian, because a person reads it — the same rule the rest of
+    #: the kit's screens follow. Argv, keys and titles beside it stay as they are.
+    login_note: str = ""
 
     KNOWN = (
         "title", "level", "real", "binary", "notes", "flags", "answer",
         "transcript", "limits", "setup",
     )
-    SETUP = ("install", "login")
+    SETUP = ("install", "login", "login_note")
     #: Every flag the kit will ever look for, and the reader of each is named
     #: where it is used: `headless`, `full_access`, `instructions`, `model` and
     #: `effort` in `ProcessExecutor.command`, `version` in `ProcessExecutor.version`,
@@ -121,6 +130,7 @@ class Declaration:
             limit_until=limits.get("until"),
             install=_argv(setup.get("install"), path, "setup.install"),
             login=_argv(setup.get("login"), path, "setup.login"),
+            login_note=_prose(setup.get("login_note"), path, "setup.login_note"),
         )
 
     @property
@@ -162,6 +172,20 @@ def _argv(value: Any, path: Path, where: str) -> list[str]:
     if any(not isinstance(word, str) or not word.strip() for word in value):
         raise _bad(f"{path}: {where} holds something that is not a word of a command")
     return list(value)
+
+
+def _prose(value: Any, path: Path, where: str) -> str:
+    """A sentence, where the thing beside it is a command.
+
+    Held to being a string for the same reason `_argv` holds a command to being
+    a list: a declaration that got the shape wrong must say so here, where a
+    person is reading the file, rather than at the hour somebody is mid-install.
+    """
+    if value is None:
+        return ""
+    if not isinstance(value, str) or not value.strip():
+        raise _bad(f"{path}: {where} must be a sentence somebody can read")
+    return value.strip()
 
 
 def _bad(detail: str) -> Exception:

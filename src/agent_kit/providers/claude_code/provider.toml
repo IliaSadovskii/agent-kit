@@ -20,6 +20,9 @@ never sees a key and never talks to a model API.
 # install did is measured afterwards by looking for `binary` again.
 install = ["npm", "install", "-g", "@anthropic-ai/claude-code"]
 login   = ["claude", "/login"]
+# One line at the person standing mid-install, and it is about this tool:
+# `/login` is typed inside Claude Code's own screen, not at the shell.
+login_note = "Это команда внутри самого claude: он откроет браузер, выберите аккаунт и закройте его экран."
 
 [provider.flags]
 # The shape: a flag that carries a value is [flag], and the value follows it.

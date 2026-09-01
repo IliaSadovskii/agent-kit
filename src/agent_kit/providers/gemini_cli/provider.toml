@@ -31,6 +31,9 @@ install = ["npm", "install", "-g", "@google/gemini-cli"]
 # Not a subcommand: this tool has none for signing in. The precedent is already
 # shipped — claude_code's login is a slash command typed inside its own screen.
 login   = ["gemini"]
+# The screen it opens stays open until somebody leaves it, and the walk is
+# waiting on the line typed after. Said here because it is true of this tool.
+login_note = "Откроется браузер. Выберите аккаунт и выйдите из экрана: сам он не закроется."
 
 [provider.flags]
 # `--yolo` is deprecated in favour of the unified approval mode, and the two

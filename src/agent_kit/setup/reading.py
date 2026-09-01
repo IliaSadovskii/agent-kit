@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 from shutil import which
+from textwrap import wrap
 
 from ..config import Config, ProviderConfig, load_config
 from ..errors import KitError
@@ -37,6 +38,8 @@ class Standing:
     rungs: list = field(default_factory=list)
     install: list[str] = field(default_factory=list)
     login: list[str] = field(default_factory=list)
+    #: One line about this tool's login, printed by the walk under the command.
+    login_note: str = ""
     #: The first word of `install`, when this machine has no such command. What
     #: holds a declaration the kit will never run: it is argv, so its first word
     #: can be asked of PATH before it is printed at somebody.
@@ -131,6 +134,7 @@ def _standing(name: str, config: Config, measured: dict) -> Standing:
         rungs=free_rungs(name),
         install=facts.install,
         login=facts.login,
+        login_note=facts.login_note,
         installer_missing=_missing(facts.install),
         measured=measured.get(name),
         chosen=config.providers.get(name),
@@ -151,7 +155,14 @@ def _missing(install: list[str]) -> str:
 
 
 def render(reading: Reading) -> list[str]:
-    """The provider rows both screens print. One pass, one shape, one place."""
+    """The provider rows `doctor` prints. One pass, one shape, one place.
+
+    It used to be two screens over this: the walk opened with the same
+    inventory. A person who has typed `agent-kit setup gemini_cli` has named
+    one provider, and answering *here is every provider you have* buries the
+    one thing they asked for. `doctor` is where that question is asked, so it
+    is the only screen that answers it now.
+    """
     lines = []
     for one in reading.providers:
         lines.append(f"  {one.name:12} {one.title}")
@@ -165,6 +176,31 @@ def render(reading: Reading) -> list[str]:
             mark = "ok" if rung.passed else ("--" if not rung.applies else "no")
             lines.append(f"    {rung.name:10} {mark}  {rung.detail}")
         lines.append(f"    {'machine':10} {one.configured}{_account(one)}")
+        lines.extend(_notes(one))
+    return lines
+
+
+def _notes(one: Standing) -> list[str]:
+    """What is true about this tool, for the tools this machine actually has.
+
+    The declaration's `notes` used to read at the walk, where it was four
+    paragraphs in front of somebody who wanted to know what to type next. It
+    still has a reader — rule 5 — and this is the screen whose question it
+    answers: *what does this machine have, and what is true about it*.
+
+    Not every shipped provider, though. Four declarations of four paragraphs is
+    the same wall moved one screen over. It reads for a provider this machine
+    chose, or one that is standing here — which is what `doctor` is about — and
+    stays folded away for the rest.
+    """
+    if not one.notes or not (one.chosen is not None or one.ready):
+        return []
+    lines = []
+    for paragraph in one.notes.split("\n\n"):
+        said = " ".join(paragraph.split())
+        if said:
+            lines.extend(f"      {line}" for line in wrap(said, width=72))
+            lines.append("")
     return lines
 
 

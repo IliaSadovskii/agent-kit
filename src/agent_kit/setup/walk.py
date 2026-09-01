@@ -11,6 +11,20 @@ real session — are `agent-kit provider check <name>`, which the walk names and
 does not climb. That is the line between the two commands: **setup does not
 spend, check does.**
 
+**The screen is a numbered list, and the number is derived.** The owner ran this
+on a real machine and got the inventory of every shipped provider, four
+paragraphs of somebody else's `notes`, and then a bare `press enter` with no way
+to tell whether it was the last thing or the first of five. So: one heading that
+says how many steps there are, one numbered step at a time, one short line of
+what matters *now*, and the command set off on its own line so it can be copied.
+
+The count comes from `_plan`, which is the same list the walk then takes. A
+number written down beside it would be a second thing that had to agree — and a
+machine whose tool is already standing has two steps, not three. The plan is
+settled before the first line is printed, because every question it depends on
+is answered by the reading: whether the tool is here, whether the declaration
+carries a login, whether this machine would end up with two pools of quota.
+
 **How many lines it reads from the stream, exactly.** One after the install
 command, and only where the provider was not already standing. One after the
 login command, and only where the provider declares one. One for the account,
@@ -18,10 +32,17 @@ and only where this machine would end up with two providers or more — with one
 provider there is one pool, and a question with one answer is not a question.
 So a fresh machine reaching Claude Code types two lines. A stream that closes
 while a question is standing is `nobody-to-ask`, and nothing is written.
+
+**It speaks Russian, and the refusals keep their codes.** What a person reads at
+the terminal is the owner's language, the way `knowledge tell` and `batch
+compose` already are; what a judge reads is `provider-not-ready`, which is not
+a phrase in any language. Rewriting the prose here is safe for exactly that
+reason, and a case that goes red over it was measuring a sentence.
 """
 
 from __future__ import annotations
 
+from textwrap import wrap
 from typing import Callable
 
 from ..config import ProviderConfig, write_block
@@ -29,12 +50,27 @@ from ..errors import ChannelError, ExitCode, ProviderError
 from ..logs import get_logger
 from ..paths import Paths
 from ..providers import registry
-from .reading import Reading, Standing, read, render
+from .reading import Reading, Standing, read
 
 log = get_logger("setup")
 
 PROGRAM = "agent-kit"
 CHECK = "agent-kit provider check"
+
+#: What each step of the walk is called, where it is on the screen, and nothing
+#: else. The order of this table is the order of the walk.
+STEPS = {
+    "install": "Установить",
+    "login": "Войти",
+    "pool": "Выбрать пул квоты",
+    "write": "Записать выбор",
+}
+
+#: Where prose sits, and where a command sits. Two indents and no third: a
+#: command has to be selectable by eye as the thing to copy.
+BODY = " " * 7
+COMMAND = " " * 11
+WIDTH = 66
 
 
 def walk(
@@ -53,33 +89,73 @@ def walk(
         # is named one way.
         raise reading.unreadable_config
 
-    say("what this machine has")
-    for line in render(reading):
-        say(line)
-    say("")
-
     one = _which(reading, name)
-    say(f"walking {one.name} — {one.title}")
-    if one.notes:
-        for line in one.notes.splitlines():
-            say(f"  {line}")
+    plan = _plan(reading, one)
+
+    say("")
+    say(f"  {one.title} — настройка, {_how_many(len(plan))}")
+    say("")
     say("")
 
+    if "install" in plan:
+        one = _install(one, ask, say, _mark(plan, "install"), paths)
     if not one.ready:
-        one = _install(one, ask, say, paths)
-    if not one.ready:
-        say("")
-        say(f"{one.name} is still not here: {one.stopped_on} — {one.detail}")
+        _gave_up(one, say)
         raise ProviderError(
             "provider-not-ready",
             f"{one.name} did not reach the rung `{one.stopped_on}` after the walk, "
             "so nothing about it was written down",
         )
 
-    _login(one, ask, say)
-    account = _account(reading, one, ask, say)
-    _write(paths, reading, one, account, say)
+    if "login" in plan:
+        _login(one, ask, say, _mark(plan, "login"))
+    account = _pool(reading, one, ask, say, _mark(plan, "pool")) if "pool" in plan else None
+    _write(paths, reading, one, account, say, _mark(plan, "write"))
     return int(ExitCode.OK)
+
+
+# --- how many steps there are -----------------------------------------------
+
+
+def _plan(reading: Reading, one: Standing) -> list[str]:
+    """Every step this walk will take, in the order it will take them.
+
+    Derived, and derived here alone: the heading counts this list and each step
+    finds its own place in it, so a walk that skips a step cannot go on saying
+    there are three. Everything it asks is already answered by the reading, so
+    the whole plan is settled before the first line reaches anybody.
+    """
+    takes = {
+        "install": not one.ready,
+        "login": bool(one.login),
+        "pool": bool(_pool_mates(reading, one)),
+        "write": True,
+    }
+    return [step for step in STEPS if takes[step]]
+
+
+def _mark(plan: list[str], step: str) -> str:
+    return f"{plan.index(step) + 1}/{len(plan)}"
+
+
+def _how_many(count: int) -> str:
+    """`3 шага`. The kit counts in the owner's language, so it declines the noun."""
+    last, hundred = count % 10, count % 100
+    if last == 1 and hundred != 11:
+        return f"{count} шаг"
+    if last in (2, 3, 4) and hundred not in (12, 13, 14):
+        return f"{count} шага"
+    return f"{count} шагов"
+
+
+def _pool_mates(reading: Reading, one: Standing) -> set[str]:
+    """Every other provider this machine has already configured.
+
+    With none of them there is one pool of quota and its name is this
+    provider's own, which is what the ledger already assumes; a question with
+    one answer is not a question, and it is not a step either.
+    """
+    return {name for name in reading.config.providers if name != one.name}
 
 
 # --- who is walked ----------------------------------------------------------
@@ -116,33 +192,42 @@ def _which(reading: Reading, name: str | None) -> Standing:
 # --- the two commands -------------------------------------------------------
 
 
-def _install(one: Standing, ask, say, paths: Paths) -> Standing:
-    say(f"{one.name} is not standing here: {one.stopped_on} — {one.detail}")
+def _install(one: Standing, ask, say, mark: str, paths: Paths) -> Standing:
+    _heading(say, mark, "install")
     if not one.install:
-        say(f"and {one.name} declares no command that installs it, so this is yours to do.")
+        _prose(say, f"Кит не знает команды, которая ставит {one.title}, — это придётся сделать самому.")
         return one
 
-    say("")
-    say("run this, in this terminal or another:")
-    say(f"    {' '.join(one.install)}")
+    _prose(say, _why_it_is_not_here(one))
+    _command(say, one.install)
     if one.installer_missing:
         # Measured, not guessed: the first word of the argv, asked of PATH. It
         # is the whole of what holds a declaration the kit will never run.
-        say(f"    ({one.installer_missing!r} is not on this machine either — that comes first)")
-    _line(ask, say, "press enter when it has finished: ")
+        _prose(say, f"На этой машине нет и самого {one.installer_missing} — сначала он.")
+    _done(ask, say)
 
-    say("")
-    say("looking again…")
+    _prose(say, "Смотрим ещё раз…")
     return _again(one.name, paths)
 
 
-def _login(one: Standing, ask, say) -> None:
-    if not one.login:
-        return
-    say("")
-    say("and log it in — it opens a browser, and the kit never sees a key:")
-    say(f"    {' '.join(one.login)}")
-    _line(ask, say, "press enter when it has finished: ")
+def _why_it_is_not_here(one: Standing) -> str:
+    """Not found, or found and silent. Two different mornings for whoever reads it."""
+    if one.stopped_on == "binary":
+        return "Не найден на этой машине. Выполните:"
+    return "Он здесь, но не отвечает. Поставьте заново:"
+
+
+def _login(one: Standing, ask, say, mark: str) -> None:
+    _heading(say, mark, "login")
+    _prose(say, "Ключа кит не видит: подписка остаётся делом самого инструмента.")
+    _command(say, one.login)
+    if one.login_note:
+        # The declaration's, not the walk's. What running this does differs by
+        # tool: one opens a browser, one opens a screen that does not close
+        # itself, one prints a code to type on another machine because a server
+        # has no browser to open. One sentence for all three is wrong about two.
+        _prose(say, one.login_note)
+    _done(ask, say)
 
 
 def _again(name: str, paths: Paths) -> Standing:
@@ -158,30 +243,42 @@ def _again(name: str, paths: Paths) -> Standing:
     return found
 
 
+def _gave_up(one: Standing, say) -> None:
+    """What the person is left with, before the refusal names its code.
+
+    The measured detail is on the screen and not only the rung's name: the
+    walk got here because something unexpected happened, and *what was
+    measured* is the whole of what the person has to go on.
+    """
+    say("")
+    _prose(say, f"Не вышло: {one.title} так и не прошёл ступень «{one.stopped_on}».")
+    if one.detail:
+        _prose(say, one.detail)
+    _prose(say, "Ничего не записано.")
+
+
 # --- the one thing that cannot be measured ----------------------------------
 
 
-def _account(reading: Reading, one: Standing, ask, say) -> str | None:
-    """Which pool of quota this provider draws on. One subscription is one pool.
-
-    Asked only where there is something to answer. With one provider configured
-    there is one pool and its name is the provider's own, which is what the
-    ledger already assumes; asking would be a question with one answer.
-    """
-    others = {name for name in reading.config.providers if name != one.name}
-    if not others:
-        return None
+def _pool(reading: Reading, one: Standing, ask, say, mark: str) -> str | None:
+    """Which pool of quota this provider draws on. One subscription is one pool."""
+    _heading(say, mark, "pool")
+    _prose(say, "Одна подписка — один пул слотов, даже если к ней ходят два инструмента.")
+    _prose(say, "Пулы: " + ", ".join(sorted(_pool_mates(reading, one) | {one.name})))
+    # The raw line decides whether anybody is there; what they typed is read
+    # after. A bare Enter is an answer — it takes the default — and stripping
+    # before the check would read it as a stream that had closed.
+    said = _answer(ask, f"{BODY}Чей пул у {one.name}? [{one.name}] ")
     say("")
-    say("one subscription is one pool of slots, even where two tools reach it.")
-    say(f"which pool does {one.name} draw on? {', '.join(sorted(others | {one.name}))}")
-    said = _line(ask, say, f"pool [{one.name}]: ").strip()
-    return said or None
+    return said.strip() or None
 
 
 # --- what is written --------------------------------------------------------
 
 
-def _write(paths: Paths, reading: Reading, one: Standing, account: str | None, say) -> None:
+def _write(
+    paths: Paths, reading: Reading, one: Standing, account: str | None, say, mark: str
+) -> None:
     """Two blocks at most, and every other byte of the file is left alone.
 
     The block being written is rebuilt rather than edited line by line: a value
@@ -213,18 +310,23 @@ def _write(paths: Paths, reading: Reading, one: Standing, account: str | None, s
         write_block(paths.config_file, "[machine]", _machine_block(paths, one.name))
         said_default = one.name
 
-    say("")
-    say(f"written → {where}")
-    say(f"  [providers.{one.name}] enabled")
+    _heading(say, mark, "write")
+    say(f"{BODY}✓ {where}")
+    say(f"{COMMAND}[providers.{one.name}]  включён")
     if said_default:
-        say(f"  [machine] provider = {said_default!r} — what a role the table does not name falls back to")
+        say(f"{COMMAND}[machine] provider      {said_default}")
+        say("")
+        _prose(say, "На этот провайдер падает роль, которую таблица не назвала.")
     say("")
     # The block is written on the strength of the free rungs alone: the tool is
     # here and it answers. Whether the *account* answers costs a session, so it
     # is named rather than claimed — and without this line the machine where a
     # person is most lost, tool standing and account silent, hears nothing.
-    say(f"the account behind it has not been measured. one session says whether it answers:")
-    say(f"    {CHECK} {one.name}")
+    say("  Готово. Осталось одно — измерить аккаунт, это одна живая сессия:")
+    say("")
+    # Four spaces under a line that starts at two: this one is not inside a
+    # numbered step, so it keeps its own indent rather than borrowing theirs.
+    say(f"      {CHECK} {one.name}")
     log.info("%s written into the machine's configuration", one.name)
 
 
@@ -255,7 +357,32 @@ def _scalar(value: object) -> str:
     return str(value)
 
 
-def _line(ask: Callable[[str], str], say, prompt: str) -> str:
+# --- the shape of one step --------------------------------------------------
+
+
+def _heading(say, mark: str, step: str) -> None:
+    say(f"  {mark}  {STEPS[step]}")
+    say("")
+
+
+def _prose(say, text: str) -> None:
+    for line in wrap(text, width=WIDTH):
+        say(BODY + line)
+    say("")
+
+
+def _command(say, argv: list[str]) -> None:
+    say(COMMAND + " ".join(argv))
+    say("")
+
+
+def _done(ask, say) -> None:
+    """*Сделали? Enter* — the line that says the person went and did it."""
+    _answer(ask, f"{BODY}Сделали? Enter ⏎ ")
+    say("")
+
+
+def _answer(ask, prompt: str) -> str:
     """A line from the person standing here, and an empty stream is not a line.
 
     The same shape S8a settled for a sitting: an answer comes from the terminal

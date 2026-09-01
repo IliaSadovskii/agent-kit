@@ -56,7 +56,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     setup.add_argument(
         "name", nargs="?",
-        help="the provider to walk (default: the first that is not standing here)",
+        help="the provider to walk (default: the one that already works, or the first shipped)",
     )
 
     manual = commands.add_parser("manual", help="the work a night cannot do, and what proves it done")
