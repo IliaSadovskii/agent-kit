@@ -74,7 +74,12 @@ def test_the_login_is_a_rung_of_its_own(tmp_path, monkeypatch):
 
     assert report.failed == "login"
     assert report.level is None
-    assert "login" in _rung(report, "login").detail.lower()
+    # The code, not the sentence: the words that recognised it belong to the
+    # tool and live in its declaration, and what is read here is what the
+    # executor made of them.
+    assert "provider-signed-out" in _rung(report, "login").detail
+    # And nothing was asked of the rung above it.
+    assert _rung(report, "one_shot").applies is False
 
 
 def test_whether_a_limit_could_be_read_is_measured_too(tmp_path, monkeypatch):
@@ -382,3 +387,71 @@ def test_a_choice_the_machine_made_is_not_a_rung_of_the_providers_ladder(tmp_pat
         check_provider("newcomer", {"binary": [str(binary)], "effort": ["high"]}, project=tmp_path)
 
     assert caught.value.code == "effort-not-selectable"
+
+
+# --- S9b: the rung that lied, the reason that was cut off, and the dead end --
+#
+# All three were found by the first live climb against a real provider — Codex
+# installed on the owner's server and never logged in. None of them is reachable
+# from `providers/fake/`, which has no CLI and no account, so the shape is held
+# here; what the bench does hold is a case that plants a `codex` shim which says
+# what the real one said.
+
+
+#: What the live run printed, in the order it printed it: a banner, and then,
+#: lines later, the reason. Word for word, minus the parts that name a machine.
+SIGNED_OUT_BODY = (
+    'if [ "$1" = "--version" ]; then echo "2.1.239"; else\n'
+    '  echo "Reading prompt from stdin..." >&2\n'
+    '  for n in 1 2 3 4 5 6 7 8 9 10; do echo "banner line $n of a session starting up" >&2; done\n'
+    '  echo "ERROR: unexpected status 401 Unauthorized: Please run /login" >&2\n'
+    "  exit 1\n"
+    "fi"
+)
+
+#: The same shape with nothing in it the declaration recognises. This is what
+#: every provider that has never been watched sign out looks like — `gemini_cli`
+#: today — and it is the case the ladder used to report as `ok  login`.
+UNREADABLE_BODY = (
+    'if [ "$1" = "--version" ]; then echo "2.1.239"; else\n'
+    '  echo "Reading prompt from stdin..." >&2\n'
+    '  for n in 1 2 3 4 5 6 7 8 9 10; do echo "banner line $n of a session starting up" >&2; done\n'
+    '  echo "ERROR: something else went wrong entirely" >&2\n'
+    "  exit 1\n"
+    "fi"
+)
+
+
+def test_a_session_that_failed_for_a_reason_nobody_declared_does_not_pass_the_login(tmp_path):
+    """The defect, exactly: the rung reported `ok` for the one thing that broke.
+
+    `_is_about_login` matched a list of English words held in the kit's own
+    source, and when nothing matched it wrote *the account answered* — a guess,
+    and on the owner's first live climb the wrong one. Three answers now, not
+    two: it answered, it did not, and nobody asked.
+    """
+    report = check_provider("claude_code", claude_that(tmp_path, UNREADABLE_BODY), project=tmp_path)
+
+    login = _rung(report, "login")
+    assert login.passed is False       # never `ok` on a guess
+    assert login.applies is False      # and not a failure either: nobody asked
+    assert report.failed == "one_shot"  # the rung that was actually measured
+    assert report.level is None
+
+
+def test_the_reason_reaches_the_screen_from_the_tail_of_what_was_said(tmp_path, capsys):
+    """The owner had to run the tool by hand to find out what had happened.
+
+    The screen carried the banner and cut off before the error, because what
+    trimmed it kept the front. A refusal that hides its reason is worse than no
+    refusal at all.
+    """
+    binary = claude_that(tmp_path, SIGNED_OUT_BODY)["binary"][0]
+
+    code, out, _ = cli(
+        ["provider", "check", "claude_code", "--option", f"binary={binary}"], capsys, tmp_path
+    )
+
+    assert code == 4
+    assert "401 Unauthorized" in out
+    assert "banner line 10" in out  # and the diagnostic screen carries the run-up too

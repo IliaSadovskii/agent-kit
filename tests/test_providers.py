@@ -444,3 +444,178 @@ def test_the_fixture_declares_neither_because_nobody_installs_it():
     facts = registry.facts("fake")
 
     assert facts.install == [] and facts.login == []
+
+
+# --- S9b: what a session that failed gets to say ----------------------------
+#
+# Both defects below were found by the first live climb of the ladder against a
+# real provider, on a machine where Codex was installed and not logged in. The
+# bench cannot reach either of them from `providers/fake/`, which has no CLI and
+# no account, so what holds the shape is here.
+
+
+def test_a_refusal_carries_the_end_of_what_was_said_not_the_beginning():
+    """A CLI puts its banner first and its reason last.
+
+    Measured: `codex exec` against an account that was not signed in printed
+    *Reading prompt from stdin…*, its version, the workdir and the model, and
+    the 401 came after all of it. Trimmed from the front, the screen carried the
+    banner and cut off exactly where the sentence somebody needed began.
+    """
+    from agent_kit.providers.process import short
+
+    said = "a banner nobody needs\n" * 200 + "ERROR: 401 Unauthorized"
+
+    kept = short(said)
+
+    assert "ERROR: 401 Unauthorized" in kept
+    assert kept.startswith("…")  # and it says that it dropped a front
+
+
+def test_a_diagnostic_screen_gets_more_of_that_end_than_a_nights_log_does():
+    """Two limits and not one: a run writes a refusal per attempt and a whole
+    transcript per attempt is its own defect, while `provider check` is a screen
+    somebody typed to find out what is wrong with exactly one provider."""
+    from agent_kit.providers.process import short, tail
+
+    said = "\n".join(
+        f"line {number}: a session starting up and saying so at some length" for number in range(500)
+    ) + "\nERROR: the reason"
+
+    assert "ERROR: the reason" in tail(said)
+    assert len(tail(said)) > len(short(said))
+    assert len(tail(said).splitlines()) <= 40  # and still not a transcript
+
+
+def _cli(tmp_path, monkeypatch, name, body, declaration):
+    """A provider that is a shell script, declared by a folder and nothing else."""
+    import stat
+
+    binary = tmp_path / f"{name}-cli"
+    binary.write_text(f"#!/bin/sh\ncat > /dev/null\n{body}\n", encoding="utf-8")
+    binary.chmod(binary.stat().st_mode | stat.S_IEXEC)
+    declare(tmp_path, monkeypatch, name, declaration.format(binary=binary))
+    return registry.build_executor(name, {})
+
+
+def _ask(executor, tmp_path, name):
+    from agent_kit.driver.executor import StepRequest
+
+    return executor.execute(
+        StepRequest(slug="s", step_name="probe", attempt=1, provider=name,
+                    input_text="hello", workdir=tmp_path, project=tmp_path)
+    )
+
+
+A_CLI = '[provider]\nbinary = "{binary}"\n'
+A_CLI_THAT_SIGNS_OUT = A_CLI + (
+    '[provider.signed_out]\nsays = ["missing bearer or basic authentication"]\n'
+)
+
+
+def test_a_failing_session_keeps_the_whole_of_what_it_printed(tmp_path, monkeypatch):
+    """`detail` is the end of it and `said` is all of it. The screen chooses."""
+    from agent_kit.providers.base import ExecutorFailed
+
+    banner = "; ".join(f"banner line {number}" for number in range(200))
+    executor = _cli(tmp_path, monkeypatch, "wordy",
+                    f'echo "{banner}" >&2\necho "ERROR: the reason" >&2\nexit 1', A_CLI)
+
+    with pytest.raises(ExecutorFailed) as caught:
+        _ask(executor, tmp_path, "wordy")
+
+    assert caught.value.code == "session-failed"
+    assert "ERROR: the reason" in caught.value.detail
+    assert "banner line 0" in caught.value.said  # the whole of it survives
+    assert "banner line 0" not in caught.value.detail  # and the line does not
+
+
+def test_an_account_that_is_not_signed_in_is_a_code_and_not_a_phrase(tmp_path, monkeypatch):
+    """The words belong to the tool that says them, so they live in its folder.
+
+    They were a list of English substrings in `driver/check.py` — the kit doing
+    to somebody else's stderr exactly what it forbids its own bench judges.
+    """
+    from agent_kit.providers.base import ExecutorFailed
+
+    executor = _cli(
+        tmp_path, monkeypatch, "loggedout",
+        'echo "ERROR: unexpected status 401 Unauthorized: Missing bearer or '
+        'basic authentication in header" >&2\nexit 1',
+        A_CLI_THAT_SIGNS_OUT,
+    )
+
+    with pytest.raises(ExecutorFailed) as caught:
+        _ask(executor, tmp_path, "loggedout")
+
+    assert caught.value.code == "provider-signed-out"
+    # Asking a logged-out account twice more, with the pause doubling between,
+    # buys nothing: the chain drops it and asks the spare, which may be signed in.
+    assert caught.value.retryable is False
+
+
+def test_a_provider_that_declares_no_such_words_fails_as_an_ordinary_session(tmp_path, monkeypatch):
+    """Silence is not a diagnosis, and it must not be turned into one."""
+    from agent_kit.providers.base import ExecutorFailed
+
+    executor = _cli(tmp_path, monkeypatch, "silent",
+                    'echo "ERROR: 401 Unauthorized: Missing bearer" >&2\nexit 1', A_CLI)
+
+    with pytest.raises(ExecutorFailed) as caught:
+        _ask(executor, tmp_path, "silent")
+
+    assert caught.value.code == "session-failed"
+
+
+def test_a_session_that_worked_is_not_read_for_those_words(tmp_path, monkeypatch):
+    """Only ever read off a failure — the same rule the limit has."""
+    executor = _cli(tmp_path, monkeypatch, "chatty",
+                    'echo "I once saw Missing bearer or basic authentication"', A_CLI_THAT_SIGNS_OUT)
+
+    result = _ask(executor, tmp_path, "chatty")
+
+    assert "Missing bearer" in result.raw
+
+
+@pytest.mark.parametrize("block", [
+    '[provider.signed_out]\nsays = "not a list"\n',
+    '[provider.signed_out]\nsays = []\n',
+    '[provider.signed_out]\nsays = [""]\n',
+    '[provider.limits]\nsays = "not a list"\n',
+])
+def test_words_to_look_for_that_are_not_a_list_of_words_are_refused(tmp_path, monkeypatch, block):
+    """A bare string here walks its own characters: `"401"` would match every
+    text holding a `4`. That is a false sign-out on a night, and a provider
+    dropped from the chain for it."""
+    declare(tmp_path, monkeypatch, "sloppy", '[provider]\nbinary = "x"\n' + block)
+
+    with pytest.raises(ProviderError) as caught:
+        registry.facts("sloppy")
+
+    assert caught.value.code == "bad-declaration"
+
+
+def test_a_key_under_signed_out_that_nobody_reads_is_refused(tmp_path, monkeypatch):
+    """The same rule every other sub-table of the declaration is held to."""
+    declare(tmp_path, monkeypatch, "extra",
+            '[provider]\nbinary = "x"\n[provider.signed_out]\nsays = ["x"]\nuntil = "y"\n')
+
+    with pytest.raises(ProviderError) as caught:
+        registry.facts("extra")
+
+    assert caught.value.code == "bad-declaration"
+
+
+def test_the_shipped_declarations_say_what_they_have_seen_and_no_more():
+    """Measured where it was measured, silent where nobody looked.
+
+    `codex` carries the half of the sentence the owner's own machine printed on
+    1 September 2026 and not the broad half: `401 Unauthorized` alone is also
+    printed by somebody else's API reached from inside a session, and a false
+    sign-out costs a provider dropped from a night's chain. `gemini_cli` carries
+    nothing, because nobody here has seen it refuse for want of an account.
+    """
+    codex = registry.facts("codex")
+
+    assert codex.signed_out == ["missing bearer or basic authentication"]
+    assert registry.facts("gemini_cli").signed_out == []
