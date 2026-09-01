@@ -49,9 +49,15 @@ headless = ["exec"]
 # `codex exec` sandboxes to read-only unless it is told otherwise, and a session
 # that cannot create a file earns no level at all since the `writes` rung. Not
 # `danger-full-access`: a run builds inside its own worktree, so the workspace is
-# the whole of what it has any business editing. `-a never` because there is
-# nobody at the terminal to approve anything at three in the morning.
-full_access = ["-s", "workspace-write", "-a", "never"]
+# the whole of what it has any business editing.
+#
+# And no approval flag. This line first read `-s workspace-write -a never`,
+# written from the published reference on a machine where Codex had never run;
+# the ladder measured it on 1 September 2026 and the tool answered `unexpected
+# argument '-a' found`. `-a/--ask-for-approval` is real, and it belongs to
+# `codex`, not to `codex exec` — which is consistent, because a subcommand named
+# for running non-interactively has nobody to ask. Measured, not read.
+full_access = ["-s", "workspace-write"]
 model       = ["--model"]
 version     = ["--version"]
 
