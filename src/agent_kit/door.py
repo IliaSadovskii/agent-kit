@@ -117,7 +117,7 @@ class Door:
             # is what exit code 1 means and the only code this command has.
             raise UsageError(
                 "not-a-directory",
-                f"{self.root} is not a directory, so there is no project to stand in",
+                f"{self.root} — не каталог, значит и проекта, в котором можно стоять, здесь нет",
             )
         self.root = self.root.resolve()
         self.paths = paths or Paths.from_env()
@@ -245,10 +245,10 @@ class Door:
             return [
                 Line(
                     "no-provider",
-                    "this machine has no agent to run a session with",
+                    "у этой машины нет агента, которым запускают сессию",
                     why=(
-                        "a step whose role the table does not name is refused at its first "
-                        "session, and every command below spends one"
+                        "шаг, чью роль таблица не называет, отказан на первой же сессии, "
+                        "а каждая команда ниже сессию тратит"
                     ),
                     command="agent-kit setup",
                 )
@@ -258,8 +258,8 @@ class Door:
             return [
                 Line(
                     "unknown-provider",
-                    f"{', '.join(lost)} is named here and is not a provider this kit ships",
-                    why="the step that role runs is refused before its first session",
+                    f"{', '.join(lost)} назван здесь и не входит в число провайдеров этого кита",
+                    why="шаг этой роли отказан до первой сессии",
                     command="agent-kit doctor",
                 )
             ]
@@ -375,23 +375,23 @@ class Door:
         """
         if standing is None or not standing.anything:
             return []
-        asked = "; ".join(f"{ask.step} asks: {ask.question}" for ask in standing.asks)
+        asked = "; ".join(f"{ask.step} спрашивает: {ask.question}" for ask in standing.asks)
         # One line per thing being driven rather than per lease: a run with no
         # worktree holds two of them — the run and the project's working copy —
         # and it is one night either way.
         held: dict[str, tuple] = {}
         for lease, kind in (
-            [(one, "run") for one in standing.runs]
-            + [(one, "batch") for one in standing.batches]
-            + [(one, "working copy") for one in standing.checkouts]
+            [(one, "прогон") for one in standing.runs]
+            + [(one, "партию") for one in standing.batches]
+            + [(one, "рабочую копию") for one in standing.checkouts]
         ):
             held.setdefault(lease.slug, (lease, kind))
         return _in_order(
             [
                 Line(
                     "a-night-is-running",
-                    f"{slug} — a {kind} has a driver on it since {lease.taken_at}",
-                    why=asked or "nothing is waiting on you; it is building",
+                    f"{slug} — драйвер держит {kind} с {lease.taken_at}",
+                    why=asked or "от вас ничего не ждут — идёт сборка",
                     command="agent-kit machine",
                     at=lease.taken_at,
                     name=slug,
@@ -429,10 +429,10 @@ class Door:
             lines.append(
                 Line(
                     "no-description",
-                    "this project has not written down what its product is",
+                    "проект не записал, что он такое",
                     why=(
-                        "a run carrying `design` is refused before its first session, because "
-                        "there is nothing for a design to be designed against"
+                        "прогон с шагом `design` отказан до первой сессии: замыслу "
+                        "не против чего проектировать"
                     ),
                     command="agent-kit knowledge tell",
                 )
@@ -441,8 +441,8 @@ class Door:
             lines.append(
                 Line(
                     "no-commands",
-                    "nothing here says how this project is checked",
-                    why="`verify` has nothing to run and the gate refuses a batch before it is created",
+                    "здесь не сказано, чем этот проект проверяется",
+                    why="`verify` нечего запускать, и ворота отказывают партии до того, как она создана",
                     command="agent-kit init",
                 )
             )
@@ -450,13 +450,13 @@ class Door:
             lost = commands_that_start_nothing(project)
             if lost:
                 named = "; ".join(
-                    f"{one.name} — {starts_nothing(one.command)!r} is not on this machine" for one in lost
+                    f"{one.name} — {starts_nothing(one.command)!r} на этой машине нет" for one in lost
                 )
                 lines.append(
                     Line(
                         "no-such-command",
                         named,
-                        why="`verify` would run these, so a run is refused before its first session",
+                        why="`verify` запускал бы их, поэтому прогон отказан до первой сессии",
                     )
                 )
         return lines + _in_order(unreadable_batches)
@@ -490,12 +490,12 @@ class Door:
         for slug, run in runs.items():
             if run.status.value != "failed" or not self._trace_stands(run):
                 continue
-            trace = run.tree or f"the branch {run.branch}"
+            trace = run.tree or f"ветка {run.branch}"
             lines.append(
                 Line(
                     "run-failed",
                     f"{self._named(slug, owner_of)} — {_the_code_in(run.reason)}",
-                    why=f"{run.reason or 'nothing was written down'}; its trace still stands: {trace}",
+                    why=f"{run.reason or 'ничего не записано'}; след ещё стоит: {trace}",
                     command=f"agent-kit run show {slug}",
                     at=run.updated_at,
                     name=slug,
@@ -526,8 +526,8 @@ class Door:
             batch_lines.append(
                 Line(
                     "batch-unfinished",
-                    f"{batch.name} — {landed} of {len(batch.features)} features landed",
-                    why=batch.reason or "there is still something in it that can start",
+                    f"{batch.name} — влилось фич: {landed} из {len(batch.features)}",
+                    why=batch.reason or "в ней ещё есть чему стартовать",
                     command=f"agent-kit batch go {batch.name}",
                     at=batch.updated_at,
                     name=batch.name,
@@ -578,9 +578,9 @@ class Door:
         status = run.status.value
         if status == "stopped":
             closed = (
-                f"a gate closed on {run.steps[run.gate_closed_on].name}"
+                f"ворота закрылись на шаге {run.steps[run.gate_closed_on].name}"
                 if run.gate_closed_on is not None
-                else "it was stopped"
+                else "его остановили"
             )
             carry_on = (
                 f"agent-kit batch reopen {owner} {run.slug}"
@@ -589,12 +589,12 @@ class Door:
             )
             return "run-stopped", carry_on, f"{closed} — {run.reason or ''}".strip(" —")
         if status == "created":
-            return "run-created", f"agent-kit run go {run.slug}", "it was created and nothing has started it"
+            return "run-created", f"agent-kit run go {run.slug}", "создан, и его никто не запускал"
         if status == "running":
             return (
                 "run-running",
                 f"agent-kit run go {run.slug}",
-                "its record says running and no driver holds it: the machine it was on went away",
+                "в записи стоит running, а драйвера на нём нет: машина, где он шёл, пропала",
             )
         return None, "", ""
 
@@ -664,7 +664,7 @@ class Door:
                         Line(
                             "unreadable-step-output",
                             str(workspace.dir / "output.json"),
-                            why="what `deliver` recorded cannot be read, so its pull request is not named",
+                            why="то, что записал `deliver`, не читается, поэтому его pull request не назван",
                             name=slug,
                         )
                     )
@@ -678,15 +678,15 @@ class Door:
             if landed is True:
                 continue
             told = (
-                f"this checkout does not have it in {base}"
+                f"в этой рабочей копии этого нет в {base}"
                 if landed is False
-                else f"git could not be asked whether it is in {base}"
+                else f"у git не вышло спросить, влито ли это в {base}"
             )
             lines.append(
                 Line(
                     "pull-request-waiting",
                     f"{self._named(slug, owner_of)} — {url}",
-                    why=f"the work is on {run.branch} and {told}; the forge was not asked",
+                    why=f"работа на ветке {run.branch}, и {told}; в сеть за этим не ходили",
                     command=f"gh pr view {url}",
                     at=run.updated_at,
                     name=slug,
@@ -708,10 +708,9 @@ class Door:
         """
         standing = sorted((self.dirs.kit_dir / "audits").glob("*/candidates.md"))
         found = (
-            f"a candidate list from an audit stands at {standing[-1]}, and `batch compose` reads a "
-            "telling like it"
+            f"от аудита остался список кандидатов: {standing[-1]} — `batch compose` читает такой рассказ"
             if standing
-            else "nothing is running, nothing failed and nothing is waiting to be read"
+            else "ничего не идёт, ничего не упало и нечего читать"
         )
         return Line(
             "nothing-is-due",
@@ -815,47 +814,47 @@ class Door:
             return [f"{self.unreadable_config.code}: {self.unreadable_config.why}"]
         if self.machine_refusals:
             return [f"{one.code}: {one.what}" for one in self.machine_refusals]
-        return ["a session can be started here"]
+        return ["сессию здесь запустить можно"]
 
     def _view(self, project, knowledge, runs, batches, standing, chores=()) -> list[tuple[str, list[str]]]:
         counted: dict[str, int] = {}
         for run in runs.values():
             counted[run.status.value] = counted.get(run.status.value, 0) + 1
         sections = [
-            ("machine", self._machine_view()),
+            ("машина", self._machine_view()),
             (
-                "runs",
+                "прогоны",
                 [f"{len(runs)}" + (": " + ", ".join(f"{n} {s}" for s, n in sorted(counted.items())) if counted else "")],
             ),
             (
-                "batches",
+                "партии",
                 [
-                    f"{batch.name}: "
+                    f"{batch.name}: влилось "
                     f"{sum(1 for one in batch.features if one.status.value == 'done')}"
-                    f" of {len(batch.features)} landed"
+                    f" из {len(batch.features)}"
                     for batch in batches
                 ]
-                or ["none"],
+                or ["нет"],
             ),
-            ("knowledge", self._knowledge_view(project, knowledge)),
-            ("by hand", self._manual_view(chores)),
-            ("commands", self._commands_view(project)),
-            ("verification", self._verification_view(project)),
+            ("знание", self._knowledge_view(project, knowledge)),
+            ("руками", self._manual_view(chores)),
+            ("команды", self._commands_view(project)),
+            ("проверки", self._verification_view(project)),
         ]
         if standing is not None and standing.asks:
             sections.append(
                 (
-                    "waiting on you",
-                    [f"{ask.slug} · {ask.step} until {ask.until}: {ask.question}" for ask in standing.asks],
+                    "ждут вас",
+                    [f"{ask.slug} · {ask.step} до {ask.until}: {ask.question}" for ask in standing.asks],
                 )
             )
         return sections
 
     def _knowledge_view(self, project, knowledge) -> list[str]:
         if project is not None and not project.declares_knowledge:
-            return ['knowledge = "" — this project says out loud that nobody describes it']
+            return ['knowledge = "" — проект вслух говорит, что его никто не описывает']
         if knowledge is None:
-            return ["nothing declared, and nothing written"]
+            return ["ничего не объявлено и ничего не написано"]
         try:
             blocks = knowledge.blocks()
             # Inside the same `try`, and that is the whole of why it is here: a
@@ -868,8 +867,8 @@ class Door:
         frames = sum(1 for block in blocks if block.kind == FRAME)
         said = [
             f"{knowledge.root} — "
-            + ("described" if knowledge.described else "declared, and nothing written in it")
-            + f"; standing: {assumed} assumed, {frames} frame, {len(debt)} in the ledger"
+            + ("описан" if knowledge.described else "объявлен, и в нём ничего не написано")
+            + f"; стоит: допущений {assumed}, рамок {frames}, строк реестра {len(debt)}"
         ]
         if debt:
             # A counter and never a rung. A rung is what a night would be
@@ -878,13 +877,13 @@ class Door:
             # by a feature that says so. A rung the kit cannot take away is a
             # rung the door stops descending at.
             said.append(
-                "the ledger holds what is built and works badly; a line goes when the work "
-                "that answers it lands, or when you take it out yourself"
+                "реестр держит то, что построено и работает плохо; строка уходит, когда "
+                "выходит работа, которая на неё отвечает, или когда вы убираете её сами"
             )
         if assumed:
             said.append(
-                "an assumption nobody confirmed is settled where the owner talks: "
-                "`agent-kit knowledge tell`"
+                "допущение, которого никто не подтвердил, закрывают там, где говорит "
+                "владелец: `agent-kit knowledge tell`"
             )
         return said
 
@@ -898,15 +897,15 @@ class Door:
         and leave the list to the command that walks it.
         """
         if not chores:
-            return ["nothing standing"]
+            return ["ничего не стоит"]
         said = []
         for chore in chores:
             how = f"proof: {chore.proof}" if chore.provable else f"by hand: {chore.by_hand}"
             said.append(f"{chore.key}  {chore.what} — {how}")
         if any(not chore.provable for chore in chores):
             said.append(
-                "a chore no command can prove is closed by nobody but you, so it is never ranked: "
-                "delete the line in the commit that does the work"
+                "дело, которое не проверить командой, закрываете только вы, и потому оно "
+                "никогда не ранжируется: удалите строку тем же коммитом, что делает работу"
             )
         return said
 
@@ -928,7 +927,7 @@ class Door:
         from .verification.said import about
 
         if project is None:
-            return ["nothing declared, and no project to answer"]
+            return ["ничего не объявлено, и отвечать некому"]
         empty = {answer.kind for answer in commands_that_prove_nothing(project)}
         said = []
         for answer in project.verification:
@@ -937,28 +936,28 @@ class Door:
             if answer.kind in empty:
                 line += (
                     f"   ← command-that-proves-nothing: "
-                    f"{proves_nothing(answer.command)!r} exits zero whatever is wrong"
+                    f"{proves_nothing(answer.command)!r} возвращает ноль, что бы ни было сломано"
                 )
             said.append(line)
         left = unanswered(project)
         if left:
             said.append(
                 "kind-unanswered: " + ", ".join(kind.name for kind in left)
-                + " — nothing here says whether this project checks for them"
+                + " — здесь не сказано, проверяет ли это проект"
             )
-        return said or ["none of the kinds the kit knows has been answered"]
+        return said or ["ни на один вид проверки, который знает кит, не отвечено"]
 
     def _commands_view(self, project) -> list[str]:
         from .project import starts_nothing
 
         if project is None or not project.commands:
-            return ["none declared"]
+            return ["не объявлено"]
         said = []
         for command in project.commands:
             lost = starts_nothing(command.command)
             said.append(
                 f"{command.name:8}{command.command}"
-                + (f"   ← {lost!r} is not on this machine" if lost else "")
+                + (f"   ← {lost!r} на этой машине нет" if lost else "")
             )
         return said
 
@@ -972,7 +971,7 @@ def _the_code_in(reason: str | None) -> str:
     """
     said = (reason or "").strip()
     if not said:
-        return "nothing was written down"
+        return "ничего не записано"
     head = said.split(":", 1)[0].strip()
     return head if head and " " not in head else said
 
@@ -986,13 +985,13 @@ def render(reading: Reading) -> str:
     if answer.command:
         said.append(f"$ {answer.command}")
 
-    said += ["", "where this project stands"]
+    said += ["", "где стоит проект"]
     for title, lines in reading.view:
         for index, line in enumerate(lines):
             said.append(f"  {title if index == 0 else '':<12}{line}")
 
     if reading.unread:
-        said += ["", "what could not be read"]
+        said += ["", "что не прочиталось"]
         for line in reading.unread:
             said.append(f"  {line.code}: {line.what}")
             if line.why:
@@ -1000,7 +999,7 @@ def render(reading: Reading) -> str:
 
     below = reading.ladder[1:]
     if below:
-        said += ["", "also standing"]
+        said += ["", "и ещё стоит"]
         for line in below:
             said.append(f"  {line.code}: {line.what}".rstrip(": "))
             if line.command:
