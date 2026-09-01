@@ -455,3 +455,73 @@ def test_the_reason_reaches_the_screen_from_the_tail_of_what_was_said(tmp_path, 
     assert code == 4
     assert "401 Unauthorized" in out
     assert "banner line 10" in out  # and the diagnostic screen carries the run-up too
+
+
+def test_the_rung_that_failed_names_the_command_that_closes_it(tmp_path, capsys):
+    """A diagnosis with no next step left the owner holding the name of a rung.
+
+    The command is never invented here: it is the provider's own
+    `[provider.setup] login`, which is the same table `agent-kit setup` prints
+    from. One declaration, two readers, no second list.
+    """
+    from agent_kit.providers import registry
+
+    binary = claude_that(tmp_path, SIGNED_OUT_BODY)["binary"][0]
+
+    code, out, _ = cli(
+        ["provider", "check", "claude_code", "--option", f"binary={binary}"], capsys, tmp_path
+    )
+
+    assert code == 4
+    assert " ".join(registry.facts("claude_code").login) in out
+    assert "agent-kit setup claude_code" in out
+
+
+def test_the_command_a_missing_binary_names_is_the_declared_install(tmp_path, capsys):
+    from agent_kit.providers import registry
+
+    code, out, _ = cli(
+        ["provider", "check", "claude_code", "--option", f"binary={tmp_path / 'nowhere'}"],
+        capsys, tmp_path,
+    )
+
+    assert code == 4
+    assert " ".join(registry.facts("claude_code").install) in out
+
+
+def test_a_provider_with_no_declared_install_says_so_rather_than_inventing_one(tmp_path, capsys):
+    """The fixture declares neither command, because nobody installs it. That is
+    an honest *this one is yours to do*, not a command guessed for it."""
+    code, out, _ = cli(["provider", "check", "fake"], capsys, tmp_path)
+
+    assert code == 4
+    assert "agent-kit setup fake" not in out
+    assert "не знает" in out
+
+
+def test_a_rung_no_command_closes_says_so_instead_of_leaving_a_dead_end(tmp_path, monkeypatch):
+    """`writes` is not fixed by installing anything or by logging in anywhere."""
+    from agent_kit.driver.check import cure
+
+    _transcript(tmp_path, monkeypatch)
+    walled = dict(ANSWER, result='```json\n{"branch": "kit/x", "can_write": false}\n```')
+
+    report = check_provider("claude_code", answering(tmp_path, walled), project=tmp_path)
+    fix = cure(report)
+
+    assert report.failed == "writes"
+    assert fix.steps == []
+    assert "не командой" in fix.said
+
+
+def test_a_provider_that_earned_what_it_declares_is_told_nothing_to_do(tmp_path, capsys, monkeypatch):
+    """A *what to do next* under a green screen is noise."""
+    _transcript(tmp_path, monkeypatch)
+    binary = answering(tmp_path)["binary"][0]
+
+    code, out, _ = cli(
+        ["provider", "check", "claude_code", "--option", f"binary={binary}"], capsys, tmp_path
+    )
+
+    assert code == 0
+    assert "Что делать дальше" not in out
