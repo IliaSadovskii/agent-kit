@@ -85,13 +85,13 @@ def page(ledger: Ledger) -> str:
     """What a person sees. The same read, in a shape a phone can hold."""
     picture = ledger.picture()
     return (
-        "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
+        "<!doctype html><html lang='ru'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width, initial-scale=1'>"
         f"<title>agent-kit</title><style>{STYLE}</style>"
         "<meta http-equiv='refresh' content='10'></head><body>"
-        "<h1>agent-kit — this machine</h1>"
+        "<h1>agent-kit — эта машина</h1>"
         f"{_batches(ledger)}{_running(picture)}{_queued(picture)}{_limited(picture)}{_asking(ledger)}"
-        "<p class='quiet'>This page shows and does not act.</p>"
+        "<p class='quiet'>Страница показывает и ничего не делает.</p>"
         "</body></html>"
     )
 
@@ -102,12 +102,12 @@ def _batches(ledger: Ledger) -> str:
     if not held:
         return ""
     rows = "".join(f"<tr><td>{row.slug}</td><td>{row.project}</td><td>{row.taken_at}</td></tr>" for row in held)
-    return f"<h2>batches</h2><table><tr><th>batch</th><th>project</th><th>since</th></tr>{rows}</table>"
+    return f"<h2>партии</h2><table><tr><th>партия</th><th>проект</th><th>с</th></tr>{rows}</table>"
 
 
 def _running(picture: Picture) -> str:
     if not picture.held:
-        return "<h2>running</h2><p class='quiet'>nothing is running</p>"
+        return "<h2>идут</h2><p class='quiet'>ничего не идёт</p>"
     rows = "".join(
         "<tr>"
         f"<td>{escape(row.slug)}</td><td>{escape(row.step)}</td>"
@@ -117,31 +117,31 @@ def _running(picture: Picture) -> str:
         "</tr>"
         for row in picture.held
     )
-    head = "<tr><th>run</th><th>step</th><th>provider</th><th>account</th><th>since</th><th>project</th></tr>"
-    return f"<h2>running</h2><table>{head}{rows}</table>"
+    head = "<tr><th>прогон</th><th>шаг</th><th>провайдер</th><th>аккаунт</th><th>с</th><th>проект</th></tr>"
+    return f"<h2>идут</h2><table>{head}{rows}</table>"
 
 
 def _queued(picture: Picture) -> str:
     if not picture.queue:
-        return "<h2>queued</h2><p class='quiet'>nobody is waiting</p>"
+        return "<h2>в очереди</h2><p class='quiet'>никто не ждёт</p>"
     rows = "".join(
         f"<tr><td>{escape(row.slug)}</td><td>{escape(row.step)}</td>"
         f"<td>{escape(row.account)}</td><td class='quiet'>{escape(row.asked_at)}</td></tr>"
         for row in picture.queue
     )
-    return f"<h2>queued</h2><table><tr><th>run</th><th>step</th><th>account</th><th>asked</th></tr>{rows}</table>"
+    return f"<h2>в очереди</h2><table><tr><th>прогон</th><th>шаг</th><th>аккаунт</th><th>попросил</th></tr>{rows}</table>"
 
 
 def _limited(picture: Picture) -> str:
     if not picture.limits:
-        return "<h2>limited</h2><p class='quiet'>no account is limited</p>"
+        return "<h2>исчерпаны</h2><p class='quiet'>ни один аккаунт не исчерпан</p>"
     rows = "".join(
         f"<tr><td>{escape(row.account)}</td><td>{escape(row.until)}</td>"
         f"<td class='quiet'>{escape(row.said_by)}"
-        f"{escape(f' (an hour, guessed from {row.said!r})') if row.guessed else ''}</td></tr>"
+        f"{escape(f' (час угадан по {row.said!r})') if row.guessed else ''}</td></tr>"
         for row in picture.limits
     )
-    return f"<h2>limited</h2><table><tr><th>account</th><th>until</th><th>who found out</th></tr>{rows}</table>"
+    return f"<h2>исчерпаны</h2><table><tr><th>аккаунт</th><th>до</th><th>кто узнал</th></tr>{rows}</table>"
 
 
 def _asking(ledger: Ledger) -> str:
@@ -153,7 +153,7 @@ def _asking(ledger: Ledger) -> str:
     """
     waiting = ledger.waiting_on_the_owner()
     if not waiting:
-        return "<h2>waiting for the owner</h2><p class='quiet'>no question is waiting</p>"
+        return "<h2>ждут владельца</h2><p class='quiet'>ни одного вопроса не стоит</p>"
     rows = "".join(
         f"<tr><td>{escape(row.id)}</td><td>{escape(row.slug)}</td><td>{escape(row.step)}</td>"
         f"<td>{escape(row.question)}</td><td class='quiet'>{escape(row.default)}</td>"
@@ -161,10 +161,10 @@ def _asking(ledger: Ledger) -> str:
         for row in waiting
     )
     head = (
-        "<tr><th>id</th><th>run</th><th>step</th><th>question</th>"
-        "<th>taken without an answer</th><th>until</th></tr>"
+        "<tr><th>id</th><th>прогон</th><th>шаг</th><th>вопрос</th>"
+        "<th>без ответа возьмёт</th><th>до</th></tr>"
     )
-    return f"<h2>waiting for the owner</h2><table>{head}{rows}</table>"
+    return f"<h2>ждут владельца</h2><table>{head}{rows}</table>"
 
 
 class Page(BaseHTTPRequestHandler):
@@ -175,7 +175,7 @@ class Page(BaseHTTPRequestHandler):
             return self._answer("text/html; charset=utf-8", page(self.ledger))
         if self.path.rstrip("/") == "/json":
             return self._answer("application/json; charset=utf-8", as_json(self.ledger))
-        self.send_error(404, "there are two addresses here: / and /json")
+        self.send_error(404, "здесь два адреса: / и /json")
 
     def _answer(self, kind: str, body: str) -> None:
         raw = body.encode("utf-8")

@@ -644,13 +644,13 @@ def said(batch: Batch, conflicts: list[Conflict], interrupted: bool = False) -> 
     run. Five features would wake the owner five times at 03:00, so the children
     are silent and this is what is sent.
     """
-    lines = [f"{batch.name} — {'stopped' if interrupted else 'over'}"]
+    lines = [f"{batch.name} — {'остановлена' if interrupted else 'кончилась'}"]
     for feature in batch.features:
         mark = feature.pull_request or feature.reason or ""
         lines.append(f"{feature.slug}: {feature.status.value}{' — ' + mark if mark else ''}")
     if conflicts:
         lines.append("")
-        lines.append("These will not merge as they are:")
+        lines.append("Эти как есть не сольются:")
         lines += [f"- {conflict.said()}" for conflict in conflicts]
     # A frame the night could not take away is an edit waiting in the owner's own
     # working copy. It reaches them here rather than in a log they never open.
