@@ -1338,14 +1338,14 @@ def _bench(args: argparse.Namespace) -> int:
             results.append(result)
             print(f"{result.name:38}  {result.said}")
             if result.where is not None:
-                print(f"{'':38}  left in {result.where}")
+                print(f"{'':38}  осталось в {result.where}")
 
     fired = [result for result in results if result.verdict.fired]
     broken = [result for result in results if not result.verdict.judged]
     print()
-    print(f"{len(fired)} of {len(results)} mechanisms fired")
+    print(f"механизмов сработало: {len(fired)} из {len(results)}")
     if broken:
-        print(f"{len(broken)} could not be judged, so the bench answered for {len(results) - len(broken)}")
+        print(f"не удалось судить: {len(broken)}, значит стенд ответил про {len(results) - len(broken)}")
         return int(ExitCode.BROKEN_BENCH)
     return int(ExitCode.OK if len(fired) == len(results) else ExitCode.BENCH)
 
@@ -1373,11 +1373,11 @@ def _bench_disarm(root: Path, names: list[str]) -> int:
     counted = {state: [one for one in said if one.state == state] for state in
                (ARMED, STILL_FIRES, NOT_DISARMABLE, UNCHECKABLE)}
     print()
-    print(f"{len(counted[ARMED])} of {len(said)} cases stop firing once their trap is taken away")
+    print(f"перестают срабатывать без ловушки: {len(counted[ARMED])} из {len(said)}")
     if counted[NOT_DISARMABLE]:
-        print(f"{len(counted[NOT_DISARMABLE])} say in words why nothing can honestly be taken away")
+        print(f"{len(counted[NOT_DISARMABLE])} говорят словами, почему честно отнять нечего")
     if counted[UNCHECKABLE]:
-        print(f"{len(counted[UNCHECKABLE])} could not be checked, so the bench answered for the rest")
+        print(f"{len(counted[UNCHECKABLE])} не проверить, значит стенд ответил про остальные")
         return int(ExitCode.BROKEN_BENCH)
     return int(ExitCode.OK if not counted[STILL_FIRES] else ExitCode.BENCH)
 
@@ -1390,10 +1390,10 @@ def _bench_list(root: Path, names: list[str], read_case, CaseError) -> int:
             case = read_case(root, name)
         except CaseError as unreadable:
             broken.append(name)
-            print(f"{name:38}  unreadable — {unreadable.code}: {unreadable.detail}")
+            print(f"{name:38}  не читается — {unreadable.code}: {unreadable.detail}")
             continue
         print(f"{name:38}  {case.title}")
-        print(f"{'':38}  fires: {case.fires}")
+        print(f"{'':38}  срабатывает: {case.fires}")
     return int(ExitCode.BROKEN_BENCH if broken else ExitCode.OK)
 
 
@@ -1616,58 +1616,58 @@ def _machine(paths: Paths) -> int:
     picture = ledger.picture()
     runs = ledger.runs()
 
-    print("running")
+    print("идут")
     for row in picture.held:
-        print(f"  {row.slug:20} {row.step:10} {row.provider:12} {row.account:12} since {row.taken_at}")
+        print(f"  {row.slug:20} {row.step:10} {row.provider:12} {row.account:12} с {row.taken_at}")
     if not picture.held:
-        print("  nothing is running")
+        print("  ничего не идёт")
 
     print()
-    print("queued")
+    print("в очереди")
     for row in picture.queue:
-        print(f"  {row.slug:20} {row.step:10} {row.account:12} asked at {row.asked_at}")
+        print(f"  {row.slug:20} {row.step:10} {row.account:12} попросил в {row.asked_at}")
     if not picture.queue:
-        print("  nobody is waiting")
+        print("  никто не ждёт")
 
     print()
-    print("limited")
+    print("исчерпаны")
     for row in picture.limits:
         guessed = f"  (an hour, guessed from {row.said!r})" if row.guessed else ""
-        print(f"  {row.account:20} until {row.until}   {row.said_by} found out{guessed}")
+        print(f"  {row.account:20} до {row.until}   узнал {row.said_by}{guessed}")
     if not picture.limits:
-        print("  no account is limited")
+        print("  ни один аккаунт не исчерпан")
 
     print()
-    print("waiting for the owner")
+    print("ждут владельца")
     for row in ledger.waiting_on_the_owner():
-        print(f"  {row.id:8} {row.slug:16} {row.step:10} until {row.until}")
+        print(f"  {row.id:8} {row.slug:16} {row.step:10} до {row.until}")
         print(f"           {row.question}")
-        print(f"           taking without an answer: {row.default}")
+        print(f"           без ответа возьмёт: {row.default}")
     if not ledger.waiting_on_the_owner():
-        print("  no question is waiting")
+        print("  ни одного вопроса не стоит")
 
     print()
-    print("runs with a driver on them")
+    print("прогоны под драйвером")
     for row in runs:
         print(f"  {row.slug:20} {row.project}  since {row.taken_at}")
     if not runs:
-        print("  nothing is being driven")
+        print("  никого не ведут")
 
     print()
-    print("working copies being built in")
+    print("рабочие копии, в которых строят")
     checkouts = ledger.checkouts()
     for row in checkouts:
         print(f"  {row.slug:20} {row.project}  since {row.taken_at}")
     if not checkouts:
-        print("  no run is building in a project's own checkout")
+        print("  ни один прогон не строит в самой копии проекта")
 
     print()
-    print("batches being driven here")
+    print("партии под драйвером здесь")
     batches = ledger.batches()
     for row in batches:
         print(f"  {row.slug:20} {row.project}  since {row.taken_at}")
     if not batches:
-        print("  no batch is running")
+        print("  ни одна партия не идёт")
     return int(ExitCode.OK)
 
 
@@ -1695,7 +1695,7 @@ def _slot(args: argparse.Namespace, paths: Paths) -> int:
         got = ledger.take(want, _ceilings(load_config(paths.config_file), args.machine_max))
         if not got.granted:
             raise ProviderError(got.code, got.detail)
-        print(f"{args.slug}: holding a slot on {args.provider} until {got.expires_at}")
+        print(f"{args.slug}: держит слот на {args.provider} до {got.expires_at}")
         return int(ExitCode.OK)
 
     if what == "wants":
@@ -1709,7 +1709,7 @@ def _slot(args: argparse.Namespace, paths: Paths) -> int:
                 **({"pid": args.pid} if args.pid is not None else {}),
             )
         )
-        print(f"{args.slug}: standing in the queue for {args.account or args.provider}")
+        print(f"{args.slug}: стоит в очереди за {args.account or args.provider}")
         return int(ExitCode.OK)
 
     if what == "hold":
@@ -1718,14 +1718,14 @@ def _slot(args: argparse.Namespace, paths: Paths) -> int:
         if not held.granted:
             raise StateError(held.code, held.detail)
         what_is_held = "the working copy" if args.checkout else "the run"
-        print(f"{args.slug}: {what_is_held} is held by process {held.pid}")
+        print(f"{args.slug}: {what_is_held} держит процесс {held.pid}")
         return int(ExitCode.OK)
 
     if what == "release":
         for lease in ledger.held() + ledger.runs() + ledger.checkouts():
             if lease.slug == args.slug and lease.project == project:
                 ledger.release(lease)
-                print(f"{args.slug}: the {lease.kind} is given back")
+                print(f"{args.slug}: {lease.kind} отдан обратно")
                 return int(ExitCode.OK)
         raise StateError("no-such-slot", f"nothing here holds a slot or a run for {args.slug!r}")
 
@@ -1755,7 +1755,7 @@ def _ask(args: argparse.Namespace, paths: Paths) -> int:
                 until=args.until or after(3600), message=args.message,
             )
         )
-        print(f"{held.id} {held.slug}/{held.step} until {held.until} message {held.message or 'unnumbered'}")
+        print(f"{held.id} {held.slug}/{held.step} до {held.until} сообщение {held.message or 'без номера'}")
         return int(ExitCode.OK)
 
     if what == "clear":
@@ -1776,12 +1776,12 @@ def _limit(args: argparse.Namespace, paths: Paths) -> int:
         until = _a_time(args.until)
         held = ledger.limit(args.account, until=until, said_by=args.said_by)
         guessed = " (an hour, guessed)" if held.guessed else ""
-        print(f"{held.account}: limited until {held.until}{guessed}")
+        print(f"{held.account}: исчерпан до {held.until}{guessed}")
         return int(ExitCode.OK)
 
     if what == "clear":
         ledger.unlimit(args.account)
-        print(f"{args.account}: answering again")
+        print(f"{args.account}: снова отвечает")
         return int(ExitCode.OK)
 
     raise UsageError("unknown-command", f"limit {what}")
@@ -1849,15 +1849,15 @@ def _owner(args: argparse.Namespace, paths: Paths) -> int:
 
     config = load_config(paths.config_file)
     if not config.owner.channel:
-        print(f"{PROGRAM}: no-channel: this machine has no channel to its owner", file=sys.stderr)
-        print("  every question takes its default at once, and the default is written down", file=sys.stderr)
+        print(f"{PROGRAM}: no-channel: у этой машины нет канала к владельцу", file=sys.stderr)
+        print("  каждый вопрос сразу берёт умолчание, и умолчание записывается", file=sys.stderr)
         print("  agent-kit owner setup заводит его целиком: бот, токен, чат", file=sys.stderr)
         return int(ExitCode.CONFIG)
 
     channel = open_channel(config.owner, paths.secrets_file)
     if what == "say":
         channel.send(args.text)
-        print(f"said it on {channel.name}")
+        print(f"сказано через {channel.name}")
         return int(ExitCode.OK)
 
     if what == "check":
@@ -1907,7 +1907,7 @@ def _daemon(args: argparse.Namespace, paths: Paths) -> int:
         held = running()
         print(f"page       {where}")
         print(f"ledger     {_ledger(paths).path}")
-        print(f"process    {'up, pid ' + str(held) if held else 'not running'}")
+        print(f"процесс    {'поднят, pid ' + str(held) if held else 'не запущен'}")
         return int(ExitCode.OK)
 
     if what == "install":
