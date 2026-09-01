@@ -347,15 +347,15 @@ def main(argv: list[str] | None = None) -> int:
     except KitError as error:
         print(f"{PROGRAM}: {error.code}: {error.detail or ''}".rstrip(": "), file=sys.stderr)
         if error.hint:
-            print(f"  try: {error.hint}", file=sys.stderr)
+            print(f"  попробуйте: {error.hint}", file=sys.stderr)
         return int(error.exit_code)
     except KeyboardInterrupt:
-        print(f"{PROGRAM}: stopped", file=sys.stderr)
+        print(f"{PROGRAM}: остановлено", file=sys.stderr)
         return int(ExitCode.INTERRUPTED)
     except Exception as crash:  # a defect in the kit, reported rather than spilled
         get_logger("cli").exception("unhandled failure")
         print(f"{PROGRAM}: internal-error: {type(crash).__name__}: {crash}", file=sys.stderr)
-        print(f"  this is a defect in the kit; the whole of it is in {paths.log_dir}", file=sys.stderr)
+        print(f"  это дефект кита; целиком он лежит в {paths.log_dir}", file=sys.stderr)
         return int(ExitCode.INTERNAL)
 
 
@@ -366,7 +366,7 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace, paths: 
 
     if args.command is None:
         parser.print_usage(sys.stderr)
-        print(f"{PROGRAM}: a command is required; try `{PROGRAM} --help`", file=sys.stderr)
+        print(f"{PROGRAM}: нужна команда; попробуйте `{PROGRAM} --help`", file=sys.stderr)
         return int(ExitCode.USAGE)
 
     if args.command == "next":
@@ -590,7 +590,7 @@ def _verification(project: Path) -> int:
         print(f"{unreadable.code}: {unreadable.detail}", file=sys.stderr)
         return int(unreadable.exit_code)
 
-    print("the kinds of verification this kit knows, and what this project says about each")
+    print("виды проверки, которые знает этот кит, и что проект говорит о каждом")
     print()
     for line in catalogue_lines(declared):
         print(line)
@@ -703,8 +703,8 @@ def _init(root: Path, force: bool) -> int:
     from ..project import discover, is_repository, write_project
 
     if not is_repository(root):
-        print(f"{PROGRAM}: not-a-repository: {root} is not a git working tree", file=sys.stderr)
-        print("  the kit delivers on a branch and opens a pull request; both need one", file=sys.stderr)
+        print(f"{PROGRAM}: not-a-repository: {root} — не рабочее дерево git", file=sys.stderr)
+        print("  кит сдаёт на ветке и открывает pull request; для обоих нужно дерево", file=sys.stderr)
         return int(ExitCode.CONFIG)
 
     project, missing = discover(root)
@@ -714,8 +714,8 @@ def _init(root: Path, force: bool) -> int:
     # declaration is committed and cloned arrives with none.
     hook = write_pre_push(root, trunk=project.default_branch)
 
-    print(f"wrote {path}")
-    print(f"  default branch  {project.default_branch}")
+    print(f"записано {path}")
+    print(f"  ветка по умолч. {project.default_branch}")
     for command in project.commands:
         print(f"  {command.name:14}  {command.command}")
     if hook.what == WRITTEN:
@@ -727,7 +727,7 @@ def _init(root: Path, force: bool) -> int:
 
     for gap in missing:
         print(f"{PROGRAM}: missing: {gap}", file=sys.stderr)
-    print(f"  fill it in by hand: {path}", file=sys.stderr)
+    print(f"  впишите руками: {path}", file=sys.stderr)
     return int(ExitCode.CONFIG)
 
 
@@ -789,7 +789,7 @@ def _run(args: argparse.Namespace) -> int:
     if what == "new":
         steps = [name.strip() for name in args.steps.split(",")] if args.steps else None
         run = create_run(store, registry, args.slug, steps=steps, brief=args.brief)
-        print(f"{run.slug}: created on {run.branch} with {len(run.steps)} steps")
+        print(f"{run.slug}: создан на {run.branch}, шагов: {len(run.steps)}")
         return int(ExitCode.OK)
 
     if what == "show":
@@ -799,17 +799,17 @@ def _run(args: argparse.Namespace) -> int:
         else:
             print(f"{run.slug}  {run.status.value}  {run.branch}")
             if run.brief:
-                print(f"  for: {run.brief}")
+                print(f"  зачем: {run.brief}")
             if run.base:
-                print(f"  built on: {run.base}")
+                print(f"  стоит на: {run.base}")
             if run.tree:
-                print(f"  in: {run.tree}")
+                print(f"  в дереве: {run.tree}")
             if run.needs:
-                print(f"  after: {', '.join(run.needs)}")
+                print(f"  после: {', '.join(run.needs)}")
             for index, step in enumerate(run.steps):
                 mark = ">" if index == run.current_step else " "
                 reason = f"  {step.reason}" if step.reason else ""
-                print(f" {mark} {step.name:12} {step.status.value:8} attempts {step.attempts}{reason}")
+                print(f" {mark} {step.name:12} {step.status.value:8} попыток {step.attempts}{reason}")
                 for line in _what_the_step_is_waiting_for(run, step):
                     print(f"     {line}")
                 for line in _what_the_step_cost(store, run.slug, index, step.name):
@@ -822,7 +822,7 @@ def _run(args: argparse.Namespace) -> int:
     if what == "start":
         _refuse_if_a_driver_holds_it(store, args.slug)
         run = store.start_step(args.slug, provider=args.provider)
-        print(f"{run.slug}: {run.current.name} running (attempt {run.current.attempts})")
+        print(f"{run.slug}: {run.current.name} идёт (попытка {run.current.attempts})")
         return int(ExitCode.OK)
 
     if what == "pass":
@@ -834,7 +834,7 @@ def _run(args: argparse.Namespace) -> int:
     if what == "fail":
         _refuse_if_a_driver_holds_it(store, args.slug)
         run = store.fail_step(args.slug, args.reason)
-        print(f"{run.slug}: failed — {run.reason}")
+        print(f"{run.slug}: упал — {run.reason}")
         return int(ExitCode.OK)
 
     if what == "stop":
@@ -846,10 +846,10 @@ def _run(args: argparse.Namespace) -> int:
             _ledger(Paths.from_env()).ask_stop(driving[0].project, args.slug, reason=args.reason)
             # A code, not a sentence: what a script reads must not be prose
             # somebody will reword.
-            print(f"stop-asked: {args.slug} — the driver (pid {driving[0].pid}) stops at the next step")
+            print(f"stop-asked: {args.slug} — драйвер (pid {driving[0].pid}) остановится на границе шага")
             return int(ExitCode.OK)
         run = store.stop(args.slug, args.reason)
-        print(f"{run.slug}: stopped — {run.reason}")
+        print(f"{run.slug}: остановлен — {run.reason}")
         return int(ExitCode.OK)
 
     if what == "reopen":
@@ -860,7 +860,7 @@ def _run(args: argparse.Namespace) -> int:
         # author — the same reason `refuse_step` and `fail_step` are two words.
         _refuse_if_a_driver_holds_it(store, args.slug)
         run = store.reopen(args.slug)
-        print(f"{run.slug}: reopened — {_where(run)}")
+        print(f"{run.slug}: снова открыт — {_where(run)}")
         return int(ExitCode.OK)
 
     raise UsageError("unknown-command", f"run {what}")
@@ -935,7 +935,7 @@ def _go(store: RunStore, registry, args: argparse.Namespace) -> int:
         outcome = runner.run_next(args.slug)
         for attempt in outcome.attempts:
             mark = "passed" if attempt.passed else f"refused — {attempt.refusal}"
-            print(f"  attempt {attempt.attempt} on {attempt.provider}: {mark}")
+            print(f"  попытка {attempt.attempt} на {attempt.provider}: {mark}")
         if not outcome.passed:
             print(f"{outcome.slug}: {outcome.reason}", file=sys.stderr)
             if outcome.interrupted:
@@ -948,7 +948,7 @@ def _go(store: RunStore, registry, args: argparse.Namespace) -> int:
             # stops the run the same way and must exit the same way.
             return int(_over(store.load(args.slug)))
 
-        print(f"{outcome.slug}: {outcome.step} passed")
+        print(f"{outcome.slug}: {outcome.step} прошёл")
         run = store.load(args.slug)
         if not run.finished:
             continue
@@ -1001,7 +1001,7 @@ def _batch(args: argparse.Namespace, paths: Paths) -> int:
         declaration = read_declaration(Path(args.file))
         refuse_unless_answered(declaration, read_project(root))
         batch = store.create(declaration)
-        print(f"{batch.name}: created with {len(batch.features)} features")
+        print(f"{batch.name}: создана, фич: {len(batch.features)}")
         for feature in batch.features:
             waits = f" — after {', '.join(feature.needs)}" if feature.needs else ""
             print(f"  {feature.slug}{waits}")
@@ -1012,7 +1012,7 @@ def _batch(args: argparse.Namespace, paths: Paths) -> int:
         if args.json:
             print(json.dumps(batch.to_dict(), indent=2, ensure_ascii=False))
             return int(ExitCode.OK)
-        print(f"{batch.name}  {len(batch.features)} features")
+        print(f"{batch.name}  фич: {len(batch.features)}")
         if batch.reason:
             print(f"  {batch.reason}")
         for feature in batch.features:
@@ -1032,26 +1032,26 @@ def _batch(args: argparse.Namespace, paths: Paths) -> int:
         driving = _driving_batch(root, args.name)
         if driving:
             _ledger(paths).ask_stop(str(root), args.name, reason=args.reason)
-            print(f"stop-asked: {args.name} — the driver (pid {driving[0].pid}) stops when its children do")
+            print(f"stop-asked: {args.name} — драйвер (pid {driving[0].pid}) встанет, когда встанут дети")
             return int(ExitCode.OK)
         batch = store.load(args.name)
         batch.reason = args.reason
         store.save(batch)
-        print(f"{args.name}: stopped — {args.reason}")
+        print(f"{args.name}: остановлена — {args.reason}")
         return int(ExitCode.OK)
 
     if what == "skip":
         driving = _driving_batch(root, args.name)
         if driving:
             _ledger(paths).ask_skip(str(root), args.name, args.feature, reason=args.reason)
-            print(f"skip-asked: {args.feature} — the driver (pid {driving[0].pid}) reads it between steps")
+            print(f"skip-asked: {args.feature} — драйвер (pid {driving[0].pid}) прочтёт это между шагами")
             return int(ExitCode.OK)
         batch = store.load(args.name)
         taken = batch.skip(args.feature, args.reason)
         store.save(batch)
         # Said at the moment it is typed: a person who wanted one feature
         # dropped and got three must hear it now, not in a report afterwards.
-        print(f"{args.name}: skipping {', '.join(taken)} — {args.reason}")
+        print(f"{args.name}: пропускаем {', '.join(taken)} — {args.reason}")
         return int(ExitCode.OK)
 
     if what == "reopen":
@@ -1077,7 +1077,7 @@ def _batch(args: argparse.Namespace, paths: Paths) -> int:
                 runs.reopen(slug)
         store.save(batch)
         # Said now rather than in a report, for the reason a skip says it now.
-        print(f"{args.name}: to build again — {', '.join(given)}")
+        print(f"{args.name}: строим заново — {', '.join(given)}")
         return int(ExitCode.OK)
 
     raise UsageError("unknown-command", f"batch {what}")
@@ -1133,7 +1133,7 @@ def _batch_go(args: argparse.Namespace, paths: Paths, root: Path, store) -> int:
     for feature in outcome.batch.features:
         print(f"{feature.slug}: {feature.status.value}{'  ' + feature.pull_request if feature.pull_request else ''}")
     for conflict in outcome.conflicts:
-        print(f"will not merge: {conflict.said()}", file=sys.stderr)
+        print(f"не сольётся: {conflict.said()}", file=sys.stderr)
 
     if outcome.interrupted:
         return int(ExitCode.INTERRUPTED)
@@ -1175,14 +1175,14 @@ def _tree(args: argparse.Namespace) -> int:
     if what == "list":
         standing = trees(root)
         if not standing:
-            print("no trees")
+            print("деревьев нет")
         for slug, where, branch in standing:
             print(f"{slug:20} {branch:24} {where}")
         return int(ExitCode.OK)
 
     if what == "remove":
         gone = remove_tree(root, args.slug)
-        print(f"{args.slug}: {'taken away; the branch keeps the work' if gone else 'no tree of that name'}")
+        print(f"{args.slug}: {'убрано; работа остаётся на ветке' if gone else 'дерева с таким именем нет'}")
         return int(ExitCode.OK)
 
     raise UsageError("unknown-command", f"tree {what}")
@@ -1202,15 +1202,15 @@ def _step(args: argparse.Namespace, paths: Paths) -> int:
     if what == "show":
         definition = registry.get(args.name)
         print(f"{definition.name} — {definition.title}")
-        print(f"  role      {definition.role}")
+        print(f"  роль      {definition.role}")
         prose = (
             str(method_root() / definition.method)
             if definition.method
-            else f"none — {definition.executor} is a program, and nobody reads instructions to one"
+            else f"нет — {definition.executor} это программа, а программе инструкций не читают"
         )
-        print(f"  prose     {prose}")
+        print(f"  проза     {prose}")
         print()
-        print("returns:")
+        print("возвращает:")
         # What *this project* asks of the step, which is what the driver will
         # show the session and check the answer against. One description, and
         # now a person reads the same one.
@@ -1258,9 +1258,9 @@ def _step(args: argparse.Namespace, paths: Paths) -> int:
         outcome = runner.run_next(args.slug)
         for attempt in outcome.attempts:
             mark = "passed" if attempt.passed else f"refused — {attempt.refusal}"
-            print(f"  attempt {attempt.attempt} on {attempt.provider}: {mark}")
+            print(f"  попытка {attempt.attempt} на {attempt.provider}: {mark}")
         if outcome.passed:
-            print(f"{outcome.slug}: {outcome.step} passed")
+            print(f"{outcome.slug}: {outcome.step} прошёл")
             return int(ExitCode.OK)
         print(f"{outcome.slug}: {outcome.reason}", file=sys.stderr)
         return int(ExitCode.INTERRUPTED if outcome.interrupted else ExitCode.STATE)
@@ -1917,7 +1917,7 @@ def _daemon(args: argparse.Namespace, paths: Paths) -> int:
         # whatever happened to be argv[0] the day it was written.
         binary = shutil.which(PROGRAM) or _sys.argv[0] or PROGRAM
         path.write_text(unit_file(binary), encoding="utf-8")
-        print(f"wrote {path}")
+        print(f"записано {path}")
         print("  systemctl --user daemon-reload")
         print("  systemctl --user enable --now agent-kit")
         return int(ExitCode.OK)
@@ -1939,7 +1939,7 @@ def _daemon(args: argparse.Namespace, paths: Paths) -> int:
             os.kill(held, signal.SIGTERM)
         except (ProcessLookupError, PermissionError) as refused:
             raise StateError("not-ours", f"process {held} would not take the signal: {refused}") from refused
-        print(f"asked the daemon (pid {held}) to go away")
+        print(f"демона (pid {held}) попросили уйти")
         return int(ExitCode.OK)
 
     if what != "start":
@@ -1955,11 +1955,11 @@ def _daemon(args: argparse.Namespace, paths: Paths) -> int:
             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             start_new_session=True,
         )
-        print(f"the daemon is up as pid {child.pid}; the page is at {where}")
+        print(f"демон поднят, pid {child.pid}; страница на {where}")
         return int(ExitCode.OK)
 
     paths.ensure()
-    print(f"the page is at {where}", flush=True)
+    print(f"страница на {where}", flush=True)
     run_forever(_ledger(paths), config.daemon.host, config.daemon.port, pid_file)
     return int(ExitCode.OK)
 
