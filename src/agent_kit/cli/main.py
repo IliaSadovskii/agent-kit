@@ -1543,6 +1543,8 @@ def _provider_check(args: argparse.Namespace) -> int:
             print(f"    {line}")
         print()
 
+    _what_to_type(report)
+
     if report.level is None:
         # The code, and it is the walk's own: a judge reads a code, and this is
         # the same state `agent-kit setup` refuses by name. Two commands looking
@@ -1568,6 +1570,34 @@ def _provider_check(args: argparse.Namespace) -> int:
         )
         return int(ExitCode.PROVIDER)
     return int(ExitCode.OK)
+
+
+def _what_to_type(report) -> None:
+    """The failed rung's own cure, printed under it. Nothing here is run.
+
+    Printed only where the ladder is about to refuse: on a provider that earned
+    what it declares there is nothing to fix, and a *what to do next* under a
+    green screen is noise. What is printed comes out of the provider's
+    declaration — the same table `agent-kit setup` reads — so there is one home
+    for what a person types and no second list to fall out of step with it.
+    """
+    from ..driver.check import cure
+
+    if report.level is not None and report.earns_what_it_declares:
+        return
+    fix = cure(report)
+    if fix is None:  # pragma: no cover - a report with no failed rung got here
+        return
+
+    print("  Что делать дальше")
+    print()
+    print(f"    {fix.said}")
+    for lead, argv in fix.steps:
+        print()
+        print(f"    {lead}")
+        print()
+        print(f"      {' '.join(argv)}")
+    print()
 
 
 def _what_the_step_cost(store: RunStore, slug: str, index: int, name: str) -> list[str]:

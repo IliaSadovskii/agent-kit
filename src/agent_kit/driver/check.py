@@ -251,6 +251,82 @@ def free_rungs(name: str, options: dict[str, list[str]] | None = None) -> list[R
     return rungs
 
 
+# --- what to type next ------------------------------------------------------
+
+#: How the walk is named on a screen. The kit prints commands and runs none:
+#: installing is the owner's act on the owner's machine, and so is a login.
+PROGRAM = "agent-kit"
+
+
+@dataclass
+class Cure:
+    """What closes the rung that failed — one line, and the commands to type.
+
+    A diagnosis with no next step is where the owner was left: *споткнулся на
+    ступени `one_shot`*, and nothing about what to do with that. The whole
+    point of the kit installing providers is that it walks somebody through.
+
+    Nothing here is invented. Every command comes out of the provider's own
+    `[provider.setup]`, which is the same table `agent-kit setup` prints from —
+    one declaration, two readers, and no second list of commands to disagree
+    with the first. A rung that no command closes says so in words rather than
+    leaving a dead end, and a provider that declares no install says *that*
+    rather than having one guessed for it.
+    """
+
+    #: One line of prose at the person reading. Russian, like every other screen.
+    said: str = ""
+    #: What to type, in the order to type it: a lead line and the argv under it.
+    steps: list[tuple[str, list[str]]] = field(default_factory=list)
+
+
+def cure(report: CheckReport) -> Cure | None:
+    """The failed rung, turned into the command that closes it. None if none failed."""
+    failed = report.failed
+    if failed is None:
+        return None
+
+    declared = declared_facts(report.provider)
+    walk = ("Или пройдите ход целиком:", [PROGRAM, "setup", report.provider])
+
+    if failed in ("binary", "answers"):
+        said = (
+            "Инструмент не найден на этой машине."
+            if failed == "binary"
+            else "Он здесь, но не отвечает — поставьте заново."
+        )
+        if not declared.install:
+            return Cure(f"{said} Команды, которая ставит {declared.title}, кит не знает — "
+                        "это придётся сделать самому.")
+        return Cure(said, [("Поставьте его:", declared.install), walk])
+
+    if failed == "login":
+        if not declared.login:
+            return Cure(f"Аккаунт не ответил, а команды входа {declared.title} не объявляет: "
+                        "вход остаётся делом самого инструмента.")
+        return Cure("Аккаунт не ответил: инструмент не залогинен.",
+                    [("Войдите:", declared.login), walk])
+
+    if failed == "one_shot":
+        # The honest half-answer, and it is deliberately not a diagnosis. The
+        # ladder could not tell whether the account is the trouble — that is
+        # what the `login` rung above says — so the command is named as the one
+        # to run *if it is*, rather than as the cure. A dead end here is what
+        # the owner hit; a confident wrong command would be worse.
+        said = "Сессия не удалась, а из отказа не видно, дело ли в аккаунте — смотрите выше, что она сказала."
+        if not declared.login:
+            return Cure(said)
+        return Cure(said, [("Если дело в аккаунте, вход у этого инструмента такой:", declared.login), walk])
+
+    if failed == "contract":
+        return Cure("Это чинится не командой: инструмент ответил, но не тем, "
+                    "чего требует контракт шага `probe`.")
+    if failed == "writes":
+        return Cure("Это чинится не командой: сессия не смогла создать файл там, где стояла. "
+                    "Смотрите флаг, который открывает песочницу, в объявлении этого провайдера.")
+    return Cure("Это чинится не командой: инструмент работает, но об этом рассказать не умеет.")
+
+
 def _writes(answered: Any) -> tuple[bool, str, bool]:
     """What the probe already went and found out, finally read by somebody.
 
