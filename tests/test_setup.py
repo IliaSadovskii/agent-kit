@@ -49,6 +49,14 @@ NEWCOMER = (
     '[provider.flags]\nversion = ["--version"]\n'
 )
 
+#: A login this declaration says nothing about, so what is on the screen is
+#: the walk's own prose and nobody else's.
+NO_NOTE = (
+    '[provider]\ntitle = "the newcomer"\nbinary = "newcomer"\n\n'
+    '[provider.setup]\ninstall = ["put-it-there", "newcomer"]\nlogin = ["newcomer", "login"]\n\n'
+    '[provider.flags]\nversion = ["--version"]\n'
+)
+
 #: The same tool, with nothing to log in to. What is left is the writing alone.
 NO_LOGIN = (
     '[provider]\ntitle = "the newcomer"\nbinary = "newcomer"\n\n'
@@ -542,3 +550,63 @@ def test_the_line_the_walk_does_print_is_the_declarations_own(
     walk("newcomer", ask=typing("\n", "\n"), say=say, paths=machine)
 
     assert "Выберите аккаунт и выйдите из экрана." in "\n".join(printed)
+
+
+# --- S9b: what the walk got wrong on a real server ---------------------------
+
+
+def test_every_step_that_prints_a_command_says_where_to_run_it(
+    machine, tmp_path, monkeypatch
+):
+    """The walk blocks on the line after the command, so the command cannot be
+    run in this window — and the owner tried, in the window holding the prompt,
+    and nothing happened. Both steps say it, because a login step is the first
+    step on a machine where the tool is already standing and cannot lean on the
+    install step's wording."""
+    ships(tmp_path, monkeypatch, newcomer=NEWCOMER)
+    printed, say = saying()
+
+    def person(prompt):
+        installs(tmp_path)  # what they did in the other terminal
+        return "\n"
+
+    walk("newcomer", ask=person, say=say, paths=machine)
+
+    steps = "\n".join(printed).split("  1/3")[1].split("  3/3")[0]
+    install, login = steps.split("  2/3")
+    assert "второй терминал" in install
+    assert "второй терминал" in login
+
+
+def test_the_walk_promises_no_browser_of_its_own(machine, tmp_path, monkeypatch):
+    """The kit does not know where the person is sitting.
+
+    It was written for a server reached over a private network, which has no
+    screen for a browser to open on; it installs onto a laptop just as well.
+    So the walk's own prose says only what is true either way, and what the
+    tool will actually do is the declaration's to say — measured on a machine,
+    not read out of somebody's documentation. `gemini` was declared as opening
+    a browser and prints a link into the terminal instead.
+    """
+    ships(tmp_path, monkeypatch, newcomer=NO_NOTE)
+    installs(tmp_path)
+    printed, say = saying()
+
+    walk("newcomer", ask=typing("\n", "\n"), say=say, paths=machine)
+
+    assert "браузер" not in "\n".join(printed).lower()
+
+
+def test_no_shipped_declaration_says_a_browser_opens_here(machine):
+    """The same question, put to the four declarations that ship.
+
+    A note may well name a browser — a link has to be opened in one somewhere —
+    but never as something that happens *on this machine*, which is the claim
+    the owner's server proved false.
+    """
+    from agent_kit.providers import registry
+
+    for name in registry.provider_names():
+        note = registry.facts(name).login_note.lower()
+        assert "откроется браузер" not in note
+        assert "откроет браузер" not in note
