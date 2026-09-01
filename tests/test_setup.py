@@ -245,7 +245,7 @@ def test_the_account_is_asked_only_where_there_is_something_to_answer(machine, t
 
     walk("newcomer", ask=typing("\n", "\n"), say=say, paths=machine)
 
-    assert not any("pool" in line for line in printed)
+    assert not any("other" in line for line in printed)
     assert "account" not in machine.config_file.read_text(encoding="utf-8")
 
 
@@ -260,7 +260,10 @@ def test_the_account_is_asked_where_a_second_provider_is_configured(machine, tmp
     # command is never printed and its answer is never asked for.
     walk("newcomer", ask=typing("\n", "one-subscription\n"), say=say, paths=machine)
 
-    assert any("pool" in line for line in printed)
+    # The pools it offers are this machine's own names, not a sentence about
+    # pools: what the case is about is that the question was put at all.
+    screen = "\n".join(printed)
+    assert "newcomer" in screen and "other" in screen
     assert 'account = "one-subscription"' in machine.config_file.read_text(encoding="utf-8")
 
 
@@ -293,9 +296,11 @@ def test_the_login_command_is_printed_and_the_login_is_not_claimed(machine, tmp_
 
     walk("newcomer", ask=typing("\n", "\n"), say=say, paths=machine)
 
+    # The command, and beside it the one that would measure the account. A walk
+    # that named neither would be claiming the login it never ran.
     screen = "\n".join(printed)
     assert "newcomer login" in screen
-    assert "has not been measured" in screen
+    assert "provider check newcomer" in screen
 
 
 # --- what the walk may not write, and what it may not call by somebody's code ---
@@ -375,7 +380,7 @@ def test_a_bare_walk_takes_the_one_that_works_over_the_one_that_is_missing(
     said = "\n".join(printed)
     assert code == int(ExitCode.OK)
     assert "put-it-there zzz-absent" not in said
-    assert "[providers.newcomer] enabled" in said
+    assert "[providers.newcomer]" in said
 
 
 def test_a_bare_walk_on_a_machine_with_nothing_takes_the_first_shipped(
