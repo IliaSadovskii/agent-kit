@@ -84,7 +84,7 @@ def test_codex_is_told_to_write_where_the_run_builds():
 
     assert flags["full_access"] == ["-s", "workspace-write"]
     assert "-a" not in flags["full_access"]
-    assert flags["headless"] == ["exec"]
+    assert flags["headless"] == ["exec", "--skip-git-repo-check"]
 
 
 def test_gemini_declares_no_headless_flag_on_purpose():

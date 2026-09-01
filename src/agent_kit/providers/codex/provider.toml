@@ -45,7 +45,14 @@ login_note = "Появится код: наберите его в браузер
 
 [provider.flags]
 # The shape: a flag that carries a value is [flag], and the value follows it.
-headless = ["exec"]
+# `--skip-git-repo-check` measured on 1 September 2026, on the owner's server, the
+# third thing this declaration got wrong and the ladder caught: run anywhere that
+# is not a git repository codex already trusts and it refuses, naming this flag
+# itself — `Not inside a trusted directory and --skip-git-repo-check was not
+# specified`. Trust is granted interactively per directory, and a headless
+# session has nobody to grant it. A run of the kit builds in a worktree, which is
+# a repository; a probe runs wherever the person is standing, which is not.
+headless = ["exec", "--skip-git-repo-check"]
 # `codex exec` sandboxes to read-only unless it is told otherwise, and a session
 # that cannot create a file earns no level at all since the `writes` rung. Not
 # `danger-full-access`: a run builds inside its own worktree, so the workspace is
