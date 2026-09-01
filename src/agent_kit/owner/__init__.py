@@ -75,7 +75,7 @@ def open_channel(owner, secrets) -> Channel | None:
     if owner.channel == "file":
         if not owner.file:
             raise ConfigError(
-                "missing-key", "owner.file says where the file channel keeps its two files"
+                "missing-key", "owner.file говорит, где файловый канал держит свои два файла"
             )
         return FileChannel(owner.file)
     if owner.channel == "telegram":
@@ -83,14 +83,14 @@ def open_channel(owner, secrets) -> Channel | None:
         if not token:
             raise ConfigError(
                 "no-token",
-                f"the telegram channel needs a bot token, and {Path(secrets)} holds none",
+                f"телеграм-каналу нужен токен бота, а {Path(secrets)} его не держит",
                 hint="agent-kit owner set-token",
             )
         if not owner.chat:
-            raise ConfigError("missing-key", "owner.chat says which chat the kit writes to")
+            raise ConfigError("missing-key", "owner.chat говорит, в какой чат пишет кит")
         return Telegram(token=token, chat=owner.chat)
     raise ConfigError(
-        "unknown-channel", f"{owner.channel!r} is not a channel this kit has: {', '.join(CHANNELS)}"
+        "unknown-channel", f"{owner.channel!r} — не тот канал, который есть у этого кита: {', '.join(CHANNELS)}"
     )
 
 

@@ -91,17 +91,17 @@ def answers_from_table(table: dict) -> tuple[Answer, ...]:
         if kind is None:
             raise ConfigError(
                 "unknown-kind",
-                f"verification.{name} is not a kind of verification this kit knows: "
+                f"verification.{name} — не тот вид проверки, который знает этот кит: "
                 f"{', '.join(one.name for one in CATALOGUE)}",
                 hint="agent-kit verification",
             )
         block = table[name]
         if not isinstance(block, dict):
-            raise ConfigError("bad-value", f"verification.{name} must be a table")
+            raise ConfigError("bad-value", f"verification.{name} должен быть таблицей")
         for key in block:
             if key not in ANSWER_KEYS:
                 raise ConfigError(
-                    "unknown-key", f"verification.{name}.{key} is not something the kit reads about an answer"
+                    "unknown-key", f"verification.{name}.{key} — не то, что кит читает об ответе"
                 )
 
         command = _said(block.get("command"), f"verification.{name}.command")
@@ -118,8 +118,8 @@ def answers_from_table(table: dict) -> tuple[Answer, ...]:
         if why and not since:
             raise ConfigError(
                 f"bad-verification-answer: {name}",
-                f"verification.{name} refuses the kind and does not say when that was decided; "
-                "a refusal with no date cannot be told from one nobody has looked at since",
+                f"verification.{name} отказывается от вида и не говорит, когда это решили; "
+                "отказ без даты не отличить от того, на который с тех пор никто не смотрел",
                 hint="agent-kit verification",
             )
         if since:
@@ -147,7 +147,7 @@ def _said(value: object, where: str) -> str:
     if value is None:
         return ""
     if not isinstance(value, str):
-        raise ConfigError("bad-value", f"{where} must be a string")
+        raise ConfigError("bad-value", f"{where} должен быть строкой")
     return value.strip()
 
 
@@ -236,6 +236,6 @@ def refuse_commands_that_prove_nothing(project: "Project | None") -> None:
     where = getattr(project, "source", None) or getattr(project, "root", "this project")
     raise ConfigError(
         "command-that-proves-nothing",
-        f"{where} answers a kind of verification with a command that cannot fail: {named}",
+        f"{where} отвечает на вид проверки командой, которая не может провалиться: {named}",
         hint="agent-kit verification",
     )

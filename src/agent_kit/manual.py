@@ -200,7 +200,7 @@ class Manual:
             if held is not None:
                 raise ManualError(
                     "two-actions-one-key",
-                    f"{action.key} names two actions of this project: {held.what!r} on line "
+                    f"{action.key} называет два дела этого проекта: {held.what!r} в строке "
                     f"{held.line + 1} and {action.what!r} on line {action.line + 1}",
                 )
             seen[action.key] = action
@@ -211,7 +211,7 @@ class Manual:
         try:
             return path.read_text(encoding="utf-8").splitlines()
         except (OSError, UnicodeDecodeError) as unreadable:
-            raise ManualError("unreadable-manual", f"{path.name} could not be read: {unreadable}") from unreadable
+            raise ManualError("unreadable-manual", f"{path.name} не прочитался: {unreadable}") from unreadable
 
     def _read(self, lines: list[str]) -> list[Action]:
         """The reader's own refusal, in this file's vocabulary.
@@ -247,7 +247,7 @@ class Manual:
             held = standing.get(wanted)
             if held is None or " ".join(held.what.split()).casefold() == wanted_words:
                 return wanted
-        raise ManualError("no-free-identifier", f"{SALTS} keys derived for {what!r} are all taken")
+        raise ManualError("no-free-identifier", f"все {SALTS} ключей, выведенных для {what!r}, заняты")
 
     # --- writing ------------------------------------------------------------
 
@@ -264,8 +264,8 @@ class Manual:
         if ignored:
             raise ManualError(
                 "manual-ignored",
-                f"{self.path} is ignored by {ignored}, and a chore in a file nobody commits dies "
-                "with this machine — which is what this file exists against",
+                f"{self.path} игнорируется через {ignored}, а дело в файле, который никто не коммитит, умирает "
+                "вместе с этой машиной — а этот файл ровно против этого и заведён",
                 hint="agent-kit init",
             )
         if not proof.strip() and not by_hand.strip():
@@ -274,7 +274,7 @@ class Manual:
             # door, and its key would already be in the evening's memory.
             raise ManualError(
                 "action-with-no-answer",
-                f"{what!r} says neither how it will be proved done nor why no command can prove "
+                f"{what!r} не говорит ни чем будет доказано, ни почему командой этого не проверить"
                 "it, and a line that says neither is one no reader can read back",
             )
         key = key or manual_key(what)
@@ -303,7 +303,7 @@ class Manual:
                 lines = self._lines(path)
                 _write_lines(path, lines[: standing.line] + lines[standing.line + 1 :])
                 return path
-        raise ManualError("no-such-action", f"no line of this project carries the key {key!r}")
+        raise ManualError("no-such-action", f"ни одна строка этого проекта не несёт ключ {key!r}")
 
     def _ignored(self) -> str:
         """What ignores this file, or nothing. A repository is not required."""
@@ -357,35 +357,35 @@ def refuse_unless_each_action_is_answered(design: dict[str, Any]) -> None:
         if not what:
             raise ManualRefused(
                 "action-with-no-words",
-                "an action with nothing said in it is not an action: the line would name a key "
-                "and no work",
+                "дело, в котором ничего не сказано, — не дело: строка называла бы ключ "
+                "и никакой работы",
             )
         for name, value in (("what", what), ("proof", proof), ("by_hand", by_hand)):
             held = cannot_be_written(value)
             if held:
                 raise ManualRefused(
                     f"action-that-cannot-be-written: {name}",
-                    f"{what!r} carries {held!r} in its {name}, and a line holding it is one the "
-                    "kit cannot read back — the chore would stand in the file and reach nobody",
+                    f"{what!r} несёт {held!r} в поле {name}, а строку с этим внутри кит "
+                    "не прочитает обратно — дело стояло бы в файле и не дошло ни до кого",
                 )
         if proof and by_hand:
             raise ManualRefused(
                 "action-proved-and-by-hand",
-                f"{what!r} carries both a command and a reason no command can prove it, and a "
-                "record that says both has decided neither",
+                f"{what!r} несёт и команду, и причину, по которой командой это не проверить, "
+                "а запись, где сказано и то и другое, не решила ничего",
             )
         if not proof and not by_hand:
             raise ManualRefused(
                 "action-unproved",
-                f"{what!r} says neither how it will be proved done nor why no command can prove "
-                "it; a chore nobody can close is what this file exists against",
+                f"{what!r} не говорит ни чем будет доказано, ни почему командой этого "
+                "не проверить; дело, которое некому закрыть, — то, против чего этот файл заведён",
             )
         empty = proves_nothing(proof)
         if empty:
             raise ManualRefused(
                 "proof-that-proves-nothing",
-                f"{what!r} is proved by {proof!r}, and {empty!r} exits zero whatever is wrong: it "
-                "would take its own line away the first time anybody looked",
+                f"{what!r} доказывается через {proof!r}, а {empty!r} возвращает ноль, что бы ни "
+                "было сломано: строка снялась бы при первом же взгляде",
             )
 
 

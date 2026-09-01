@@ -565,7 +565,7 @@ def test_the_refusal_says_where_the_fence_was_opened(knowledge):
     with pytest.raises(KnowledgeError) as refused:
         knowledge.blocks()
 
-    assert f"line {opened}" in refused.value.detail
+    assert f"строке {opened}" in refused.value.detail
 
 
 def test_a_comment_that_is_never_closed_is_refused_by_name(knowledge):

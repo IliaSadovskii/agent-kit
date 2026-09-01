@@ -120,7 +120,7 @@ def _refusal(text: str) -> ExecutorFailed | None:
         return None
     words = first[len(REFUSE):].split()
     if not words:
-        raise UsageError("bad-reply", f"{REFUSE} needs a code: the kit refuses by name, never by sentence")
+        raise UsageError("bad-reply", f"{REFUSE} нужен код: кит отказывает по имени, а не предложением")
     said = _pairs(words[1:])
     code = words[0]
     # An exhausted account asked again is guaranteed waste, which is what the
@@ -160,9 +160,9 @@ def build_executor(options: dict[str, list[str]]) -> FakeExecutor:
     if not paths:
         raise UsageError(
             "no-reply",
-            "the fake provider answers from files: pass --option reply=FILE at least once",
+            "фикстура отвечает из файлов: передайте --option reply=ФАЙЛ хотя бы раз",
         )
     missing = [path for path in paths if not path.is_file()]
     if missing:
-        raise UsageError("no-reply", f"no such file: {', '.join(str(path) for path in missing)}")
+        raise UsageError("no-reply", f"таких файлов нет: {', '.join(str(path) for path in missing)}")
     return FakeExecutor.from_files("fake", paths)

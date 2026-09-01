@@ -88,21 +88,21 @@ def read_declaration(path: Path | str) -> Declaration:
     try:
         document = tomllib.loads(path.read_text(encoding="utf-8"))
     except (tomllib.TOMLDecodeError, UnicodeDecodeError) as error:
-        raise ConfigError("unreadable-batch", f"{path} is not valid TOML: {error}") from error
+        raise ConfigError("unreadable-batch", f"{path} — не TOML: {error}") from error
     except OSError as error:
-        raise ConfigError("unreadable-batch", f"{path} could not be read: {error}") from error
+        raise ConfigError("unreadable-batch", f"{path} не прочитался: {error}") from error
 
     _refuse_unknown(document, _TOP_KEYS, "")
     name = _text(document.get("name"), "name")
     table = document.get("features")
     if not isinstance(table, dict) or not table:
-        raise ConfigError("no-features", f"{path} declares no features, and a batch is what it builds")
+        raise ConfigError("no-features", f"{path} не объявляет ни одной фичи, а партия — это то, что она строит")
 
     features = []
     for slug, block in table.items():
         where = f"features.{slug}"
         if not isinstance(block, dict):
-            raise ConfigError("bad-value", f"{where} must be a table")
+            raise ConfigError("bad-value", f"{where} должен быть таблицей")
         _refuse_unknown(block, _FEATURE_KEYS, f"{where}.")
         features.append(
             Feature(
@@ -116,7 +116,7 @@ def read_declaration(path: Path | str) -> Declaration:
 
     mvp = document.get("mvp") or {}
     if not isinstance(mvp, dict):
-        raise ConfigError("bad-value", "mvp must be a table")
+        raise ConfigError("bad-value", "mvp должен быть таблицей")
     _refuse_unknown(mvp, _MVP_KEYS, "mvp.")
 
     return Declaration(
@@ -135,7 +135,7 @@ def _scenarios(value: Any) -> tuple[Scenario, ...]:
     for index, block in enumerate(_list(value, "scenarios")):
         where = f"scenarios[{index}]"
         if not isinstance(block, dict):
-            raise ConfigError("bad-value", f"{where} must be a table")
+            raise ConfigError("bad-value", f"{where} должен быть таблицей")
         _refuse_unknown(block, _SCENARIO_KEYS, f"{where}.")
         # `ends` is read and not required here: an ending nobody wrote is what
         # the gate refuses by name, and refusing it as a malformed field would
@@ -151,7 +151,7 @@ def _frames(value: Any) -> tuple[Frame, ...]:
     for index, block in enumerate(_list(value, "frames")):
         where = f"frames[{index}]"
         if not isinstance(block, dict):
-            raise ConfigError("bad-value", f"{where} must be a table")
+            raise ConfigError("bad-value", f"{where} должен быть таблицей")
         _refuse_unknown(block, _FRAME_KEYS, f"{where}.")
         said.append(
             Frame(what=_text(block.get("what"), f"{where}.what"), id=_said(block.get("id"), f"{where}.id"))
@@ -168,7 +168,7 @@ def _said(value: Any, where: str) -> str:
     if value is None:
         return ""
     if not isinstance(value, str):
-        raise ConfigError("bad-value", f"{where} must be a string")
+        raise ConfigError("bad-value", f"{where} должен быть строкой")
     return value.strip()
 
 
@@ -225,7 +225,7 @@ def refuse_a_graph_that_cannot_run(features: list[Feature]) -> None:
             if name not in known:
                 raise ConfigError(
                     "no-such-feature",
-                    f"{feature.slug} needs {name}, which this batch does not declare",
+                    f"{feature.slug} ждёт {name}, а эта партия его не объявляет",
                 )
         if len(feature.needs) > 1:
             # A feature is built on the branch of what it needs and opens its
@@ -235,7 +235,7 @@ def refuse_a_graph_that_cannot_run(features: list[Feature]) -> None:
             # refuses. Named here rather than picked silently from the list.
             raise ConfigError(
                 "needs-more-than-one",
-                f"{feature.slug} needs {', '.join(feature.needs)}; a feature is built on one branch"
+                f"{feature.slug} ждёт {', '.join(feature.needs)}; фичу строят на одной ветке"
                 " and opens against it, so it may wait for one thing",
             )
 
@@ -250,7 +250,7 @@ def refuse_a_graph_that_cannot_run(features: list[Feature]) -> None:
     if left:
         raise ConfigError(
             "needs-a-cycle",
-            "these features wait for each other and none of them could ever start: " + ", ".join(sorted(left)),
+            "эти фичи ждут друг друга, и ни одна никогда не стартует: " + ", ".join(sorted(left)),
         )
 
 
@@ -260,18 +260,18 @@ def refuse_a_graph_that_cannot_run(features: list[Feature]) -> None:
 def _refuse_unknown(table: dict[str, Any], known: set[str], prefix: str) -> None:
     for key in table:
         if key not in known:
-            raise ConfigError("unknown-key", f"{prefix}{key} is not something the kit reads about a batch")
+            raise ConfigError("unknown-key", f"{prefix}{key} — не то, что кит читает о партии")
 
 
 def _text(value: Any, where: str) -> str:
     if not isinstance(value, str) or not value.strip():
-        raise ConfigError("bad-value", f"{where} must be a non-empty string")
+        raise ConfigError("bad-value", f"{where} — непустая строка")
     return value.strip()
 
 
 def _list(value: Any, where: str) -> list[Any]:
     if not isinstance(value, list):
-        raise ConfigError("bad-value", f"{where} must be a list of feature names")
+        raise ConfigError("bad-value", f"{where} — список имён фич")
     return value
 
 

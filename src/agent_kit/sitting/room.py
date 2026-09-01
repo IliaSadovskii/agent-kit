@@ -101,7 +101,7 @@ class Sitting:
         if telling.empty:
             raise UsageError(
                 "nothing-was-told",
-                "the telling is empty, and a sitting is what somebody says out loud",
+                "рассказ пуст, а сеанс — это то, что человек говорит вслух",
             )
         held = self.ledger.hold_checkout(str(self.root), self.held_for)
         if not held.granted:
@@ -174,7 +174,7 @@ class Sitting:
                 raise StateError(last.busy.code, f"{last.busy.detail}; what you said is kept at {where}")
             raise StateError(
                 "sitting-refused",
-                f"{definition.name} was refused {len(walked.attempts)} times, last: "
+                f"{definition.name} отказан раз: {len(walked.attempts)}, последний: "
                 f"{last.refusal if last else 'and said nothing'}; what you said is kept at {where}",
             )
         return workspace.read_output() or {}
@@ -196,7 +196,7 @@ class Sitting:
             if answer is None:
                 raise ChannelError(
                     "nobody-to-ask",
-                    f"{key}: there is something to settle and nothing is answering. "
+                    f"{key}: есть что разрешить, и никто не отвечает. "
                     "Nothing has been written",
                     hint="pass the telling with --from <файл>, and answer at the terminal",
                 )

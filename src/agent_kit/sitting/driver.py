@@ -59,9 +59,9 @@ class Sitting(Held):
         if require_project(self.root).knowledge_dir is None:
             raise ConfigError(
                 "no-knowledge-declared",
-                "this project's declaration says it keeps no knowledge, so there is nowhere for a "
-                "description to go",
-                hint='take `knowledge = ""` out of .agent-kit/v3/project.toml',
+                "объявление проекта говорит, что знания он не держит, значит описанию "
+                "некуда деться",
+                hint='уберите `knowledge = ""` из .agent-kit/v3/project.toml',
             )
 
         opened = self._open(telling)

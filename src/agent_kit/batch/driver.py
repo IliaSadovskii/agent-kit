@@ -107,7 +107,7 @@ class BatchDriver:
         self._lay_the_manual_actions(batch)
         if batch.finished:
             raise StateError(
-                "batch-finished", f"{name}: nothing is running and nothing is ready to start"
+                "batch-finished", f"{name}: ничего не идёт и стартовать нечему"
             )
         held = self.ledger.hold_batch(str(self.project), name)
         if not held.granted:

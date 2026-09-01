@@ -47,9 +47,9 @@ def _all(path: Path) -> dict[str, str]:
     except FileNotFoundError:
         return {}
     except OSError as error:
-        raise ConfigError("unreadable-secrets", f"{path} could not be read: {error}") from error
+        raise ConfigError("unreadable-secrets", f"{path} не прочитался: {error}") from error
     try:
         held = tomllib.loads(raw)
     except (tomllib.TOMLDecodeError, UnicodeDecodeError) as error:
-        raise ConfigError("unreadable-secrets", f"{path} is not valid TOML: {error}") from error
+        raise ConfigError("unreadable-secrets", f"{path} — не TOML: {error}") from error
     return {key: str(value) for key, value in held.items() if isinstance(value, (str, int))}

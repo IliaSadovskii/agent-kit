@@ -180,14 +180,14 @@ def _declared(tree: Path) -> tuple[Declared, ...]:
     if not path.is_file():
         raise ConfigError(
             "nothing-to-measure",
-            f"this lens reads {MANIFEST}, and the commit it measures has none",
+            f"эта линза читает {MANIFEST}, а в коммите, который она меряет, его нет",
             hint="этой линзе нужен pyproject.toml; другие экосистемы — другая линза",
         )
     try:
         document = tomllib.loads(path.read_text(encoding="utf-8"))
     except (tomllib.TOMLDecodeError, UnicodeDecodeError, OSError) as unreadable:
         raise ConfigError(
-            "nothing-to-measure", f"{MANIFEST} could not be read: {unreadable}"
+            "nothing-to-measure", f"{MANIFEST} не прочитался: {unreadable}"
         ) from unreadable
 
     found: dict[str, list[str]] = {}

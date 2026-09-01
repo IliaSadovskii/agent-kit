@@ -80,7 +80,7 @@ class Knowledge:
             return path.read_text(encoding="utf-8").splitlines()
         except (OSError, UnicodeDecodeError) as unreadable:
             raise KnowledgeError(
-                "unreadable-knowledge", f"{path.name} could not be read: {unreadable}"
+                "unreadable-knowledge", f"{path.name} не прочитался: {unreadable}"
             ) from unreadable
 
     def anchors(self) -> list[Anchor]:
@@ -104,7 +104,7 @@ class Knowledge:
             if held is not None:
                 raise KnowledgeError(
                     "two-parts-one-key",
-                    f"{part.key} names two parts of this product: {held.name!r} in {held.file} "
+                    f"{part.key} называет две части этого продукта: {held.name!r} в {held.file} "
                     f"line {held.line + 1} and {part.name!r} in {part.file} line {part.line + 1}",
                 )
             seen[part.key] = part
@@ -128,7 +128,7 @@ class Knowledge:
             if held is not None:
                 raise KnowledgeError(
                     "two-lines-one-key",
-                    f"{line.key} names two lines of this ledger: {held.what!r} on line "
+                    f"{line.key} называет две строки этого реестра: {held.what!r} в строке "
                     f"{held.line + 1} and {line.what!r} on line {line.line + 1}",
                 )
             seen[line.key] = line
@@ -159,7 +159,7 @@ class Knowledge:
         for part in self.parts():
             if part.key == key:
                 return part
-        raise KnowledgeError("no-such-part", f"no part of this product carries the key {key!r}")
+        raise KnowledgeError("no-such-part", f"ни одна часть этого продукта не несёт ключ {key!r}")
 
     @property
     def described(self) -> bool:
@@ -186,26 +186,26 @@ class Knowledge:
         guessed, and the point of an address is that somebody finds it again.
         """
         if "#" not in at:
-            raise KnowledgeError("bad-address", f"{at!r} is not an address: it wants the shape file.md#anchor")
+            raise KnowledgeError("bad-address", f"{at!r} — не адрес: нужна форма file.md#anchor")
         name, _, wanted = at.partition("#")
         name, wanted = name.strip(), wanted.strip()
         path = self.root / name
         if not wanted:
-            raise KnowledgeError("bad-address", f"{at!r} names a file and no record in it")
+            raise KnowledgeError("bad-address", f"{at!r} называет файл и ни одной записи в нём")
         # `files()` and not `is_file()`: a block written anywhere else could never
         # be found again — not by the index, not by `close`, not by `free_id`.
         if name not in {held.name for held in self.files()}:
             raise KnowledgeError(
                 "no-such-file",
-                f"{name} is not a file of this project's knowledge: {', '.join(p.name for p in self.files()) or 'none'}",
+                f"{name} — не файл знания этого проекта: {', '.join(p.name for p in self.files()) or 'ни одного'}",
             )
 
         matching = [anchor for anchor in read_anchors(name, self._lines(path)) if anchor.anchor == wanted]
         if not matching:
-            raise KnowledgeError("no-such-record", f"{at} names no record {name} holds")
+            raise KnowledgeError("no-such-record", f"{at} называет запись, которой в {name} нет")
         if len(matching) > 1:
             raise KnowledgeError(
-                "ambiguous-record", f"{at} names {len(matching)} records of {name}, and the kit will not choose"
+                "ambiguous-record", f"{at} называет записей в {name}: {len(matching)} — кит выбирать не станет"
             )
         return matching[0]
 
@@ -213,7 +213,7 @@ class Knowledge:
         for block in self.blocks():
             if block.id == id:
                 return block
-        raise KnowledgeError("no-such-block", f"no block of this project's knowledge carries the identifier {id!r}")
+        raise KnowledgeError("no-such-block", f"ни один блок знания этого проекта не несёт идентификатор {id!r}")
 
     def free_id(self, slug: str, what: str, run: str, claimed: set[str] | None = None) -> str:
         """The derived identifier, unless it is already spoken for.
@@ -239,7 +239,7 @@ class Knowledge:
             held = standing.get(wanted)
             if held is None or held.run == run:
                 return wanted
-        raise KnowledgeError("no-free-identifier", f"{SALTS} identifiers derived for {what!r} are all taken")
+        raise KnowledgeError("no-free-identifier", f"все {SALTS} идентификаторов, выведенных для {what!r}, заняты")
 
     def free_key(self, what: str, claimed: set[str] | None = None) -> str:
         """The derived key of a line, unless it is already spoken for.
@@ -262,7 +262,7 @@ class Knowledge:
             held = standing.get(wanted)
             if held is None or " ".join(held.what.split()).casefold() == wanted_words:
                 return wanted
-        raise KnowledgeError("no-free-identifier", f"{SALTS} keys derived for {what!r} are all taken")
+        raise KnowledgeError("no-free-identifier", f"все {SALTS} ключей, выведенных для {what!r}, заняты")
 
     # --- writing ----------------------------------------------------------
 
@@ -276,7 +276,7 @@ class Knowledge:
         if self.root is None:
             raise KnowledgeError(
                 "no-knowledge-declared",
-                "this project's declaration says it keeps no knowledge, so there is nowhere to write one",
+                "объявление проекта говорит, что знания он не держит, значит и писать некуда",
             )
 
     def write(self, at: str, run: str, body: str, id: str, date: str, kind: str = ASSUMED) -> list[Path]:
@@ -399,7 +399,7 @@ class Knowledge:
                 lines = self._lines(path)
                 _write_lines(path, lines[: standing.line] + lines[standing.line + 1 :])
                 return path
-        raise KnowledgeError("no-such-debt", f"no line of this project's ledger carries the key {key!r}")
+        raise KnowledgeError("no-such-debt", f"ни одна строка реестра этого проекта не несёт ключ {key!r}")
 
     def closable(self, id: str) -> Block:
         """The block, if it is one a run may close, and a named refusal if it is not.
@@ -430,13 +430,13 @@ class Knowledge:
         if block.kind != kind:
             raise KnowledgeError(
                 "not-closable-kind",
-                f"{id} is a {block.kind} block, and this closes only {kind}: "
+                f"{id} — блок вида {block.kind}, а здесь закрывают только {kind}: "
                 f"{block.kind} is not this step's to delete",
             )
         if wrote_it and block.run != wrote_it:
             raise KnowledgeError(
                 "not-its-block",
-                f"{id} was written by {block.run!r} and {wrote_it!r} does not close it",
+                f"{id} написал {block.run!r}, и {wrote_it!r} его не закрывает",
             )
         return block
 

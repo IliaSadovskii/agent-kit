@@ -252,7 +252,7 @@ def _plant(case: Case, repo: Path, origin: Path, env: dict[str, str]) -> None:
     if done.returncode != 0:
         raise WorldError(
             "plant-failed",
-            f"{case.name}: plant.sh exited with {done.returncode}: "
+            f"{case.name}: plant.sh вышел с кодом {done.returncode}: "
             f"{(done.stderr or done.stdout).strip()[:400] or 'and said nothing'}",
         )
 
@@ -278,6 +278,6 @@ def _run(argv: list[str], cwd: Path, env: dict[str, str]) -> None:
     if done.returncode != 0:
         raise WorldError(
             "world-failed",
-            f"{' '.join(argv)} exited with {done.returncode}: "
+            f"{' '.join(argv)} вышел с кодом {done.returncode}: "
             f"{(done.stderr or done.stdout).strip()[:400] or 'and said nothing'}",
         )

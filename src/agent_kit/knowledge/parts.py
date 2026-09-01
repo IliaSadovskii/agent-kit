@@ -152,6 +152,6 @@ def _mark(mark: str) -> str:
         return DERIVED
     if not _WALKED.match(f"walked: {mark}"):
         raise KnowledgeError(
-            "bad-mark", f"{mark!r} is neither a date the owner walked this part nor {DERIVED!r}"
+            "bad-mark", f"{mark!r} — ни дата, когда владелец проходил эту часть, ни {DERIVED!r}"
         )
     return f"walked: {mark}"

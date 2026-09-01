@@ -168,8 +168,8 @@ def prose(file: str, lines: list[str]) -> list[bool]:
         what = "a code fence" if fenced else "a comment"
         raise KnowledgeError(
             "unreadable-knowledge",
-            f"{file}: {what} was opened on line {fenced or comment} and never closed, "
-            "so everything below it would be read as though it were not written",
+            f"{file}: {what} открыт в строке {fenced or comment} и не закрыт, "
+            "поэтому всё, что ниже, читалось бы как ненаписанное",
         )
     return outside
 
@@ -324,8 +324,8 @@ def _key_below(file: str, lines: list[str], index: int) -> str:
         if _KEY_STARTS.match(line):
             raise KnowledgeError(
                 "unreadable-knowledge",
-                f"{file} line {number + 1}: {line!r} names a key the kit cannot read, "
-                "and a record whose key it cannot read has no address it can print",
+                f"{file}, строка {number + 1}: {line!r} называет ключ, который кит не читает, "
+                "а запись, чей ключ он не читает, не имеет адреса, который он мог бы напечатать",
             )
         return ""
     return ""

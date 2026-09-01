@@ -216,7 +216,7 @@ class Batch:
         for feature in self.features:
             if feature.slug == slug:
                 return feature
-        raise StateError("no-such-feature", f"{self.name} declares no feature called {slug!r}")
+        raise StateError("no-such-feature", f"{self.name} не объявляет фичи по имени {slug!r}")
 
     def ready(self) -> list[str]:
         """What may start now: everything pending whose needs have all landed.
@@ -264,7 +264,7 @@ class Batch:
         feature = self.feature(slug)
         if feature.status is not FeatureStatus.PENDING:
             raise StateError(
-                "feature-not-pending", f"{slug} is {feature.status.value}; it does not start again"
+                "feature-not-pending", f"{slug} — {feature.status.value}; заново она не стартует"
             )
         feature.status = FeatureStatus.RUNNING
         feature.tree = tree
@@ -285,7 +285,7 @@ class Batch:
             # night the owner reads in the morning and cannot act on.
             raise StateError(
                 "reason-required",
-                f"{slug} does not end {status.value} without a reason anybody can read",
+                f"{slug} не кончается как {status.value} без причины, которую можно прочесть",
             )
         feature.status = status
         feature.ended_at = now()
@@ -332,7 +332,7 @@ class Batch:
         feature = self.feature(slug)
         if feature.over:
             raise StateError(
-                "feature-over", f"{slug} is {feature.status.value} already; there is nothing to skip"
+                "feature-over", f"{slug} уже {feature.status.value}; пропускать нечего"
             )
         feature.status = FeatureStatus.SKIPPED
         feature.ended_at = now()
@@ -356,7 +356,7 @@ class Batch:
         if feature.status is not FeatureStatus.STOPPED:
             raise StateError(
                 "feature-not-stopped",
-                f"{slug} is {feature.status.value}; only a feature the night stopped is carried on",
+                f"{slug} — {feature.status.value}; продолжают только фичу, которую остановила ночь",
             )
         return [self._to_build_again(feature).slug] + self._give_back_the_dependants(slug)
 
@@ -413,19 +413,19 @@ class Batch:
     @classmethod
     def from_dict(cls, data: Any) -> "Batch":
         if not isinstance(data, dict):
-            raise StateError("unreadable-batch", "a batch file must hold a table")
+            raise StateError("unreadable-batch", "файл партии должен держать таблицу")
         schema = data.get("schema", SCHEMA_VERSION)
         if not isinstance(schema, int) or isinstance(schema, bool):
             raise StateError("bad-field: schema", "schema must be a whole number")
         if schema > SCHEMA_VERSION:
             raise StateError(
                 "schema-too-new",
-                f"this batch was written by a newer kit (schema {schema}, this kit reads {SCHEMA_VERSION})",
-                hint="upgrade agent-kit",
+                f"эта партия написана китом новее (схема {schema}, этот кит читает {SCHEMA_VERSION})",
+                hint="обновите agent-kit",
             )
         kit = data.get("kit")
         if isinstance(kit, str) and release(kit) > release(__version__):
-            raise StateError("kit-too-new", f"this batch was written by agent-kit {kit}, and this is {__version__}")
+            raise StateError("kit-too-new", f"эта партия написана agent-kit {kit}, а этот — {__version__}")
 
         features = data.get("features")
         if not isinstance(features, list) or not features:
@@ -476,7 +476,7 @@ class BatchStore:
     def create(self, declaration: Declaration, project: str | None = None) -> Batch:
         if self.exists(declaration.name):
             raise StateError(
-                "batch-exists", f"{declaration.name} exists already; a batch is created once"
+                "batch-exists", f"{declaration.name} уже есть; партию создают один раз"
             )
         batch = Batch(
             name=check_slug(declaration.name),
@@ -496,13 +496,13 @@ class BatchStore:
         try:
             text = path.read_text(encoding="utf-8")
         except FileNotFoundError as error:
-            raise StateError("unknown-batch", f"{name}: no batch under {self.batches_dir}") from error
+            raise StateError("unknown-batch", f"{name}: под {self.batches_dir} такой партии нет") from error
         except OSError as error:
             raise StateError("unreadable-batch", f"{path}: {error}") from error
         try:
             data = json.loads(text)
         except json.JSONDecodeError as error:
-            raise StateError("unreadable-batch", f"{path} is not valid JSON: {error}") from error
+            raise StateError("unreadable-batch", f"{path} — не JSON: {error}") from error
         return Batch.from_dict(data)
 
     def save(self, batch: Batch) -> Batch:

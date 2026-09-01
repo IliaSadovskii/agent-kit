@@ -122,7 +122,7 @@ def walk(
         _gave_up(one, say)
         raise ProviderError(
             "provider-not-ready",
-            f"{one.name} did not reach the rung `{one.stopped_on}` after the walk, "
+            f"{one.name} не дошёл до ступени `{one.stopped_on}` за весь ход, "
             "so nothing about it was written down",
         )
 
@@ -186,7 +186,7 @@ def _which(reading: Reading, name: str | None) -> Standing:
         registry.facts(name)  # `unknown-provider`, and it names what is shipped
         found = reading.named(name)
         if found is None:  # pragma: no cover - both come from the same folder
-            raise ProviderError("unknown-provider", f"{name!r} is not in this machine's reading")
+            raise ProviderError("unknown-provider", f"{name!r} нет в том, что кит намерил на этой машине")
         return found
     real = [one for one in reading.providers if one.real]
     if not real:
@@ -195,7 +195,7 @@ def _which(reading: Reading, name: str | None) -> Standing:
         # This is the kit carrying no agent at all, and configuring is not an
         # answer to it. A code means one thing.
         raise ProviderError(
-            "ships-no-provider", "this kit ships no provider that is an agent"
+            "ships-no-provider", "этот кит не везёт ни одного провайдера, который был бы агентом"
         )
     # The one that already works, before the one that needs putting there.
     #
@@ -267,7 +267,7 @@ def _again(name: str, paths: Paths) -> Standing:
     """
     found = read(paths).named(name)
     if found is None:  # pragma: no cover - the name came from the same folder
-        raise ProviderError("unknown-provider", f"{name!r} stopped being a provider mid-walk")
+        raise ProviderError("unknown-provider", f"{name!r} перестал быть провайдером посреди хода")
     return found
 
 
@@ -421,7 +421,7 @@ def _answer(ask, prompt: str) -> str:
     if said == "":
         raise ChannelError(
             "nobody-to-ask",
-            "the walk asked something and the stream had closed; nothing has been written",
-            hint=f"{PROGRAM} setup, and answer at the terminal",
+            "ход о чём-то спросил, а поток был закрыт; ничего не записано",
+            hint=f"{PROGRAM} setup — и отвечайте у терминала",
         )
     return said

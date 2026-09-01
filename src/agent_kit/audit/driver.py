@@ -171,7 +171,7 @@ class Audit:
                 raise ProviderError(last.busy.code, last.busy.detail)
             raise StateError(
                 "audit-refused",
-                f"{definition.name} was refused {len(walked.attempts)} times, last: "
+                f"{definition.name} отказан раз: {len(walked.attempts)}, последний: "
                 f"{last.refusal if last else 'and said nothing'}",
             )
         return workspace.read_output() or {}

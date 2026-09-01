@@ -65,11 +65,11 @@ def unpack_head(root: Path | str, into: Path) -> Unpacked:
         if _asked(root, "rev-parse", "--is-inside-work-tree") != "true":
             raise ConfigError(
                 "not-a-repository",
-                f"{root} is not a git repository, and an audit measures a commit",
+                f"{root} — не git-репозиторий, а аудит меряет коммит",
             )
         raise ConfigError(
             "no-commit",
-            f"{root} has no commit yet, so there is nothing to unpack and nothing to measure",
+            f"в {root} ещё нет коммита, значит распаковывать и мерить нечего",
         )
 
     into.mkdir(parents=True, exist_ok=True)
@@ -80,8 +80,8 @@ def unpack_head(root: Path | str, into: Path) -> Unpacked:
         # is a refusal that did the thing it is refusing.
         raise ConfigError(
             "tree-inside-a-repository",
-            f"the commit would be unpacked at {into}, and git finds a repository at {above} "
-            "from there — an audit that stands inside one can commit, branch and push",
+            f"коммит распаковался бы в {into}, а git находит репозиторий в {above} "
+            "оттуда — а аудит, стоящий внутри репозитория, умеет коммитить, ветвить и пушить",
             hint="TMPDIR указывает внутрь git-репозитория",
         )
 
@@ -93,7 +93,7 @@ def unpack_head(root: Path | str, into: Path) -> Unpacked:
         if done.returncode != 0:
             raise ConfigError(
                 "no-commit",
-                f"{root}: git archive would not write {commit[:7]}: "
+                f"{root}: git archive не записал {commit[:7]}: "
                 f"{(done.stderr or done.stdout).strip()[:400] or 'and said nothing'}",
             )
         with tarfile.open(archive.name) as held:

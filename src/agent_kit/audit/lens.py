@@ -74,6 +74,6 @@ def lens_named(name: str) -> Lens:
     if found is None:
         raise UsageError(
             "unknown-lens",
-            f"{name!r} is not a lens this kit has: {', '.join(sorted(lenses())) or 'none'}",
+            f"{name!r} — не та линза, которая есть у этого кита: {', '.join(sorted(lenses())) or 'ни одной'}",
         )
     return found
