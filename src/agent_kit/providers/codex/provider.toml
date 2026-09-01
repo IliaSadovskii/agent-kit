@@ -43,6 +43,28 @@ login   = ["codex", "login", "--device-auth"]
 # is wherever the person keeps a browser, which the kit has no way of knowing.
 login_note = "Появится код: наберите его в браузере у себя. Открывать что-либо на этой машине не нужно — `--device-auth` объявлен ровно за этим."
 
+# What has to be standing on this machine before the install command above is
+# worth running — a word, and PATH is what answers it.
+#
+# Measured on the owner's server on 1 September 2026, by looking at the file
+# rather than at anybody's documentation: `codex` as npm leaves it is a
+# `#!/usr/bin/env node` script that finds the native binary for this platform
+# and spawns it. No node, no codex — and npm above needs node too, so a machine
+# that gets this far usually has it. The one it catches is the machine where
+# somebody put the tool there another way.
+#
+# What is *not* here, and it is the reason this table exists at all:
+# `bubblewrap`. Codex's own sandbox needs it, this server has none, and every
+# write failed while the tool reported the workspace as writable — an afternoon
+# spent finding that out by talking rather than by reading a screen. It is not
+# a requirement of this declaration because this declaration does not use the
+# sandbox: `full_access` below says so. The day somebody declares `-s
+# workspace-write` here, `bwrap` belongs in this table on the same line as the
+# flag.
+[[provider.requires]]
+binary = "node"
+why    = "codex это сценарий node — без него он не запустится"
+
 [provider.flags]
 # The shape: a flag that carries a value is [flag], and the value follows it.
 # `--skip-git-repo-check` measured on 1 September 2026, on the owner's server, the

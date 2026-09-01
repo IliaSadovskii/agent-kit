@@ -218,16 +218,43 @@ def _install(one: Standing, ask, say, mark: str, paths: Paths) -> Standing:
         return one
 
     _prose(say, _why_it_is_not_here(one))
+    _requirements(one, say)
     _prose(say, ELSEWHERE)
     _command(say, one.install)
-    if one.installer_missing:
-        # Measured, not guessed: the first word of the argv, asked of PATH. It
-        # is the whole of what holds a declaration the kit will never run.
-        _prose(say, f"На этой машине нет и самого {one.installer_missing} — сначала он.")
     _done(ask, say)
 
     _prose(say, "Смотрим ещё раз…")
     return _again(one.name, paths)
+
+
+def _requirements(one: Standing, say) -> None:
+    """What has to be standing here already — printed **above** the command.
+
+    Above it, and that is the whole of this block. Every requirement the owner
+    hit on a real machine arrived as a refusal after the install had run, or,
+    worse, as a tool that installed cleanly and then failed at the hour a night
+    needed it: `bubblewrap` was learned from a conversation rather than from
+    the kit. A line under the command is a line read after it.
+
+    Each carries what was measured about it rather than a blanket *you will
+    need these*, because a list nobody checked is a list the person has to go
+    and check. The marks are the ones two other screens already use — `ok` and
+    `no` — and a case that reads them is reading the kit's own vocabulary
+    rather than a sentence somebody may reword.
+    """
+    if not one.requires:
+        return
+    _prose(say, "Что должно стоять на этой машине до установки:")
+    column = max(len(want.binary) for want in one.requires)
+    for want in one.requires:
+        say(f"{COMMAND}{'ok' if want.here else 'no'}  {want.binary:{column}}  {want.why}")
+    say("")
+    if one.missing:
+        _prose(
+            say,
+            "Чего нет — поставьте сначала: без этого команда ниже либо не выполнится, "
+            "либо поставит инструмент, который потом не заработает.",
+        )
 
 
 def _why_it_is_not_here(one: Standing) -> str:

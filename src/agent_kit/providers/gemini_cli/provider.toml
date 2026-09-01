@@ -42,6 +42,14 @@ login   = ["gemini"]
 # than opening anything, which is why this note names no browser opening here.
 login_note = "Подкоманды входа у этого инструмента нет: способ входа он спросит при первом запуске. Выберите Google — он напечатает ссылку, откройте её в браузере у себя. Потом выйдите из его экрана: сам он не закроется."
 
+# Measured on the owner's server on 1 September 2026, the same way and with the
+# same answer as codex beside it: the `gemini` npm puts on a machine is a
+# `#!/usr/bin/env node` script. Nothing else in this file was measured that
+# cheaply, and nothing else here should be read as though it was.
+[[provider.requires]]
+binary = "node"
+why    = "gemini это сценарий node — без него он не запустится"
+
 [provider.flags]
 # `--yolo` is deprecated in favour of the unified approval mode, and the two
 # cannot be given together.

@@ -278,6 +278,13 @@ class Cure:
     said: str = ""
     #: What to type, in the order to type it: a lead line and the argv under it.
     steps: list[tuple[str, list[str]]] = field(default_factory=list)
+    #: What this machine has not got, word and reason, measured against PATH —
+    #: and only what is missing. The ladder is the other place somebody arrives
+    #: at with a tool that does not work, and until this it was the place that
+    #: said nothing about requirements at all: `agent-kit setup` printed them
+    #: above the install command and `provider check` sent people to the same
+    #: command with no idea that it would not help.
+    missing: list[tuple[str, str]] = field(default_factory=list)
 
 
 def cure(report: CheckReport) -> Cure | None:
@@ -297,8 +304,8 @@ def cure(report: CheckReport) -> Cure | None:
         )
         if not declared.install:
             return Cure(f"{said} Команды, которая ставит {declared.title}, кит не знает — "
-                        "это придётся сделать самому.")
-        return Cure(said, [("Поставьте его:", declared.install), walk])
+                        "это придётся сделать самому.", missing=_missing(declared))
+        return Cure(said, [("Поставьте его:", declared.install), walk], _missing(declared))
 
     if failed == "login":
         if not declared.login:
@@ -325,6 +332,18 @@ def cure(report: CheckReport) -> Cure | None:
         return Cure("Это чинится не командой: сессия не смогла создать файл там, где стояла. "
                     "Смотрите флаг, который открывает песочницу, в объявлении этого провайдера.")
     return Cure("Это чинится не командой: инструмент работает, но об этом рассказать не умеет.")
+
+
+def _missing(declared: Any) -> list[tuple[str, str]]:
+    """What the tool needs and this machine has not got, asked once, in one place.
+
+    The same function `agent-kit setup` measures with, imported where it is
+    used rather than at the top of the file: the reading imports this module
+    for its two free rungs, and one home for a question is worth a lazy import.
+    """
+    from ..setup.reading import wanted
+
+    return [(want.binary, want.why) for want in wanted(declared) if not want.here]
 
 
 def _writes(answered: Any) -> tuple[bool, str, bool]:

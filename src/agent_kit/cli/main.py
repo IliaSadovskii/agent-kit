@@ -1592,6 +1592,15 @@ def _what_to_type(report) -> None:
     print("  Что делать дальше")
     print()
     print(f"    {fix.said}")
+    if fix.missing:
+        # Above the commands, for the reason the walk prints them above its
+        # own: a requirement read after the install command has been run is a
+        # requirement that cost somebody the install.
+        print()
+        print("    Этого на машине нет, а без него не поможет ничего ниже:")
+        print()
+        for word, why in fix.missing:
+            print(f"      no  {word}  {why}")
     for lead, argv in fix.steps:
         print()
         print(f"    {lead}")

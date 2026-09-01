@@ -41,6 +41,28 @@ log = get_logger("providers.process")
 
 
 @dataclass(frozen=True)
+class Requirement:
+    """One thing that must already be on a machine before a tool will work.
+
+    A word and a line: the word is asked of PATH, and the line says why this
+    provider wants it. Nothing else fits here, and the narrowness is the point.
+    A requirement the kit cannot measure would be exactly what these four days
+    caught three times out of three — a claim written from documentation and
+    then printed at somebody as though it had been checked. What cannot be
+    asked of PATH goes in `notes` or in `login_note`, where nobody reads it as
+    measured.
+
+    What is *not* declared here is how to install it. `sudo apt install
+    bubblewrap` is right on one machine and wrong on the next, and the kit does
+    not know which it is standing on; a command it cannot be held to is the one
+    shape this file refuses everywhere else.
+    """
+
+    binary: str
+    why: str
+
+
+@dataclass(frozen=True)
 class Declaration:
     """`provider.toml`, read once. Nothing in here is a choice of this machine."""
 
@@ -87,11 +109,23 @@ class Declaration:
     #: Prose, and Russian, because a person reads it — the same rule the rest of
     #: the kit's screens follow. Argv, keys and titles beside it stay as they are.
     login_note: str = ""
+    #: What has to be standing on this machine before the install command is
+    #: worth running. Read by `agent-kit setup`, which prints it *above* that
+    #: command, by `doctor`, which names what is missing, and by the ladder's
+    #: `cure`, which is the other place a person arrives with a tool that does
+    #: not work. Measured in all three: it is a word, and PATH answers.
+    #:
+    #: The two words the kit already asks about are refused here — the first
+    #: word of `install`, and this provider's own `binary`. Both are derived
+    #: from what is declared elsewhere, and a screen that named one of them
+    #: twice would be saying one thing under two spellings of why.
+    requires: list[Requirement] = field(default_factory=list)
 
     KNOWN = (
         "title", "level", "real", "binary", "notes", "flags", "answer",
-        "transcript", "limits", "signed_out", "setup",
+        "transcript", "limits", "signed_out", "setup", "requires",
     )
+    REQUIRES = ("binary", "why")
     SETUP = ("install", "login", "login_note")
     LIMITS = ("says", "until")
     SIGNED_OUT = ("says",)
@@ -133,6 +167,7 @@ class Declaration:
         setup = _table(block.get("setup"), path, "setup", cls.SETUP)
         flags = _table(block.get("flags"), path, "flags", cls.FLAGS)
         answer = _table(block.get("answer"), path, "answer", cls.ANSWER)
+        install = _argv(setup.get("install"), path, "setup.install")
         return cls(
             name=name,
             title=block.get("title", name),
@@ -146,9 +181,12 @@ class Declaration:
             limit_says=_phrases(limits.get("says"), path, "limits.says"),
             limit_until=limits.get("until"),
             signed_out=_phrases(signed_out.get("says"), path, "signed_out.says"),
-            install=_argv(setup.get("install"), path, "setup.install"),
+            install=install,
             login=_argv(setup.get("login"), path, "setup.login"),
             login_note=_prose(setup.get("login_note"), path, "setup.login_note"),
+            requires=_requirements(
+                block.get("requires"), path, cls.REQUIRES, block.get("binary"), install
+            ),
         )
 
     @property
@@ -212,6 +250,53 @@ def _phrases(value: Any, path: Path, where: str) -> list[str]:
     if any(not isinstance(phrase, str) or not phrase.strip() for phrase in value):
         raise _bad(f"{path}: {where} holds something that is not a phrase")
     return [phrase.strip() for phrase in value]
+
+
+def _requirements(
+    value: Any, path: Path, known: tuple[str, ...], binary: Any, install: list[str]
+) -> list[Requirement]:
+    """`[[provider.requires]]`, held to what a machine can actually be asked.
+
+    An array of tables and not a table, because there is usually more than one
+    and a list of words with no reasons beside them is a list somebody has to
+    go and look up. Every entry carries both halves or the declaration is
+    refused here — where a person is reading the file — rather than at the hour
+    somebody is mid-install with a screen that says a word and nothing else.
+    """
+    if value is None:
+        return []
+    if not isinstance(value, list) or not value or not all(isinstance(one, dict) for one in value):
+        raise _bad(f"{path}: [[provider.requires]] must be a non-empty array of tables")
+
+    already = {word for word in (binary, install[0] if install else None) if word}
+    requirements: list[Requirement] = []
+    for entry in value:
+        unknown = [key for key in entry if key not in known]
+        if unknown:
+            raise _bad(
+                f"{path}: requires.{', requires.'.join(sorted(unknown))} "
+                "is not something the kit reads"
+            )
+        word = entry.get("binary")
+        if not isinstance(word, str) or len(word.split()) != 1:
+            raise _bad(
+                f"{path}: requires.binary must be one word, since PATH is what answers it"
+            )
+        if word in already:
+            raise _bad(
+                f"{path}: {word!r} is asked of PATH already — it is this provider's own "
+                "binary or the first word of its install command, and the kit derives both"
+            )
+        if any(word == one.binary for one in requirements):
+            raise _bad(f"{path}: {word!r} is required twice")
+        if entry.get("why") is None:
+            # Required, where `login_note` beside it is optional: a word with no
+            # reason is a screen that says `node` at somebody and leaves them to
+            # find out what wants it. The reason is the whole of what the person
+            # standing there is short of.
+            raise _bad(f"{path}: {word!r} is required and nothing says why")
+        requirements.append(Requirement(word, _prose(entry.get("why"), path, "requires.why")))
+    return requirements
 
 
 def _prose(value: Any, path: Path, where: str) -> str:

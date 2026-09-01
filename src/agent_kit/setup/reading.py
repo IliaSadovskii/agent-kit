@@ -22,6 +22,21 @@ from ..providers.measured import Measurement, measured_levels
 
 
 @dataclass(frozen=True)
+class Wanted:
+    """One of a provider's requirements, and whether this machine has it.
+
+    The declaration says the word and why; PATH says the rest. Nothing here is
+    taken on trust, which is what lets the walk print a list with a mark beside
+    each line instead of a list somebody has to go and check by hand.
+    """
+
+    binary: str
+    why: str
+    #: Measured, the same question the `binary` rung puts about the tool itself.
+    here: bool
+
+
+@dataclass(frozen=True)
 class Standing:
     """One provider, as this machine finds it."""
 
@@ -40,10 +55,11 @@ class Standing:
     login: list[str] = field(default_factory=list)
     #: One line about this tool's login, printed by the walk under the command.
     login_note: str = ""
-    #: The first word of `install`, when this machine has no such command. What
-    #: holds a declaration the kit will never run: it is argv, so its first word
-    #: can be asked of PATH before it is printed at somebody.
-    installer_missing: str = ""
+    #: What must already be standing here before the install command is worth
+    #: running, each measured. The first is derived — the install command's own
+    #: first word, which is what holds a declaration the kit will never run —
+    #: and the rest are the declaration's own.
+    requires: list[Wanted] = field(default_factory=list)
     #: What was measured the last time anybody climbed the paid rungs.
     measured: Measurement | None = None
     #: What this machine chose about it, from `config.toml`.
@@ -62,6 +78,11 @@ class Standing:
     @property
     def detail(self) -> str:
         return next((rung.detail for rung in self.rungs if not rung.held), "")
+
+    @property
+    def missing(self) -> list[Wanted]:
+        """What this machine has not got. The half of `requires` worth printing."""
+        return [want for want in self.requires if not want.here]
 
     @property
     def configured(self) -> str:
@@ -135,20 +156,44 @@ def _standing(name: str, config: Config, measured: dict) -> Standing:
         install=facts.install,
         login=facts.login,
         login_note=facts.login_note,
-        installer_missing=_missing(facts.install),
+        requires=wanted(facts),
         measured=measured.get(name),
         chosen=config.providers.get(name),
     )
 
 
-def _missing(install: list[str]) -> str:
-    """The word that would have to run, when this machine has no such command."""
-    if not install:
-        return ""
-    first = install[0]
-    if "/" in first:
-        return "" if Path(first).is_file() else first
-    return "" if which(first) else first
+def wanted(facts) -> list[Wanted]:
+    """Everything one provider needs standing here already, asked of this machine.
+
+    Public, and read from two packages: `driver/check.py` calls it to say what
+    a stopped ladder is missing. One home for the question, so the walk and the
+    ladder cannot answer it differently — the same rule that keeps `free_rungs`
+    in one file while two screens print it.
+
+    The installer comes first and is derived rather than declared. It is the
+    requirement every declaration would otherwise repeat, and repeating it is
+    how the two lists start to disagree; the declaration is refused if it names
+    that word, so there is exactly one of it here.
+    """
+    requires = []
+    if facts.install:
+        requires.append(
+            Wanted(facts.install[0], INSTALLER.format(title=facts.title), _here(facts.install[0]))
+        )
+    return requires + [Wanted(one.binary, one.why, _here(one.binary)) for one in facts.requires]
+
+
+#: The kit's own line about its own derived requirement. Russian, like every
+#: other line a person reads, and it is the only `why` the kit writes: the rest
+#: belong to the declarations, which know why they want what they want.
+INSTALLER = "им ставится {title}"
+
+
+def _here(word: str) -> bool:
+    """Is this word runnable on this machine? A path is a file; anything else is PATH."""
+    if "/" in word:
+        return Path(word).is_file()
+    return bool(which(word))
 
 
 # --- the screen -------------------------------------------------------------
@@ -175,6 +220,12 @@ def render(reading: Reading) -> list[str]:
             # climb printed as `ok` is a screen saying a fixture works.
             mark = "ok" if rung.passed else ("--" if not rung.applies else "no")
             lines.append(f"    {rung.name:10} {mark}  {rung.detail}")
+        for want in one.missing:
+            # Only what is missing. A row per met requirement would be the
+            # whole of npm and node under every provider on the screen, and
+            # `doctor` answers *where does this machine stand* — a requirement
+            # that is met is not where anything stands.
+            lines.append(f"    {'нужно':10} no  {want.binary}  {want.why}")
         lines.append(f"    {'машина':10} {one.configured}{_account(one)}")
         lines.extend(_notes(one))
     return lines

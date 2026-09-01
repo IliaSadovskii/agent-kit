@@ -1,0 +1,14 @@
+# S9c — what a machine must already have, said above the install command.
+#
+# The run this case declares is an ordinary green one and is not what it
+# measures, exactly as its neighbour `a-machine-with-nothing-installed`: the
+# walk is about the machine and not about any project, so there is no way in
+# that would give it a world it needs. What it measures is in `judge.sh`.
+
+[case]
+title = "a machine that has the installer and not what the tool runs on"
+fires = "the walk marks the requirement it has apart from the one it lacks, and names the missing one above the install command"
+
+[expect]
+exit_code = 0
+status = "done"
