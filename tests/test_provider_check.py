@@ -85,7 +85,8 @@ def test_whether_a_limit_could_be_read_is_measured_too(tmp_path, monkeypatch):
 
     limits = next(rung for rung in report.rungs if rung.name == "limits")
     assert limits.passed
-    assert "reset" in limits.detail or "limit" in limits.detail
+    # The hour it resets, which is the provider's own words carried through.
+    assert "5pm" in limits.detail
 
 
 def test_a_rung_a_provider_cannot_be_asked_is_not_a_rung_it_climbed(tmp_path):
@@ -233,10 +234,12 @@ def test_the_command_prints_the_ladder_and_the_level(tmp_path, capsys, monkeypat
     )
 
     assert code == 0
-    assert "level B" in out
+    # The letter and the rung names, which are the kit's own words; the label
+    # beside them is prose in whatever language the screen speaks.
+    assert "claude_code: B" in out
     for rung in RUNGS:
         assert rung in out
-    assert "context" in out
+    assert "контекст" in out
 
 
 def test_the_command_says_which_rung_failed(tmp_path, capsys):
@@ -262,8 +265,8 @@ def test_a_provider_that_earns_less_than_it_declares_is_reported(tmp_path, capsy
     )
 
     assert code == 4
-    assert "level A" in out
-    assert "declares level B" in err
+    assert "claude_code: A" in out
+    assert "B" in err and "A" in err
 
 
 # --- S9a: the second free rung, for every provider that declares the flag ----

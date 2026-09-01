@@ -133,7 +133,7 @@ def test_the_fixture_is_marked_rather_than_hidden(machine):
     reading = read(machine)
 
     assert reading.named("fake").real is False
-    assert any("fixture" in line for line in render(reading))
+    assert any("фикстура" in line for line in render(reading))
 
 
 def test_a_configuration_that_will_not_parse_is_named_not_raised(machine, tmp_path):

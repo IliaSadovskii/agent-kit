@@ -62,7 +62,7 @@ def test_doctor_reports_the_paths_and_says_what_is_missing(machine, capsys):
 
     assert code == ExitCode.OK
     assert str(machine / "home/.config/agent-kit/config.toml") in out
-    assert "missing" in out
+    assert "нет" in out
 
 
 def test_doctor_refuses_a_broken_config_with_its_reason(machine, capsys):
@@ -221,7 +221,7 @@ def test_the_providers_are_read_from_the_folder_and_the_fixture_is_marked(machin
 
     assert code == ExitCode.OK
     assert "fake" in out
-    assert "fixture" in out
+    assert "фикстура" in out
 
 
 def test_a_step_run_with_no_provider_at_all_is_refused(machine, capsys):
@@ -312,7 +312,7 @@ def test_the_screen_says_whether_a_level_was_ever_measured(machine, capsys):
     code, out, _ = run(["doctor"], capsys)
 
     assert code == ExitCode.OK
-    assert "never measured" in out
+    assert "не мерян" in out
 
 
 def test_provider_on_its_own_refuses_by_name_now_that_list_is_gone(machine, capsys):
@@ -685,9 +685,9 @@ def test_doctor_is_the_machine_and_no_longer_half_the_project(machine, capsys):
 
     assert code == ExitCode.OK
     assert "daemon.sqlite" in out
-    assert "the project" not in out
+    assert "проект" not in out
     assert "add-login" not in out
-    assert "right now" not in out
+    assert "прямо сейчас" not in out
 
 
 def test_doctor_does_not_create_the_ledger_it_then_calls_missing(machine, capsys):
@@ -705,7 +705,7 @@ def test_doctor_does_not_create_the_ledger_it_then_calls_missing(machine, capsys
     code, out, _ = run(["doctor"], capsys)
 
     assert code == ExitCode.OK
-    assert f"{where}  missing" in out
+    assert f"{where}  нет" in out
     assert not where.exists()
 
 
