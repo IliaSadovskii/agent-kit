@@ -64,7 +64,7 @@ headless = ["exec", "--skip-git-repo-check"]
 # argument '-a' found`. `-a/--ask-for-approval` is real, and it belongs to
 # `codex`, not to `codex exec` — which is consistent, because a subcommand named
 # for running non-interactively has nobody to ask. Measured, not read.
-full_access = ["-s", "workspace-write"]
+full_access = ["--dangerously-bypass-approvals-and-sandbox"]
 model       = ["--model"]
 version     = ["--version"]
 
