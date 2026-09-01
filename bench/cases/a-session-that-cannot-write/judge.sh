@@ -18,7 +18,13 @@ OUT=$($KIT provider check fake --option "reply=$FREE" 2>&1)
 CODE=$?
 [ "$CODE" = "0" ] ||
   { echo "the trap was not armed: the same command refuses even a session that can write ($CODE): $OUT"; exit 1; }
-printf '%s\n' "$OUT" | grep -q "level A" ||
+# The letter comes out of the kit, never typed here: what is asked is that the
+# screen names the level this provider declares, and `level` beside it is a word
+# somebody may rewrite in any language.
+DECLARED=$($PYTHON -c "from agent_kit.providers.registry import facts; print(facts('fake').level)") ||
+  { echo "the kit could not say what level fake declares"; exit 1; }
+[ -n "$DECLARED" ] || { echo "fake declares no level"; exit 1; }
+printf '%s\n' "$OUT" | grep -qE "^fake:.*\b$DECLARED\b" ||
   { echo "the trap was not armed: a session that can write earned no level: $OUT"; exit 1; }
 
 # --- and the one that cannot write earns nothing ----------------------------
@@ -27,9 +33,12 @@ CODE=$?
 [ "$CODE" = "4" ] ||
   { echo "the ladder exited $CODE where a provider that earned no level is 4: $OUT"; exit 1; }
 # The code, and the rung by name. Never the prose around them: a sentence gets
-# rewritten and the case starts measuring somebody's wording.
+# rewritten and the case starts measuring somebody's wording — which is what
+# `the rung \`writes\`` was doing here until the screens were translated. The
+# rung's name is the kit's own word for it, marked as a name by the backticks
+# it is printed in, and it is the whole of what this case is about.
 printf '%s\n' "$OUT" | grep -q "provider-not-ready" ||
   { echo "the ladder did not refuse by name"; exit 1; }
-printf '%s\n' "$OUT" | grep -qF 'the rung `writes`' ||
+printf '%s\n' "$OUT" | grep -qF '`writes`' ||
   { echo "the ladder stopped somewhere other than the rung about writing: $OUT"; exit 1; }
 exit 0
