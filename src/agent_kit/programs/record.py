@@ -126,7 +126,7 @@ class Record:
             for key in fixes:
                 if key not in standing:
                     raise KnowledgeError(
-                        "no-such-debt", f"no line of this project's ledger carries the key {key!r}"
+                        "no-such-debt", f"ни одна строка реестра этого проекта не несёт ключ {key!r}"
                     )
 
             closed = [_closed(knowledge, id, touched) for id in closing]

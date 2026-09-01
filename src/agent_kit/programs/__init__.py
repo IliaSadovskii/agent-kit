@@ -43,7 +43,7 @@ def build_program(name: str, root: Path | str) -> Executor:
     if builder is None:
         raise ProviderError(
             "unknown-program",
-            f"{name!r} is not a program this kit ships: {', '.join(program_names()) or 'none'}",
+            f"{name!r} — не та программа, которую везёт этот кит: {', '.join(program_names()) or 'ни одной'}",
         )
     return builder(Path(root))
 

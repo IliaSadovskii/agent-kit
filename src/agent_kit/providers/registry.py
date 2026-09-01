@@ -30,7 +30,7 @@ def facts(name: str) -> Declaration:
     if not path.is_file():
         raise ProviderError(
             "unknown-provider",
-            f"{name!r} is not a provider this kit ships: {', '.join(provider_names())}",
+            f"{name!r} — не тот провайдер, который везёт этот кит: {', '.join(provider_names())}",
         )
     return Declaration.read(name, path)
 
@@ -52,5 +52,5 @@ def build_executor(name: str, options: dict[str, list[str]] | None = None) -> Ex
 
     factory = getattr(module, "build_executor", None)
     if factory is None:
-        raise ProviderError("no-adapter", f"{name} ships an adapter with no build_executor()")
+        raise ProviderError("no-adapter", f"{name} везёт адаптер без build_executor()")
     return factory(options)

@@ -178,7 +178,7 @@ class Sessions:
             if definition.executor not in self.executors:
                 raise ProviderError(
                     "unknown-program",
-                    f"{definition.name} is executed by {definition.executor}, which is not configured here",
+                    f"{definition.name} исполняет {definition.executor}, а он здесь не настроен",
                 )
             return [definition.executor]
 
@@ -186,7 +186,7 @@ class Sessions:
         if role is None:
             if self.default_provider is None:
                 raise ProviderError(
-                    "no-provider", f"role {definition.role!r} is not in the role table and there is no default"
+                    "no-provider", f"роли {definition.role!r} нет в таблице ролей, и умолчания нет"
                 )
             chain = [self.default_provider] * self.attempts
         else:
@@ -197,7 +197,7 @@ class Sessions:
             if provider not in self.executors:
                 raise ProviderError(
                     "unknown-provider",
-                    f"{provider!r} runs role {definition.role!r} but no such provider is configured here",
+                    f"{provider!r} держит роль {definition.role!r}, а такого провайдера здесь не настроено",
                 )
         return chain
 

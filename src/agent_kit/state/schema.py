@@ -78,7 +78,7 @@ def release(version: str) -> tuple[int, ...]:
 
 def check_slug(slug: Any) -> str:
     if not isinstance(slug, str) or not _SLUG.match(slug):
-        raise StateError("bad-slug", f"{slug!r} is not a run name: lower case, digits, dot, dash, underscore")
+        raise StateError("bad-slug", f"{slug!r} — не имя прогона: строчные буквы, цифры, точка, дефис, подчёркивание")
     return slug
 
 
@@ -164,7 +164,7 @@ class Run:
         check_slug(slug)
         names = list(steps or DEFAULT_STEPS)
         if not names:
-            raise StateError("no-steps", "a run with no steps has nothing to advance")
+            raise StateError("no-steps", "прогону без шагов нечего двигать")
         _in_an_order_that_means_something(names)
         return cls(
             slug=slug,
@@ -216,12 +216,12 @@ class Run:
 
     def start_step(self, provider: str | None = None) -> Step:
         if self.finished:
-            raise StateError("run-finished", f"{self.slug} is {self.status.value}; it does not start again")
+            raise StateError("run-finished", f"{self.slug} — {self.status.value}; заново он не стартует")
         if self.current_step is not None:
-            raise StateError("step-already-running", f"{self.slug}: step {self.current.name!r} is still running")
+            raise StateError("step-already-running", f"{self.slug}: шаг {self.current.name!r} ещё идёт")
         index = self.next_pending()
         if index is None:
-            raise StateError("no-step-pending", f"{self.slug}: every step is done")
+            raise StateError("no-step-pending", f"{self.slug}: все шаги сделаны")
 
         step = self.steps[index]
         step.status = StepStatus.RUNNING
@@ -346,7 +346,7 @@ class Run:
 
     def stop(self, reason: str) -> "Run":
         if self.finished:
-            raise StateError("run-finished", f"{self.slug} is already {self.status.value}")
+            raise StateError("run-finished", f"{self.slug} уже {self.status.value}")
         step = self.current
         if step is not None:
             step.status = StepStatus.PENDING
@@ -383,7 +383,7 @@ class Run:
         if self.status is not RunStatus.STOPPED:
             raise StateError(
                 "run-not-stopped",
-                f"{self.slug} is {self.status.value}; only a stopped run is carried on",
+                f"{self.slug} — {self.status.value}; продолжают только остановленный прогон",
             )
         if self.gate_closed_on is not None:
             # The step whose gate closed kept its `passed` because it did its
@@ -416,19 +416,19 @@ class Run:
         """A step the run is on: running, or waiting for a person."""
         step = self.current
         if step is None:
-            raise StateError("no-step-running", f"{self.slug}: no step is running")
+            raise StateError("no-step-running", f"{self.slug}: ни один шаг не идёт")
         return step
 
     def _require_running(self) -> Step:
         step = self._require_current()
         if step.status is not StepStatus.RUNNING:
-            raise StateError("no-step-running", f"{self.slug}: {step.name} is {step.status.value}, not running")
+            raise StateError("no-step-running", f"{self.slug}: {step.name} — {step.status.value}, а не running")
         return step
 
     def _require_asking(self) -> Step:
         step = self.current
         if step is None or step.status is not StepStatus.ASKING:
-            raise StateError("no-step-asking", f"{self.slug}: no step is waiting for an answer")
+            raise StateError("no-step-asking", f"{self.slug}: ни один шаг не ждёт ответа")
         return step
 
     def _touch(self, step: Step) -> Step:
@@ -556,15 +556,15 @@ def _in_an_order_that_means_something(names: list[str]) -> None:
     for _, name in placed:
         if name in seen:
             raise StateError(
-                "step-twice", f"{name} is asked for twice, and a run does each of its steps once"
+                "step-twice", f"{name} запрошен дважды, а прогон делает каждый свой шаг один раз"
             )
         seen.add(name)
     for (rank, name), (next_rank, after) in zip(placed, placed[1:]):
         if next_rank < rank:
             raise StateError(
                 "steps-out-of-order",
-                f"{name} comes before {after} in this run, and it would be reading work that has "
-                f"not happened yet",
+                f"{name} стоит в этом прогоне раньше {after} и читал бы работу, которой "
+                f"ещё не было",
             )
 
 
@@ -601,5 +601,5 @@ def _frame(value: Any) -> list[str]:
 
 def _reason(reason: Any) -> str:
     if not isinstance(reason, str) or not reason.strip():
-        raise StateError("reason-required", "a step does not fail or stop without a reason anybody can read")
+        raise StateError("reason-required", "шаг не падает и не останавливается без причины, которую можно прочесть")
     return reason.strip()

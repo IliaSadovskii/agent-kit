@@ -51,16 +51,16 @@ class RunStore:
         try:
             text = path.read_text(encoding="utf-8")
         except FileNotFoundError as error:
-            raise StateError("unknown-run", f"{slug}: no run under {self.paths.runs_dir}") from error
+            raise StateError("unknown-run", f"{slug}: под {self.paths.runs_dir} такого прогона нет") from error
         except OSError as error:
             raise StateError("unreadable-run", f"{path}: {error}") from error
 
         try:
             data = json.loads(text)
         except json.JSONDecodeError as error:
-            raise StateError("unreadable-run", f"{path} is not valid JSON: {error}") from error
+            raise StateError("unreadable-run", f"{path} — не JSON: {error}") from error
         if not isinstance(data, dict):
-            raise StateError("unreadable-run", f"{path} does not hold a run")
+            raise StateError("unreadable-run", f"{path} не держит прогона")
 
         return Run.from_dict(migrate(data, where=str(path)))
 
@@ -72,7 +72,7 @@ class RunStore:
                frame: list[str] | None = None) -> Run:
         check_slug(slug)
         if self.exists(slug):
-            raise StateError("run-exists", f"{slug} already exists; a run is created once")
+            raise StateError("run-exists", f"{slug} уже есть; прогон создают один раз")
         run = Run.new(
             slug, steps=steps, project=project, branch=branch, brief=brief,
             base=base, tree=tree, needs=needs, frame=frame,

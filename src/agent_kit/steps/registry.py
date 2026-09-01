@@ -15,7 +15,7 @@ class Registry:
 
     def add(self, definition: StepDefinition) -> StepDefinition:
         if definition.name in self._by_name:
-            raise StateError("step-exists", f"{definition.name} is already a step")
+            raise StateError("step-exists", f"{definition.name} уже шаг")
         self._by_name[definition.name] = definition
         return definition
 
@@ -24,7 +24,7 @@ class Registry:
             return self._by_name[name]
         except KeyError:
             raise StateError(
-                "unknown-step", f"{name!r} is not a step this kit knows: {', '.join(sorted(self._by_name)) or 'none'}"
+                "unknown-step", f"{name!r} — не тот шаг, который знает этот кит: {', '.join(sorted(self._by_name)) or 'ни одного'}"
             ) from None
 
     def has(self, name: str) -> bool:

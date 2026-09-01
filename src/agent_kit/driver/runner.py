@@ -279,12 +279,12 @@ class StepRunner:
         said = "declares no description" if project is None else f"{project.knowledge}/ holds no record"
         raise ConfigError(
             "no-description",
-            f"this project {said} of what the product is, so there is nothing for a design to be "
-            "designed against",
+            f"проект {said}, что он такое, значит замыслу не против чего "
+            "проектировать",
             hint=(
-                "write the declaration — `agent-kit init` — then sit down with it — "
-                '`agent-kit knowledge tell` — or say out loud that nobody is describing this '
-                'project: `knowledge = ""` in .agent-kit/v3/project.toml'
+                "напишите объявление — `agent-kit init` — потом сядьте с ним — "
+                '`agent-kit knowledge tell` — или скажите вслух, что этот проект никто '
+                'не описывает: `knowledge = ""` в .agent-kit/v3/project.toml'
             ),
         )
 
@@ -316,7 +316,7 @@ class StepRunner:
     def _advance(self, slug: str) -> StepOutcome:
         run = self.store.load(slug)
         if run.finished:
-            raise StateError("run-finished", f"{slug} is {run.status.value}; there is no next step")
+            raise StateError("run-finished", f"{slug} — {run.status.value}; следующего шага нет")
 
         self._can_be_verified_at_all(run)
         self._is_described_at_all(run)
@@ -335,7 +335,7 @@ class StepRunner:
 
         index = run.next_pending()
         if index is None:
-            raise StateError("no-step-pending", f"{slug}: every step is done")
+            raise StateError("no-step-pending", f"{slug}: все шаги сделаны")
 
         definition = self.registry.get(run.steps[index].name)
         project = self._project_of(run)
@@ -770,8 +770,8 @@ def create_run(
         if definition.needs_brief and not (brief or "").strip():
             raise StateError(
                 "no-brief",
-                f"{name} decides what to do about a feature, and this run does not say which",
-                hint="agent-kit run new <slug> --brief '<what to build>'",
+                f"{name} решает, что делать с фичей, а этот прогон не говорит, с какой",
+                hint="agent-kit run new <slug> --brief '<что построить>'",
             )
     # A run always knows where it is. A session that does not is run wherever
     # the driver happened to keep its paperwork, which is nowhere useful.

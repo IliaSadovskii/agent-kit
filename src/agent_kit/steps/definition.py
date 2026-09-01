@@ -30,7 +30,7 @@ def method_root() -> Path:
     checkout = Path(__file__).resolve().parents[3] / METHOD_DIR_NAME
     if checkout.is_dir():
         return checkout
-    raise StateError("no-method", f"the kit's {METHOD_DIR_NAME}/ directory is missing from this installation")
+    raise StateError("no-method", f"в этой установке нет каталога {METHOD_DIR_NAME}/ — прозы метода")
 
 
 def read_method(relative: str) -> str:
@@ -38,7 +38,7 @@ def read_method(relative: str) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except OSError as error:
-        raise StateError("missing-method", f"{relative} is not in the kit's method: {error}") from error
+        raise StateError("missing-method", f"{relative} нет в методе кита: {error}") from error
 
 
 @dataclass(frozen=True)

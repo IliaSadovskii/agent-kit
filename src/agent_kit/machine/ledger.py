@@ -359,9 +359,9 @@ class Ledger:
             db.close()
             raise ProviderError(
                 "ledger-too-new",
-                f"{self.path} was written by a kit that knows schema {held}; this one knows"
-                f" {SCHEMA_VERSION}",
-                hint="upgrade the kit, or move the ledger aside — it holds nothing that outlives a reboot",
+                f"{self.path} написан китом, который знает схему {held}; этот знает"
+                f" схему {SCHEMA_VERSION}",
+                hint="обновите кит или отодвиньте леджер — он не держит ничего, что переживает перезагрузку",
             )
         if held != SCHEMA_VERSION:
             # Only when it disagrees. Written unconditionally this is a short
@@ -385,7 +385,7 @@ class Ledger:
         except sqlite3.Error as broken:
             raise ProviderError(
                 "unreadable-ledger",
-                f"the machine's ledger could not be read or written: {broken}",
+                f"леджер машины не прочитался и не записался: {broken}",
             ) from broken
 
     @contextmanager

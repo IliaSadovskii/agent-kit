@@ -89,18 +89,18 @@ def migrate(data: dict[str, Any], *, where: str = "run.json") -> dict[str, Any]:
     if version > SCHEMA_VERSION:
         raise StateError(
             "schema-too-new",
-            f"{where} was written by a newer kit (schema {version}, this kit reads {SCHEMA_VERSION})",
-            hint="upgrade agent-kit",
+            f"{where} написан китом новее (схема {version}, этот кит читает {SCHEMA_VERSION})",
+            hint="обновите agent-kit",
         )
     if version < oldest_schema():
-        raise StateError("schema-too-old", f"{where}: schema {version} is older than this kit can migrate")
+        raise StateError("schema-too-old", f"{where}: схема {version} старше того, что этот кит умеет мигрировать")
 
     _check_kit(data.get("kit"), where)
 
     while version < SCHEMA_VERSION:
         step = MIGRATIONS.get(version)
         if step is None:
-            raise StateError("no-migration", f"{where}: nothing turns schema {version} into {version + 1}")
+            raise StateError("no-migration", f"{where}: ничто не превращает схему {version} в {version + 1}")
         data = step(dict(data))
         version += 1
         data["schema"] = version
@@ -121,6 +121,6 @@ def _check_kit(kit: object, where: str) -> None:
     if release(kit) > release(__version__):
         raise StateError(
             "kit-too-new",
-            f"{where} was written by agent-kit {kit}, and this is {__version__}",
-            hint="upgrade agent-kit",
+            f"{where} написан agent-kit {kit}, а этот — {__version__}",
+            hint="обновите agent-kit",
         )

@@ -70,15 +70,15 @@ def make_tree(project: Path | str, slug: str, branch: str, base: str) -> Path:
     if where.exists():
         raise StateError(
             "tree-in-the-way",
-            f"{where} is there and git does not know it as a worktree of {project}",
-            hint=f"look at it, then remove it: rm -rf {where}",
+            f"{where} на месте, и git не знает его как worktree проекта {project}",
+            hint=f"посмотрите и уберите: rm -rf {where}",
         )
 
     held = [path for path, on in standing.items() if on == branch]
     if held:
         raise StateError(
             "tree-held",
-            f"{branch} is checked out in {held[0]}, so this run cannot have it too",
+            f"{branch} уже выгружена в {held[0]}, значит этому прогону её не отдать",
         )
 
     _git(project, "worktree", "add", *_add_args(project, where, branch, base))
@@ -157,7 +157,7 @@ def _refuse_unless_a_repository(project: Path) -> None:
     if printed != "true":
         raise StateError(
             "not-a-repository",
-            f"{project} is not a git repository, and a run builds in a worktree of one",
+            f"{project} — не git-репозиторий, а прогон строит в его worktree",
         )
 
 
@@ -179,20 +179,20 @@ def _git(project: Path, *argv: str, allowed_to_fail: bool = False) -> str:
             start_new_session=True,
         )
     except OSError as error:
-        raise StateError("git-failed", f"git cannot be run: {error}") from error
+        raise StateError("git-failed", f"git не запускается: {error}") from error
 
     try:
         stdout, stderr = child.communicate(timeout=TIMEOUT)
     except subprocess.TimeoutExpired:
         kill_group(child)
-        raise StateError("git-failed", f"git {' '.join(argv)} said nothing for {TIMEOUT} seconds") from None
+        raise StateError("git-failed", f"git {' '.join(argv)} молчал {TIMEOUT} секунд") from None
 
     if child.returncode != 0:
         if allowed_to_fail:
             return ""
         raise StateError(
             "git-failed",
-            f"git {' '.join(argv)} exited with {child.returncode}: "
-            f"{(stderr or stdout).strip()[:400] or 'and said nothing'}",
+            f"git {' '.join(argv)} вышел с кодом {child.returncode}: "
+            f"{(stderr or stdout).strip()[:400] or 'и ничего не сказал'}",
         )
     return stdout

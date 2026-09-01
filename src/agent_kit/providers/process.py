@@ -235,8 +235,8 @@ class ProcessExecutor:
                 f"{what}-not-selectable",
                 f"this machine chose {what} {chosen!r} for {self.declared.name}, "
                 f"which declares no flag that passes one on",
-                hint=f"drop the {what} from [providers.{self.declared.name}] in the machine's "
-                     f"configuration, or add a {what} flag to that provider's declaration",
+                hint=f"уберите {what} из [providers.{self.declared.name}] в конфигурации "
+                     f"машины — или добавьте флаг {what} в объявление этого провайдера",
             )
 
     # --- the command ------------------------------------------------------
@@ -374,7 +374,7 @@ def whole_number(options: dict[str, list[str]], key: str, default: int) -> int:
     try:
         return int(values[-1])
     except ValueError:
-        raise UsageError("bad-option", f"{key}={values[-1]!r} is not a whole number") from None
+        raise UsageError("bad-option", f"{key}={values[-1]!r} — не целое число") from None
 
 
 def build_from_declaration(declared: Declaration, options: dict[str, list[str]]) -> ProcessExecutor:
