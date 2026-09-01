@@ -508,7 +508,7 @@ def test_the_standing_blocks_are_counted_beside_the_hour_that_settles_them(proje
 
     _, out, _ = door(project, capsys)
 
-    assert "assumed" in out and "agent-kit knowledge tell" in out
+    assert "допущений 1" in out and "agent-kit knowledge tell" in out
 
 
 def test_the_door_always_leaves_zero_behind_it(project, capsys):
@@ -539,7 +539,7 @@ def test_a_checkout_git_cannot_answer_in_says_so_rather_than_no(tmp_path, capsys
     _, out, _ = door(root, capsys)
 
     assert answered(out) == "pull-request-waiting"
-    assert "could not be asked" in out
+    assert "не вышло спросить" in out
 
 
 def test_a_report_that_is_not_in_the_trunk_says_that_and_not_the_other(project, capsys):
@@ -555,8 +555,8 @@ def test_a_report_that_is_not_in_the_trunk_says_that_and_not_the_other(project, 
     _, out, _ = door(project, capsys)
 
     assert answered(out) == "pull-request-waiting"
-    assert "does not have it in main" in out
-    assert "could not be asked" not in out
+    assert "нет в main" in out
+    assert "не вышло спросить" not in out
 
 
 # --- a feature in a stack, and the trunk it really lands in ------------------
@@ -718,7 +718,7 @@ def test_a_kind_nobody_answered_is_reported_and_never_stands_in_the_way(project,
     said = capsys.readouterr().out
     answer, _, rest = said.partition("\n")
     assert "kind-unanswered" not in answer
-    assert "verification" in rest
+    assert "проверки" in rest
     assert "suite" in rest and "types" in rest
 
 
@@ -773,7 +773,7 @@ def test_the_door_counts_the_ledger_and_names_no_command_for_it(project, capsys)
 
     _, out, _ = door(project, capsys)
 
-    assert "1 in the ledger" in out
+    assert "строк реестра 1" in out
     assert "долг" not in out.splitlines()[0]
 
 
@@ -946,4 +946,4 @@ def test_a_machine_that_names_a_provider_says_a_session_can_be_started(project, 
 
     assert code == ExitCode.OK
     assert answered(out) != "no-provider"
-    assert "a session can be started here" in out
+    assert "сессию здесь запустить можно" in out
