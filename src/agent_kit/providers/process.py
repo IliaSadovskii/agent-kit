@@ -233,8 +233,8 @@ class ProcessExecutor:
         if chosen and not self.declared.flags.get(what):
             raise ConfigError(
                 f"{what}-not-selectable",
-                f"this machine chose {what} {chosen!r} for {self.declared.name}, "
-                f"which declares no flag that passes one on",
+                f"эта машина выбрала {what} {chosen!r} для {self.declared.name}, "
+                f"а он не объявляет флага, которым это передают",
                 hint=f"уберите {what} из [providers.{self.declared.name}] в конфигурации "
                      f"машины — или добавьте флаг {what} в объявление этого провайдера",
             )

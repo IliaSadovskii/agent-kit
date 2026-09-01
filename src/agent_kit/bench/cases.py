@@ -261,14 +261,14 @@ def cases_root() -> Path:
         return checkout
     raise StateError(
         "no-cases",
-        f"the bench's cases are not in this installation: nothing at {checkout}",
-        hint="run the bench from a checkout of the kit",
+        f"случаев стенда в этой установке нет: по пути {checkout} пусто",
+        hint="гоняйте стенд из рабочей копии кита",
     )
 
 
 def case_names(root: Path) -> list[str]:
     if not root.is_dir():
-        raise StateError("no-cases", f"{root} is not a directory of cases")
+        raise StateError("no-cases", f"{root} — не каталог случаев")
     return sorted(entry.name for entry in root.iterdir() if (entry / CASE_FILE).is_file())
 
 
@@ -277,9 +277,9 @@ def read_case(root: Path, name: str) -> Case:
     try:
         document = tomllib.loads(path.read_text(encoding="utf-8"))
     except (tomllib.TOMLDecodeError, UnicodeDecodeError) as error:
-        raise CaseError("unreadable-case", f"{path} is not valid TOML: {error}") from error
+        raise CaseError("unreadable-case", f"{path} — не TOML: {error}") from error
     except OSError as error:
-        raise CaseError("unreadable-case", f"{path} could not be read: {error}") from error
+        raise CaseError("unreadable-case", f"{path} не прочитался: {error}") from error
 
     _refuse_unknown(document, _TOP_KEYS, "")
     ways = [way for way in ("batch", "sitting", "audit") if way in document]
@@ -289,8 +289,8 @@ def read_case(root: Path, name: str) -> Case:
         # case that cannot say what it measures.
         raise CaseError(
             "two-ways-in",
-            "a case drives one of a batch, a sitting or an audit, and this one declares "
-            + " and ".join(ways),
+            "случай водит что-то одно — партию, сеанс или аудит, — а этот объявляет "
+            + " и ".join(ways),
         )
     block = _table(document.get("case", {}), "case")
     _refuse_unknown(block, _CASE_KEYS, "case.")
@@ -334,7 +334,7 @@ def _steps(value: Any) -> tuple[str, ...]:
     if value is None:
         return ()
     if not isinstance(value, list) or not value or not all(isinstance(one, str) and one.strip() for one in value):
-        raise CaseError("bad-value", "case.steps must be a non-empty list of step names")
+        raise CaseError("bad-value", "case.steps — непустой список имён шагов")
     return tuple(one.strip() for one in value)
 
 
@@ -345,7 +345,7 @@ def _sitting(block: Any) -> SittingCase | None:
     _refuse_unknown(block, _SITTING_KEYS, "sitting.")
     answers = block.get("answers", [])
     if not isinstance(answers, list):
-        raise CaseError("bad-value", "sitting.answers must be a list of lines the owner types")
+        raise CaseError("bad-value", "sitting.answers — список строк, которые набирает владелец")
     return SittingCase(
         telling=_text(block.get("telling"), "sitting.telling"),
         answers=tuple(_text(one, "sitting.answers[]") for one in answers),
@@ -369,14 +369,14 @@ def _batch(block: Any) -> BatchCase | None:
     _refuse_unknown(block, _BATCH_KEYS, "batch.")
     declared = block.get("features")
     if not isinstance(declared, list) or not declared:
-        raise CaseError("bad-value", "batch.features must be a non-empty list of features")
+        raise CaseError("bad-value", "batch.features — непустой список фич")
     features = []
     for feature in declared:
         feature = _table(feature, "batch.features[]")
         _refuse_unknown(feature, _FEATURE_KEYS, "batch.features[].")
         needs = feature.get("needs", [])
         if not isinstance(needs, list):
-            raise CaseError("bad-value", "batch.features[].needs must be a list")
+            raise CaseError("bad-value", "batch.features[].needs — список")
         features.append(
             BatchFeature(
                 slug=_text(feature.get("slug"), "batch.features[].slug"),
@@ -406,24 +406,24 @@ def _frame(block: Any) -> BatchFrame:
 def _refuse_unknown(table: dict[str, Any], known: set[str], prefix: str) -> None:
     for key in table:
         if key not in known:
-            raise CaseError("unknown-key", f"{prefix}{key} is not something a case declares")
+            raise CaseError("unknown-key", f"{prefix}{key} — не то, что объявляет случай")
 
 
 def _table(value: Any, where: str) -> dict[str, Any]:
     if not isinstance(value, dict):
-        raise CaseError("bad-value", f"{where} must be a table")
+        raise CaseError("bad-value", f"{where} должен быть таблицей")
     return value
 
 
 def _text(value: Any, where: str) -> str:
     if not isinstance(value, str) or not value.strip():
-        raise CaseError("bad-value", f"{where} must be a non-empty string")
+        raise CaseError("bad-value", f"{where} — непустая строка")
     return value.strip()
 
 
 def _list(value: Any, where: str) -> list[Any]:
     if not isinstance(value, list):
-        raise CaseError("bad-value", f"{where} must be a list")
+        raise CaseError("bad-value", f"{where} — список")
     return value
 
 
@@ -438,11 +438,11 @@ def _prose(value: Any, where: str) -> str:
 
 def _number(value: Any, where: str) -> int:
     if not isinstance(value, int) or isinstance(value, bool):
-        raise CaseError("bad-value", f"{where} must be a whole number")
+        raise CaseError("bad-value", f"{where} — целое число")
     return value
 
 
 def _one_of(value: Any, choices: tuple[str, ...], where: str) -> str:
     if value not in choices:
-        raise CaseError("bad-value", f"{where} must be one of {', '.join(choices)}, not {value!r}")
+        raise CaseError("bad-value", f"{where} — одно из {', '.join(choices)}, а не {value!r}")
     return value

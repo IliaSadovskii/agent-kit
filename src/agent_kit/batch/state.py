@@ -95,7 +95,7 @@ class FeatureState:
     @classmethod
     def from_dict(cls, data: Any) -> "FeatureState":
         if not isinstance(data, dict):
-            raise StateError("bad-field: features", "a feature must be a table")
+            raise StateError("bad-field: features", "фича должна быть таблицей")
         return cls(
             slug=check_slug(data.get("slug")),
             brief=str(data.get("brief") or ""),
@@ -132,10 +132,10 @@ class FrameState:
     @classmethod
     def from_dict(cls, data: Any) -> "FrameState":
         if not isinstance(data, dict):
-            raise StateError("bad-field: frames", "a frame must be a table")
+            raise StateError("bad-field: frames", "рамка должна быть таблицей")
         what = data.get("what")
         if not isinstance(what, str) or not what.strip():
-            raise StateError("bad-field: frames", "a frame says what every feature builds alike")
+            raise StateError("bad-field: frames", "рамка говорит, что все фичи строят одинаково")
         return cls(what=what.strip(), id=str(data.get("id") or ""))
 
 
@@ -158,10 +158,10 @@ class DebtState:
     @classmethod
     def from_dict(cls, data: Any) -> "DebtState":
         if not isinstance(data, dict):
-            raise StateError("bad-field: debt", "a line of the ledger must be a table")
+            raise StateError("bad-field: debt", "строка реестра должна быть таблицей")
         key = data.get("key")
         if not isinstance(key, str) or not key.strip():
-            raise StateError("bad-field: debt", "a line of the ledger is named by its key")
+            raise StateError("bad-field: debt", "строка реестра называется своим ключом")
         return cls(key=key.strip(), what=str(data.get("what") or ""))
 
 
@@ -184,10 +184,10 @@ class ManualState:
     @classmethod
     def from_dict(cls, data: Any) -> "ManualState":
         if not isinstance(data, dict):
-            raise StateError("bad-field: manual", "a manual action must be a table")
+            raise StateError("bad-field: manual", "дело руками должно быть таблицей")
         key = data.get("key")
         if not isinstance(key, str) or not key.strip():
-            raise StateError("bad-field: manual", "a manual action is named by its key")
+            raise StateError("bad-field: manual", "дело руками называется своим ключом")
         return cls(key=key.strip(), what=str(data.get("what") or ""))
 
 
@@ -416,7 +416,7 @@ class Batch:
             raise StateError("unreadable-batch", "файл партии должен держать таблицу")
         schema = data.get("schema", SCHEMA_VERSION)
         if not isinstance(schema, int) or isinstance(schema, bool):
-            raise StateError("bad-field: schema", "schema must be a whole number")
+            raise StateError("bad-field: schema", "schema — целое число")
         if schema > SCHEMA_VERSION:
             raise StateError(
                 "schema-too-new",
@@ -429,7 +429,7 @@ class Batch:
 
         features = data.get("features")
         if not isinstance(features, list) or not features:
-            raise StateError("bad-field: features", "a batch holds a non-empty list of features")
+            raise StateError("bad-field: features", "партия держит непустой список фич")
         return cls(
             name=check_slug(data.get("name")),
             features=[FeatureState.from_dict(feature) for feature in features],
@@ -534,5 +534,5 @@ def _enum(value: Any) -> FeatureStatus:
     except ValueError:
         raise StateError(
             "bad-field: status",
-            f"{value!r} is not one of {', '.join(one.value for one in FeatureStatus)}",
+            f"{value!r} — не одно из {', '.join(one.value for one in FeatureStatus)}",
         ) from None

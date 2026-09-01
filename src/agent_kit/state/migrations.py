@@ -85,7 +85,7 @@ def oldest_schema() -> int:
 def migrate(data: dict[str, Any], *, where: str = "run.json") -> dict[str, Any]:
     version = data.get("schema", SCHEMA_VERSION)
     if not isinstance(version, int) or isinstance(version, bool):
-        raise StateError("bad-field: schema", f"{where}: schema must be a whole number")
+        raise StateError("bad-field: schema", f"{where}: schema — целое число")
     if version > SCHEMA_VERSION:
         raise StateError(
             "schema-too-new",
@@ -117,7 +117,7 @@ def _check_kit(kit: object, where: str) -> None:
     if kit is None:
         return
     if not isinstance(kit, str) or not release(kit):
-        raise StateError("bad-field: kit", f"{where}: kit must be a version string")
+        raise StateError("bad-field: kit", f"{where}: kit — строка версии")
     if release(kit) > release(__version__):
         raise StateError(
             "kit-too-new",

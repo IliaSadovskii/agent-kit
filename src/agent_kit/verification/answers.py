@@ -111,8 +111,8 @@ def answers_from_table(table: dict) -> tuple[Answer, ...]:
         if bool(command) == bool(why):
             raise ConfigError(
                 f"bad-verification-answer: {name}",
-                f"verification.{name} must answer with a command or with a reason it cannot apply here, "
-                + ("and it names both" if command else "and it names neither"),
+                f"verification.{name} отвечает командой или причиной, по которой вид здесь неприменим, "
+                + ("а называет и то и другое" if command else "а не называет ни того, ни другого"),
                 hint="agent-kit verification",
             )
         if why and not since:
@@ -126,7 +126,7 @@ def answers_from_table(table: dict) -> tuple[Answer, ...]:
             if not DATE.match(since):
                 raise ConfigError(
                     f"bad-verification-answer: {name}",
-                    f"verification.{name}.since must be a date as 2026-08-28, not {since!r}",
+                    f"verification.{name}.since — дата вида 2026-08-28, а не {since!r}",
                 )
             try:
                 date.fromisoformat(since)

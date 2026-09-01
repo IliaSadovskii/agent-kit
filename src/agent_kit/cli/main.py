@@ -420,7 +420,7 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace, paths: 
 
 def _knowledge(args: argparse.Namespace, paths: Paths) -> int:
     if args.what != "tell":
-        raise UsageError("no-what", "knowledge tell is the one thing this command does")
+        raise UsageError("no-what", "knowledge tell — единственное, что делает эта команда")
     return _tell(args, paths)
 
 
@@ -483,7 +483,7 @@ def _told(where: str | None) -> tuple[str, bool]:
         try:
             return Path(where).read_text(encoding="utf-8"), False
         except OSError as unreadable:
-            raise UsageError("no-telling", f"{where} could not be read: {unreadable}") from unreadable
+            raise UsageError("no-telling", f"{where} не прочитался: {unreadable}") from unreadable
     return _from_an_editor(), False
 
 
@@ -496,7 +496,7 @@ def _from_an_editor() -> str:
     if not editor:
         raise UsageError(
             "no-telling",
-            "nothing was given to read and no $EDITOR is set",
+            "читать нечего, и $EDITOR не задан",
             hint="agent-kit knowledge tell --from <файл>",
         )
     with tempfile.NamedTemporaryFile("w+", suffix=".md", delete=False, encoding="utf-8") as held:
@@ -783,7 +783,7 @@ def _run(args: argparse.Namespace) -> int:
     what = args.what
     if what is None:
         raise UsageError(
-            "missing-command", "run needs one of: new, go, show, start, pass, fail, stop, reopen"
+            "missing-command", "run нужно одно из: new, go, show, start, pass, fail, stop, reopen"
         )
 
     if what == "new":
@@ -905,8 +905,8 @@ def _refuse_if_a_driver_holds_it(store: RunStore, slug: str) -> None:
     if driving:
         raise StateError(
             "run-held-elsewhere",
-            f"{slug} is being run by process {driving[0].pid} since {driving[0].taken_at}",
-            hint=f"agent-kit run stop {slug} '<why>' asks that driver to stop",
+            f"{slug} ведёт процесс {driving[0].pid} с {driving[0].taken_at}",
+            hint=f"agent-kit run stop {slug} '<почему>' просит этот драйвер остановиться",
         )
 
 
@@ -920,7 +920,7 @@ def _go(store: RunStore, registry, args: argparse.Namespace) -> int:
     if run.finished:
         raise StateError(
             "run-finished",
-            f"{args.slug} is {run.status.value}; there is nothing left to run",
+            f"{args.slug} — {run.status.value}; гонять больше нечего",
             hint=(
                 f"agent-kit run reopen {args.slug} carries it on from the step it stopped on"
                 if run.status is RunStatus.STOPPED
@@ -984,7 +984,7 @@ def _batch(args: argparse.Namespace, paths: Paths) -> int:
     if what is None:
         raise UsageError(
             "missing-command",
-            "batch needs one of: compose, new, show, go, stop, skip, reopen",
+            "batch нужно одно из: compose, new, show, go, stop, skip, reopen",
         )
 
     if what == "compose":
@@ -1062,9 +1062,9 @@ def _batch(args: argparse.Namespace, paths: Paths) -> int:
         if driving:
             raise StateError(
                 "batch-held-elsewhere",
-                f"{args.name} is being run by process {driving[0].pid} since {driving[0].taken_at};"
-                " a feature is carried on between nights, not during one",
-                hint=f"agent-kit batch stop {args.name} '<why>' asks that driver to stop",
+                f"{args.name} ведёт процесс {driving[0].pid} с {driving[0].taken_at};"
+                " фичу продолжают между ночами, а не во время одной",
+                hint=f"agent-kit batch stop {args.name} '<почему>' просит этот драйвер остановиться",
             )
         batch = store.load(args.name)
         given = batch.reopen(args.feature)
@@ -1170,7 +1170,7 @@ def _tree(args: argparse.Namespace) -> int:
     root = Path(args.project).resolve()
     what = args.what
     if what is None:
-        raise UsageError("missing-command", "tree needs one of: list, remove")
+        raise UsageError("missing-command", "tree нужно одно из: list, remove")
 
     if what == "list":
         standing = trees(root)
@@ -1192,7 +1192,7 @@ def _step(args: argparse.Namespace, paths: Paths) -> int:
     registry = builtin_registry()
     what = args.what
     if what is None:
-        raise UsageError("missing-command", "step needs one of: list, show, input, run")
+        raise UsageError("missing-command", "step нужно одно из: list, show, input, run")
 
     if what == "list":
         for definition in registry.all():
@@ -1225,10 +1225,10 @@ def _step(args: argparse.Namespace, paths: Paths) -> int:
     if what == "input":
         run = store.load(args.slug)
         if run.finished:
-            raise StateError("run-finished", f"{args.slug} is {run.status.value}; there is no next step")
+            raise StateError("run-finished", f"{args.slug} — {run.status.value}; следующего шага нет")
         index = run.next_pending()
         if index is None:
-            raise StateError("no-step-pending", f"{args.slug}: no step is waiting to run")
+            raise StateError("no-step-pending", f"{args.slug}: ни один шаг не ждёт запуска")
         definition = registry.get(run.steps[index].name)
         # What the *driver* would enclose, which is what this command says it
         # prints. It used to compose with no enclosures at all, so a person
@@ -1280,8 +1280,8 @@ def _provider(args: argparse.Namespace, paths: Paths) -> int:
     if what is None:
         raise UsageError(
             "missing-command",
-            "provider needs one of: check",
-            hint=f"{PROGRAM} doctor — what this machine has; {PROGRAM} setup — how to change it",
+            "provider нужно одно: check",
+            hint=f"{PROGRAM} doctor — что есть у этой машины; {PROGRAM} setup — как это изменить",
         )
     if what != "check":
         raise UsageError("unknown-command", f"provider {what}")
@@ -1320,7 +1320,7 @@ def _bench(args: argparse.Namespace) -> int:
 
     if only is not None:
         if only not in names:
-            raise UsageError("unknown-case", f"{only!r} is not a case: {', '.join(names) or 'there are none'}")
+            raise UsageError("unknown-case", f"{only!r} — не случай: {', '.join(names) or 'их нет вовсе'}")
         names = [only]
 
     if what == "disarm":
@@ -1513,7 +1513,7 @@ def _options(pairs: list[str]) -> dict[str, list[str]]:
     for pair in pairs:
         key, separator, value = pair.partition("=")
         if not separator or not key.strip():
-            raise UsageError("bad-option", f"{pair!r} is not KEY=VALUE")
+            raise UsageError("bad-option", f"{pair!r} — не КЛЮЧ=ЗНАЧЕНИЕ")
         parsed.setdefault(key.strip(), []).append(value)
     return parsed
 
@@ -1677,7 +1677,7 @@ def _slot(args: argparse.Namespace, paths: Paths) -> int:
 
     what = args.what
     if what is None:
-        raise UsageError("missing-command", "slot needs one of: take, wants, hold, release")
+        raise UsageError("missing-command", "slot нужно одно из: take, wants, hold, release")
 
     ledger = _ledger(paths)
     project = str(Path(args.project).resolve())
@@ -1727,7 +1727,7 @@ def _slot(args: argparse.Namespace, paths: Paths) -> int:
                 ledger.release(lease)
                 print(f"{args.slug}: {lease.kind} отдан обратно")
                 return int(ExitCode.OK)
-        raise StateError("no-such-slot", f"nothing here holds a slot or a run for {args.slug!r}")
+        raise StateError("no-such-slot", f"здесь никто не держит ни слота, ни прогона для {args.slug!r}")
 
     raise UsageError("unknown-command", f"slot {what}")
 
@@ -1744,7 +1744,7 @@ def _ask(args: argparse.Namespace, paths: Paths) -> int:
 
     what = args.what
     if what is None:
-        raise UsageError("missing-command", "ask needs one of: plant, clear")
+        raise UsageError("missing-command", "ask нужно одно из: plant, clear")
     ledger = _ledger(paths)
 
     if what == "plant":
@@ -1769,7 +1769,7 @@ def _ask(args: argparse.Namespace, paths: Paths) -> int:
 def _limit(args: argparse.Namespace, paths: Paths) -> int:
     what = args.what
     if what is None:
-        raise UsageError("missing-command", "limit needs one of: set, clear")
+        raise UsageError("missing-command", "limit нужно одно из: set, clear")
 
     ledger = _ledger(paths)
     if what == "set":
@@ -1797,7 +1797,7 @@ def _a_time(value: str | None) -> str | None:
         datetime.fromisoformat(value)
     except ValueError as error:
         raise UsageError(
-            "bad-time", f"{value!r} is not a time: give it as 2026-08-24T17:00:00+00:00"
+            "bad-time", f"{value!r} — не время: пишите как 2026-08-24T17:00:00+00:00"
         ) from error
     return value
 
@@ -1826,7 +1826,7 @@ def _owner(args: argparse.Namespace, paths: Paths) -> int:
 
     what = args.what
     if what is None:
-        raise UsageError("missing-command", "owner needs one of: setup, check, say, set-token")
+        raise UsageError("missing-command", "owner нужно одно из: setup, check, say, set-token")
 
     if what == "setup":
         # Из модуля, а не из пакета: `owner.setup` — это модуль, и одноимённое
@@ -1931,14 +1931,14 @@ def _daemon(args: argparse.Namespace, paths: Paths) -> int:
                 # how a pid file that outlived its process takes a stranger down.
                 raise StateError(
                     "not-ours",
-                    f"{pid_file} names process {written}, which is not an agent-kit daemon",
-                    hint=f"delete {pid_file} if you are sure the daemon is gone",
+                    f"{pid_file} называет процесс {written}, а это не демон agent-kit",
+                    hint=f"удалите {pid_file}, если уверены, что демона больше нет",
                 )
-            raise StateError("no-daemon", "nothing is running here; the ledger is unchanged either way")
+            raise StateError("no-daemon", "здесь ничего не запущено; леджер в любом случае не тронут")
         try:
             os.kill(held, signal.SIGTERM)
         except (ProcessLookupError, PermissionError) as refused:
-            raise StateError("not-ours", f"process {held} would not take the signal: {refused}") from refused
+            raise StateError("not-ours", f"процесс {held} не принял сигнал: {refused}") from refused
         print(f"демона (pid {held}) попросили уйти")
         return int(ExitCode.OK)
 
@@ -1947,7 +1947,7 @@ def _daemon(args: argparse.Namespace, paths: Paths) -> int:
 
     held = running()
     if held is not None:
-        raise StateError("already-running", f"the daemon is already up as pid {held}")
+        raise StateError("already-running", f"демон уже поднят, pid {held}")
 
     if not args.foreground:
         child = subprocess.Popen(

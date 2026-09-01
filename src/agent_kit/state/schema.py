@@ -464,7 +464,7 @@ class Run:
         data = _dict(data, "run")
         raw_steps = data.get("steps")
         if not isinstance(raw_steps, list) or not raw_steps:
-            raise StateError("bad-field: steps", "steps must be a non-empty list")
+            raise StateError("bad-field: steps", "steps — непустой список")
 
         slug = data.get("slug")
         if not isinstance(slug, str) or not slug.strip():
@@ -495,7 +495,7 @@ class Run:
             StepStatus.ASKING,
         ):
             raise StateError(
-                "bad-field: current_step", "current_step points at a step that is neither running nor asking"
+                "bad-field: current_step", "current_step указывает на шаг, который и не running, и не asking"
             )
         return run
 

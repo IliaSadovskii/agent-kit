@@ -475,7 +475,7 @@ def _inside(value: Any, where: str) -> str:
         return ""
     text = _text(value, where)
     if Path(text).is_absolute() or ".." in Path(text).parts:
-        raise ConfigError("bad-field: project.knowledge", f"{where} must be a path inside the project, not {text!r}")
+        raise ConfigError("bad-field: project.knowledge", f"{where} — путь внутри проекта, а не {text!r}")
     return text
 
 
