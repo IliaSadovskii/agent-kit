@@ -127,9 +127,9 @@ def load_config(path: Path | str) -> Config:
     try:
         raw = tomllib.loads(path.read_text(encoding="utf-8"))
     except (tomllib.TOMLDecodeError, UnicodeDecodeError) as error:
-        raise ConfigError("unreadable-config", f"config.toml is not valid TOML: {error}") from error
+        raise ConfigError("unreadable-config", f"config.toml — не TOML: {error}") from error
     except OSError as error:
-        raise ConfigError("unreadable-config", f"config.toml could not be read: {error}") from error
+        raise ConfigError("unreadable-config", f"config.toml не прочитался: {error}") from error
 
     _refuse_unknown(raw, _TOP_KEYS, "")
     return Config(
@@ -211,12 +211,12 @@ def _refuse_unknown(table: dict[str, Any], known: set[str], prefix: str) -> None
     for key in table:
         if key not in known:
             where = f"{prefix}{key}"
-            raise ConfigError("unknown-key", f"{where} is not a setting this kit reads")
+            raise ConfigError("unknown-key", f"{where} — не та настройка, которую читает этот кит")
 
 
 def _table(value: Any, where: str) -> dict[str, Any]:
     if not isinstance(value, dict):
-        raise ConfigError("bad-value", f"{where} must be a table")
+        raise ConfigError("bad-value", f"{where} должен быть таблицей")
     return value
 
 
@@ -237,7 +237,7 @@ def _machine(table: dict[str, Any]) -> MachineConfig:
 
 def _whole(value: Any, where: str) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value < 0:
-        raise ConfigError("bad-value", f"{where} must be a whole number of seconds, 0 or more")
+        raise ConfigError("bad-value", f"{where} — целое число секунд, 0 или больше")
     return value
 
 
@@ -285,7 +285,7 @@ def roles_from_table(table: dict[str, Any]) -> dict[str, RoleConfig]:
         block = _table(block, where)
         _refuse_unknown(block, _ROLE_KEYS, f"{where}.")
         if "provider" not in block:
-            raise ConfigError("missing-key", f"{where}.provider is required: a role without a provider runs nowhere")
+            raise ConfigError("missing-key", f"{where}.provider обязателен: роли без провайдера негде исполняться")
         roles[name] = RoleConfig(
             name=name,
             provider=_str(block["provider"], f"{where}.provider"),
@@ -298,19 +298,19 @@ def roles_from_table(table: dict[str, Any]) -> dict[str, RoleConfig]:
 
 def _positive_int(value: Any, where: str) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value < 1:
-        raise ConfigError("bad-value", f"{where} must be a whole number of at least 1")
+        raise ConfigError("bad-value", f"{where} — целое число, не меньше 1")
     return value
 
 
 def _bool(value: Any, where: str) -> bool:
     if not isinstance(value, bool):
-        raise ConfigError("bad-value", f"{where} must be true or false")
+        raise ConfigError("bad-value", f"{where} — true или false")
     return value
 
 
 def _str(value: Any, where: str) -> str:
     if not isinstance(value, str) or not value.strip():
-        raise ConfigError("bad-value", f"{where} must be a non-empty string")
+        raise ConfigError("bad-value", f"{where} — непустая строка")
     return value
 
 
@@ -320,5 +320,5 @@ def _optional_str(value: Any, where: str) -> str | None:
 
 def _str_list(value: Any, where: str) -> list[str]:
     if not isinstance(value, list) or any(not isinstance(item, str) or not item.strip() for item in value):
-        raise ConfigError("bad-value", f"{where} must be a list of provider names")
+        raise ConfigError("bad-value", f"{where} — список имён провайдеров")
     return list(value)

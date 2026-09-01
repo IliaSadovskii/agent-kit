@@ -206,9 +206,9 @@ def refuse_commands_that_start_nothing(project: "Project") -> None:
     named = "; ".join(f"{command.name} — {starts_nothing(command.command)!r} is not here" for command in lost)
     raise ConfigError(
         "no-such-command",
-        f"{project.source or project.root} declares commands this machine cannot start, and "
-        f"`verify` would run them: {named}",
-        hint="agent-kit init --force, or edit the declaration by hand",
+        f"{project.source or project.root} объявляет команды, которые эта машина не запустит, и "
+        f"а `verify` их запускал бы: {named}",
+        hint="agent-kit init --force — или поправьте объявление руками",
     )
 
 
@@ -225,9 +225,9 @@ def read_project(root: Path | str) -> Project | None:
     try:
         document = tomllib.loads(path.read_text(encoding="utf-8"))
     except (tomllib.TOMLDecodeError, UnicodeDecodeError) as error:
-        raise ConfigError("unreadable-project", f"{path} is not valid TOML: {error}") from error
+        raise ConfigError("unreadable-project", f"{path} — не TOML: {error}") from error
     except OSError as error:
-        raise ConfigError("unreadable-project", f"{path} could not be read: {error}") from error
+        raise ConfigError("unreadable-project", f"{path} не прочитался: {error}") from error
 
     _refuse_unknown(document, _TOP_KEYS, "")
     block = _table(document.get("project", {}), "project")
@@ -251,7 +251,7 @@ def require_project(root: Path | str) -> Project:
     if project is None:
         raise ConfigError(
             "no-project",
-            f"{project_file(root)} is not there, so this project has declared no commands and no branch",
+            f"{project_file(root)} нет, значит проект не объявил ни команд, ни ветки",
             hint="agent-kit init",
         )
     return project
@@ -364,7 +364,7 @@ def write_project(project: Project, force: bool = False) -> Path:
     if path.exists() and not force:
         raise ConfigError(
             "project-exists",
-            f"{path} exists already and may have been edited by hand",
+            f"{path} уже есть, и его могли править руками",
             hint="agent-kit init --force",
         )
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -447,18 +447,18 @@ def is_repository(root: Path) -> bool:
 def _refuse_unknown(table: dict[str, Any], known: set[str], prefix: str) -> None:
     for key in table:
         if key not in known:
-            raise ConfigError("unknown-key", f"{prefix}{key} is not something the kit reads about a project")
+            raise ConfigError("unknown-key", f"{prefix}{key} — не то, что кит читает о проекте")
 
 
 def _table(value: Any, where: str) -> dict[str, Any]:
     if not isinstance(value, dict):
-        raise ConfigError("bad-value", f"{where} must be a table")
+        raise ConfigError("bad-value", f"{where} должен быть таблицей")
     return value
 
 
 def _text(value: Any, where: str) -> str:
     if not isinstance(value, str) or not value.strip():
-        raise ConfigError("bad-value", f"{where} must be a non-empty string")
+        raise ConfigError("bad-value", f"{where} — непустая строка")
     return value.strip()
 
 
@@ -481,7 +481,7 @@ def _inside(value: Any, where: str) -> str:
 
 def _seconds(value: Any, where: str) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
-        raise ConfigError("bad-value", f"{where} must be a whole number of seconds above zero")
+        raise ConfigError("bad-value", f"{where} — целое число секунд больше нуля")
     return value
 
 
