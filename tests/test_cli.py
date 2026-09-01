@@ -184,7 +184,7 @@ def test_step_run_against_the_fake_provider(machine, capsys, tmp_path):
     code, out, _ = run(["step", "run", "add-login", "--provider", "fake", "--option", f"reply={reply}"], capsys)
 
     assert code == ExitCode.OK
-    assert "probe passed" in out
+    assert "probe прошёл" in out
     assert json.loads(
         (tmp_path / "project/.agent-kit/v3/runs/add-login/steps/0-probe/output.json").read_text()
     )["branch"] == "kit/add-login"
@@ -247,7 +247,7 @@ def test_an_explicit_provider_beats_the_role_table(machine, capsys, tmp_path):
     )
 
     assert code == ExitCode.OK
-    assert "probe passed" in out
+    assert "probe прошёл" in out
 
 
 def test_step_input_refuses_a_run_that_is_over(machine, capsys):
@@ -444,7 +444,7 @@ def test_run_go_walks_every_step_to_the_end(machine, capsys, tmp_path):
     )
 
     assert code == ExitCode.OK
-    assert "design passed" in out and "build passed" in out and "verify passed" in out
+    assert "design прошёл" in out and "build прошёл" in out and "verify прошёл" in out
     assert json.loads(run(["run", "show", "add-vat", "--json"], capsys)[1])["status"] == "done"
 
 
@@ -481,7 +481,7 @@ def test_the_programs_are_always_there_whatever_the_role_table_says(machine, cap
     code, out, _ = run(["run", "go", "add-vat"], capsys)
 
     assert code == ExitCode.OK
-    assert "verify passed" in out
+    assert "verify прошёл" in out
 
 
 def test_a_project_may_say_which_provider_runs_a_role_here(machine, capsys, tmp_path):
@@ -491,7 +491,7 @@ def test_a_project_may_say_which_provider_runs_a_role_here(machine, capsys, tmp_
     code, out, _ = run(["run", "go", "add-vat", *scripted(tmp_path, DESIGN_REPLY)], capsys)
 
     assert code == ExitCode.OK
-    assert "design passed" in out
+    assert "design прошёл" in out
 
 
 def test_a_run_the_method_refused_is_stopped_and_not_failed(machine, capsys, tmp_path):
@@ -633,9 +633,9 @@ def test_a_step_a_program_executes_does_not_claim_to_have_prose(capsys):
     main(["step", "show", "record"])
 
     printed = capsys.readouterr().out
-    assert "prose" in printed
+    assert "проза" in printed
     assert "method\n" not in printed
-    assert "a program" in printed
+    assert "программе инструкций не читают" in printed
 
 
 def test_step_show_prints_the_contract_this_project_imposes(tmp_path, capsys, monkeypatch):

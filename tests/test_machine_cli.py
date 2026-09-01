@@ -198,7 +198,8 @@ def test_stopping_a_run_a_driver_holds_posts_it_where_the_driver_reads_it(machin
     code, out, _ = run(["run", "stop", "add-vat", "the owner said so"], capsys)
 
     assert code == ExitCode.OK
-    assert "driver" in out
+    # The code the request is posted under, which is what the driver reads.
+    assert "stop-asked" in out
     state = json.loads((tmp_path / "project/.agent-kit/v3/runs/add-vat/run.json").read_text())
     assert state["status"] == "created", "the state was written under a driver that is still writing it"
     assert ledger.stop_asked(str((tmp_path / "project").resolve()), "add-vat") == "the owner said so"
