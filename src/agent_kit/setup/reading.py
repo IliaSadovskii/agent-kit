@@ -66,8 +66,8 @@ class Standing:
     @property
     def configured(self) -> str:
         if self.chosen is None:
-            return "not configured here"
-        return "enabled" if self.chosen.enabled else "disabled"
+            return "здесь не настроен"
+        return "включён" if self.chosen.enabled else "выключен"
 
 
 @dataclass(frozen=True)
@@ -166,16 +166,16 @@ def render(reading: Reading) -> list[str]:
     lines = []
     for one in reading.providers:
         lines.append(f"  {one.name:12} {one.title}")
-        lines.append(f"    {'level':10} declares {one.declared_level} · {_measured(one)}")
+        lines.append(f"    {'уровень':10} объявлен {one.declared_level} · {_measured(one)}")
         if not one.real:
-            lines.append(f"    {'':10} a fixture, not an agent — nobody installs it")
+            lines.append(f"    {'':10} фикстура, а не агент — её никто не ставит")
         for rung in one.rungs:
             # Three marks, as `provider check` prints them: it passed, it failed,
             # or it could not be put to this provider at all. A rung nobody can
             # climb printed as `ok` is a screen saying a fixture works.
             mark = "ok" if rung.passed else ("--" if not rung.applies else "no")
             lines.append(f"    {rung.name:10} {mark}  {rung.detail}")
-        lines.append(f"    {'machine':10} {one.configured}{_account(one)}")
+        lines.append(f"    {'машина':10} {one.configured}{_account(one)}")
         lines.extend(_notes(one))
     return lines
 
@@ -206,11 +206,11 @@ def _notes(one: Standing) -> list[str]:
 
 def _measured(one: Standing) -> str:
     if one.measured is None:
-        return "never measured against an account"
-    return f"measured {one.measured.level or 'no level'} on {one.measured.measured_at[:10]}"
+        return "против аккаунта не мерян"
+    return f"мерян {one.measured.measured_at[:10]}: {one.measured.level or 'уровня нет'}"
 
 
 def _account(one: Standing) -> str:
     if one.chosen is None or not one.chosen.account:
         return ""
-    return f", quota pooled as {one.chosen.account!r}"
+    return f", квота в пуле {one.chosen.account!r}"

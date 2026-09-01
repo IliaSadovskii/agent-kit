@@ -632,38 +632,38 @@ def _doctor(paths: Paths) -> int:
         raise reading.unreadable_config
     config = reading.config
 
-    print("the machine")
-    print(f"  config      {paths.config_file}  {_present(paths.config_file)}")
-    print(f"  state       {paths.state_dir}  {_present(paths.state_dir)}")
-    print(f"  logs        {paths.log_dir}  {_present(paths.log_dir)}")
-    print(f"  secrets     {paths.secrets_file}  {_present(paths.secrets_file)}")
+    print("машина")
+    print(f"  конфиг      {paths.config_file}  {_present(paths.config_file)}")
+    print(f"  состояние   {paths.state_dir}  {_present(paths.state_dir)}")
+    print(f"  логи        {paths.log_dir}  {_present(paths.log_dir)}")
+    print(f"  секреты     {paths.secrets_file}  {_present(paths.secrets_file)}")
     # The path, not a ledger: building one creates the file, so asking an
     # object for its own path made `missing` a word this line could never
     # print — about the one thing it is here to say.
     from ..machine import ledger_path
 
-    print(f"  ledger      {ledger_path(paths)}  {_present(ledger_path(paths))}")
+    print(f"  леджер      {ledger_path(paths)}  {_present(ledger_path(paths))}")
     print()
-    print("the method")
+    print("метод")
     registry = builtin_registry()
-    print(f"  prose       {method_root()}  {_present(method_root())}")
-    print(f"  steps       {', '.join(registry.names())}")
+    print(f"  проза       {method_root()}  {_present(method_root())}")
+    print(f"  шаги        {', '.join(registry.names())}")
     print()
-    print("what is configured")
-    print(f"  max sessions {config.machine.max_sessions}")
-    print(f"  waits up to  {config.machine.wait}s for a slot or a limit to reset")
-    print(f"  page         http://{config.daemon.host}:{config.daemon.port}")
-    print(f"  owner        {_channel_line(config, paths)}")
-    print(f"  default      {config.machine.provider or 'none — a role the table does not name is refused'}")
-    print(f"  roles        {', '.join(sorted(config.roles)) or 'none — every role falls back to the default'}")
+    print("чем настроена")
+    print(f"  сессий сразу {config.machine.max_sessions}")
+    print(f"  ждёт до      {config.machine.wait}с слота или сброса лимита")
+    print(f"  страница     http://{config.daemon.host}:{config.daemon.port}")
+    print(f"  владелец     {_channel_line(config, paths)}")
+    print(f"  по умолчанию {config.machine.provider or 'нет — роль, которую таблица не называет, отказана'}")
+    print(f"  роли         {', '.join(sorted(config.roles)) or 'нет — каждая роль падает на умолчание'}")
     _named_but_not_there(reading)
     print()
-    print("providers")
+    print("провайдеры")
     for line in render_providers(reading):
         print(line)
     if not reading.working:
         print()
-        print(f"  nothing here can run a session yet: {PROGRAM} setup")
+        print(f"  сессию здесь пока запустить нечем: {PROGRAM} setup")
     return int(ExitCode.OK)
 
 
@@ -672,11 +672,11 @@ def _named_but_not_there(reading) -> None:
     shipped = {one.name for one in reading.providers}
     lost = sorted(reading.named_by - shipped)
     if lost:
-        print(f"  unknown-provider {', '.join(lost)} — named here, and not shipped by this kit")
+        print(f"  unknown-provider {', '.join(lost)} — назван здесь, и этот кит его не везёт")
 
 
 def _present(path: Path) -> str:
-    return "ok" if path.exists() else "missing"
+    return "есть" if path.exists() else "нет"
 
 
 # --- setup -----------------------------------------------------------------
@@ -1536,22 +1536,22 @@ def _provider_check(args: argparse.Namespace) -> int:
         # the same state `agent-kit setup` refuses by name. Two commands looking
         # at one ladder must not call its answer two different things.
         print(
-            f"{PROGRAM}: provider-not-ready: {args.name} stopped at the rung `{report.failed}`",
+            f"{PROGRAM}: provider-not-ready: {args.name} споткнулся на ступени `{report.failed}`",
             file=sys.stderr,
         )
         return int(ExitCode.PROVIDER)
 
-    print(f"{args.name}: level {report.level}, declared {report.declared_level}")
+    print(f"{args.name}: {report.level}, объявлен {report.declared_level}")
     if report.facts.observed:
         share = report.facts.context_share or 0
-        print(f"  context   {report.facts.context_used:,} of {report.facts.context_window:,} ({share:.1%})")
+        print(f"  контекст  {report.facts.context_used:,} из {report.facts.context_window:,} ({share:.1%})")
     if report.facts.transcript:
-        print(f"  session   {report.facts.session}")
-        print(f"  record    {report.facts.transcript}")
+        print(f"  сессия    {report.facts.session}")
+        print(f"  запись    {report.facts.transcript}")
     if not report.earns_what_it_declares:
         print(
-            f"{args.name}: it declares level {report.declared_level} and earned {report.level}"
-            f" — it failed at {report.failed}",
+            f"{args.name}: объявлен {report.declared_level}, а заработал {report.level}"
+            f" — споткнулся на {report.failed}",
             file=sys.stderr,
         )
         return int(ExitCode.PROVIDER)

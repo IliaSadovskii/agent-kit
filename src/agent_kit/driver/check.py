@@ -143,16 +143,16 @@ def check_provider(
     try:
         result = _one_shot(executor, name, project)
         rungs["login"].passed = True
-        rungs["login"].detail = "the account answered"
+        rungs["login"].detail = "аккаунт ответил"
         rungs["one_shot"].passed = True
-        rungs["one_shot"].detail = f"{len(result.raw)} characters came back"
+        rungs["one_shot"].detail = f"вернулось знаков: {len(result.raw)}"
     except ExecutorFailed as failure:
         reason = f"{failure.code}: {failure.detail}"
         if _is_about_login(reason):
             rungs["login"].detail = reason
         else:
             rungs["login"].passed = True
-            rungs["login"].detail = "the account answered, and then the job failed"
+            rungs["login"].detail = "аккаунт ответил, а потом работа не удалась"
             rungs["one_shot"].detail = reason
         return done()
 
@@ -164,7 +164,7 @@ def check_provider(
         answered = parse_output(result.raw)
         probe.contract.check(answered)
         rungs["contract"].passed = True
-        rungs["contract"].detail = "the answer satisfied the probe's contract"
+        rungs["contract"].detail = "ответ удовлетворил контракт шага probe"
         _fill(rungs["writes"], *_writes(answered))
     except ContractRefusal as refused:
         rungs["contract"].detail = f"{refused.code}: {refused.detail}"
@@ -172,15 +172,15 @@ def check_provider(
         # what guarantees `can_write` is there and is a boolean, so without it
         # there is no answer to read — and a rung nobody climbed is not a rung
         # anybody failed.
-        _fill(rungs["writes"], False, "the answer could not be read, so it was never asked", False)
+        _fill(rungs["writes"], False, "ответ не прочитался, поэтому вопрос не задавали", False)
 
     if result.facts.observed:
         rungs["observed"].passed = True
         rungs["observed"].detail = (
-            f"{result.facts.context_used:,} of {result.facts.context_window:,} tokens"
+            f"{result.facts.context_used:,} из {result.facts.context_window:,} токенов"
         )
     else:
-        rungs["observed"].detail = "it cannot say how much context the session holds"
+        rungs["observed"].detail = "он не говорит, сколько контекста держит сессия"
 
     _fill(rungs["limits"], *_limits(executor))
     return done()
@@ -200,7 +200,7 @@ def free_rungs(name: str, options: dict[str, list[str]] | None = None) -> list[R
         # one shipped today, and a rung nobody can climb is not a rung anybody
         # failed — printing it as failed would say the fixture is broken.
         for rung in rungs:
-            _fill(rung, False, "this provider is not a process; there is nothing to find", False)
+            _fill(rung, False, "этот провайдер не процесс — искать нечего", False)
         return rungs
 
     try:
@@ -211,12 +211,12 @@ def free_rungs(name: str, options: dict[str, list[str]] | None = None) -> list[R
         # a machine that cannot be looked at. Its callers pass no options, so
         # the choice a `ConfigError` would be about cannot be made here.
         rungs[0].detail = f"{failure.code}: {failure.detail}"
-        rungs[1].detail = "not reached"
+        rungs[1].detail = "до неё не дошли"
         return rungs
 
     _fill(rungs[0], *_binary(executor))
     if not rungs[0].held:
-        rungs[1].detail = "not reached"
+        rungs[1].detail = "до неё не дошли"
         return rungs
     _fill(rungs[1], *_answers(executor))
     return rungs
@@ -231,13 +231,13 @@ def _writes(answered: Any) -> tuple[bool, str, bool]:
     written for nobody. The rung is that reader.
     """
     if not isinstance(answered, dict):  # pragma: no cover - the contract refused first
-        return False, "the answer could not be read, so it was never asked", False
+        return False, "ответ не прочитался, поэтому вопрос не задавали", False
     if answered.get("can_write") is True:
-        return True, "the session created a file where it landed and removed it again", True
+        return True, "сессия создала файл там, где стояла, и убрала его", True
     return (
         False,
-        "the session could not create a file where it landed — a sandbox, or a "
-        "declaration missing the flag that opens one",
+        "сессия не смогла создать файл там, где стояла: песочница или объявление "
+        "без флага, который её открывает",
         True,
     )
 
@@ -260,31 +260,31 @@ def _limits(executor: Any) -> tuple[bool, str, bool]:
     declared = getattr(executor, "declared", None)
     refuse = getattr(executor, "_refuse_if_limited", None)
     if declared is None or refuse is None:
-        return False, "it cannot be asked about limits", False
+        return False, "про лимиты его не спросить", False
     if not getattr(declared, "reads_limits", False):
-        return False, "it declares no way of telling a limited account", True
+        return False, "он не объявляет, по чему узнать исчерпанный аккаунт", True
 
     sample = f"{declared.limit_says[0]}. Your limit will reset at 5pm (UTC)."
     try:
         refuse(sample)
     except ExecutorFailed as refused:
         if refused.code == "provider-limited" and refused.until:
-            return True, f"a limited account is read, with the hour it resets ({refused.until})", True
-        return False, f"a limit is noticed but the hour is not read: {refused.detail}", True
-    return False, "its own declared phrases are not recognised", True
+            return True, f"исчерпанный аккаунт читается, и час сброса тоже ({refused.until})", True
+        return False, f"лимит замечен, а час не прочитан: {refused.detail}", True
+    return False, "его собственные объявленные фразы не узнаются", True
 
 
 def _binary(executor: Any) -> tuple[bool, str, bool]:
     binary = getattr(executor, "binary", None)
     if binary is None:
-        return False, "this provider is not a process; there is nothing to find", False
+        return False, "этот провайдер не процесс — искать нечего", False
     path = Path(binary)
     if path.is_absolute() or "/" in binary:
-        return (True, str(path), True) if path.is_file() else (False, f"{path} is not there", True)
+        return (True, str(path), True) if path.is_file() else (False, f"{path} — такого файла нет", True)
     from shutil import which
 
     found = which(binary)
-    return (bool(found), found or f"{binary} is not on PATH", True)
+    return (bool(found), found or f"{binary} не найден на PATH", True)
 
 
 def _answers(executor: Any) -> tuple[bool, str, bool]:
@@ -297,10 +297,10 @@ def _answers(executor: Any) -> tuple[bool, str, bool]:
     """
     version = getattr(executor, "version", None)
     if version is None:
-        return False, "it cannot be asked what it is", False
+        return False, "его не спросить, что он такое", False
     declared = getattr(executor, "declared", None)
     if declared is not None and not declared.flags.get("version"):
-        return False, "it declares no flag that asks it what it is", False
+        return False, "он не объявляет флага, которым спрашивают, что он такое", False
     try:
         return True, version(), True
     except ExecutorFailed as failure:

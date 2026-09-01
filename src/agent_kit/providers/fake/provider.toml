@@ -1,10 +1,12 @@
 [provider]
-title = "the provider that is not real"
+# The one shipped provider that is the kit's own, so its words are the kit's
+# words and a person reads them on `doctor`.
+title = "провайдер, который не настоящий"
 level = "A"
 real  = false
 notes = """
-A fixture, not an agent. It answers from files given as options — `reply=<path>`,
-repeated once per attempt — so the kit's own tests and the bench run with no CLI
-installed and no network. Everything up to the first adapter must be testable
-that way; that is why the second version's tests ran at all.
+Фикстура, а не агент. Отвечает из файлов, переданных опциями — `reply=<путь>`,
+по одному на попытку, — поэтому собственные тесты кита и стенд идут без единого
+установленного CLI и без сети. Всё до первого адаптера обязано проверяться
+именно так; на этом и держались тесты второй версии.
 """
