@@ -39,89 +39,89 @@ class Parser(argparse.ArgumentParser):
 def build_parser() -> argparse.ArgumentParser:
     parser = Parser(
         prog=PROGRAM,
-        description="Drives other people's CLI agents through a method that is a program, not prose.",
+        description="Водит чужие CLI-агенты по методу, который есть программа, а не проза.",
     )
-    parser.add_argument("--version", action="store_true", help="print the kit's version and exit")
-    parser.add_argument("-v", "--verbose", action="store_true", help="say what is happening on stderr")
-    parser.add_argument("-C", "--project", metavar="DIR", default=".", help="the project to work in (default: here)")
+    parser.add_argument("--version", action="store_true", help="напечатать версию кита и выйти")
+    parser.add_argument("-v", "--verbose", action="store_true", help="говорить в stderr, что происходит")
+    parser.add_argument("-C", "--project", metavar="DIR", default=".", help="проект, в котором работать (по умолчанию — этот)")
     commands = parser.add_subparsers(dest="command", metavar="COMMAND")
 
     commands.add_parser(
-        "next", help="where this project stands, and the one thing to do about it"
+        "next", help="где стоит проект и что с этим делать"
     )
-    commands.add_parser("doctor", help="what this machine is configured with, and what is missing")
+    commands.add_parser("doctor", help="чем настроена эта машина и чего не хватает")
 
     setup = commands.add_parser(
-        "setup", help="the way in: what to run to get a provider working here, and the config it writes"
+        "setup", help="ход внутрь: что запустить, чтобы провайдер здесь заработал, и что запишется в конфиг"
     )
     setup.add_argument(
         "name", nargs="?",
-        help="the provider to walk (default: the one that already works, or the first shipped)",
+        help="какой провайдер настраивать (по умолчанию — тот, что уже работает, иначе первый по списку)",
     )
 
-    manual = commands.add_parser("manual", help="the work a night cannot do, and what proves it done")
+    manual = commands.add_parser("manual", help="работа, которую ночь сделать не может, и чем она доказывается")
     manual_what = manual.add_subparsers(dest="what", metavar="WHAT")
     manual_check = manual_what.add_parser(
-        "check", help="run every proof and take away the lines that come back green"
+        "check", help="прогнать все доказательства и снять строки, которые вернулись зелёными"
     )
     manual_check.add_argument(
         "--timeout", type=int, default=None, metavar="SECONDS",
         help=f"how long one proof is given (default: {MANUAL_TIMEOUT})",
     )
 
-    init = commands.add_parser("init", help="write what this project declares, from what it already says")
-    init.add_argument("--force", action="store_true", help="overwrite a declaration that is already there")
+    init = commands.add_parser("init", help="записать, что проект объявляет, из того, что он уже говорит")
+    init.add_argument("--force", action="store_true", help="переписать объявление, которое уже лежит")
 
-    config = commands.add_parser("config", help="the machine's configuration")
+    config = commands.add_parser("config", help="конфигурация машины")
     config_what = config.add_subparsers(dest="what", metavar="WHAT")
-    config_what.add_parser("show", help="the effective configuration")
-    config_what.add_parser("path", help="where the configuration file lives")
+    config_what.add_parser("show", help="конфигурация, как она действует")
+    config_what.add_parser("path", help="где лежит файл конфигурации")
 
-    run = commands.add_parser("run", help="a run's state")
+    run = commands.add_parser("run", help="состояние прогона")
     run_what = run.add_subparsers(dest="what", metavar="WHAT")
 
-    new = run_what.add_parser("new", help="create a run")
+    new = run_what.add_parser("new", help="создать прогон")
     new.add_argument("slug")
-    new.add_argument("--brief", help="what this run is for, in your own words; every step's input encloses it")
-    new.add_argument("--steps", help="comma-separated step names (default: what `step list` calls the default)")
+    new.add_argument("--brief", help="зачем этот прогон, вашими словами; это вкладывается во вход каждого шага")
+    new.add_argument("--steps", help="имена шагов через запятую (по умолчанию — те, что `step list` называет умолчанием)")
 
 
-    go = run_what.add_parser("go", help="run every step that is left, and stop at the first that will not pass")
+    go = run_what.add_parser("go", help="пройти все оставшиеся шаги и встать на первом, который не пройдёт")
     go.add_argument("slug")
-    go.add_argument("--provider", help="who executes the steps a session does; the role table decides when left out")
+    go.add_argument("--provider", help="кто исполняет шаги, которые делает сессия; без этого решает таблица ролей")
     go.add_argument("--option", action="append", default=[], metavar="KEY=VALUE",
-                    help="an option for the provider, as its own block documents; repeat to give several")
+                    help="опция провайдеру, как описано в его собственном блоке; повторяйте, чтобы дать несколько")
     go.add_argument("--wait", type=int, metavar="SECONDS",
-                    help="how long to wait for a slot or a limit to reset; 0 refuses instead of waiting")
+                    help="сколько ждать слота или сброса лимита; 0 — отказать, а не ждать")
     go.add_argument("--silent", action="store_true",
-                    help="somebody else is telling the owner about this run; used by a batch, "
+                    help="про этот прогон владельцу расскажет кто-то другой; так делает партия, "
                          "so five features do not wake a phone five times")
 
-    show = run_what.add_parser("show", help="a run, as it stands")
+    show = run_what.add_parser("show", help="прогон, как он стоит")
     show.add_argument("slug")
-    show.add_argument("--json", action="store_true", help="the state itself, not a summary")
+    show.add_argument("--json", action="store_true", help="само состояние, а не сводка")
 
-    start = run_what.add_parser("start", help="start the next step")
+    start = run_what.add_parser("start", help="запустить следующий шаг")
     start.add_argument("slug")
-    start.add_argument("--provider", help="which provider this attempt used")
+    start.add_argument("--provider", help="каким провайдером шла эта попытка")
 
-    passed = run_what.add_parser("pass", help="the running step satisfied its contract")
+    passed = run_what.add_parser("pass", help="идущий шаг удовлетворил свой контракт")
     passed.add_argument("slug")
 
-    failed = run_what.add_parser("fail", help="the running step did not, and here is why")
+    failed = run_what.add_parser("fail", help="идущий шаг не удовлетворил, и вот почему")
     failed.add_argument("slug")
     failed.add_argument("reason")
 
-    stopped = run_what.add_parser("stop", help="stop the run, and say why")
+    stopped = run_what.add_parser("stop", help="остановить прогон и сказать почему")
     stopped.add_argument("slug")
     stopped.add_argument("reason")
 
     reopened = run_what.add_parser(
-        "reopen", help="carry a stopped run on from the step it stopped on"
+        "reopen", help="продолжить остановленный прогон с того шага, где он встал"
     )
     reopened.add_argument("slug")
 
-    batch = commands.add_parser("batch", help="an evening's work: several features, and what waits for what")
+    batch = commands.add_parser("batch", help="работа на вечер: несколько фич и что чего ждёт")
     batch_what = batch.add_subparsers(dest="what", metavar="WHAT")
 
     batch_compose = batch_what.add_parser(
@@ -143,114 +143,114 @@ def build_parser() -> argparse.ArgumentParser:
     batch_compose.add_argument("--wait", type=int, metavar="SECONDS",
                                help="сколько ждать слота; 0 отказывает вместо ожидания")
 
-    batch_new = batch_what.add_parser("new", help="create a batch from the file you wrote")
-    batch_new.add_argument("file", help="the declaration: features, briefs, and what needs what")
+    batch_new = batch_what.add_parser("new", help="создать партию из файла, который вы написали")
+    batch_new.add_argument("file", help="объявление: фичи, задачи и что чего ждёт")
 
 
-    batch_show = batch_what.add_parser("show", help="a batch, as it stands")
+    batch_show = batch_what.add_parser("show", help="партия, как она стоит")
     batch_show.add_argument("name")
-    batch_show.add_argument("--json", action="store_true", help="the state itself, not a summary")
+    batch_show.add_argument("--json", action="store_true", help="само состояние, а не сводка")
 
-    batch_go = batch_what.add_parser("go", help="build everything that is left, as much of it at once as fits")
+    batch_go = batch_what.add_parser("go", help="построить всё, что осталось, столько сразу, сколько влезет")
     batch_go.add_argument("name")
-    batch_go.add_argument("--provider", help="who executes the steps a session does")
+    batch_go.add_argument("--provider", help="кто исполняет шаги, которые делает сессия")
     batch_go.add_argument("--option", action="append", default=[], metavar="[FEATURE:]KEY=VALUE",
-                          help="an option for the provider; name a feature first to address one run")
+                          help="опция провайдеру; назовите сначала фичу, чтобы адресовать один прогон")
 
-    batch_stop = batch_what.add_parser("stop", help="stop the batch, and say why")
+    batch_stop = batch_what.add_parser("stop", help="остановить партию и сказать почему")
     batch_stop.add_argument("name")
     batch_stop.add_argument("reason")
 
-    batch_skip = batch_what.add_parser("skip", help="do not build this feature tonight — nor what needed it")
+    batch_skip = batch_what.add_parser("skip", help="не строить эту фичу сегодня — и то, что её ждало, тоже")
     batch_skip.add_argument("name")
     batch_skip.add_argument("feature")
     batch_skip.add_argument("reason")
 
     batch_reopen = batch_what.add_parser(
-        "reopen", help="build this feature after all, and whatever it took down with it"
+        "reopen", help="всё-таки построить эту фичу и то, что она увела за собой"
     )
     batch_reopen.add_argument("name")
     batch_reopen.add_argument("feature")
 
-    tree = commands.add_parser("tree", help="the working copies this project's runs build in")
+    tree = commands.add_parser("tree", help="рабочие копии, в которых строят прогоны этого проекта")
     tree_what = tree.add_subparsers(dest="what", metavar="WHAT")
-    tree_what.add_parser("list", help="every tree, and the branch it is on")
-    tree_remove = tree_what.add_parser("remove", help="take one away; the branch keeps the work")
+    tree_what.add_parser("list", help="каждое дерево и ветка, на которой оно стоит")
+    tree_remove = tree_what.add_parser("remove", help="убрать одно; работа остаётся на ветке")
     tree_remove.add_argument("slug")
 
     # No `list`: what it printed is the machine's standing, and that is now one
     # reading with two screens over it — `doctor` and `setup`. A third pass at
     # the same rows is the defect §5 of the plan names.
-    provider = commands.add_parser("provider", help="the providers this kit ships")
+    provider = commands.add_parser("provider", help="провайдеры, которые везёт этот кит")
     provider_what = provider.add_subparsers(dest="what", metavar="WHAT")
 
-    check = provider_what.add_parser("check", help="the level it earns, measured rather than claimed")
+    check = provider_what.add_parser("check", help="уровень, который он зарабатывает, — мерянный, а не объявленный")
     check.add_argument("name")
     check.add_argument("--option", action="append", default=[], metavar="KEY=VALUE",
-                       help="an option for the provider, as its own block documents")
+                       help="опция провайдеру, как описано в его собственном блоке")
 
-    step = commands.add_parser("step", help="the steps this kit knows, and running one")
+    step = commands.add_parser("step", help="шаги, которые знает этот кит, и запуск одного")
     step_what = step.add_subparsers(dest="what", metavar="WHAT")
 
-    step_what.add_parser("list", help="every step, with what it must return")
+    step_what.add_parser("list", help="каждый шаг и что он обязан вернуть")
 
-    show_step = step_what.add_parser("show", help="one step: its prose and its contract")
+    show_step = step_what.add_parser("show", help="один шаг: его проза и его контракт")
     show_step.add_argument("name")
 
-    step_input = step_what.add_parser("input", help="what the driver would enclose, without running it")
+    step_input = step_what.add_parser("input", help="что вложил бы драйвер, — без запуска")
     step_input.add_argument("slug")
     step_input.add_argument("--provider", default="by hand")
 
-    bench = commands.add_parser("bench", help="the planted traps, and which mechanisms fired")
+    bench = commands.add_parser("bench", help="подложенные ловушки и какие механизмы сработали")
     bench_what = bench.add_subparsers(dest="what", metavar="WHAT")
 
-    bench_list = bench_what.add_parser("list", help="every case, and what it says must fire")
-    bench_list.add_argument("--cases", metavar="DIR", help="where the cases are (default: the kit's own)")
+    bench_list = bench_what.add_parser("list", help="каждый случай и что, по его словам, должно сработать")
+    bench_list.add_argument("--cases", metavar="DIR", help="где лежат случаи (по умолчанию — собственные кита)")
 
-    bench_run = bench_what.add_parser("run", help="run every case and say which mechanisms fired")
-    bench_run.add_argument("--case", metavar="NAME", help="one case, by name")
-    bench_run.add_argument("--cases", metavar="DIR", help="where the cases are (default: the kit's own)")
+    bench_run = bench_what.add_parser("run", help="прогнать все случаи и сказать, какие механизмы сработали")
+    bench_run.add_argument("--case", metavar="NAME", help="один случай, по имени")
+    bench_run.add_argument("--cases", metavar="DIR", help="где лежат случаи (по умолчанию — собственные кита)")
     bench_run.add_argument("--keep", metavar="DIR",
-                           help="where to leave the world of a case that did not fire, for reading")
+                           help="куда положить мир случая, который не сработал, чтобы прочитать")
 
     bench_disarm = bench_what.add_parser(
-        "disarm", help="take each case's trap away and require it to stop firing")
-    bench_disarm.add_argument("--case", metavar="NAME", help="one case, by name")
-    bench_disarm.add_argument("--cases", metavar="DIR", help="where the cases are (default: the kit's own)")
+        "disarm", help="отнять у каждого случая его ловушку и потребовать, чтобы он перестал срабатывать")
+    bench_disarm.add_argument("--case", metavar="NAME", help="один случай, по имени")
+    bench_disarm.add_argument("--cases", metavar="DIR", help="где лежат случаи (по умолчанию — собственные кита)")
 
-    step_run = step_what.add_parser("run", help="run the next step of a run")
+    step_run = step_what.add_parser("run", help="запустить следующий шаг прогона")
     step_run.add_argument("slug")
-    step_run.add_argument("--provider", help="who executes it; the role table decides when this is left out")
+    step_run.add_argument("--provider", help="кто его исполняет; без этого решает таблица ролей")
     step_run.add_argument("--option", action="append", default=[], metavar="KEY=VALUE",
-                          help="an option for the provider, as its own block documents; repeat to give several")
+                          help="опция провайдеру, как описано в его собственном блоке; повторяйте, чтобы дать несколько")
     step_run.add_argument("--wait", type=int, metavar="SECONDS",
-                          help="how long to wait for a slot or a limit to reset; 0 refuses instead of waiting")
+                          help="сколько ждать слота или сброса лимита; 0 — отказать, а не ждать")
 
-    commands.add_parser("machine", help="what is running here, what is queued, what is limited")
+    commands.add_parser("machine", help="что здесь идёт, что в очереди, что исчерпано")
 
-    slot = commands.add_parser("slot", help="a slot by hand: what a script does where a driver would")
+    slot = commands.add_parser("slot", help="слот руками: то, что делает скрипт там, где стоял бы драйвер")
     slot_what = slot.add_subparsers(dest="what", metavar="WHAT")
-    take = slot_what.add_parser("take", help="hold a slot until it is given back")
+    take = slot_what.add_parser("take", help="держать слот, пока его не отдадут")
     take.add_argument("--provider", required=True)
     take.add_argument("--slug", required=True)
-    take.add_argument("--account", help="the quota pool; the provider's own name when left out")
+    take.add_argument("--account", help="пул квоты; без этого — имя самого провайдера")
     take.add_argument("--step", default="by-hand")
-    take.add_argument("--ttl", type=int, help="how many seconds it lives if nobody gives it back")
-    take.add_argument("--machine-max", type=int, help="the ceiling to judge it against; the configured one when left out")
-    take.add_argument("--pid", type=int, help="the process this lease belongs to; this one when left out")
-    wants = slot_what.add_parser("wants", help="stand in the queue, as a driver about to sleep does")
+    take.add_argument("--ttl", type=int, help="сколько секунд он живёт, если его никто не отдаст")
+    take.add_argument("--machine-max", type=int, help="потолок, против которого судить; без этого — настроенный")
+    take.add_argument("--pid", type=int, help="процесс, которому принадлежит аренда; без этого — этот")
+    wants = slot_what.add_parser("wants", help="встать в очередь, как встаёт драйвер перед сном")
     wants.add_argument("--provider", required=True)
     wants.add_argument("--slug", required=True)
     wants.add_argument("--step", default="build")
-    wants.add_argument("--account", help="the quota pool; the provider's own name when left out")
-    wants.add_argument("--pid", type=int, help="whose waiter it is; a dead one is reaped like any row")
+    wants.add_argument("--account", help="пул квоты; без этого — имя самого провайдера")
+    wants.add_argument("--pid", type=int, help="чей это ожидающий; мёртвого выметает как любую строку")
 
-    hold = slot_what.add_parser("hold", help="hold a run, as its driver does")
+    hold = slot_what.add_parser("hold", help="держать прогон, как держит его драйвер")
     hold.add_argument("--slug", required=True)
-    hold.add_argument("--pid", type=int, help="the process holding it; this one when left out")
+    hold.add_argument("--pid", type=int, help="процесс, который его держит; без этого — этот")
     hold.add_argument("--checkout", action="store_true",
-                      help="hold the project's working copy instead, as a run with no worktree does")
-    give_back = slot_what.add_parser("release", help="give back what was taken by hand, slot and run alike")
+                      help="держать вместо этого рабочую копию проекта, как прогон без своего дерева")
+    give_back = slot_what.add_parser("release", help="отдать то, что взяли руками, — и слот, и прогон")
     give_back.add_argument("--slug", required=True)
 
     ask = commands.add_parser("ask", help="вопрос владельцу руками: там, где стоял бы драйвер")
@@ -266,20 +266,20 @@ def build_parser() -> argparse.ArgumentParser:
     ask_clear = ask_what.add_parser("clear", help="снять вопрос, который завис")
     ask_clear.add_argument("id")
 
-    limit = commands.add_parser("limit", help="an account that is out of quota, and until when")
+    limit = commands.add_parser("limit", help="аккаунт, у которого кончилась квота, и до какого часа")
     limit_what = limit.add_subparsers(dest="what", metavar="WHAT")
-    limit_set = limit_what.add_parser("set", help="write down that an account is limited")
+    limit_set = limit_what.add_parser("set", help="записать, что аккаунт исчерпан")
     limit_set.add_argument("account")
-    limit_set.add_argument("--until", help="when it resets, as a time; an hour is assumed when left out")
-    limit_set.add_argument("--said-by", default="by hand", help="who found out")
-    limit_clear = limit_what.add_parser("clear", help="the account is answering again")
+    limit_set.add_argument("--until", help="когда он сбросится, временем; без этого предполагается час")
+    limit_set.add_argument("--said-by", default="by hand", help="кто это узнал")
+    limit_clear = limit_what.add_parser("clear", help="аккаунт снова отвечает")
     limit_clear.add_argument("account")
 
-    owner = commands.add_parser("owner", help="the channel to the person this machine works for")
+    owner = commands.add_parser("owner", help="канал к человеку, на которого работает эта машина")
     owner_what = owner.add_subparsers(dest="what", metavar="WHAT")
     owner_what.add_parser("setup", help="завести канал: бот, токен, чат — одной командой")
-    owner_what.add_parser("check", help="the ladder, and the rung it stopped on")
-    owner_say = owner_what.add_parser("say", help="send a line to the owner, and wait for nothing")
+    owner_what.add_parser("check", help="лестница и ступень, на которой она встала")
+    owner_say = owner_what.add_parser("say", help="отправить владельцу строку и ничего не ждать")
     owner_say.add_argument("text")
     owner_what.add_parser("set-token", help="прочитать токен бота с ввода и записать его 600")
 
@@ -303,7 +303,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     commands.add_parser(
         "verification",
-        help="the kinds of verification the kit knows, and what this project answers about each",
+        help="виды проверки, которые знает кит, и что проект отвечает о каждом",
     )
 
     audit = commands.add_parser(
@@ -324,13 +324,13 @@ def build_parser() -> argparse.ArgumentParser:
     audit.add_argument("--wait", type=int, metavar="SECONDS",
                        help="сколько ждать слота; 0 отказывает вместо ожидания")
 
-    daemon = commands.add_parser("daemon", help="the process that serves the page and sweeps up")
+    daemon = commands.add_parser("daemon", help="процесс, который отдаёт страницу и подметает")
     daemon_what = daemon.add_subparsers(dest="what", metavar="WHAT")
-    daemon_start = daemon_what.add_parser("start", help="raise it")
-    daemon_start.add_argument("--foreground", action="store_true", help="do not detach; what systemd starts")
-    daemon_what.add_parser("status", help="whether it is up, and where it answers")
-    daemon_what.add_parser("stop", help="ask it to go away")
-    daemon_what.add_parser("install", help="write the systemd user unit")
+    daemon_start = daemon_what.add_parser("start", help="поднять его")
+    daemon_start.add_argument("--foreground", action="store_true", help="не отцепляться; так его запускает systemd")
+    daemon_what.add_parser("status", help="поднят ли он и где отвечает")
+    daemon_what.add_parser("stop", help="попросить его уйти")
+    daemon_what.add_parser("install", help="записать пользовательский юнит systemd")
 
     return parser
 
