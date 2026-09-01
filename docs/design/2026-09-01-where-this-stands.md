@@ -4,14 +4,14 @@ Written for whoever opens a clean session next. Everything here is measured or d
 remembered: the four days behind it are in the notes named at the end, and this file exists so the
 next session starts from facts rather than from reading them all.
 
-## The numbers, as of `af10b37`
+## The numbers, as of S9c
 
 | | |
 |---|---|
-| `make test` | **1401**, about three and a half minutes |
-| `make bench` | **143 of 143** |
-| `make armed` | **138 disarm, 5 say in words why nothing can be taken away** |
-| branch | `v3`, pushed, tree clean |
+| `make test` | **1418**, about three and a half minutes |
+| `make bench` | **144 of 144** |
+| `make armed` | **139 disarm, 5 say in words why nothing can be taken away** |
+| branch | `v3`, tree clean |
 
 `make round` runs all three. `make test` deselects two whole-bench measurements and **prints which
 target measures them** — that is deliberate, and the note of 31 August explains it.
@@ -74,10 +74,12 @@ caught a provider that would otherwise have earned level A and silently built no
 
 ## The queue, in the order that makes sense
 
-1. **Requirements before installing.** The owner's own words: *right now I am debugging one provider
-   by talking to you — that is not the thing.* A provider should declare what a person needs before
-   it will work, and `setup` should print it **before** the install command rather than after a
-   refusal. Today `bubblewrap` was learned from a conversation, not from the kit.
+1. ~~**Requirements before installing.**~~ Built, 1 September 2026 —
+   `2026-09-01-s9c-requirements-before-installing.md`. `[[provider.requires]]` is a word asked of
+   PATH and a line saying why; the walk prints the list marked above the install command, `doctor`
+   names what is missing, and so does the ladder's cure. `codex` and `gemini_cli` require `node`,
+   measured. What is still open under this heading: a version bound cannot be declared, because
+   presence is all PATH answers.
 2. **A `writes` failure that names the cause.** It currently says *look at the flag in this
    provider's declaration* — a file the person has not opened and should not have to.
 3. **OpenCode**, so that four providers is true rather than a plan.
@@ -99,7 +101,9 @@ Both named in the notes rather than fixed, and both still true:
 
 - **There is no trace of a break round in the repository.** `make armed` answers *does this case read
   its own trap*, not *does breaking this mechanism redden exactly one case*. Every break table in
-  these notes rests on a builder's report and a reading of the judges.
+  these notes rests on a builder's report and a reading of the judges — the S9c table quotes the
+  bench's own sentences for its three breaks, which is closer, and still nothing the repository can
+  re-run for itself.
 - **Nothing has been driven by a live model.** The bench answers from `providers/fake/`. Every note
   says so in its own words, and it is why the first live run of the ladder found four things in an
   afternoon.
