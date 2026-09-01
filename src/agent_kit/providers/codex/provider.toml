@@ -29,7 +29,7 @@ way Claude Code's --setting-sources does. That is a standing debt, not a setting
 
 [provider.setup]
 # What a person runs. The kit prints these and runs neither: installing is the
-# owner's act on the owner's machine, and a login opens a browser. What the
+# owner's act on the owner's machine, and so is a login. What the
 # install did is measured afterwards by looking for `binary` again.
 #
 # `--device-auth` and not a bare `codex login`: the machine this kit was built
@@ -38,8 +38,10 @@ way Claude Code's --setting-sources does. That is a standing debt, not a setting
 # somewhere else, which is the flow that works from a terminal.
 install = ["npm", "install", "-g", "@openai/codex"]
 login   = ["codex", "login", "--device-auth"]
-# Why this one does not say "a browser will open": on this machine none will.
-login_note = "Появится код: наберите его в браузере на другой машине — на сервере браузера нет."
+# `--device-auth` is declared above precisely so that nothing has to open on
+# the host, so this note names no browser here either. Where the code is typed
+# is wherever the person keeps a browser, which the kit has no way of knowing.
+login_note = "Появится код: наберите его в браузере у себя. Открывать что-либо на этой машине не нужно — `--device-auth` объявлен ровно за этим."
 
 [provider.flags]
 # The shape: a flag that carries a value is [flag], and the value follows it.

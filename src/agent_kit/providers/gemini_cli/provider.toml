@@ -18,9 +18,12 @@ the tool goes non-interactive by itself when stdin is not a terminal, and the ki
 always hands it a pipe. It answers in plain text, and the kit finds the step's
 output in the last fenced block.
 
-There is no login command either. Signing in is the tool itself: run `gemini`,
-choose an account in the screen it opens, and then leave the screen — it stays
-running until you do, and the walk is waiting on the line you type after.
+There is no login command either, and no auth flag: `gemini --help` carries
+neither. Signing in is the tool itself — run `gemini`, and the first
+interactive run asks which way to sign in. Measured here on 1 September 2026,
+on a host with no screen: the Google way prints a link into the terminal
+rather than opening anything, and the screen stays running until somebody
+leaves it, with the walk waiting on the line typed after.
 
 What it reads from the machine it runs on: this repository's GEMINI.md, and also
 the operator's personal one. There is no flag that narrows it to the project.
@@ -31,9 +34,13 @@ install = ["npm", "install", "-g", "@google/gemini-cli"]
 # Not a subcommand: this tool has none for signing in. The precedent is already
 # shipped — claude_code's login is a slash command typed inside its own screen.
 login   = ["gemini"]
-# The screen it opens stays open until somebody leaves it, and the walk is
-# waiting on the line typed after. Said here because it is true of this tool.
-login_note = "Откроется браузер. Выберите аккаунт и выйдите из экрана: сам он не закроется."
+# Measured on the machine this kit runs on, 1 September 2026, and it corrects
+# what the line above was first written from. There is no login subcommand and
+# no auth flag — `gemini --help` has neither — so signing in happens only at
+# the first interactive run, where the tool asks which way to sign in. On a
+# host with no screen the Google way prints a link into the terminal rather
+# than opening anything, which is why this note names no browser opening here.
+login_note = "Подкоманды входа у этого инструмента нет: способ входа он спросит при первом запуске. Выберите Google — он напечатает ссылку, откройте её в браузере у себя. Потом выйдите из его экрана: сам он не закроется."
 
 [provider.flags]
 # `--yolo` is deprecated in favour of the unified approval mode, and the two

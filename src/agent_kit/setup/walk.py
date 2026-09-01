@@ -1,9 +1,14 @@
 """`agent-kit setup` — the walk a person takes on a machine with nothing on it.
 
 It prints commands and runs none. Installing is the owner's act on the owner's
-machine, and a login opens a browser; an installer that reports *done* is the
-assertion instead of a trace this whole plan is written against, while a printed
-command followed by a re-measurement is a trace.
+machine, and so is a login; an installer that reports *done* is the assertion
+instead of a trace this whole plan is written against, while a printed command
+followed by a re-measurement is a trace.
+
+And it says *where* to run what it prints. The walk holds this terminal until
+somebody tells it they went and did it, so the command belongs in another
+window — which the screen did not say, and the owner typed it into the window
+that was waiting.
 
 It spends nothing. The two free rungs are climbed again after the person says
 they have run what was printed, and the rungs above them — the ones that cost a
@@ -71,6 +76,20 @@ STEPS = {
 BODY = " " * 7
 COMMAND = " " * 11
 WIDTH = 66
+
+#: Where the command goes, said at every step that prints one.
+#:
+#: The walk blocks on the line after the command: it is holding this terminal,
+#: waiting to be told the person went and did it. The owner read `run this` on
+#: a real server, typed it into the window that was holding the prompt, and
+#: nothing happened — "у меня ничего не произошло на этом шаге". Where to run
+#: it is part of the instruction and not a nicety.
+#:
+#: Repeated at both steps rather than said once at the top, because the steps
+#: are not always both there: on a machine where the tool is already standing
+#: the login is step one, and a sentence that leaned on the install step would
+#: be missing on exactly the machine the owner was standing at.
+ELSEWHERE = "Откройте второй терминал — это окно ждёт вашего Enter — и выполните там:"
 
 
 def walk(
@@ -199,6 +218,7 @@ def _install(one: Standing, ask, say, mark: str, paths: Paths) -> Standing:
         return one
 
     _prose(say, _why_it_is_not_here(one))
+    _prose(say, ELSEWHERE)
     _command(say, one.install)
     if one.installer_missing:
         # Measured, not guessed: the first word of the argv, asked of PATH. It
@@ -213,19 +233,27 @@ def _install(one: Standing, ask, say, mark: str, paths: Paths) -> Standing:
 def _why_it_is_not_here(one: Standing) -> str:
     """Not found, or found and silent. Two different mornings for whoever reads it."""
     if one.stopped_on == "binary":
-        return "Не найден на этой машине. Выполните:"
-    return "Он здесь, но не отвечает. Поставьте заново:"
+        return "Не найден на этой машине."
+    return "Он здесь, но не отвечает — поставьте заново."
 
 
 def _login(one: Standing, ask, say, mark: str) -> None:
+    """The command, where to run it, and what the tool will do — in that order.
+
+    Nothing here says a browser will open. The kit does not know where the
+    person is sitting: it was written for a server reached over a private
+    network, which has no screen for one to open on, and it installs onto a
+    laptop just as well. What the tool actually does belongs to the tool, so
+    it is the declaration that says it — and the declaration has to have been
+    measured on a machine rather than read out of a reference. `gemini` was
+    declared as opening a browser and prints a link into the terminal instead;
+    the first live walk is what found that out.
+    """
     _heading(say, mark, "login")
-    _prose(say, "Ключа кит не видит: подписка остаётся делом самого инструмента.")
+    _prose(say, "Ключа кит не видит: вход остаётся делом самого инструмента.")
+    _prose(say, ELSEWHERE)
     _command(say, one.login)
     if one.login_note:
-        # The declaration's, not the walk's. What running this does differs by
-        # tool: one opens a browser, one opens a screen that does not close
-        # itself, one prints a code to type on another machine because a server
-        # has no browser to open. One sentence for all three is wrong about two.
         _prose(say, one.login_note)
     _done(ask, say)
 

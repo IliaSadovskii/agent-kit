@@ -16,13 +16,15 @@ never sees a key and never talks to a model API.
 
 [provider.setup]
 # What a person runs. The kit prints these and runs neither: installing is the
-# owner's act on the owner's machine, and a login opens a browser. What the
+# owner's act on the owner's machine, and so is a login. What the
 # install did is measured afterwards by looking for `binary` again.
 install = ["npm", "install", "-g", "@anthropic-ai/claude-code"]
 login   = ["claude", "/login"]
-# One line at the person standing mid-install, and it is about this tool:
-# `/login` is typed inside Claude Code's own screen, not at the shell.
-login_note = "Это команда внутри самого claude: он откроет браузер, выберите аккаунт и закройте его экран."
+# One line at the person standing mid-install, and it is about this tool. It
+# says nothing about a browser opening here for the same reason the other two
+# do not: what this host can open is not something the kit knows, and this
+# login has never been measured on a machine with no screen.
+login_note = "Вход проведёт сам claude. Ссылку, которую он покажет, открывайте в браузере у себя, а потом выйдите из его экрана."
 
 [provider.flags]
 # The shape: a flag that carries a value is [flag], and the value follows it.
