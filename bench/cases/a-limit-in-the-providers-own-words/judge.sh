@@ -11,13 +11,19 @@ grep -q '5pm (America/Los_Angeles)' "$BENCH/after" ||
 # And the hour it stands until is a real one, within a day of now. Stored as it
 # came, "5pm …" sorts above every date there will ever be: the account would be
 # limited for good, and no sweep would ever clear it.
-python3 - <<'PY' || exit 1
-import datetime, os, re, sys
-said = open(os.path.join(os.environ["BENCH"], "after"), encoding="utf-8").read()
-found = re.search(r"until (\S+)", said)
-if not found:
+# Asked of the ledger and not scraped off the screen: `until (\S+)` was reading
+# an English word out of `agent-kit machine`, and it went red on the translation
+# with the mechanism untouched. The hour is a value the kit stores and hands
+# back, which is what a case is allowed to measure.
+$PYTHON - <<'PY' || exit 1
+import datetime, sys
+from agent_kit.machine import Ledger, ledger_path
+from agent_kit.paths import Paths
+
+limits = Ledger(ledger_path(Paths.from_env())).picture().limits
+if not limits:
     print("the limit says no hour at all"); sys.exit(1)
-until = datetime.datetime.fromisoformat(found.group(1))
+until = datetime.datetime.fromisoformat(limits[0].until)
 if until > datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1):
     print(f"the account is limited until {until}, which is not an hour anybody said"); sys.exit(1)
 PY
