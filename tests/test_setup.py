@@ -44,8 +44,24 @@ def ships(tmp_path, monkeypatch, **declarations):
 NEWCOMER = (
     '[provider]\ntitle = "the newcomer"\nbinary = "newcomer"\n'
     'notes = "a tool that has to be put here first"\n\n'
-    '[provider.setup]\ninstall = ["put-it-there", "newcomer"]\nlogin = ["newcomer", "login"]\n\n'
+    '[provider.setup]\ninstall = ["put-it-there", "newcomer"]\nlogin = ["newcomer", "login"]\n'
+    'login_note = "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0430\u043a\u043a\u0430\u0443\u043d\u0442 \u0438 \u0432\u044b\u0439\u0434\u0438\u0442\u0435 \u0438\u0437 \u044d\u043a\u0440\u0430\u043d\u0430."\n\n'
     '[provider.flags]\nversion = ["--version"]\n'
+)
+
+#: The same tool, with nothing to log in to. What is left is the writing alone.
+NO_LOGIN = (
+    '[provider]\ntitle = "the newcomer"\nbinary = "newcomer"\n\n'
+    '[provider.setup]\ninstall = ["put-it-there", "newcomer"]\n\n'
+    '[provider.flags]\nversion = ["--version"]\n'
+)
+
+WALL = "a paragraph nobody standing mid-install has any use for"
+
+#: Four paragraphs written for a reader of `provider.toml`.
+WORDY = NEWCOMER.replace(
+    'notes = "a tool that has to be put here first"',
+    f'notes = """\n{WALL}\n\nand a second one, and a third, and a fourth\n"""',
 )
 
 
@@ -376,3 +392,148 @@ def test_a_bare_walk_on_a_machine_with_nothing_takes_the_first_shipped(
 
     assert caught.value.code == "provider-not-ready"
     assert "newcomer" in "\n".join(printed)
+
+
+# --- S9b: how many steps there are, and how far along this one is ------------
+
+
+def test_the_walk_numbers_the_steps_it_will_take(machine, tmp_path, monkeypatch):
+    """A machine with nothing on it: put the tool there, log it in, write it down."""
+    ships(tmp_path, monkeypatch, newcomer=NEWCOMER)
+    printed, say = saying()
+
+    def person(prompt):
+        installs(tmp_path)  # what they did in the other terminal
+        return "\n"
+
+    walk("newcomer", ask=person, say=say, paths=machine)
+
+    screen = "\n".join(printed)
+    assert "3 шага" in screen
+    assert "1/3" in screen and "2/3" in screen and "3/3" in screen
+
+
+def test_a_tool_already_standing_is_a_walk_of_two_steps(machine, tmp_path, monkeypatch):
+    """The count is derived from what the walk will do, not written down beside it.
+
+    A person who is only logging in is told `1/2`, and a walk that always said
+    three would be counting a step it has already decided not to take.
+    """
+    ships(tmp_path, monkeypatch, newcomer=NEWCOMER)
+    installs(tmp_path)
+    printed, say = saying()
+
+    walk("newcomer", ask=typing("\n", "\n"), say=say, paths=machine)
+
+    screen = "\n".join(printed)
+    assert "2 шага" in screen
+    assert "1/2" in screen and "2/2" in screen
+    assert "/3" not in screen
+
+
+def test_a_tool_with_nothing_left_but_the_writing_is_one_step(machine, tmp_path, monkeypatch):
+    """And it asks nothing at all: the stream is empty and the walk still ends."""
+    ships(tmp_path, monkeypatch, newcomer=NO_LOGIN)
+    installs(tmp_path)
+    printed, say = saying()
+
+    code = walk("newcomer", ask=typing(), say=say, paths=machine)
+
+    screen = "\n".join(printed)
+    assert code == ExitCode.OK
+    assert "1 шаг" in screen
+    assert "1/1" in screen
+
+
+def test_the_pool_question_is_a_step_and_the_count_says_so(machine, tmp_path, monkeypatch):
+    """The one question that is not a command to run is still a step of the walk,
+    and a count that left it out would run out before the screen did."""
+    ships(tmp_path, monkeypatch, newcomer=NEWCOMER)
+    installs(tmp_path)
+    machine.config_file.parent.mkdir(parents=True, exist_ok=True)
+    machine.config_file.write_text("[providers.other]\nenabled = true\n", encoding="utf-8")
+    printed, say = saying()
+
+    walk("newcomer", ask=typing("\n", "one-subscription\n"), say=say, paths=machine)
+
+    screen = "\n".join(printed)
+    assert "3 шага" in screen
+    assert "1/3" in screen and "2/3" in screen and "3/3" in screen
+
+
+def test_the_step_a_person_is_on_is_numbered_where_it_is_printed(machine, tmp_path, monkeypatch):
+    """Not just present somewhere: the mark stands at the head of its own step."""
+    ships(tmp_path, monkeypatch, newcomer=NEWCOMER)
+    installs(tmp_path)
+    printed, say = saying()
+
+    walk("newcomer", ask=typing("\n", "\n"), say=say, paths=machine)
+
+    marked = [line.strip().split()[0] for line in printed if line.strip()[:3] in ("1/2", "2/2")]
+    assert marked == ["1/2", "2/2"]
+
+
+# --- S9b: what the walk stopped printing ------------------------------------
+
+
+def test_the_walk_names_the_one_it_walks_and_not_the_whole_catalogue(
+    machine, tmp_path, monkeypatch
+):
+    """`doctor` answers what this machine has. A walk that opens with the same
+    inventory answers a question nobody asked and buries the step that is next."""
+    ships(
+        tmp_path, monkeypatch, newcomer=NEWCOMER,
+        zzz_elsewhere='[provider]\ntitle = "the one nobody named"\nbinary = "zzz-elsewhere"\n',
+    )
+    installs(tmp_path)
+    printed, say = saying()
+
+    walk("newcomer", ask=typing("\n", "\n"), say=say, paths=machine)
+
+    screen = "\n".join(printed)
+    assert "zzz-elsewhere" not in screen
+    assert "the one nobody named" not in screen
+
+
+def test_the_declarations_notes_are_not_dumped_at_somebody_mid_install(
+    machine, tmp_path, monkeypatch
+):
+    """Four paragraphs written for a reader of `provider.toml` are a wall in
+    front of a person who wants to know what to type next."""
+    ships(tmp_path, monkeypatch, newcomer=WORDY)
+    installs(tmp_path)
+    printed, say = saying()
+
+    walk("newcomer", ask=typing("\n", "\n"), say=say, paths=machine)
+
+    assert WALL not in "\n".join(printed)
+
+
+def test_the_notes_read_at_the_screen_whose_question_they_answer(
+    machine, tmp_path, monkeypatch, capsys
+):
+    """Rule 5: a field with no reader is not written. The walk prints one line
+    now, so `notes` reads where the question is *what this machine has*."""
+    from agent_kit.cli.main import main
+
+    ships(tmp_path, monkeypatch, newcomer=WORDY)
+    installs(tmp_path)
+
+    code = main(["doctor"])
+
+    assert code == ExitCode.OK
+    assert WALL in capsys.readouterr().out
+
+
+def test_the_line_the_walk_does_print_is_the_declarations_own(
+    machine, tmp_path, monkeypatch
+):
+    """What a person must do inside the login screen is true of the tool, so it
+    is declared beside the command rather than guessed at by the walk."""
+    ships(tmp_path, monkeypatch, newcomer=NEWCOMER)
+    installs(tmp_path)
+    printed, say = saying()
+
+    walk("newcomer", ask=typing("\n", "\n"), say=say, paths=machine)
+
+    assert "Выберите аккаунт и выйдите из экрана." in "\n".join(printed)
